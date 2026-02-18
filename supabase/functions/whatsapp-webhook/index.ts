@@ -214,6 +214,8 @@ Você é proativo, organizado e comunica tudo de forma clara e estruturada usand
 - Registrar lançamentos financeiros (receitas e despesas)
 - Consultar saldos, resumos e relatórios
 - Gerar DRE (Demonstração do Resultado do Exercício)
+- Gerar *Resumo Executivo Mensal* completo com análises e recomendações
+- Gerar *Previsão de Fluxo de Caixa* dos próximos 3 meses com gráfico visual
 - Dar dicas e análises financeiras
 - Responder qualquer pergunta sobre a saúde financeira da empresa
 
@@ -283,6 +285,16 @@ Quando pedirem DRE ou demonstração de resultado, monte assim:
 📊 *Margem líquida:* X%"
 
 E depois adicione <ACTION>{"action":"send_chart"}</ACTION> para eu gerar um gráfico visual.
+
+### Para Resumo Executivo:
+Quando o usuário pedir resumo executivo, relatório do mês, resumo mensal, análise do mês, ou algo similar:
+- Responda dizendo que está gerando o resumo
+- Inclua <ACTION>{"action":"send_executive_summary"}</ACTION>
+
+### Para Previsão de Fluxo de Caixa:
+Quando o usuário pedir previsão de fluxo de caixa, forecast, projeção, quanto vou faturar, previsão dos próximos meses, ou algo similar:
+- Responda dizendo que está gerando a previsão
+- Inclua <ACTION>{"action":"send_cashflow_forecast"}</ACTION>
 
 ### Para conversas gerais:
 - Seja simpático e profissional
@@ -378,6 +390,44 @@ E depois adicione <ACTION>{"action":"send_chart"}</ACTION> para eu gerar um grá
           }
         } catch (chartErr) {
           console.error("Chart generation error:", chartErr);
+        }
+      } else if (action.action === "send_executive_summary") {
+        try {
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📝 _Gerando seu resumo executivo... aguarde._");
+          const summaryText = await generateExecutiveSummary(ctx.companyId, ctx.supabase, lovableApiKey);
+          if (summaryText) {
+            // Split long messages (WhatsApp limit ~4096 chars)
+            const chunks = splitMessage(summaryText, 3800);
+            for (const chunk of chunks) {
+              await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, chunk);
+            }
+          } else {
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar o resumo executivo. Tente novamente.");
+          }
+        } catch (err) {
+          console.error("Executive summary error:", err);
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "❌ Erro ao gerar resumo executivo.");
+        }
+      } else if (action.action === "send_cashflow_forecast") {
+        try {
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📊 _Analisando dados e gerando previsão de fluxo de caixa..._");
+          const forecastResult = await generateCashFlowForecast(ctx.companyId, ctx.supabase, lovableApiKey);
+          if (forecastResult) {
+            // Send text summary
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, forecastResult.text);
+            // Generate and send visual chart
+            if (forecastResult.chartData) {
+              const imageBase64 = await generateForecastChart(forecastResult.chartData, lovableApiKey);
+              if (imageBase64) {
+                await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, "📈 Previsão de Fluxo de Caixa — Próximos 3 meses");
+              }
+            }
+          } else {
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar a previsão. Tente novamente.");
+          }
+        } catch (err) {
+          console.error("Cashflow forecast error:", err);
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "❌ Erro ao gerar previsão de fluxo de caixa.");
         }
       }
     }
@@ -489,6 +539,188 @@ async function sendWhatsAppImage(instanceName: string, remoteJid: string, base64
 }
 
 // ─── CHART GENERATION ──────────────────────────────────────────────────────────
+
+function splitMessage(text: string, maxLen: number): string[] {
+  if (text.length <= maxLen) return [text];
+  const chunks: string[] = [];
+  let remaining = text;
+  while (remaining.length > 0) {
+    if (remaining.length <= maxLen) { chunks.push(remaining); break; }
+    let splitIdx = remaining.lastIndexOf("\n", maxLen);
+    if (splitIdx < maxLen * 0.3) splitIdx = maxLen;
+    chunks.push(remaining.slice(0, splitIdx));
+    remaining = remaining.slice(splitIdx).trimStart();
+  }
+  return chunks;
+}
+
+async function generateExecutiveSummary(companyId: string, supabase: any, apiKey: string): Promise<string | null> {
+  const now = new Date();
+  const curStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const curEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+  const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split("T")[0];
+  const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split("T")[0];
+
+  const [curRes, prevRes, companyRes] = await Promise.all([
+    supabase.from("transactions").select("amount, type, description, date, chart_of_accounts(name, code), cost_centers(name)").eq("company_id", companyId).eq("status", "confirmed").gte("date", curStart).lte("date", curEnd),
+    supabase.from("transactions").select("amount, type, description, chart_of_accounts(name, code), cost_centers(name)").eq("company_id", companyId).eq("status", "confirmed").gte("date", prevStart).lte("date", prevEnd),
+    supabase.from("companies").select("name").eq("id", companyId).single(),
+  ]);
+
+  const cur = curRes.data || [];
+  const prev = prevRes.data || [];
+  const companyName = companyRes.data?.name || "Empresa";
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const curRevenue = cur.filter((t: any) => t.type === "revenue").reduce((s: number, t: any) => s + Number(t.amount), 0);
+  const curExpense = cur.filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + Number(t.amount), 0);
+  const prevRevenue = prev.filter((t: any) => t.type === "revenue").reduce((s: number, t: any) => s + Number(t.amount), 0);
+  const prevExpense = prev.filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+  const expByAccount: Record<string, number> = {};
+  const revByAccount: Record<string, number> = {};
+  for (const t of cur) {
+    const name = (t as any).chart_of_accounts?.name || "Sem classificação";
+    const amount = Number(t.amount);
+    if (t.type === "expense") expByAccount[name] = (expByAccount[name] || 0) + amount;
+    else revByAccount[name] = (revByAccount[name] || 0) + amount;
+  }
+
+  const monthName = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const prevMonthName = new Date(now.getFullYear(), now.getMonth() - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  const prompt = `Gere um resumo executivo para WhatsApp da empresa "${companyName}".
+
+Dados de ${monthName}: Receita ${fmt(curRevenue)}, Despesas ${fmt(curExpense)}, Resultado ${fmt(curRevenue - curExpense)}, Margem ${curRevenue > 0 ? ((curRevenue - curExpense) / curRevenue * 100).toFixed(1) : "0"}%
+Receitas: ${Object.entries(revByAccount).map(([n, v]) => `${n}: ${fmt(v)}`).join(", ") || "Nenhuma"}
+Despesas: ${Object.entries(expByAccount).map(([n, v]) => `${n}: ${fmt(v)}`).join(", ") || "Nenhuma"}
+
+Mês anterior (${prevMonthName}): Receita ${fmt(prevRevenue)}, Despesas ${fmt(prevExpense)}, Resultado ${fmt(prevRevenue - prevExpense)}
+
+Formate para WhatsApp usando *negrito*, _itálico_, emojis. Inclua:
+1. Visão geral do mês
+2. Destaques positivos
+3. Pontos de atenção  
+4. Comparativo vs mês anterior com %
+5. 3 recomendações práticas
+Seja direto e profissional.`;
+
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: "google/gemini-2.5-flash", messages: [{ role: "system", content: "Você é um CFO que gera resumos executivos claros para WhatsApp." }, { role: "user", content: prompt }], temperature: 0.4 }),
+    });
+    if (!res.ok) { console.error("Summary AI error:", res.status); return null; }
+    const result = await res.json();
+    return result.choices?.[0]?.message?.content || null;
+  } catch (err) { console.error("Executive summary generation error:", err); return null; }
+}
+
+async function generateCashFlowForecast(companyId: string, supabase: any, apiKey: string): Promise<{ text: string; chartData: any } | null> {
+  const now = new Date();
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+  const startDate = sixMonthsAgo.toISOString().split("T")[0];
+  const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+  const { data: transactions } = await supabase.from("transactions").select("date, amount, type").eq("company_id", companyId).eq("status", "confirmed").gte("date", startDate).order("date", { ascending: true });
+
+  const txData = transactions || [];
+  const monthlyData: Record<string, { revenue: number; expense: number }> = {};
+  for (const t of txData) {
+    const key = t.date.slice(0, 7);
+    if (!monthlyData[key]) monthlyData[key] = { revenue: 0, expense: 0 };
+    if (t.type === "revenue") monthlyData[key].revenue += Number(t.amount);
+    else monthlyData[key].expense += Number(t.amount);
+  }
+
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const monthSummary = Object.entries(monthlyData).sort(([a], [b]) => a.localeCompare(b)).map(([key, val]) => {
+    const [y, m] = key.split("-");
+    return `${monthNames[parseInt(m) - 1]}/${y}: Receita ${fmt(val.revenue)}, Despesa ${fmt(val.expense)}`;
+  }).join("\n");
+
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: `Você é um analista financeiro. Baseado nos dados históricos, gere previsão de 3 meses. Responda APENAS com JSON: {"forecast":[{"month":"Mês/Ano","projected_revenue":N,"projected_expense":N,"confidence":"high|medium|low"}],"insights":["insight1","insight2","insight3"],"risk_level":"low|medium|high","risk_explanation":"explicação"}` },
+          { role: "user", content: `Dados históricos:\n${monthSummary || "Sem dados"}` },
+        ],
+        temperature: 0.3,
+      }),
+    });
+    if (!res.ok) { console.error("Forecast AI error:", res.status); return null; }
+    const result = await res.json();
+    const content = result.choices?.[0]?.message?.content || "";
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const forecast = JSON.parse(jsonMatch[0]);
+    const riskLabel = forecast.risk_level === "low" ? "🟢 Baixo" : forecast.risk_level === "high" ? "🔴 Alto" : "🟡 Médio";
+    const confLabel = (c: string) => c === "high" ? "Alta" : c === "medium" ? "Média" : "Baixa";
+
+    let text = `📊 *Previsão de Fluxo de Caixa*\n_Próximos 3 meses_\n\n`;
+    for (const f of forecast.forecast || []) {
+      const saldo = f.projected_revenue - f.projected_expense;
+      text += `*${f.month}*\n📈 Receita: ${fmt(f.projected_revenue)}\n📉 Despesa: ${fmt(f.projected_expense)}\n💰 Saldo: ${fmt(saldo)}\n🎯 Confiança: ${confLabel(f.confidence)}\n\n`;
+    }
+    text += `⚠️ *Nível de Risco:* ${riskLabel}\n${forecast.risk_explanation || ""}\n\n`;
+    text += `💡 *Insights:*\n`;
+    for (const ins of forecast.insights || []) {
+      text += `• ${ins}\n`;
+    }
+
+    return { text, chartData: { history: monthlyData, forecast: forecast.forecast, monthNames } };
+  } catch (err) { console.error("Forecast generation error:", err); return null; }
+}
+
+async function generateForecastChart(chartData: any, apiKey: string): Promise<string | null> {
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const monthNames = chartData.monthNames;
+
+  const historyLines = Object.entries(chartData.history as Record<string, { revenue: number; expense: number }>)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, val]) => {
+      const [y, m] = key.split("-");
+      return `${monthNames[parseInt(m) - 1]}/${y.slice(2)}: Receita ${fmt(val.revenue)}, Despesa ${fmt(val.expense)}`;
+    }).join("\n");
+
+  const forecastLines = (chartData.forecast || []).map((f: any) =>
+    `${f.month}: Receita ${fmt(f.projected_revenue)}, Despesa ${fmt(f.projected_expense)} (confiança: ${f.confidence})`
+  ).join("\n");
+
+  const prompt = `Create a clean, professional cash flow forecast chart image in Portuguese (Brazil) with dark background (#1a1a2e).
+
+Title: "Previsão de Fluxo de Caixa — Próximos 3 Meses"
+
+Show a bar chart with:
+1. Historical months (solid bars):
+${historyLines || "No historical data"}
+
+2. Projected months (semi-transparent/striped bars):
+${forecastLines || "No forecast data"}
+
+Use green (#10b981) for revenue, red (#ef4444) for expenses. Projected bars should be slightly transparent or have a dashed border.
+Add a trend line showing the net balance.
+Style: Modern fintech, 16:9 landscape, rounded corners, clean typography. No watermarks.`;
+
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: "google/gemini-2.5-flash-image", messages: [{ role: "user", content: prompt }], modalities: ["image", "text"] }),
+    });
+    if (!res.ok) { console.error("Forecast chart AI error:", res.status); return null; }
+    const result = await res.json();
+    const imageUrl = result.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    if (!imageUrl) return null;
+    return imageUrl.replace(/^data:image\/\w+;base64,/, "");
+  } catch (err) { console.error("Forecast chart error:", err); return null; }
+}
 
 async function generateFinancialChart(chartData: any, lovableApiKey: string): Promise<string | null> {
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
