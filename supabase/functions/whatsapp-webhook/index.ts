@@ -327,7 +327,7 @@ E depois adicione <ACTION>{"action":"send_chart"}</ACTION> para eu gerar um grá
             type: action.type,
             date: action.date || today,
             source: "whatsapp",
-            status: "pending",
+            status: "confirmed",
             account_id: action.account_id || null,
             cost_center_id: action.cost_center_id || null,
           });

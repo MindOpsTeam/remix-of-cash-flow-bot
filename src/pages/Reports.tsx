@@ -101,6 +101,18 @@ export default function Reports() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Realtime: reload when transactions change
+  useEffect(() => {
+    if (!company) return;
+    const channel = supabase
+      .channel('reports-transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `company_id=eq.${company.id}` }, () => {
+        loadData();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [company, loadData]);
+
   return (
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
