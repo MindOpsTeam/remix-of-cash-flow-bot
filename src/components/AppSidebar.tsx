@@ -1,4 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -7,6 +9,7 @@ import {
   MessageSquare,
   Settings,
   Building2,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -20,6 +23,8 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const { signOut } = useAuth();
+  const { company } = useCompany();
 
   return (
     <aside className="hidden lg:flex w-64 flex-col bg-sidebar border-r border-sidebar-border">
@@ -55,11 +60,23 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="p-4 mx-3 mb-4 glass-card">
-        <p className="text-xs text-muted-foreground mb-1">Empresa ativa</p>
-        <p className="text-sm font-semibold text-foreground">Tech Solutions Ltda</p>
-        <p className="text-xs text-muted-foreground">CNPJ: 12.345.678/0001-90</p>
+      <div className="px-3 mb-2">
+        <button
+          onClick={signOut}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground transition-all duration-200 w-full"
+        >
+          <LogOut className="h-4 w-4" />
+          Sair
+        </button>
       </div>
+
+      {company && (
+        <div className="p-4 mx-3 mb-4 glass-card">
+          <p className="text-xs text-muted-foreground mb-1">Empresa ativa</p>
+          <p className="text-sm font-semibold text-foreground">{company.name}</p>
+          {company.cnpj && <p className="text-xs text-muted-foreground">{company.cnpj}</p>}
+        </div>
+      )}
     </aside>
   );
 }
