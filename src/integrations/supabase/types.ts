@@ -274,6 +274,137 @@ export type Database = {
           },
         ]
       }
+      webhook_logs: {
+        Row: {
+          company_id: string
+          created_at: string
+          direction: string
+          error_message: string | null
+          id: string
+          payload: Json
+          response_status: number | null
+          status: string
+          transaction_id: string | null
+          webhook_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          direction: string
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          response_status?: number | null
+          status?: string
+          transaction_id?: string | null
+          webhook_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          response_status?: number | null
+          status?: string
+          transaction_id?: string | null
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_logs_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_logs_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks: {
+        Row: {
+          active: boolean
+          auto_create_transaction: boolean
+          company_id: string
+          created_at: string
+          default_account_id: string | null
+          default_cost_center_id: string | null
+          default_type: string | null
+          direction: string
+          id: string
+          name: string
+          secret_token: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          active?: boolean
+          auto_create_transaction?: boolean
+          company_id: string
+          created_at?: string
+          default_account_id?: string | null
+          default_cost_center_id?: string | null
+          default_type?: string | null
+          direction?: string
+          id?: string
+          name: string
+          secret_token?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          active?: boolean
+          auto_create_transaction?: boolean
+          company_id?: string
+          created_at?: string
+          default_account_id?: string | null
+          default_cost_center_id?: string | null
+          default_type?: string | null
+          direction?: string
+          id?: string
+          name?: string
+          secret_token?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhooks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhooks_default_account_id_fkey"
+            columns: ["default_account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhooks_default_cost_center_id_fkey"
+            columns: ["default_cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
