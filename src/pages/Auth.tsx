@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Building2 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 
 export default function Auth() {
@@ -42,13 +42,11 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="glass-card p-8 w-full max-w-sm">
+      <div className="glass-card glow-border p-8 w-full max-w-sm">
         <div className="flex items-center gap-3 mb-8 justify-center">
-          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-            <Building2 className="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img src={logo} alt="FinanceAI" className="h-11 w-11 rounded-xl" />
           <div>
-            <h1 className="text-lg font-bold text-foreground">FinanceAI</h1>
+            <h1 className="text-lg font-bold gradient-text">FinanceAI</h1>
             <p className="text-xs text-muted-foreground">ERP Financeiro</p>
           </div>
         </div>
