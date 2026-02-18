@@ -16,6 +16,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -115,6 +116,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
       <DialogContent className="sm:max-w-lg bg-card border-border">
         <DialogHeader>
           <DialogTitle className="text-foreground">Novo Lançamento</DialogTitle>
+          <DialogDescription>Registre uma receita ou despesa</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">

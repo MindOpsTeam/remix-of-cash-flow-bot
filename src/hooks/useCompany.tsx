@@ -40,6 +40,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         setCompany({ id: c.id, name: c.name, cnpj: c.cnpj });
       } else {
         // Auto-create a company for the user
+        // The seed_default_accounts trigger auto-creates chart of accounts, cost centers, and bank accounts
         const { data: newCompany } = await supabase
           .from("companies")
           .insert({ name: "Minha Empresa" })
@@ -51,22 +52,6 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
             company_id: newCompany.id,
             user_id: user.id,
             role: "admin",
-          });
-
-          // Add default cost centers
-          await supabase.from("cost_centers").insert([
-            { company_id: newCompany.id, name: "Comercial" },
-            { company_id: newCompany.id, name: "Administrativo" },
-            { company_id: newCompany.id, name: "TI" },
-            { company_id: newCompany.id, name: "RH" },
-            { company_id: newCompany.id, name: "Marketing" },
-          ]);
-
-          // Add default bank account
-          await supabase.from("bank_accounts").insert({
-            company_id: newCompany.id,
-            name: "Conta Principal",
-            bank_name: "Banco Principal",
           });
 
           setCompany({ id: newCompany.id, name: newCompany.name, cnpj: newCompany.cnpj });
