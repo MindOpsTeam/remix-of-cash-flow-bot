@@ -1,13 +1,5 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
-
-// Extend jsPDF type for autotable
-declare module "jspdf" {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable: { finalY: number };
-  }
-}
+import autoTable from "jspdf-autotable";
 
 interface DRELineForPDF {
   label: string;
@@ -44,7 +36,7 @@ export function exportDREtoPDF(
     formatBRL(line.value),
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 52,
     head: [["Conta", "Valor (R$)"]],
     body: tableData,
@@ -110,7 +102,7 @@ export function exportReportToPDF(
 
   const totalCat = categoryData.reduce((s, c) => s + c.value, 0);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 56,
     head: [["Categoria", "Valor (R$)", "% do Total"]],
     body: categoryData.map((c) => [
@@ -130,13 +122,13 @@ export function exportReportToPDF(
   });
 
   // Cost Centers table
-  const ccY = doc.lastAutoTable.finalY + 14;
+  const ccY = (doc as any).lastAutoTable.finalY + 14;
   doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(40);
   doc.text("Por Centro de Custo", 14, ccY);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: ccY + 4,
     head: [["Centro de Custo", "Receita (R$)", "Despesa (R$)", "Resultado (R$)"]],
     body: costCenterData.map((cc) => [
