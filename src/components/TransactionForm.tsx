@@ -64,7 +64,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     const fetchOptions = async () => {
       const [accts, ccs, banks] = await Promise.all([
         supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company.id).order("code"),
-        supabase.from("cost_centers").select("id, name, category").eq("company_id", company.id).order("name"),
+        supabase.from("cost_centers").select("id, name, category").eq("company_id", company.id).eq("active", true).order("name"),
         supabase.from("bank_accounts").select("id, name").eq("company_id", company.id).order("name"),
       ]);
 
@@ -76,7 +76,10 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     fetchOptions();
   }, [company]);
 
-  const filteredAccounts = accounts.filter((a) => a.type === form.type);
+  const filteredAccounts = accounts.filter((a) => {
+    if (form.type === "revenue") return a.type === "revenue";
+    return a.type === "expense";
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

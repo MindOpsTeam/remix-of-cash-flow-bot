@@ -20,6 +20,7 @@ interface Account {
   name: string;
   code: string | null;
   type: string;
+  editable: boolean;
 }
 
 export default function ChartOfAccountsPage() {
@@ -33,7 +34,7 @@ export default function ChartOfAccountsPage() {
     if (!company) return;
     const { data } = await supabase
       .from("chart_of_accounts")
-      .select("id, name, code, type")
+      .select("id, name, code, type, editable")
       .eq("company_id", company.id)
       .order("code");
     if (data) setAccounts(data);
@@ -89,10 +90,12 @@ export default function ChartOfAccountsPage() {
               {a.code && <span className="text-muted-foreground mr-2">{a.code}</span>}
               {a.name}
             </span>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}><Pencil className="h-3.5 w-3.5" /></Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-            </div>
+            {a.editable !== false && (
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}><Pencil className="h-3.5 w-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+              </div>
+            )}
           </div>
         ))}
         {items.length === 0 && <p className="text-xs text-muted-foreground px-3">Nenhuma conta nesta categoria.</p>}
