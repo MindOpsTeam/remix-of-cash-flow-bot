@@ -57,13 +57,13 @@ export default function DRE() {
 
     // All accounts with their values (zero if no transactions)
     const revenues = allAccounts.filter((a) => a.type === "revenue").map((a) => ({
-      name: a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
+      name: a.code ? `${a.code} – ${a.name}` : a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
     }));
     const costs = allAccounts.filter((a) => a.type === "expense" && (a.code || "").startsWith("4")).map((a) => ({
-      name: a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
+      name: a.code ? `${a.code} – ${a.name}` : a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
     }));
     const expenses = allAccounts.filter((a) => a.type === "expense" && !(a.code || "").startsWith("4")).map((a) => ({
-      name: a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
+      name: a.code ? `${a.code} – ${a.name}` : a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
     }));
 
     const totalRevenue = revenues.reduce((s, r) => s + r.amount, 0);
