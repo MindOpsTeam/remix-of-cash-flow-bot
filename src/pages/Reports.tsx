@@ -1,78 +1,191 @@
+import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
-import { categoryData, formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/mock-data";
+import { exportReportToPDF } from "@/lib/pdf-export";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { FileDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-const costCenterData = [
-  { name: "Comercial", receita: 45000, despesa: 5600 },
-  { name: "Administrativo", receita: 0, despesa: 10600 },
-  { name: "TI", receita: 0, despesa: 3200 },
-  { name: "RH", receita: 0, despesa: 67000 },
-  { name: "Projetos", receita: 32000, despesa: 0 },
-  { name: "Marketing", receita: 0, despesa: 5600 },
+const COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
 ];
 
+interface CategoryItem {
+  name: string;
+  value: number;
+  fill: string;
+}
+
+interface CostCenterItem {
+  name: string;
+  receita: number;
+  despesa: number;
+}
+
 export default function Reports() {
+  const { company } = useCompany();
+  const [categoryData, setCategoryData] = useState<CategoryItem[]>([]);
+  const [costCenterData, setCostCenterData] = useState<CostCenterItem[]>([]);
+
+  const loadData = useCallback(async () => {
+    if (!company) return;
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+
+    const [{ data: transactions }, { data: costCenters }] = await Promise.all([
+      supabase
+        .from("transactions")
+        .select("amount, type, cost_center_id, chart_of_accounts(name)")
+        .eq("company_id", company.id)
+        .eq("status", "confirmed")
+        .gte("date", startOfMonth)
+        .lte("date", endOfMonth),
+      supabase
+        .from("cost_centers")
+        .select("id, name")
+        .eq("company_id", company.id)
+        .eq("active", true),
+    ]);
+
+    if (!transactions) return;
+
+    // Category breakdown (expenses by account name)
+    const catMap = new Map<string, number>();
+    transactions
+      .filter((t) => t.type === "expense")
+      .forEach((t) => {
+        const name = (t.chart_of_accounts as any)?.name || "Outros";
+        catMap.set(name, (catMap.get(name) || 0) + Number(t.amount));
+      });
+
+    const cats: CategoryItem[] = Array.from(catMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, value], i) => ({
+        name,
+        value,
+        fill: COLORS[i % COLORS.length],
+      }));
+    setCategoryData(cats);
+
+    // Cost center breakdown
+    const ccMap = new Map<string, string>();
+    costCenters?.forEach((cc) => ccMap.set(cc.id, cc.name));
+
+    const ccTotals = new Map<string, { receita: number; despesa: number }>();
+    transactions.forEach((t) => {
+      if (!t.cost_center_id) return;
+      const name = ccMap.get(t.cost_center_id) || "Outros";
+      const entry = ccTotals.get(name) || { receita: 0, despesa: 0 };
+      if (t.type === "revenue") entry.receita += Number(t.amount);
+      else entry.despesa += Number(t.amount);
+      ccTotals.set(name, entry);
+    });
+
+    const ccs: CostCenterItem[] = Array.from(ccTotals.entries())
+      .map(([name, vals]) => ({ name, ...vals }))
+      .sort((a, b) => (b.receita + b.despesa) - (a.receita + a.despesa));
+    setCostCenterData(ccs);
+  }, [company]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
   return (
     <AppLayout>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Relatórios Gerenciais</h1>
-        <p className="text-sm text-muted-foreground mt-1">Análises e indicadores da empresa</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Relatórios Gerenciais</h1>
+          <p className="text-sm text-muted-foreground mt-1">Análises e indicadores da empresa</p>
+        </div>
+        <Button
+          variant="outline"
+          className="gap-2"
+          disabled={categoryData.length === 0 && costCenterData.length === 0}
+          onClick={() => {
+            exportReportToPDF(
+              company?.name || "Empresa",
+              categoryData.map((c) => ({ name: c.name, value: c.value })),
+              costCenterData
+            );
+          }}
+        >
+          <FileDown className="h-4 w-4" />Exportar PDF
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="glass-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Despesas por Categoria</h2>
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} strokeWidth={2} stroke="hsl(var(--card))">
-                {categoryData.map((_, i) => (
-                  <Cell key={i} fill={categoryData[i].fill} />
+          {categoryData.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-12">Nenhuma despesa confirmada neste mês.</p>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={260}>
+                <PieChart>
+                  <Pie data={categoryData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={100} strokeWidth={2} stroke="hsl(var(--card))">
+                    {categoryData.map((c, i) => (
+                      <Cell key={i} fill={c.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {categoryData.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.fill }} />
+                    <span className="text-muted-foreground truncate">{c.name}</span>
+                  </div>
                 ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                formatter={(value: number) => formatCurrency(value)}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            {categoryData.map((c, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs">
-                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.fill }} />
-                <span className="text-muted-foreground truncate">{c.name}</span>
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
 
         <div className="glass-card p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Por Centro de Custo</h2>
-          <div className="space-y-3">
-            {costCenterData.map((cc) => {
-              const total = cc.receita + cc.despesa;
-              const maxVal = Math.max(...costCenterData.map((c) => c.receita + c.despesa));
-              return (
-                <div key={cc.name}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-foreground font-medium">{cc.name}</span>
-                    <span className="text-muted-foreground tabular-nums">{formatCurrency(total)}</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden flex">
-                    {cc.receita > 0 && (
-                      <div className="bg-revenue h-full rounded-full" style={{ width: `${(cc.receita / maxVal) * 100}%` }} />
-                    )}
-                    {cc.despesa > 0 && (
-                      <div className="bg-expense h-full rounded-full" style={{ width: `${(cc.despesa / maxVal) * 100}%` }} />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-revenue" /> Receita</div>
-            <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-expense" /> Despesa</div>
-          </div>
+          {costCenterData.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-12">Nenhum lançamento com centro de custo neste mês.</p>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {costCenterData.map((cc) => {
+                  const total = cc.receita + cc.despesa;
+                  const maxVal = Math.max(...costCenterData.map((c) => c.receita + c.despesa));
+                  return (
+                    <div key={cc.name}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="text-foreground font-medium">{cc.name}</span>
+                        <span className="text-muted-foreground tabular-nums">{formatCurrency(total)}</span>
+                      </div>
+                      <div className="h-2 bg-muted rounded-full overflow-hidden flex">
+                        {cc.receita > 0 && (
+                          <div className="bg-revenue h-full rounded-full" style={{ width: `${(cc.receita / maxVal) * 100}%` }} />
+                        )}
+                        {cc.despesa > 0 && (
+                          <div className="bg-expense h-full rounded-full" style={{ width: `${(cc.despesa / maxVal) * 100}%` }} />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-revenue" /> Receita</div>
+                <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-expense" /> Despesa</div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </AppLayout>

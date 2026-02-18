@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/mock-data";
+import { exportDREtoPDF } from "@/lib/pdf-export";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -125,7 +126,17 @@ export default function DRE() {
             {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} — Baseado nas contas contábeis
           </p>
         </div>
-        <Button variant="outline" className="gap-2"><FileDown className="h-4 w-4" />Exportar PDF</Button>
+        <Button
+          variant="outline"
+          className="gap-2"
+          disabled={lines.length === 0}
+          onClick={() => {
+            const period = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+            exportDREtoPDF(lines, company?.name || "Empresa", period);
+          }}
+        >
+          <FileDown className="h-4 w-4" />Exportar PDF
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
