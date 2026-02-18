@@ -79,9 +79,9 @@ export function useCFODashboard(): CFODashboardData {
         (t) => parseISO(t.date) >= prevMonthStart && parseISO(t.date) < currentMonthStart
       );
 
-      const curRevenue = sumByType(currentTxs, "income");
+      const curRevenue = sumByType(currentTxs, "revenue");
       const curExpenses = sumByType(currentTxs, "expense");
-      const prevRevenue = sumByType(prevTxs, "income");
+      const prevRevenue = sumByType(prevTxs, "revenue");
       const prevExpenses = sumByType(prevTxs, "expense");
 
       const curProfit = curRevenue - curExpenses;
@@ -102,7 +102,7 @@ export function useCFODashboard(): CFODashboardData {
         );
         chartData.push({
           month: format(monthStart, "MMM", { locale: ptBR }),
-          receitas: sumByType(monthTxs, "income"),
+          receitas: sumByType(monthTxs, "revenue"),
           despesas: sumByType(monthTxs, "expense"),
         });
       }
