@@ -1,72 +1,67 @@
 
 
-## Correcao Definitiva das Politicas RLS e Trigger
+## Simplificar Configuracao Inicial e Padronizar Dados
 
-### Problema Real
-Apesar de 3 tentativas anteriores de migracao, o banco de dados continua com:
-- Todas as 21 politicas RLS marcadas como RESTRICTIVE (bloqueiam tudo)
-- O trigger `on_company_created` ausente (dados iniciais nao sao criados)
-- Resultado: 403 em toda operacao, impossivel criar empresa, centros de custo ou lancamentos
+### Situacao Atual
+- As politicas RLS ja estao corrigidas (PERMISSIVE)
+- O trigger de seed existe (com 3 duplicatas que precisam ser limpas)
+- O banco esta vazio porque nenhuma empresa foi criada ainda
+- A funcao `seed_default_accounts` ja cria contas, centros e banco, mas com estrutura mais complexa que o desejado
 
-### Causa
-As migracoes anteriores provavelmente usaram `CREATE POLICY ... IF NOT EXISTS` ou nao fizeram o DROP correto, mantendo as politicas restritivas originais.
+### Mudancas Necessarias
 
-### Solucao
-Uma unica migracao SQL que:
+#### 1. Atualizar funcao `seed_default_accounts()`
 
-1. **Faz DROP explicito de TODAS as politicas existentes por nome** em cada tabela
-2. **Recria cada politica com `AS PERMISSIVE` explicito**
-3. **Recria o trigger** `on_company_created` vinculado a funcao `seed_default_accounts()`
+Simplificar o plano de contas para a estrutura solicitada:
 
-### Tabelas e Politicas Afetadas
+**RECEITAS (codigo 3.x):**
+- 3.1 Receita de Servicos
+- 3.2 Receita de Produtos
+- 3.3 Receita Recorrente
+- 3.4 Outras Receitas
 
-**companies** (3 politicas):
-- INSERT: qualquer usuario autenticado pode criar
-- SELECT: membros podem visualizar suas empresas
-- UPDATE: membros podem atualizar suas empresas
+**CUSTOS (codigo 4.x):**
+- 4.1 Custo de Mercadoria/Servico
+- 4.2 Mao de Obra Direta
+- 4.3 Taxas de Pagamento
+- 4.4 Fretes
 
-**company_members** (2 politicas):
-- SELECT: membros podem ver outros membros
-- INSERT: usuarios podem se adicionar a empresas
+**DESPESAS (codigo 5.x):**
+- 5.1 Marketing
+- 5.2 Salarios
+- 5.3 Pro-labore
+- 5.4 Aluguel
+- 5.5 Softwares
+- 5.6 Contabilidade
+- 5.7 Impostos
+- 5.8 Juros e Tarifas
 
-**chart_of_accounts** (4 politicas):
-- SELECT, INSERT, UPDATE, DELETE para membros da empresa
+Todas marcadas com `editable = false` (protegidas, nao excluiveis).
 
-**cost_centers** (4 politicas):
-- SELECT, INSERT, UPDATE, DELETE para membros da empresa
+**Centros de Custo** (mantidos como ja estao):
+- Administrativo, Financeiro, Comercial, Marketing, Operacional
 
-**bank_accounts** (4 politicas):
-- SELECT, INSERT, UPDATE, DELETE para membros da empresa
+Remover "Instalacao" que nao esta na lista solicitada.
 
-**transactions** (4 politicas):
-- SELECT, UPDATE, DELETE: membros da empresa
-- INSERT: membro da empresa + user_id = auth.uid()
+**Conta Bancaria:**
+- Nome: "Banco Inter - Conta Principal"
+- bank_name: "Inter"
 
-### Trigger
-```
-DROP TRIGGER IF EXISTS on_company_created ON public.companies;
-CREATE TRIGGER on_company_created
-  AFTER INSERT ON public.companies
-  FOR EACH ROW
-  EXECUTE FUNCTION public.seed_default_accounts();
-```
+#### 2. Limpar triggers duplicados
 
-### Detalhes Tecnicos
+Existem 3 triggers chamando a mesma funcao. A migracao vai remover os duplicados e manter apenas um.
 
-A migracao usara DROP POLICY seguido de CREATE POLICY para cada politica individual, sem depender de IF NOT EXISTS. Exemplo:
+#### 3. Nenhuma alteracao no frontend necessaria
 
-```sql
-DROP POLICY IF EXISTS "Authenticated users can create companies" ON public.companies;
-CREATE POLICY "Authenticated users can create companies"
-  ON public.companies
-  AS PERMISSIVE
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
-```
+O codigo existente ja:
+- Protege contas com `editable = false` (nao mostra botoes de editar/deletar)
+- Filtra centros de custo ativos
+- Filtra contas contabeis por tipo (receita/despesa)
+- Calcula DRE separando custos (4.x) de despesas (5.x)
 
-### Apos a Correcao
-1. Fazer logout e login novamente no preview
-2. A empresa sera criada automaticamente com plano de contas, centros de custo e conta bancaria
-3. Testar criacao de centro de custo e lancamento
-
+### Resultado Final
+Ao fazer logout e login novamente, a empresa sera criada automaticamente com:
+- 16 contas contabeis padrao (protegidas)
+- 5 centros de custo ativos
+- 1 conta bancaria configurada
+- Pronto para lancar transacoes imediatamente
