@@ -1,67 +1,62 @@
 
 
-## Simplificar Configuracao Inicial e Padronizar Dados
+## Corrigir Cache do PostgREST e Garantir Dados Iniciais
 
-### Situacao Atual
-- As politicas RLS ja estao corrigidas (PERMISSIVE)
-- O trigger de seed existe (com 3 duplicatas que precisam ser limpas)
-- O banco esta vazio porque nenhuma empresa foi criada ainda
-- A funcao `seed_default_accounts` ja cria contas, centros e banco, mas com estrutura mais complexa que o desejado
+### Problema
+As politicas RLS estao PERMISSIVE no banco de dados (confirmado via `pg_policy`), porem o PostgREST esta usando uma versao em cache das politicas antigas (RESTRICTIVE). Isso causa erro 403 ao tentar criar a empresa, e sem empresa nenhum dado inicial e carregado nos dropdowns.
 
-### Mudancas Necessarias
+### Causa Raiz
+O PostgREST cacheia o schema e as politicas RLS. Mesmo apos a migracao que alterou as politicas para PERMISSIVE, o cache nao foi invalidado. E necessario forcar o reload do schema.
 
-#### 1. Atualizar funcao `seed_default_accounts()`
+### Solucao
+Uma unica migracao SQL que:
 
-Simplificar o plano de contas para a estrutura solicitada:
+1. **Forca o reload do schema do PostgREST** usando `NOTIFY pgrst, 'reload schema'`
+2. **Recria as politicas da tabela `companies`** (DROP + CREATE) como garantia extra de que o PostgREST ira detectar a mudanca
+3. **Limpa triggers duplicados** - existem 2 triggers na tabela companies (`on_company_created` e `seed_accounts_on_company_create`), ambos chamando a mesma funcao. Manter apenas um.
 
-**RECEITAS (codigo 3.x):**
-- 3.1 Receita de Servicos
-- 3.2 Receita de Produtos
-- 3.3 Receita Recorrente
-- 3.4 Outras Receitas
+### Detalhes Tecnicos
 
-**CUSTOS (codigo 4.x):**
-- 4.1 Custo de Mercadoria/Servico
-- 4.2 Mao de Obra Direta
-- 4.3 Taxas de Pagamento
-- 4.4 Fretes
+```sql
+-- Forcar reload do PostgREST
+NOTIFY pgrst, 'reload schema';
 
-**DESPESAS (codigo 5.x):**
-- 5.1 Marketing
-- 5.2 Salarios
-- 5.3 Pro-labore
-- 5.4 Aluguel
-- 5.5 Softwares
-- 5.6 Contabilidade
-- 5.7 Impostos
-- 5.8 Juros e Tarifas
+-- Recriar politica de INSERT na companies (garantia)
+DROP POLICY IF EXISTS "Authenticated users can create companies" ON public.companies;
+CREATE POLICY "Authenticated users can create companies"
+  ON public.companies AS PERMISSIVE FOR INSERT
+  TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
 
-Todas marcadas com `editable = false` (protegidas, nao excluiveis).
+-- Recriar politica de SELECT na companies
+DROP POLICY IF EXISTS "Members can view their companies" ON public.companies;
+CREATE POLICY "Members can view their companies"
+  ON public.companies AS PERMISSIVE FOR SELECT
+  TO authenticated USING (is_company_member(id));
 
-**Centros de Custo** (mantidos como ja estao):
-- Administrativo, Financeiro, Comercial, Marketing, Operacional
+-- Recriar politica de UPDATE na companies
+DROP POLICY IF EXISTS "Members can update their companies" ON public.companies;
+CREATE POLICY "Members can update their companies"
+  ON public.companies AS PERMISSIVE FOR UPDATE
+  TO authenticated USING (is_company_member(id));
 
-Remover "Instalacao" que nao esta na lista solicitada.
+-- Limpar trigger duplicado
+DROP TRIGGER IF EXISTS seed_accounts_on_company_create ON public.companies;
 
-**Conta Bancaria:**
-- Nome: "Banco Inter - Conta Principal"
-- bank_name: "Inter"
+-- Garantir que o trigger correto existe
+DROP TRIGGER IF EXISTS on_company_created ON public.companies;
+CREATE TRIGGER on_company_created
+  AFTER INSERT ON public.companies
+  FOR EACH ROW
+  EXECUTE FUNCTION public.seed_default_accounts();
+```
 
-#### 2. Limpar triggers duplicados
+### Nenhuma alteracao no frontend
+O codigo do `TransactionForm.tsx` e `useCompany.tsx` ja estao corretos. O problema e exclusivamente no backend (cache do PostgREST).
 
-Existem 3 triggers chamando a mesma funcao. A migracao vai remover os duplicados e manter apenas um.
-
-#### 3. Nenhuma alteracao no frontend necessaria
-
-O codigo existente ja:
-- Protege contas com `editable = false` (nao mostra botoes de editar/deletar)
-- Filtra centros de custo ativos
-- Filtra contas contabeis por tipo (receita/despesa)
-- Calcula DRE separando custos (4.x) de despesas (5.x)
-
-### Resultado Final
-Ao fazer logout e login novamente, a empresa sera criada automaticamente com:
-- 16 contas contabeis padrao (protegidas)
-- 5 centros de custo ativos
-- 1 conta bancaria configurada
-- Pronto para lancar transacoes imediatamente
+### Resultado Esperado
+Apos a migracao:
+1. O PostgREST recarrega as politicas
+2. O usuario faz logout e login
+3. A empresa e criada automaticamente (trigger dispara seed)
+4. Os dropdowns de Conta Contabil, Centro de Custo e Conta Bancaria aparecem populados
+5. O usuario pode criar lancamentos imediatamente
