@@ -30,6 +30,13 @@ export default function DRE() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
 
+    // Fetch ALL chart of accounts
+    const { data: allAccounts } = await supabase
+      .from("chart_of_accounts")
+      .select("id, name, code, type")
+      .eq("company_id", company.id)
+      .order("code");
+
     // Fetch transactions with their chart_of_accounts info
     const { data: transactions } = await supabase
       .from("transactions")
@@ -39,28 +46,25 @@ export default function DRE() {
       .gte("date", startOfMonth)
       .lte("date", endOfMonth);
 
-    if (!transactions) return;
+    if (!allAccounts) return;
 
-    // Group by account
-    const accountTotals: Record<string, { name: string; code: string; amount: number; type: string }> = {};
-
-    for (const t of transactions) {
-      const acct = t.chart_of_accounts as any;
+    // Build totals from transactions
+    const txTotals: Record<string, number> = {};
+    for (const t of (transactions || [])) {
       const key = t.account_id || "unclassified";
-      if (!accountTotals[key]) {
-        accountTotals[key] = {
-          name: acct?.name || "Sem classificação",
-          code: acct?.code || "0",
-          amount: 0,
-          type: t.type,
-        };
-      }
-      accountTotals[key].amount += Number(t.amount);
+      txTotals[key] = (txTotals[key] || 0) + Number(t.amount);
     }
 
-    const revenues = Object.values(accountTotals).filter((a) => a.type === "revenue").sort((a, b) => a.code.localeCompare(b.code));
-    const costs = Object.values(accountTotals).filter((a) => a.type === "expense" && a.code.startsWith("4")).sort((a, b) => a.code.localeCompare(b.code));
-    const expenses = Object.values(accountTotals).filter((a) => a.type === "expense" && !a.code.startsWith("4")).sort((a, b) => a.code.localeCompare(b.code));
+    // All accounts with their values (zero if no transactions)
+    const revenues = allAccounts.filter((a) => a.type === "revenue").map((a) => ({
+      name: a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
+    }));
+    const costs = allAccounts.filter((a) => a.type === "expense" && (a.code || "").startsWith("4")).map((a) => ({
+      name: a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
+    }));
+    const expenses = allAccounts.filter((a) => a.type === "expense" && !(a.code || "").startsWith("4")).map((a) => ({
+      name: a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
+    }));
 
     const totalRevenue = revenues.reduce((s, r) => s + r.amount, 0);
     const totalCosts = costs.reduce((s, c) => s + c.amount, 0);
@@ -80,7 +84,6 @@ export default function DRE() {
     ];
 
     setLines(dreLines);
-
     // Build last 6 months chart
     const chartData: { month: string; receitas: number; despesas: number; lucro: number }[] = [];
     for (let i = 5; i >= 0; i--) {
