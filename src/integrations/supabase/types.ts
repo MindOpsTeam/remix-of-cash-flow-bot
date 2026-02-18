@@ -405,6 +405,95 @@ export type Database = {
           },
         ]
       }
+      whatsapp_configs: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          instance_name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          instance_name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          instance_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_configs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          classification: Json | null
+          company_id: string
+          config_id: string
+          created_at: string
+          direction: string
+          id: string
+          message_text: string | null
+          message_type: string
+          phone_number: string
+          processed: boolean
+        }
+        Insert: {
+          classification?: Json | null
+          company_id: string
+          config_id: string
+          created_at?: string
+          direction?: string
+          id?: string
+          message_text?: string | null
+          message_type?: string
+          phone_number: string
+          processed?: boolean
+        }
+        Update: {
+          classification?: Json | null
+          company_id?: string
+          config_id?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          message_text?: string | null
+          message_type?: string
+          phone_number?: string
+          processed?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
