@@ -11,6 +11,8 @@ import DRE from "./pages/DRE";
 import Reports from "./pages/Reports";
 import WhatsApp from "./pages/WhatsAppAgent";
 import SettingsPage from "./pages/Settings";
+import ChartOfAccountsPage from "./pages/settings/ChartOfAccounts";
+import CostCentersPage from "./pages/settings/CostCenters";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { ReactNode } from "react";
@@ -46,6 +48,8 @@ const AppRoutes = () => (
     <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
     <Route path="/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+    <Route path="/settings/chart-of-accounts" element={<ProtectedRoute><ChartOfAccountsPage /></ProtectedRoute>} />
+    <Route path="/settings/cost-centers" element={<ProtectedRoute><CostCentersPage /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

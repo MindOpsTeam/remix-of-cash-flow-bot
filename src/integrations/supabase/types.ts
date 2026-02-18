@@ -149,18 +149,21 @@ export type Database = {
       }
       cost_centers: {
         Row: {
+          category: string
           company_id: string
           created_at: string
           id: string
           name: string
         }
         Insert: {
+          category?: string
           company_id: string
           created_at?: string
           id?: string
           name: string
         }
         Update: {
+          category?: string
           company_id?: string
           created_at?: string
           id?: string
@@ -188,6 +191,8 @@ export type Database = {
           date: string
           description: string
           id: string
+          payment_method: string | null
+          project: string | null
           source: string
           status: string
           type: string
@@ -205,6 +210,8 @@ export type Database = {
           date: string
           description: string
           id?: string
+          payment_method?: string | null
+          project?: string | null
           source?: string
           status?: string
           type: string
@@ -222,6 +229,8 @@ export type Database = {
           date?: string
           description?: string
           id?: string
+          payment_method?: string | null
+          project?: string | null
           source?: string
           status?: string
           type?: string

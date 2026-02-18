@@ -4,15 +4,14 @@ import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionForm } from "@/components/TransactionForm";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import { formatCurrency, formatDate } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Filter } from "lucide-react";
-import type { Transaction } from "@/lib/mock-data";
+import { Plus, Search } from "lucide-react";
+import type { TransactionRowData } from "@/components/TransactionRow";
 
 export default function Transactions() {
   const { company } = useCompany();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<TransactionRowData[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -20,22 +19,22 @@ export default function Transactions() {
     if (!company) return;
     const { data } = await supabase
       .from("transactions")
-      .select("*")
+      .select("*, chart_of_accounts(name), cost_centers(name)")
       .eq("company_id", company.id)
       .order("date", { ascending: false });
 
     if (data) {
       setTransactions(
-        data.map((t) => ({
+        data.map((t: any) => ({
           id: t.id,
           date: t.date,
           description: t.description,
           amount: Number(t.amount),
-          type: t.type as "revenue" | "expense",
-          category: "",
-          account: "",
-          status: t.status as any,
-          source: t.source as any,
+          type: t.type,
+          status: t.status,
+          source: t.source,
+          account_name: t.chart_of_accounts?.name || "",
+          cost_center_name: t.cost_centers?.name || "",
         }))
       );
     }
@@ -46,7 +45,8 @@ export default function Transactions() {
   }, [fetchTransactions]);
 
   const filtered = transactions.filter((t) =>
-    t.description.toLowerCase().includes(search.toLowerCase())
+    t.description.toLowerCase().includes(search.toLowerCase()) ||
+    t.account_name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (

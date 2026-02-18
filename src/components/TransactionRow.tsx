@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate, type Transaction } from "@/lib/mock-data";
+import { formatCurrency, formatDate } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Building2, Pencil } from "lucide-react";
 
@@ -14,8 +14,21 @@ const statusLabels: Record<string, string> = {
   reconciled: "Conciliado",
 };
 
+export interface TransactionRowData {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  type: "revenue" | "expense" | string;
+  status: string;
+  source: string;
+  account_name?: string;
+  cost_center_name?: string;
+  category?: string;
+}
+
 interface TransactionRowProps {
-  transaction: Transaction;
+  transaction: TransactionRowData;
 }
 
 export function TransactionRow({ transaction }: TransactionRowProps) {
@@ -31,16 +44,26 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium text-foreground truncate">{transaction.description}</p>
-          <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <span className="text-xs text-muted-foreground">{formatDate(transaction.date)}</span>
-            <span className="text-xs text-muted-foreground">•</span>
-            <span className="text-xs text-muted-foreground">{transaction.category}</span>
+            {transaction.account_name && (
+              <>
+                <span className="text-xs text-muted-foreground">•</span>
+                <span className="text-xs text-muted-foreground">{transaction.account_name}</span>
+              </>
+            )}
+            {transaction.cost_center_name && (
+              <>
+                <span className="text-xs text-muted-foreground">•</span>
+                <span className="text-xs text-primary/70 font-medium">{transaction.cost_center_name}</span>
+              </>
+            )}
           </div>
         </div>
       </div>
       <div className="flex items-center gap-4">
         <Badge variant={transaction.status === "pending" ? "outline" : "secondary"} className="text-xs hidden sm:flex">
-          {statusLabels[transaction.status]}
+          {statusLabels[transaction.status] || transaction.status}
         </Badge>
         <span className={`text-sm font-semibold tabular-nums ${isRevenue ? "text-revenue" : "text-expense"}`}>
           {isRevenue ? "+" : "-"} {formatCurrency(transaction.amount)}
