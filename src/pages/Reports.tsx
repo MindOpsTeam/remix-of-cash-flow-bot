@@ -75,11 +75,15 @@ export default function Reports() {
       }));
     setCategoryData(cats);
 
-    // Cost center breakdown
+    // Cost center breakdown — show ALL active cost centers, even with zero
     const ccMap = new Map<string, string>();
     costCenters?.forEach((cc) => ccMap.set(cc.id, cc.name));
 
     const ccTotals = new Map<string, { receita: number; despesa: number }>();
+    // Initialize all cost centers with zero
+    costCenters?.forEach((cc) => {
+      ccTotals.set(cc.name, { receita: 0, despesa: 0 });
+    });
     transactions.forEach((t) => {
       if (!t.cost_center_id) return;
       const name = ccMap.get(t.cost_center_id) || "Outros";
@@ -91,7 +95,7 @@ export default function Reports() {
 
     const ccs: CostCenterItem[] = Array.from(ccTotals.entries())
       .map(([name, vals]) => ({ name, ...vals }))
-      .sort((a, b) => (b.receita + b.despesa) - (a.receita + a.despesa));
+      .sort((a, b) => b.receita - b.despesa - (a.receita - a.despesa));
     setCostCenterData(ccs);
   }, [company]);
 
@@ -107,7 +111,7 @@ export default function Reports() {
         <Button
           variant="outline"
           className="gap-2"
-          disabled={categoryData.length === 0 && costCenterData.length === 0}
+          disabled={!company}
           onClick={() => {
             exportReportToPDF(
               company?.name || "Empresa",
