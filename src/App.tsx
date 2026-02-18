@@ -10,6 +10,7 @@ import Transactions from "./pages/Transactions";
 import DRE from "./pages/DRE";
 import Reports from "./pages/Reports";
 import WhatsApp from "./pages/WhatsAppAgent";
+import CFODigital from "./pages/CFODigital";
 import SettingsPage from "./pages/Settings";
 import ChartOfAccountsPage from "./pages/settings/ChartOfAccounts";
 import CostCentersPage from "./pages/settings/CostCenters";
@@ -47,6 +48,7 @@ const AppRoutes = () => (
     <Route path="/dre" element={<ProtectedRoute><DRE /></ProtectedRoute>} />
     <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
     <Route path="/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
+    <Route path="/cfo-digital" element={<ProtectedRoute><CFODigital /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
     <Route path="/settings/chart-of-accounts" element={<ProtectedRoute><ChartOfAccountsPage /></ProtectedRoute>} />
     <Route path="/settings/cost-centers" element={<ProtectedRoute><CostCentersPage /></ProtectedRoute>} />
