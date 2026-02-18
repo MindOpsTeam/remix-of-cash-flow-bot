@@ -14,6 +14,7 @@ import CFODigital from "./pages/CFODigital";
 import SettingsPage from "./pages/Settings";
 import ChartOfAccountsPage from "./pages/settings/ChartOfAccounts";
 import CostCentersPage from "./pages/settings/CostCenters";
+import IntegrationsPage from "./pages/settings/Integrations";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { ReactNode } from "react";
@@ -52,6 +53,7 @@ const AppRoutes = () => (
     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
     <Route path="/settings/chart-of-accounts" element={<ProtectedRoute><ChartOfAccountsPage /></ProtectedRoute>} />
     <Route path="/settings/cost-centers" element={<ProtectedRoute><CostCentersPage /></ProtectedRoute>} />
+    <Route path="/settings/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

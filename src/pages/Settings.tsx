@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree } from "lucide-react";
+import { Building2, Users, List, FolderTree, Webhook } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -7,6 +7,7 @@ const sections = [
   { icon: Users, title: "Usuários", description: "Gerenciar usuários e permissões", to: "/settings" },
   { icon: List, title: "Plano de Contas", description: "Configurar contas contábeis hierárquicas", to: "/settings/chart-of-accounts" },
   { icon: FolderTree, title: "Centros de Custo", description: "Departamentos, projetos e clientes", to: "/settings/cost-centers" },
+  { icon: Webhook, title: "Integrações", description: "Webhooks e conexões com plataformas externas", to: "/settings/integrations" },
 ];
 
 export default function SettingsPage() {
