@@ -43,9 +43,36 @@ Deno.serve(async (req) => {
       textContent = message.conversation;
     } else if (message?.extendedTextMessage?.text) {
       textContent = message.extendedTextMessage.text;
+    } else if (message?.audioMessage) {
+      // Transcribe audio message
+      try {
+        await sendWhatsAppMessage(instanceName, remoteJid, "🎙️ _Transcrevendo seu áudio..._");
+        const audioBase64 = await getMediaBase64(instanceName, key.id, remoteJid);
+        if (!audioBase64) {
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar o áudio. Tente enviar novamente.");
+          return new Response(JSON.stringify({ ok: true, error: "audio-download-failed" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const transcription = await transcribeAudio(audioBase64, message.audioMessage.mimetype || "audio/ogg");
+        if (!transcription) {
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui transcrever o áudio. Tente enviar uma mensagem de texto.");
+          return new Response(JSON.stringify({ ok: true, error: "transcription-failed" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        textContent = transcription;
+        console.log("Audio transcribed:", textContent.slice(0, 200));
+      } catch (err) {
+        console.error("Audio processing error:", err);
+        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar o áudio. Tente novamente.");
+        return new Response(JSON.stringify({ ok: true, error: "audio-error" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     } else {
       await sendWhatsAppMessage(instanceName, remoteJid,
-        "🤖 Por enquanto, só consigo processar mensagens de texto. Envie uma descrição do lançamento ou faça uma pergunta sobre suas finanças!"
+        "🤖 Por enquanto, consigo processar mensagens de *texto* e *áudio*. Envie uma descrição do lançamento ou faça uma pergunta sobre suas finanças!"
       );
       return new Response(JSON.stringify({ ok: true, skipped: "non-text" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -373,6 +400,60 @@ E depois adicione <ACTION>{"action":"send_chart"}</ACTION> para eu gerar um grá
       "❌ Ocorreu um erro inesperado. Tente novamente em instantes."
     );
   }
+}
+
+// ─── AUDIO PROCESSING ──────────────────────────────────────────────────────────
+
+async function getMediaBase64(instanceName: string, messageId: string, remoteJid: string): Promise<string | null> {
+  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
+  const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
+  if (!evolutionUrl || !evolutionKey) { console.error("Evolution credentials missing"); return null; }
+
+  try {
+    const res = await fetch(`${evolutionUrl}/chat/getBase64FromMediaMessage/${instanceName}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: evolutionKey },
+      body: JSON.stringify({ message: { key: { remoteJid, id: messageId } }, convertToMp4: false }),
+    });
+    if (!res.ok) {
+      console.error(`Evolution getBase64 failed [${res.status}]:`, await res.text());
+      return null;
+    }
+    const data = await res.json();
+    return data?.base64 || null;
+  } catch (err) { console.error("Error getting media base64:", err); return null; }
+}
+
+async function transcribeAudio(audioBase64: string, mimetype: string): Promise<string | null> {
+  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableApiKey) return null;
+
+  try {
+    const dataUri = `data:${mimetype};base64,${audioBase64}`;
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableApiKey}` },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: "Transcreva este áudio em português brasileiro. Retorne APENAS o texto transcrito, sem formatação, sem aspas, sem explicações." },
+            { type: "input_audio", input_audio: { data: audioBase64, format: mimetype.includes("ogg") ? "ogg" : "mp3" } },
+          ],
+        }],
+        temperature: 0.1,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Transcription AI error:", res.status, await res.text());
+      return null;
+    }
+
+    const result = await res.json();
+    return result.choices?.[0]?.message?.content?.trim() || null;
+  } catch (err) { console.error("Transcription error:", err); return null; }
 }
 
 // ─── EVOLUTION API HELPERS ─────────────────────────────────────────────────────
