@@ -13,6 +13,7 @@ import WhatsApp from "./pages/WhatsAppAgent";
 import CFODigital from "./pages/CFODigital";
 import CashFlowForecast from "./pages/CashFlowForecast";
 import ExecutiveSummary from "./pages/ExecutiveSummary";
+import Simulator from "./pages/Simulator";
 import SettingsPage from "./pages/Settings";
 import ChartOfAccountsPage from "./pages/settings/ChartOfAccounts";
 import CostCentersPage from "./pages/settings/CostCenters";
@@ -54,6 +55,7 @@ const AppRoutes = () => (
     <Route path="/cfo-digital" element={<ProtectedRoute><CFODigital /></ProtectedRoute>} />
     <Route path="/forecast" element={<ProtectedRoute><CashFlowForecast /></ProtectedRoute>} />
     <Route path="/summary" element={<ProtectedRoute><ExecutiveSummary /></ProtectedRoute>} />
+    <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
     <Route path="/settings/chart-of-accounts" element={<ProtectedRoute><ChartOfAccountsPage /></ProtectedRoute>} />
     <Route path="/settings/cost-centers" element={<ProtectedRoute><CostCentersPage /></ProtectedRoute>} />
