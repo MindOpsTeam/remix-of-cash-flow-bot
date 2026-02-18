@@ -11,6 +11,8 @@ import {
   Settings,
   LogOut,
   Brain,
+  TrendingUp,
+  FileText,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +21,8 @@ const navItems = [
   { to: "/dre", label: "DRE", icon: FileBarChart2 },
   { to: "/reports", label: "Relatórios", icon: PieChart },
   { to: "/cfo-digital", label: "CFO Digital", icon: Brain },
+  { to: "/forecast", label: "Previsão Fluxo", icon: TrendingUp },
+  { to: "/summary", label: "Resumo Executivo", icon: FileText },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
   { to: "/settings", label: "Configurações", icon: Settings },
 ];
