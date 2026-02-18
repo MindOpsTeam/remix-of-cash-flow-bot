@@ -27,7 +27,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const fetchOrCreate = async () => {
+    const fetchOrCreate = async (retries = 2) => {
       // Check if user has a company
       const { data: members } = await supabase
         .from("company_members")
@@ -40,14 +40,19 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         setCompany({ id: c.id, name: c.name, cnpj: c.cnpj });
       } else {
         // Auto-create a company for the user
-        // The seed_default_accounts trigger auto-creates chart of accounts, cost centers, and bank accounts
-        const { data: newCompany } = await supabase
+        const { data: newCompany, error } = await supabase
           .from("companies")
           .insert({ name: "Minha Empresa" })
           .select()
           .single();
 
-        if (newCompany) {
+        if (error) {
+          console.error("Erro ao criar empresa:", error.message);
+          if (retries > 0) {
+            setTimeout(() => fetchOrCreate(retries - 1), 2000);
+            return;
+          }
+        } else if (newCompany) {
           await supabase.from("company_members").insert({
             company_id: newCompany.id,
             user_id: user.id,
