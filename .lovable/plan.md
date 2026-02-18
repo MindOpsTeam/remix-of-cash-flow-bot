@@ -1,55 +1,72 @@
 
 
-## Correção Definitiva: Políticas RLS e Trigger
+## Correcao Definitiva das Politicas RLS e Trigger
 
-### Problema
-As migrações anteriores tentaram corrigir as políticas de segurança do banco de dados, mas elas continuam bloqueando todas as operações. Isso impede:
-- Criação da empresa ao fazer login
-- Cadastro de centros de custo
-- Qualquer operação de dados na plataforma
+### Problema Real
+Apesar de 3 tentativas anteriores de migracao, o banco de dados continua com:
+- Todas as 21 politicas RLS marcadas como RESTRICTIVE (bloqueiam tudo)
+- O trigger `on_company_created` ausente (dados iniciais nao sao criados)
+- Resultado: 403 em toda operacao, impossivel criar empresa, centros de custo ou lancamentos
 
-### Causa Raiz
-1. Todas as 20+ políticas de segurança estão configuradas como "restritivas" em vez de "permissivas", o que bloqueia todas as operações
-2. O mecanismo que cria automaticamente os dados iniciais (plano de contas, centros de custo, conta bancária) ao criar uma empresa está ausente
+### Causa
+As migracoes anteriores provavelmente usaram `CREATE POLICY ... IF NOT EXISTS` ou nao fizeram o DROP correto, mantendo as politicas restritivas originais.
 
-### Solução
-Uma migração de banco de dados que:
+### Solucao
+Uma unica migracao SQL que:
 
-1. **Remove todas as políticas existentes** de todas as 6 tabelas (companies, company_members, chart_of_accounts, cost_centers, bank_accounts, transactions)
+1. **Faz DROP explicito de TODAS as politicas existentes por nome** em cada tabela
+2. **Recria cada politica com `AS PERMISSIVE` explicito**
+3. **Recria o trigger** `on_company_created` vinculado a funcao `seed_default_accounts()`
 
-2. **Recria cada política explicitamente como PERMISSIVE** usando a sintaxe `CREATE POLICY ... AS PERMISSIVE` para garantir que funcionem corretamente
+### Tabelas e Politicas Afetadas
 
-3. **Recria o trigger** `on_company_created` que dispara a função `seed_default_accounts()` quando uma nova empresa e criada
+**companies** (3 politicas):
+- INSERT: qualquer usuario autenticado pode criar
+- SELECT: membros podem visualizar suas empresas
+- UPDATE: membros podem atualizar suas empresas
 
-### Detalhes Tecnicos
+**company_members** (2 politicas):
+- SELECT: membros podem ver outros membros
+- INSERT: usuarios podem se adicionar a empresas
 
-As politicas serao recriadas com `AS PERMISSIVE` explicito em vez de depender do comportamento padrao do PostgreSQL. Exemplo:
+**chart_of_accounts** (4 politicas):
+- SELECT, INSERT, UPDATE, DELETE para membros da empresa
 
-```sql
-CREATE POLICY "policy_name"
-  ON public.table_name
-  AS PERMISSIVE
-  FOR SELECT
-  TO authenticated
-  USING (condition);
+**cost_centers** (4 politicas):
+- SELECT, INSERT, UPDATE, DELETE para membros da empresa
+
+**bank_accounts** (4 politicas):
+- SELECT, INSERT, UPDATE, DELETE para membros da empresa
+
+**transactions** (4 politicas):
+- SELECT, UPDATE, DELETE: membros da empresa
+- INSERT: membro da empresa + user_id = auth.uid()
+
+### Trigger
 ```
-
-Tabelas afetadas e quantidade de politicas:
-- `companies`: 3 politicas (INSERT, SELECT, UPDATE)
-- `company_members`: 2 politicas (SELECT, INSERT)
-- `chart_of_accounts`: 4 politicas (SELECT, INSERT, UPDATE, DELETE)
-- `cost_centers`: 4 politicas (SELECT, INSERT, UPDATE, DELETE)
-- `bank_accounts`: 4 politicas (SELECT, INSERT, UPDATE, DELETE)
-- `transactions`: 4 politicas (SELECT, INSERT, UPDATE, DELETE)
-
-O trigger sera criado como:
-```sql
+DROP TRIGGER IF EXISTS on_company_created ON public.companies;
 CREATE TRIGGER on_company_created
   AFTER INSERT ON public.companies
   FOR EACH ROW
   EXECUTE FUNCTION public.seed_default_accounts();
 ```
 
+### Detalhes Tecnicos
+
+A migracao usara DROP POLICY seguido de CREATE POLICY para cada politica individual, sem depender de IF NOT EXISTS. Exemplo:
+
+```sql
+DROP POLICY IF EXISTS "Authenticated users can create companies" ON public.companies;
+CREATE POLICY "Authenticated users can create companies"
+  ON public.companies
+  AS PERMISSIVE
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() IS NOT NULL);
+```
+
 ### Apos a Correcao
-Sera necessario fazer logout e login novamente para que a empresa seja criada automaticamente com todos os dados iniciais. Depois disso, os centros de custo, plano de contas e CFO Digital funcionarao normalmente.
+1. Fazer logout e login novamente no preview
+2. A empresa sera criada automaticamente com plano de contas, centros de custo e conta bancaria
+3. Testar criacao de centro de custo e lancamento
 
