@@ -146,9 +146,21 @@ Deno.serve(async (req) => {
         classification: classification as any,
       });
     } else if (classification.intent === "query") {
-      // Handle balance/query requests
-      const response = await handleQuery(classification, whatsappConfig.company_id, supabase);
-      await sendWhatsAppMessage(instanceName, remoteJid, response);
+      // Handle balance/query requests with chart image
+      const { text: queryText, chartData } = await handleQuery(classification, whatsappConfig.company_id, supabase);
+      await sendWhatsAppMessage(instanceName, remoteJid, queryText);
+
+      // Generate and send chart image
+      if (chartData) {
+        try {
+          const imageBase64 = await generateFinancialChart(chartData);
+          if (imageBase64) {
+            await sendWhatsAppImage(instanceName, remoteJid, imageBase64, "📊 Gráfico financeiro do mês");
+          }
+        } catch (imgErr) {
+          console.error("Chart generation error:", imgErr);
+        }
+      }
 
       await supabase.from("whatsapp_messages").insert({
         company_id: whatsappConfig.company_id,
@@ -215,6 +227,46 @@ async function sendWhatsAppMessage(instanceName: string, remoteJid: string, text
     console.error("Error sending WhatsApp message:", err);
   }
 }
+
+// Send image via Evolution API
+async function sendWhatsAppImage(instanceName: string, remoteJid: string, base64Image: string, caption: string) {
+  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
+  const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
+
+  if (!evolutionUrl || !evolutionKey) {
+    console.error("Evolution API credentials not configured");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${evolutionUrl}/message/sendMedia/${instanceName}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: evolutionKey,
+        },
+        body: JSON.stringify({
+          number: remoteJid,
+          mediatype: "image",
+          mimetype: "image/png",
+          caption,
+          media: base64Image,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      console.error(`Evolution sendMedia failed [${response.status}]:`, errBody);
+    }
+  } catch (err) {
+    console.error("Error sending WhatsApp image:", err);
+  }
+}
+
+
 
 // Classify message using Lovable AI
 async function classifyMessage(
@@ -361,7 +413,7 @@ async function handleQuery(
   classification: any,
   companyId: string,
   supabase: any
-): Promise<string> {
+): Promise<{ text: string; chartData: any | null }> {
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
     .toISOString()
@@ -370,13 +422,13 @@ async function handleQuery(
 
   const { data: transactions } = await supabase
     .from("transactions")
-    .select("type, amount")
+    .select("type, amount, account_id, date, chart_of_accounts(name, code)")
     .eq("company_id", companyId)
     .gte("date", firstDay)
     .lte("date", today);
 
   if (!transactions || transactions.length === 0) {
-    return "📊 Nenhum lançamento encontrado neste mês.";
+    return { text: "📊 Nenhum lançamento encontrado neste mês.", chartData: null };
   }
 
   const revenue = transactions
@@ -387,8 +439,106 @@ async function handleQuery(
     .reduce((s: number, t: any) => s + Number(t.amount), 0);
   const balance = revenue - expense;
 
+  // Group expenses by account
+  const expenseByAccount: Record<string, number> = {};
+  const revenueByAccount: Record<string, number> = {};
+  for (const t of transactions) {
+    const accountName = t.chart_of_accounts?.name || "Sem conta";
+    const map = t.type === "expense" ? expenseByAccount : revenueByAccount;
+    map[accountName] = (map[accountName] || 0) + Number(t.amount);
+  }
+
   const fmt = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  return `📊 *Resumo do mês*\n\n📈 Receitas: ${fmt(revenue)}\n📉 Despesas: ${fmt(expense)}\n💰 Saldo: ${fmt(balance)}\n\n_Período: ${firstDay} a ${today}_`;
+  // Build detailed text
+  let detailText = `📊 *Resumo Financeiro — ${new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}*\n\n`;
+  detailText += `📈 *Receitas:* ${fmt(revenue)}\n`;
+  for (const [name, val] of Object.entries(revenueByAccount)) {
+    detailText += `   • ${name}: ${fmt(val as number)}\n`;
+  }
+  detailText += `\n📉 *Despesas:* ${fmt(expense)}\n`;
+  for (const [name, val] of Object.entries(expenseByAccount)) {
+    detailText += `   • ${name}: ${fmt(val as number)}\n`;
+  }
+  detailText += `\n💰 *Saldo:* ${fmt(balance)}`;
+  detailText += `\n📅 _${firstDay} a ${today}_`;
+
+  const chartData = {
+    revenue,
+    expense,
+    balance,
+    expenseByAccount,
+    revenueByAccount,
+    period: `${firstDay} a ${today}`,
+    month: new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+  };
+
+  return { text: detailText, chartData };
+}
+
+// Generate financial chart image using AI
+async function generateFinancialChart(chartData: any): Promise<string | null> {
+  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableApiKey) {
+    console.error("LOVABLE_API_KEY not set for chart generation");
+    return null;
+  }
+
+  const fmt = (v: number) =>
+    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const expenseLines = Object.entries(chartData.expenseByAccount)
+    .map(([name, val]) => `${name}: ${fmt(val as number)}`)
+    .join(", ");
+  const revenueLines = Object.entries(chartData.revenueByAccount)
+    .map(([name, val]) => `${name}: ${fmt(val as number)}`)
+    .join(", ");
+
+  const prompt = `Create a clean, professional financial dashboard chart image in Portuguese (Brazil) with a dark background (#1a1a2e) and vibrant colors.
+
+Title: "Resumo Financeiro — ${chartData.month}"
+
+Show these elements:
+1. A horizontal bar chart comparing Receitas (green #10b981, total ${fmt(chartData.revenue)}) vs Despesas (red #ef4444, total ${fmt(chartData.expense)})
+2. A donut/pie chart showing expense breakdown: ${expenseLines}
+3. A large KPI card showing "Saldo: ${fmt(chartData.balance)}" in ${chartData.balance >= 0 ? "green" : "red"}
+4. Revenue breakdown: ${revenueLines}
+
+Style: Modern fintech dashboard, rounded corners, subtle gradients, clean typography. Size: landscape 16:9 ratio. No watermarks.`;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${lovableApiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-image",
+        messages: [{ role: "user", content: prompt }],
+        modalities: ["image", "text"],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Chart AI error:", response.status, await response.text());
+      return null;
+    }
+
+    const result = await response.json();
+    const imageUrl = result.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+    if (!imageUrl) {
+      console.error("No image returned from AI");
+      return null;
+    }
+
+    // Extract base64 data (remove data:image/png;base64, prefix)
+    const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, "");
+    return base64Data;
+  } catch (err) {
+    console.error("Chart generation error:", err);
+    return null;
+  }
 }
