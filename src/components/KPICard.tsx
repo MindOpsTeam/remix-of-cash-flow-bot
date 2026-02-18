@@ -1,6 +1,6 @@
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { formatCurrency } from "@/lib/mock-data";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 
 interface KPICardProps {
   label: string;
@@ -8,21 +8,55 @@ interface KPICardProps {
   change: number;
   icon: ReactNode;
   format?: "currency" | "percentage";
+  delay?: number;
 }
 
-export function KPICard({ label, value, change, icon, format = "currency" }: KPICardProps) {
+function useAnimatedNumber(target: number, duration = 1200, delay = 0) {
+  const [current, setCurrent] = useState(0);
+  const startTime = useRef<number | null>(null);
+  const rafId = useRef<number>();
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const animate = (timestamp: number) => {
+        if (!startTime.current) startTime.current = timestamp;
+        const elapsed = timestamp - startTime.current;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setCurrent(target * eased);
+        if (progress < 1) rafId.current = requestAnimationFrame(animate);
+      };
+      rafId.current = requestAnimationFrame(animate);
+    }, delay);
+
+    return () => {
+      clearTimeout(timeout);
+      if (rafId.current) cancelAnimationFrame(rafId.current);
+    };
+  }, [target, duration, delay]);
+
+  return current;
+}
+
+export function KPICard({ label, value, change, icon, format = "currency", delay = 0 }: KPICardProps) {
   const isPositive = change >= 0;
-  const formattedValue = format === "currency" ? formatCurrency(value) : `${value.toFixed(1)}%`;
+  const animatedValue = useAnimatedNumber(value, 1200, delay);
+  const formattedValue = format === "currency" 
+    ? formatCurrency(animatedValue) 
+    : `${animatedValue.toFixed(1)}%`;
 
   return (
-    <div className="glass-card p-5 kpi-glow transition-transform hover:scale-[1.02] duration-300">
+    <div 
+      className="glass-card-premium p-5 transition-all duration-500 hover:scale-[1.03] group animate-slide-up"
+      style={{ animationDelay: `${delay}ms`, animationFillMode: "backwards" }}
+    >
       <div className="flex items-start justify-between mb-3">
         <span className="text-sm text-muted-foreground font-medium">{label}</span>
-        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors duration-300 group-hover:scale-110">
           {icon}
         </div>
       </div>
-      <p className="text-2xl font-bold text-foreground tracking-tight">{formattedValue}</p>
+      <p className="text-2xl font-bold text-foreground tracking-tight animate-count-up">{formattedValue}</p>
       <div className="flex items-center gap-1.5 mt-2">
         {isPositive ? (
           <TrendingUp className="h-3.5 w-3.5 text-revenue" />

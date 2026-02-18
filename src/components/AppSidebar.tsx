@@ -13,6 +13,7 @@ import {
   Brain,
   TrendingUp,
   FileText,
+  FlaskConical,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { to: "/dre", label: "DRE", icon: FileBarChart2 },
   { to: "/reports", label: "Relatórios", icon: PieChart },
   { to: "/cfo-digital", label: "CFO Digital", icon: Brain },
+  { to: "/simulator", label: "Simulador E se?", icon: FlaskConical },
   { to: "/forecast", label: "Previsão Fluxo", icon: TrendingUp },
   { to: "/summary", label: "Resumo Executivo", icon: FileText },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },

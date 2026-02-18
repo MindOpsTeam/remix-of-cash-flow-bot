@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.ai-summary]
 verify_jwt = false
+
+[functions.smart-alerts]
+verify_jwt = false
