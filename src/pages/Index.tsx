@@ -62,7 +62,7 @@ export default function Dashboard() {
           <h2 className="text-sm font-semibold text-foreground mb-4">Últimos Lançamentos</h2>
           <div className="space-y-0.5">
             {mockTransactions.slice(0, 6).map((t) => (
-              <TransactionRow key={t.id} transaction={t} />
+              <TransactionRow key={t.id} transaction={{ ...t, account_name: t.category, cost_center_name: t.costCenter }} />
             ))}
           </div>
         </div>
