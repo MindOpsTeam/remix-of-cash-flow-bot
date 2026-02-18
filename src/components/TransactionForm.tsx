@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Sparkles, Loader2 } from "lucide-react";
 
 interface TransactionFormProps {
   open: boolean;
@@ -42,6 +43,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
   const { company } = useCompany();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [classifying, setClassifying] = useState(false);
   const [accounts, setAccounts] = useState<{ id: string; name: string; code: string | null; type: string }[]>([]);
   const [costCenters, setCostCenters] = useState<{ id: string; name: string; category: string }[]>([]);
   const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string }[]>([]);
@@ -57,6 +59,8 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     payment_method: "",
     project: "",
   });
+
+  const [aiSuggested, setAiSuggested] = useState(false);
 
   useEffect(() => {
     if (!company) return;
@@ -75,6 +79,35 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
 
     fetchOptions();
   }, [company]);
+
+  const classifyWithAI = useCallback(async (description: string) => {
+    if (!company || description.trim().length < 5) return;
+    setClassifying(true);
+    setAiSuggested(false);
+    try {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-classify`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ description, type: form.type, company_id: company.id }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.account_id && !form.account_id) {
+          setForm(prev => ({ ...prev, account_id: data.account_id, cost_center_id: data.cost_center_id || prev.cost_center_id }));
+          setAiSuggested(true);
+          toast.success("✨ IA sugeriu a classificação automaticamente!");
+        }
+      }
+    } catch (e) {
+      console.error("AI classify error:", e);
+    } finally {
+      setClassifying(false);
+    }
+  }, [company, form.type, form.account_id]);
 
   const filteredAccounts = accounts.filter((a) => {
     if (form.type === "revenue") return a.type === "revenue";
@@ -174,8 +207,27 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
 
           {/* Descrição */}
           <div>
-            <Label>Descrição *</Label>
-            <Textarea value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="Descreva o lançamento..." required className="mt-1 bg-background/50 min-h-[60px]" />
+            <div className="flex items-center gap-2">
+              <Label>Descrição *</Label>
+              {classifying && (
+                <span className="flex items-center gap-1 text-xs text-primary">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Classificando...
+                </span>
+              )}
+              {aiSuggested && !classifying && (
+                <span className="flex items-center gap-1 text-xs text-revenue">
+                  <Sparkles className="h-3 w-3" /> IA sugeriu
+                </span>
+              )}
+            </div>
+            <Textarea 
+              value={form.description} 
+              onChange={(e) => update("description", e.target.value)} 
+              onBlur={() => classifyWithAI(form.description)}
+              placeholder="Descreva o lançamento e a IA sugere a classificação..." 
+              required 
+              className="mt-1 bg-background/50 min-h-[60px]" 
+            />
           </div>
 
           {/* Valor + Forma de Pagamento */}
