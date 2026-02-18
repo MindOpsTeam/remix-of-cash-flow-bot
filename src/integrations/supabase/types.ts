@@ -51,6 +51,7 @@ export type Database = {
           code: string | null
           company_id: string
           created_at: string
+          editable: boolean
           id: string
           name: string
           parent_id: string | null
@@ -60,6 +61,7 @@ export type Database = {
           code?: string | null
           company_id: string
           created_at?: string
+          editable?: boolean
           id?: string
           name: string
           parent_id?: string | null
@@ -69,6 +71,7 @@ export type Database = {
           code?: string | null
           company_id?: string
           created_at?: string
+          editable?: boolean
           id?: string
           name?: string
           parent_id?: string | null
@@ -149,6 +152,7 @@ export type Database = {
       }
       cost_centers: {
         Row: {
+          active: boolean
           category: string
           company_id: string
           created_at: string
@@ -156,6 +160,7 @@ export type Database = {
           name: string
         }
         Insert: {
+          active?: boolean
           category?: string
           company_id: string
           created_at?: string
@@ -163,6 +168,7 @@ export type Database = {
           name: string
         }
         Update: {
+          active?: boolean
           category?: string
           company_id?: string
           created_at?: string
