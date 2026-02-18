@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Settings,
   LogOut,
+  Brain,
 } from "lucide-react";
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
   { to: "/dre", label: "DRE", icon: FileBarChart2 },
   { to: "/reports", label: "Relatórios", icon: PieChart },
+  { to: "/cfo-digital", label: "CFO Digital", icon: Brain },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
   { to: "/settings", label: "Configurações", icon: Settings },
 ];
