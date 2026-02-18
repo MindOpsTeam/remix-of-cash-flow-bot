@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Brain, Send, RefreshCw, TrendingUp, AlertTriangle, Target, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useCFODashboard } from "@/hooks/useCFODashboard";
+import { CFODashboard } from "@/components/cfo/CFODashboard";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -21,6 +23,7 @@ const QUICK_QUESTIONS = [
 export default function CFODigital() {
   const { company } = useCompany();
   const { toast } = useToast();
+  const dashboardData = useCFODashboard();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -151,6 +154,9 @@ export default function CFODigital() {
             Novo Diagnóstico
           </Button>
         </div>
+
+        {/* Dashboard */}
+        <CFODashboard data={dashboardData} />
 
         {/* Quick Actions */}
         {!hasInitialAnalysis && messages.length === 0 && (
