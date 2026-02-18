@@ -114,6 +114,18 @@ export default function DRE() {
 
   useEffect(() => { buildDRE(); }, [buildDRE]);
 
+  // Realtime: rebuild DRE when transactions change
+  useEffect(() => {
+    if (!company) return;
+    const channel = supabase
+      .channel('dre-transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `company_id=eq.${company.id}` }, () => {
+        buildDRE();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [company, buildDRE]);
+
   const totalRevenue = lines.find((l) => l.label === "Receita Bruta")?.value || 0;
   const grossProfit = lines.find((l) => l.label === "Lucro Bruto")?.value || 0;
   const netProfit = lines.find((l) => l.label === "Lucro Líquido")?.value || 0;
