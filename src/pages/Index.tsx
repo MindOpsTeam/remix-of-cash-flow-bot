@@ -3,7 +3,8 @@ import { KPICard } from "@/components/KPICard";
 import { FinancialScore } from "@/components/FinancialScore";
 import { TransactionRow } from "@/components/TransactionRow";
 import { formatCurrency } from "@/lib/mock-data";
-import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2 } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -167,7 +168,12 @@ export default function Dashboard() {
             </div>
 
             <div className="glass-card-premium p-5 animate-slide-up" style={{ animationDelay: "500ms", animationFillMode: "backwards" }}>
-              <h2 className="text-sm font-semibold text-foreground mb-4">Últimos Lançamentos</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-foreground">Últimos Lançamentos</h2>
+              <Link to="/transactions" className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+                Ver todos <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
               <div className="space-y-0.5">
                 {recentTransactions.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">Nenhum lançamento registrado</p>
