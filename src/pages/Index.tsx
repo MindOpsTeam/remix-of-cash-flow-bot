@@ -58,7 +58,7 @@ export default function Dashboard() {
       supabase.from("transactions").select("amount, type").eq("company_id", company.id).eq("status", "confirmed").gte("date", curStart).lte("date", curEnd),
       supabase.from("transactions").select("amount, type").eq("company_id", company.id).eq("status", "confirmed").gte("date", prevStart).lte("date", prevEnd),
       supabase.from("transactions").select("date, amount, type").eq("company_id", company.id).eq("status", "confirmed").gte("date", sixMonthsAgo).lte("date", curEnd),
-      supabase.from("transactions").select("*, chart_of_accounts(name), cost_centers(name)").eq("company_id", company.id).order("date", { ascending: false }).limit(6),
+      supabase.from("transactions").select("*, chart_of_accounts(name), cost_centers(name)").eq("company_id", company.id).order("created_at", { ascending: false }).limit(6),
     ]);
 
     const curRevenue = (curRes.data || []).filter(t => t.type === "revenue").reduce((s, t) => s + Number(t.amount), 0);
