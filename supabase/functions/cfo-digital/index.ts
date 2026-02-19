@@ -27,7 +27,7 @@ serve(async (req) => {
         .select("*, chart_of_accounts(name, code, type), cost_centers(name, category)")
         .eq("company_id", company_id)
         .order("date", { ascending: false })
-        .limit(500),
+        .limit(1000),
       supabase
         .from("chart_of_accounts")
         .select("*")
@@ -67,12 +67,12 @@ serve(async (req) => {
     const sumByType = (txs: any[], type: string) =>
       txs.filter((t) => t.type === type).reduce((s, t) => s + Number(t.amount), 0);
 
-    const currentRevenue = sumByType(thisMonthTx, "income");
+    const currentRevenue = sumByType(thisMonthTx, "revenue");
     const currentExpenses = sumByType(thisMonthTx, "expense");
-    const lastRevenue = sumByType(lastMonthTx, "income");
+    const lastRevenue = sumByType(lastMonthTx, "revenue");
     const lastExpenses = sumByType(lastMonthTx, "expense");
 
-    const totalRevenue = sumByType(transactions, "income");
+    const totalRevenue = sumByType(transactions, "revenue");
     const totalExpenses = sumByType(transactions, "expense");
 
     // Cost center breakdown
@@ -92,7 +92,7 @@ serve(async (req) => {
       });
       monthlyTrends.push({
         month: m.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }),
-        revenue: sumByType(mTx, "income"),
+        revenue: sumByType(mTx, "revenue"),
         expenses: sumByType(mTx, "expense"),
       });
     }
