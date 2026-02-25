@@ -106,6 +106,7 @@ Deno.serve(async (req) => {
       case "create-webhook": {
         const webhookUrl = `${supabaseUrl}/functions/v1/asaas-webhook`;
         const webhookPayload: Record<string, unknown> = {
+          name: "FinanceAI - Webhook Automático",
           url: webhookUrl,
           email: config.webhook_email || config.notification_email || undefined,
           enabled: true,
@@ -113,6 +114,9 @@ Deno.serve(async (req) => {
           authToken: config.webhook_auth_token || undefined,
           apiVersion: 3,
           sendType: config.webhook_send_type || "SEQUENTIALLY",
+          events: (config.enabled_events as string[])?.length > 0
+            ? config.enabled_events
+            : undefined,
         };
 
         if (config.webhook_id) {
