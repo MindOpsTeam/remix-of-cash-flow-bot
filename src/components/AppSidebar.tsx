@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
+import { useAppMode } from "@/hooks/useAppMode";
 import logo from "@/assets/logo.png";
 import {
   LayoutDashboard,
@@ -14,9 +15,16 @@ import {
   TrendingUp,
   FileText,
   FlaskConical,
+  Wallet,
+  CreditCard,
+  Target,
+  PiggyBank,
+  FolderOpen,
+  User,
+  Building2,
 } from "lucide-react";
 
-const navItems = [
+const businessItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
   { to: "/dre", label: "DRE", icon: FileBarChart2 },
@@ -29,10 +37,25 @@ const navItems = [
   { to: "/settings", label: "Configurações", icon: Settings },
 ];
 
+const personalItems = [
+  { to: "/personal", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/personal/transactions", label: "Transações", icon: ArrowLeftRight },
+  { to: "/personal/accounts", label: "Contas", icon: Wallet },
+  // Upcoming phases:
+  // { to: "/personal/cards", label: "Cartões", icon: CreditCard },
+  // { to: "/personal/goals", label: "Metas", icon: Target },
+  // { to: "/personal/budgets", label: "Orçamentos", icon: PiggyBank },
+  // { to: "/personal/categories", label: "Categorias", icon: FolderOpen },
+  { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
+];
+
 export function AppSidebar() {
   const location = useLocation();
   const { signOut } = useAuth();
   const { company } = useCompany();
+  const { mode, setMode, isPersonal } = useAppMode();
+
+  const navItems = isPersonal ? personalItems : businessItems;
 
   return (
     <aside className="hidden lg:flex w-64 flex-col bg-sidebar border-r border-sidebar-border">
@@ -41,8 +64,38 @@ export function AppSidebar() {
           <img src={logo} alt="FinanceAI" className="h-9 w-9 rounded-lg" />
           <div>
             <h1 className="text-sm font-bold text-foreground tracking-tight">FinanceAI</h1>
-            <p className="text-xs text-sidebar-foreground">ERP Financeiro</p>
+            <p className="text-xs text-sidebar-foreground">
+              {isPersonal ? "Finanças Pessoais" : "ERP Financeiro"}
+            </p>
           </div>
+        </div>
+      </div>
+
+      {/* Mode Switcher */}
+      <div className="px-3 mb-3">
+        <div className="flex rounded-lg bg-sidebar-accent/30 p-1">
+          <button
+            onClick={() => setMode("personal")}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              isPersonal
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-sidebar-foreground hover:text-foreground"
+            }`}
+          >
+            <User className="h-3.5 w-3.5" />
+            Pessoal
+          </button>
+          <button
+            onClick={() => setMode("business")}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              !isPersonal
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-sidebar-foreground hover:text-foreground"
+            }`}
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            Empresa
+          </button>
         </div>
       </div>
 
@@ -76,7 +129,7 @@ export function AppSidebar() {
         </button>
       </div>
 
-      {company && (
+      {!isPersonal && company && (
         <div className="p-4 mx-3 mb-4 glass-card glow-border">
           <p className="text-xs text-muted-foreground mb-1">Empresa ativa</p>
           <p className="text-sm font-semibold text-foreground">{company.name}</p>
