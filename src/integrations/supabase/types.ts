@@ -18,101 +18,202 @@ export type Database = {
         Row: {
           api_key_production: string | null
           api_key_sandbox: string | null
-          company_id: string
           created_at: string
-          enabled_events: Json
+          enabled_events: string[] | null
           environment: string
           id: string
           notification_email: string | null
           updated_at: string
+          user_id: string
           webhook_auth_token: string | null
+          webhook_email: string | null
           webhook_id: string | null
+          webhook_send_type: string | null
           webhook_status: string
+          webhook_url: string | null
         }
         Insert: {
           api_key_production?: string | null
           api_key_sandbox?: string | null
-          company_id: string
           created_at?: string
-          enabled_events?: Json
+          enabled_events?: string[] | null
           environment?: string
           id?: string
           notification_email?: string | null
           updated_at?: string
+          user_id: string
           webhook_auth_token?: string | null
+          webhook_email?: string | null
           webhook_id?: string | null
+          webhook_send_type?: string | null
           webhook_status?: string
+          webhook_url?: string | null
         }
         Update: {
           api_key_production?: string | null
           api_key_sandbox?: string | null
-          company_id?: string
           created_at?: string
-          enabled_events?: Json
+          enabled_events?: string[] | null
           environment?: string
           id?: string
           notification_email?: string | null
           updated_at?: string
+          user_id?: string
           webhook_auth_token?: string | null
+          webhook_email?: string | null
           webhook_id?: string | null
+          webhook_send_type?: string | null
           webhook_status?: string
+          webhook_url?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "asaas_config_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: true
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      asaas_webhook_logs: {
+      asaas_payments: {
         Row: {
-          asaas_event: string
-          company_id: string
+          asaas_id: string
+          bank_slip_url: string | null
+          billing_type: string | null
+          chargeback: Json | null
+          confirmed_date: string | null
+          created_at: string
+          credit_card: Json | null
+          credit_date: string | null
+          customer_id: string | null
+          description: string | null
+          discount: Json | null
+          due_date: string | null
+          external_reference: string | null
+          fine: Json | null
+          id: string
+          installment_id: string | null
+          interest: Json | null
+          invoice_url: string | null
+          net_value: number | null
+          payment_date: string | null
+          payment_link: string | null
+          pix_transaction: Json | null
+          raw_payload: Json | null
+          refunds: Json | null
+          split: Json | null
+          status: string
+          subscription_id: string | null
+          updated_at: string
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          asaas_id: string
+          bank_slip_url?: string | null
+          billing_type?: string | null
+          chargeback?: Json | null
+          confirmed_date?: string | null
+          created_at?: string
+          credit_card?: Json | null
+          credit_date?: string | null
+          customer_id?: string | null
+          description?: string | null
+          discount?: Json | null
+          due_date?: string | null
+          external_reference?: string | null
+          fine?: Json | null
+          id?: string
+          installment_id?: string | null
+          interest?: Json | null
+          invoice_url?: string | null
+          net_value?: number | null
+          payment_date?: string | null
+          payment_link?: string | null
+          pix_transaction?: Json | null
+          raw_payload?: Json | null
+          refunds?: Json | null
+          split?: Json | null
+          status: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          asaas_id?: string
+          bank_slip_url?: string | null
+          billing_type?: string | null
+          chargeback?: Json | null
+          confirmed_date?: string | null
+          created_at?: string
+          credit_card?: Json | null
+          credit_date?: string | null
+          customer_id?: string | null
+          description?: string | null
+          discount?: Json | null
+          due_date?: string | null
+          external_reference?: string | null
+          fine?: Json | null
+          id?: string
+          installment_id?: string | null
+          interest?: Json | null
+          invoice_url?: string | null
+          net_value?: number | null
+          payment_date?: string | null
+          payment_link?: string | null
+          pix_transaction?: Json | null
+          raw_payload?: Json | null
+          refunds?: Json | null
+          split?: Json | null
+          status?: string
+          subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: []
+      }
+      asaas_webhook_events: {
+        Row: {
+          attempts: number
           created_at: string
           entity_id: string | null
-          error_message: string | null
-          http_status_returned: number
+          entity_type: string | null
+          error: string | null
+          event_category: string
+          event_id: string
+          event_type: string
           id: string
-          idempotency_key: string
           payload: Json
           processed: boolean
+          processed_at: string | null
+          user_id: string
         }
         Insert: {
-          asaas_event: string
-          company_id: string
+          attempts?: number
           created_at?: string
           entity_id?: string | null
-          error_message?: string | null
-          http_status_returned?: number
+          entity_type?: string | null
+          error?: string | null
+          event_category: string
+          event_id: string
+          event_type: string
           id?: string
-          idempotency_key: string
-          payload?: Json
+          payload: Json
           processed?: boolean
+          processed_at?: string | null
+          user_id: string
         }
         Update: {
-          asaas_event?: string
-          company_id?: string
+          attempts?: number
           created_at?: string
           entity_id?: string | null
-          error_message?: string | null
-          http_status_returned?: number
+          entity_type?: string | null
+          error?: string | null
+          event_category?: string
+          event_id?: string
+          event_type?: string
           id?: string
-          idempotency_key?: string
           payload?: Json
           processed?: boolean
+          processed_at?: string | null
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "asaas_webhook_logs_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       bank_accounts: {
         Row: {

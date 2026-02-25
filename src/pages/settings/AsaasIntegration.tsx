@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Eye, EyeOff, Copy, RefreshCw, Zap, CheckCircle2, XCircle, AlertTriangle,
+  Eye, EyeOff, Copy, RefreshCw, Zap, CheckCircle2, XCircle,
   ArrowLeft, Loader2, Shield, Webhook as WebhookIcon
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -74,31 +75,35 @@ const ALL_EVENT_LIST = Object.values(ALL_EVENTS).flatMap((g) => g.events);
 
 interface AsaasConfig {
   id: string;
-  company_id: string;
+  user_id: string;
   environment: string;
   api_key_sandbox: string | null;
   api_key_production: string | null;
   webhook_auth_token: string | null;
   webhook_id: string | null;
+  webhook_url: string | null;
+  webhook_email: string | null;
   webhook_status: string;
+  webhook_send_type: string | null;
   notification_email: string | null;
   enabled_events: string[];
 }
 
-interface WebhookLog {
+interface WebhookEvent {
   id: string;
-  asaas_event: string;
+  event_type: string;
+  event_category: string;
   entity_id: string | null;
-  http_status_returned: number;
+  processed: boolean;
   created_at: string;
 }
 
 export default function AsaasIntegrationPage() {
-  const { company } = useCompany();
+  const { user } = useAuth();
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
   const [config, setConfig] = useState<AsaasConfig | null>(null);
-  const [logs, setLogs] = useState<WebhookLog[]>([]);
+  const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -111,25 +116,24 @@ export default function AsaasIntegrationPage() {
   const [environment, setEnvironment] = useState("sandbox");
   const [webhookAuthToken, setWebhookAuthToken] = useState("");
   const [notificationEmail, setNotificationEmail] = useState("");
+  const [webhookSendType, setWebhookSendType] = useState("SEQUENTIALLY");
   const [enabledEvents, setEnabledEvents] = useState<string[]>(ALL_EVENT_LIST);
 
   const [showKeySandbox, setShowKeySandbox] = useState(false);
   const [showKeyProduction, setShowKeyProduction] = useState(false);
 
   const loadData = useCallback(async () => {
-    if (!company) return;
+    if (!user) return;
     setLoading(true);
 
-    const [configRes, logsRes] = await Promise.all([
+    const [configRes, eventsRes] = await Promise.all([
       supabase
         .from("asaas_config")
         .select("*")
-        .eq("company_id", company.id)
         .maybeSingle(),
       supabase
-        .from("asaas_webhook_logs")
-        .select("id, asaas_event, entity_id, http_status_returned, created_at")
-        .eq("company_id", company.id)
+        .from("asaas_webhook_events")
+        .select("id, event_type, event_category, entity_id, processed, created_at")
         .order("created_at", { ascending: false })
         .limit(20),
     ]);
@@ -142,26 +146,28 @@ export default function AsaasIntegrationPage() {
       setEnvironment(c.environment || "sandbox");
       setWebhookAuthToken(c.webhook_auth_token || "");
       setNotificationEmail(c.notification_email || "");
+      setWebhookSendType(c.webhook_send_type || "SEQUENTIALLY");
       setEnabledEvents((c.enabled_events as string[]) || ALL_EVENT_LIST);
     }
 
-    setLogs((logsRes.data || []) as WebhookLog[]);
+    setEvents((eventsRes.data || []) as WebhookEvent[]);
     setLoading(false);
-  }, [company]);
+  }, [user]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const saveCredentials = async () => {
-    if (!company) return;
+    if (!user) return;
     setSaving(true);
 
     const payload = {
-      company_id: company.id,
+      user_id: user.id,
       environment,
       api_key_sandbox: apiKeySandbox || null,
       api_key_production: apiKeyProduction || null,
       webhook_auth_token: webhookAuthToken || null,
       notification_email: notificationEmail || null,
+      webhook_send_type: webhookSendType,
       enabled_events: enabledEvents,
     };
 
@@ -185,11 +191,10 @@ export default function AsaasIntegrationPage() {
   };
 
   const testConnection = async () => {
-    if (!company) return;
     setTesting(true);
     try {
       const { data, error } = await supabase.functions.invoke("asaas-api", {
-        body: { action: "test-connection", company_id: company.id },
+        body: { action: "test-connection" },
       });
       if (error) throw error;
       if (data?.data?.balance !== undefined) {
@@ -206,11 +211,10 @@ export default function AsaasIntegrationPage() {
   };
 
   const createWebhook = async () => {
-    if (!company) return;
     setCreatingWebhook(true);
     try {
       const { data, error } = await supabase.functions.invoke("asaas-api", {
-        body: { action: "create-webhook", company_id: company.id },
+        body: { action: "create-webhook" },
       });
       if (error) throw error;
       if (data?.ok) {
@@ -226,11 +230,10 @@ export default function AsaasIntegrationPage() {
   };
 
   const reactivateWebhook = async () => {
-    if (!company) return;
     setReactivating(true);
     try {
       const { data, error } = await supabase.functions.invoke("asaas-api", {
-        body: { action: "reactivate-webhook", company_id: company.id },
+        body: { action: "reactivate-webhook" },
       });
       if (error) throw error;
       if (data?.ok) {
@@ -374,14 +377,28 @@ export default function AsaasIntegrationPage() {
               </div>
             </div>
 
-            <div>
-              <Label className="text-xs">Email de notificação</Label>
-              <Input
-                type="email"
-                value={notificationEmail}
-                onChange={(e) => setNotificationEmail(e.target.value)}
-                placeholder="alertas@suaempresa.com"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Email de notificação</Label>
+                <Input
+                  type="email"
+                  value={notificationEmail}
+                  onChange={(e) => setNotificationEmail(e.target.value)}
+                  placeholder="alertas@suaempresa.com"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Tipo de envio do Webhook</Label>
+                <Select value={webhookSendType} onValueChange={setWebhookSendType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SEQUENTIALLY">Sequencial</SelectItem>
+                    <SelectItem value="NON_SEQUENTIALLY">Não sequencial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex gap-2 pt-2">
@@ -436,8 +453,8 @@ export default function AsaasIntegrationPage() {
               )}
             </div>
 
-            {/* Logs */}
-            {logs.length > 0 && (
+            {/* Events log */}
+            {events.length > 0 && (
               <div>
                 <Label className="text-xs mb-2 block">Últimas notificações</Label>
                 <div className="border border-border rounded-lg overflow-hidden">
@@ -446,23 +463,27 @@ export default function AsaasIntegrationPage() {
                       <tr className="bg-muted/50">
                         <th className="text-left p-2 font-medium text-muted-foreground">Data</th>
                         <th className="text-left p-2 font-medium text-muted-foreground">Evento</th>
+                        <th className="text-left p-2 font-medium text-muted-foreground">Categoria</th>
                         <th className="text-left p-2 font-medium text-muted-foreground">Entity ID</th>
                         <th className="text-right p-2 font-medium text-muted-foreground">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {logs.map((log) => (
-                        <tr key={log.id} className="border-t border-border">
+                      {events.map((ev) => (
+                        <tr key={ev.id} className="border-t border-border">
                           <td className="p-2 text-muted-foreground">
-                            {new Date(log.created_at).toLocaleString("pt-BR")}
+                            {new Date(ev.created_at).toLocaleString("pt-BR")}
                           </td>
-                          <td className="p-2 font-mono">{log.asaas_event}</td>
-                          <td className="p-2 text-muted-foreground font-mono">{log.entity_id || "—"}</td>
+                          <td className="p-2 font-mono">{ev.event_type}</td>
+                          <td className="p-2">
+                            <Badge variant="outline" className="text-[10px]">{ev.event_category}</Badge>
+                          </td>
+                          <td className="p-2 text-muted-foreground font-mono">{ev.entity_id || "—"}</td>
                           <td className="p-2 text-right">
-                            {log.http_status_returned === 200 ? (
+                            {ev.processed ? (
                               <CheckCircle2 className="h-3.5 w-3.5 text-revenue inline" />
                             ) : (
-                              <XCircle className="h-3.5 w-3.5 text-expense inline" />
+                              <XCircle className="h-3.5 w-3.5 text-muted-foreground inline" />
                             )}
                           </td>
                         </tr>
