@@ -1,60 +1,55 @@
 
+# Disponibilizar Integracao Asaas no Modo Pessoal (PF)
 
-# Atualizar Lista Completa de 80 Eventos Asaas + Corrigir Edge Function
-
-## Problema Atual
-- A lista de eventos no frontend tem apenas ~45 eventos (incompleta e com nomes incorretos em algumas categorias como "Antecipacoes" e "Status da Conta")
-- A edge function `asaas-api` no action `create-webhook` NAO envia o campo `events` no payload, ou seja, o webhook e criado sem especificar quais eventos receber
-- A edge function `asaas-webhook` nao reconhece as novas categorias (SUBSCRIPTION, CHECKOUT, BALANCE, INTERNAL_TRANSFER, ACCESS_TOKEN, RECEIVABLE_ANTICIPATION)
+## Contexto
+A integracao Asaas ja usa `user_id` no backend (tabelas, edge functions, RLS), entao funciona independente do modo. O problema e que o menu "Configuracoes" so aparece na sidebar do modo empresarial, e a pagina Settings.tsx mostra itens exclusivamente empresariais.
 
 ## Mudancas
 
-### 1. Frontend: `src/pages/settings/AsaasIntegration.tsx`
+### 1. Sidebar: Adicionar "Configuracoes" no modo pessoal
+**Arquivo:** `src/components/AppSidebar.tsx`
 
-Substituir o objeto `ALL_EVENTS` pela lista oficial completa de 80 eventos, agrupados em 11 categorias:
+Adicionar item ao array `personalItems`:
+```
+{ to: "/personal/settings", label: "Configurações", icon: Settings }
+```
 
-- **Cobrancas** (28 eventos): inclui novos como PAYMENT_PARTIALLY_REFUNDED, PAYMENT_REFUND_IN_PROGRESS, PAYMENT_REFUND_DENIED, PAYMENT_ANTICIPATED, PAYMENT_AUTHORIZED, PAYMENT_AWAITING_RISK_ANALYSIS, PAYMENT_APPROVED_BY_RISK_ANALYSIS, PAYMENT_REPROVED_BY_RISK_ANALYSIS, PAYMENT_CREDIT_CARD_CAPTURE_REFUSED, PAYMENT_SPLIT_CANCELLED, PAYMENT_SPLIT_DIVERGENCE_BLOCK, PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED
-- **Assinaturas** (7 eventos): categoria nova
-- **Notas Fiscais** (8 eventos): corrigir INVOICE_CANCELED (era INVOICE_CANCELLED)
-- **Transferencias** (7 eventos): sem mudancas
-- **Pague Contas** (7 eventos): sem mudancas
-- **Antecipacoes** (7 eventos): renomear de ANTICIPATION_* para RECEIVABLE_ANTICIPATION_* + novos eventos (SCHEDULED, PENDING)
-- **Recarga Celular** (4 eventos): adicionar PENDING e REFUNDED
-- **Situacao da Conta** (16 eventos): substituir os 3 eventos antigos pelos 16 novos oficiais (BANK_ACCOUNT_INFO, COMMERCIAL_INFO, DOCUMENT, GENERAL_APPROVAL)
-- **Checkout** (4 eventos): categoria nova
-- **Bloqueios de Saldo** (2 eventos): categoria nova
-- **Movimentacoes Internas** (2 eventos): categoria nova
-- **Chaves de API** (6 eventos): categoria nova -- REMOVIDO pois nao e da lista oficial (total fica 92 com eles, mas o user disse 80)
+### 2. Criar pagina de configuracoes pessoal
+**Arquivo:** `src/pages/personal/PersonalSettings.tsx` (novo)
 
-Nota: O user listou 98 eventos no total (incluindo ACCESS_TOKEN), mas chamou de "80 eventos". Implementarei todos os listados.
+Pagina simplificada com apenas os cards relevantes para PF:
+- **Integracoes** -- link para `/personal/settings/integrations`
 
-### 2. Edge Function: `supabase/functions/asaas-api/index.ts`
+Sem os itens empresariais (Empresa, Usuarios, Plano de Contas, Centros de Custo).
 
-No action `create-webhook`, adicionar os campos que faltam no payload:
-- `name: "FinanceAI - Webhook Automatico"`
-- `events: config.enabled_events` (array com os eventos selecionados pelo usuario)
+### 3. Criar pagina de integracoes pessoal
+**Arquivo:** `src/pages/personal/PersonalIntegrations.tsx` (novo)
 
-Isso garante que o webhook sera criado no Asaas com os eventos corretos.
+Similar a `Integrations.tsx` mas sem a secao de webhooks genericos (que depende de `company_id`). Mostra apenas o card do Asaas com link para `/personal/settings/integrations/asaas`.
 
-### 3. Edge Function: `supabase/functions/asaas-webhook/index.ts`
+### 4. Adaptar AsaasIntegration.tsx para ambos os modos
+**Arquivo:** `src/pages/settings/AsaasIntegration.tsx`
 
-Atualizar a funcao `getEventCategory` para reconhecer as novas categorias:
-- SUBSCRIPTION_* -> SUBSCRIPTION
-- CHECKOUT_* -> CHECKOUT
-- BALANCE_* -> BALANCE
-- INTERNAL_TRANSFER_* -> INTERNAL_TRANSFER
-- ACCESS_TOKEN_* -> ACCESS_TOKEN
-- RECEIVABLE_ANTICIPATION_* -> RECEIVABLE_ANTICIPATION
+- Detectar o modo atual via `useAppMode()` ou pela rota (se comeca com `/personal`)
+- Ajustar o link "Voltar" para apontar para a rota correta (`/personal/settings/integrations` ou `/settings/integrations`)
+- O restante da logica nao muda (ja usa `user_id`)
 
-E atualizar `getEntityFromPayload` para extrair entidades de subscription e checkout.
+### 5. Adicionar rotas no App.tsx
+**Arquivo:** `src/App.tsx`
 
-### Arquivos Editados (3)
+Novas rotas protegidas:
+- `/personal/settings` -> `PersonalSettings`
+- `/personal/settings/integrations` -> `PersonalIntegrations`
+- `/personal/settings/integrations/asaas` -> `AsaasIntegrationPage` (reutiliza o mesmo componente)
 
-1. `src/pages/settings/AsaasIntegration.tsx` -- nova lista completa de eventos
-2. `supabase/functions/asaas-api/index.ts` -- adicionar `name` e `events` no payload do webhook
-3. `supabase/functions/asaas-webhook/index.ts` -- novas categorias no getEventCategory
+### Resumo de arquivos
 
-### Sem Migracoes de Database
+| Arquivo | Acao |
+|---|---|
+| `src/components/AppSidebar.tsx` | Adicionar item "Configuracoes" no personalItems |
+| `src/pages/personal/PersonalSettings.tsx` | Criar (pagina simples com card Integracoes) |
+| `src/pages/personal/PersonalIntegrations.tsx` | Criar (card Asaas sem webhooks genericos) |
+| `src/pages/settings/AsaasIntegration.tsx` | Ajustar link "Voltar" baseado na rota atual |
+| `src/App.tsx` | Adicionar 3 rotas pessoais |
 
-Nenhuma alteracao de schema necessaria. Os campos `enabled_events` (TEXT[]) e `event_category` (text) ja suportam os novos valores.
-
+Nenhuma migracao de banco necessaria -- o backend ja suporta ambos os modos via `user_id`.
