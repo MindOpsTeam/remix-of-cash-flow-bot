@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CompanyProvider } from "@/hooks/useCompany";
+import { AppModeProvider } from "@/hooks/useAppMode";
 import Index from "./pages/Index";
 import Transactions from "./pages/Transactions";
 import DRE from "./pages/DRE";
@@ -18,6 +19,9 @@ import SettingsPage from "./pages/Settings";
 import ChartOfAccountsPage from "./pages/settings/ChartOfAccounts";
 import CostCentersPage from "./pages/settings/CostCenters";
 import IntegrationsPage from "./pages/settings/Integrations";
+import PersonalDashboard from "./pages/personal/PersonalDashboard";
+import PersonalTransactions from "./pages/personal/PersonalTransactions";
+import PersonalAccounts from "./pages/personal/PersonalAccounts";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { ReactNode } from "react";
@@ -47,6 +51,7 @@ function PublicRoute({ children }: { children: ReactNode }) {
 const AppRoutes = () => (
   <Routes>
     <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
+    {/* Business routes */}
     <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
     <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
     <Route path="/dre" element={<ProtectedRoute><DRE /></ProtectedRoute>} />
@@ -60,6 +65,10 @@ const AppRoutes = () => (
     <Route path="/settings/chart-of-accounts" element={<ProtectedRoute><ChartOfAccountsPage /></ProtectedRoute>} />
     <Route path="/settings/cost-centers" element={<ProtectedRoute><CostCentersPage /></ProtectedRoute>} />
     <Route path="/settings/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
+    {/* Personal routes */}
+    <Route path="/personal" element={<ProtectedRoute><PersonalDashboard /></ProtectedRoute>} />
+    <Route path="/personal/transactions" element={<ProtectedRoute><PersonalTransactions /></ProtectedRoute>} />
+    <Route path="/personal/accounts" element={<ProtectedRoute><PersonalAccounts /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
@@ -72,7 +81,9 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CompanyProvider>
-            <AppRoutes />
+            <AppModeProvider>
+              <AppRoutes />
+            </AppModeProvider>
           </CompanyProvider>
         </AuthProvider>
       </BrowserRouter>
