@@ -47,16 +47,16 @@ export function KPICard({ label, value, change, icon, format = "currency", delay
 
   return (
     <div 
-      className="bg-card border border-border rounded-lg p-5 transition-colors duration-150 animate-slide-up"
+      className="bg-card border border-border rounded-lg p-5 shadow-card transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:shadow-card-hover hover:border-[hsl(240,4%,84%)] hover:-translate-y-px animate-slide-up"
       style={{ animationDelay: `${delay}ms`, animationFillMode: "backwards" }}
     >
       <div className="flex items-start justify-between mb-3">
-        <span className="text-sm text-muted-foreground font-medium">{label}</span>
-        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <div className="h-5 w-5 text-muted-foreground/60">
           {icon}
         </div>
       </div>
-      <p className="text-2xl font-bold text-foreground tracking-tight animate-count-up">{formattedValue}</p>
+      <p className="text-[32px] font-bold text-foreground tracking-[-0.03em] leading-tight font-mono animate-count-up">{formattedValue}</p>
       <div className="flex items-center gap-1.5 mt-2">
         {isPositive ? (
           <TrendingUp className="h-3.5 w-3.5 text-revenue" />
@@ -66,7 +66,7 @@ export function KPICard({ label, value, change, icon, format = "currency", delay
         <span className={`text-xs font-semibold ${isPositive ? "text-revenue" : "text-expense"}`}>
           {isPositive ? "+" : ""}{change.toFixed(1)}%
         </span>
-        <span className="text-xs text-muted-foreground">vs mês anterior</span>
+        <span className="text-[11px] text-muted-foreground">vs mês anterior</span>
       </div>
     </div>
   );

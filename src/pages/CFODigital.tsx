@@ -136,7 +136,7 @@ export default function CFODigital() {
               <Brain className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold font-headline text-foreground">CFO Digital</h1>
+              <h1 className="text-xl font-bold text-foreground tracking-[-0.02em]">CFO Digital</h1>
               <p className="text-sm text-muted-foreground">Assistente Estratégico Financeiro</p>
             </div>
           </div>

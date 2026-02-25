@@ -9,14 +9,13 @@ export default {
       center: true,
       padding: "2rem",
       screens: {
-        "2xl": "1192px",
+        "2xl": "1400px",
       },
     },
     extend: {
       fontFamily: {
-        headline: ["'Playfair Display'", "Georgia", "serif"],
-        body: ["'Source Serif 4'", "Georgia", "serif"],
-        ui: ["'Inter'", "'Helvetica Neue'", "Arial", "sans-serif"],
+        ui: ["'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        mono: ["'JetBrains Mono'", "'SF Mono'", "'Fira Code'", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -60,6 +59,10 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
         revenue: "hsl(var(--revenue))",
         expense: "hsl(var(--expense))",
         sidebar: {
@@ -71,12 +74,13 @@ export default {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
+          muted: "hsl(var(--sidebar-muted))",
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "0.75rem",
+        md: "0.5rem",
+        sm: "0.375rem",
       },
       keyframes: {
         "accordion-down": {

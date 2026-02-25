@@ -34,7 +34,7 @@ export default function PersonalDashboard() {
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Dashboard Pessoal</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Dashboard Pessoal</h1>
           <p className="text-sm text-muted-foreground mt-1">Visão geral das suas finanças pessoais</p>
         </div>
 
@@ -42,10 +42,10 @@ export default function PersonalDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Entradas (mês)</CardTitle>
-              <TrendingUp className="h-4 w-4 text-emerald-500" />
+              <TrendingUp className="h-4 w-4 text-revenue" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-emerald-500">{fmt(summary.receitas)}</div>
+              <div className="text-2xl font-bold font-mono text-revenue">{fmt(summary.receitas)}</div>
             </CardContent>
           </Card>
 
@@ -55,7 +55,7 @@ export default function PersonalDashboard() {
               <TrendingDown className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-destructive">{fmt(summary.despesas)}</div>
+              <div className="text-2xl font-bold font-mono text-destructive">{fmt(summary.despesas)}</div>
             </CardContent>
           </Card>
 
@@ -65,7 +65,7 @@ export default function PersonalDashboard() {
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${summary.saldo >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+              <div className={`text-2xl font-bold font-mono ${summary.saldo >= 0 ? "text-revenue" : "text-destructive"}`}>
                 {fmt(summary.saldo)}
               </div>
             </CardContent>
@@ -77,7 +77,7 @@ export default function PersonalDashboard() {
               <Landmark className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{fmt(totalBalance)}</div>
+              <div className="text-2xl font-bold font-mono text-foreground">{fmt(totalBalance)}</div>
               <p className="text-xs text-muted-foreground mt-1">{accounts.length} conta(s) ativa(s)</p>
             </CardContent>
           </Card>

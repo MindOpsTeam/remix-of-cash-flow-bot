@@ -38,7 +38,7 @@ function getScoreData(revenue: number, expense: number, prevRevenue: number, pre
   score = Math.max(0, Math.min(100, score));
   
   const level = score >= 80 ? "Excelente" : score >= 60 ? "Bom" : score >= 40 ? "Regular" : score >= 20 ? "Atenção" : "Crítico";
-  const color = score >= 80 ? "hsl(120, 76%, 31%)" : score >= 60 ? "hsl(172, 66%, 40%)" : score >= 40 ? "hsl(43, 96%, 46%)" : score >= 20 ? "hsl(25, 95%, 53%)" : "hsl(0, 72%, 51%)";
+  const color = score >= 80 ? "hsl(var(--revenue))" : score >= 60 ? "hsl(var(--chart-5))" : score >= 40 ? "hsl(var(--warning))" : score >= 20 ? "hsl(38, 92%, 50%)" : "hsl(var(--expense))";
   const badge = score >= 80 ? "🏆" : score >= 60 ? "✅" : score >= 40 ? "📊" : score >= 20 ? "⚠️" : "🔴";
 
   return { score, level, color, badge, tips };
@@ -65,10 +65,10 @@ export function FinancialScore({ revenue, expense, prevRevenue, prevExpense }: F
   }, [score]);
 
   return (
-    <div className="bg-card border border-border rounded-lg p-6 animate-slide-up" style={{ animationDelay: "200ms", animationFillMode: "backwards" }}>
+    <div className="bg-card border border-border rounded-lg p-6 shadow-card animate-slide-up" style={{ animationDelay: "200ms", animationFillMode: "backwards" }}>
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-5 w-5 text-primary" />
-        <h2 className="text-sm font-bold text-foreground">Score Financeiro</h2>
+        <h2 className="text-sm font-semibold text-foreground">Score Financeiro</h2>
       </div>
 
       <div className="flex items-center gap-6">
@@ -86,7 +86,7 @@ export function FinancialScore({ revenue, expense, prevRevenue, prevExpense }: F
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-black text-foreground">{animatedScore}</span>
+            <span className="text-3xl font-bold font-mono text-foreground">{animatedScore}</span>
             <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase">de 100</span>
           </div>
         </div>

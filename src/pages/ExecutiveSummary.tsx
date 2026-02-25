@@ -191,7 +191,7 @@ export default function ExecutiveSummary() {
             <FileText className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold font-headline text-foreground tracking-tight">Resumo Executivo</h1>
+            <h1 className="text-xl font-bold text-foreground tracking-[-0.02em]">Resumo Executivo</h1>
             <p className="text-sm text-muted-foreground capitalize">{monthLabel} — Gerado por IA</p>
           </div>
         </div>

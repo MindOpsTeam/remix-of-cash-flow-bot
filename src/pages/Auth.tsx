@@ -46,12 +46,12 @@ export default function Auth() {
         <div className="flex items-center gap-3 mb-8 justify-center">
           <img src={logo} alt="FinanceAI" className="h-11 w-11 rounded-xl" />
           <div>
-            <h1 className="text-lg font-bold font-headline text-foreground">FinanceAI</h1>
+            <h1 className="text-lg font-bold text-foreground">FinanceAI</h1>
             <p className="text-xs text-muted-foreground">ERP Financeiro</p>
           </div>
         </div>
 
-        <h2 className="text-lg font-semibold font-headline text-foreground mb-1 text-center">
+        <h2 className="text-lg font-semibold text-foreground mb-1 text-center">
           {isLogin ? "Entrar" : "Criar conta"}
         </h2>
         <p className="text-sm text-muted-foreground text-center mb-6">

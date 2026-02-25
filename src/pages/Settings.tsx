@@ -14,7 +14,7 @@ export default function SettingsPage() {
   return (
     <AppLayout>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Configurações</h1>
+        <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-1">Gerencie sua empresa e preferências</p>
       </div>
 
