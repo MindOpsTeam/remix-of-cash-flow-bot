@@ -1,38 +1,56 @@
 
 
-# Corrigir RLS da tabela "companies" para permitir criação de empresa
+# Corrigir criacao de empresa usando funcao SECURITY DEFINER
 
-## Problema identificado
-Ao fazer login, o sistema tenta criar automaticamente uma empresa ("Minha Empresa") para o usuário, mas a operacao falha com erro de RLS (Row Level Security). Isso impede que a empresa seja criada, e como consequencia, a pagina do WhatsApp nao funciona porque depende de ter uma empresa ativa.
-
-A politica de INSERT existe na tabela `companies`, mas aparentemente nao esta funcionando corretamente neste projeto remixado.
+## Problema
+A politica de INSERT na tabela `companies` existe e esta correta (`WITH CHECK (true)` para `authenticated`), porem o INSERT continua falhando com erro 403. Isso impede a criacao automatica da empresa e, consequentemente, o botao "Conectar" nao funciona porque depende de ter uma empresa ativa (`company` e `null`).
 
 ## Solucao
 
-1. **Recriar a politica de INSERT na tabela `companies`** - Dropar e recriar a politica para garantir que ela esteja ativa e funcional.
+Criar uma funcao de banco de dados com `SECURITY DEFINER` que cria a empresa e adiciona o usuario como membro em uma unica operacao. Essa funcao roda com os privilegios do dono da funcao (superuser), ignorando RLS.
 
-2. **Recriar a politica de INSERT na tabela `company_members`** - Tambem recriar para garantir consistencia.
-
-## Detalhes tecnicos
-
-Uma unica migracao SQL sera executada:
+### Passo 1 - Migracao SQL
+Criar a funcao `create_company_for_user`:
 
 ```sql
-DROP POLICY IF EXISTS "Authenticated users can create companies" ON public.companies;
-CREATE POLICY "Authenticated users can create companies" 
-  ON public.companies 
-  FOR INSERT 
-  TO authenticated 
-  WITH CHECK (true);
+CREATE OR REPLACE FUNCTION public.create_company_for_user(company_name text)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  new_company_id uuid;
+  result json;
+BEGIN
+  INSERT INTO companies (name) VALUES (company_name)
+  RETURNING id INTO new_company_id;
 
-DROP POLICY IF EXISTS "Users can add themselves to companies" ON public.company_members;
-CREATE POLICY "Users can add themselves to companies" 
-  ON public.company_members 
-  FOR INSERT 
-  TO authenticated 
-  WITH CHECK (user_id = auth.uid());
+  INSERT INTO company_members (company_id, user_id, role)
+  VALUES (new_company_id, auth.uid(), 'admin');
+
+  SELECT json_build_object(
+    'id', c.id,
+    'name', c.name,
+    'cnpj', c.cnpj
+  ) INTO result
+  FROM companies c WHERE c.id = new_company_id;
+
+  RETURN result;
+END;
+$$;
 ```
 
-A mudanca principal e simplificar o `WITH CHECK` de `auth.uid() IS NOT NULL` para `true` (para usuarios autenticados, `auth.uid()` nunca e NULL, entao o efeito e o mesmo, mas mais explicito).
+### Passo 2 - Atualizar useCompany.tsx
+Substituir o INSERT direto por uma chamada RPC:
 
-Apos essa correcao, ao recarregar a pagina, o sistema criara automaticamente a empresa e voce podera usar o botao "Conectar Instancia" normalmente.
+```typescript
+const { data: newCompany, error } = await supabase
+  .rpc("create_company_for_user", { company_name: "Minha Empresa" });
+```
+
+Isso elimina a dependencia das politicas RLS para a criacao inicial da empresa.
+
+### Resultado esperado
+Ao recarregar a pagina, a empresa sera criada automaticamente via funcao RPC, e o botao "Conectar" na pagina WhatsApp funcionara normalmente.
+
