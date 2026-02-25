@@ -185,6 +185,679 @@ export type Database = {
           },
         ]
       }
+      personal_accounts: {
+        Row: {
+          bank_name: string | null
+          color: string | null
+          created_at: string
+          current_balance: number
+          icon: string | null
+          id: string
+          initial_balance: number
+          is_active: boolean
+          name: string
+          owner: string | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bank_name?: string | null
+          color?: string | null
+          created_at?: string
+          current_balance?: number
+          icon?: string | null
+          id?: string
+          initial_balance?: number
+          is_active?: boolean
+          name: string
+          owner?: string | null
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bank_name?: string | null
+          color?: string | null
+          created_at?: string
+          current_balance?: number
+          icon?: string | null
+          id?: string
+          initial_balance?: number
+          is_active?: boolean
+          name?: string
+          owner?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personal_ai_conversations: {
+        Row: {
+          created_at: string
+          financial_context: string | null
+          id: string
+          messages: Json
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          financial_context?: string | null
+          id?: string
+          messages?: Json
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          financial_context?: string | null
+          id?: string
+          messages?: Json
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personal_alerts: {
+        Row: {
+          action_url: string | null
+          alert_type: string
+          created_at: string
+          id: string
+          impact_value: number | null
+          is_dismissed: boolean
+          is_read: boolean
+          message: string
+          reference_month: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          action_url?: string | null
+          alert_type: string
+          created_at?: string
+          id?: string
+          impact_value?: number | null
+          is_dismissed?: boolean
+          is_read?: boolean
+          message: string
+          reference_month?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          action_url?: string | null
+          alert_type?: string
+          created_at?: string
+          id?: string
+          impact_value?: number | null
+          is_dismissed?: boolean
+          is_read?: boolean
+          message?: string
+          reference_month?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personal_budgets: {
+        Row: {
+          alert_threshold: number
+          category_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          monthly_limit: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alert_threshold?: number
+          category_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          monthly_limit: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alert_threshold?: number
+          category_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          monthly_limit?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_budgets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "personal_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          default_kakeibo_group: string | null
+          icon: string | null
+          id: string
+          name: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          default_kakeibo_group?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          default_kakeibo_group?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      personal_category_rules: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          is_system: boolean
+          kakeibo_group: string | null
+          keyword: string
+          subcategory_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          kakeibo_group?: string | null
+          keyword: string
+          subcategory_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          is_system?: boolean
+          kakeibo_group?: string | null
+          keyword?: string
+          subcategory_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_category_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "personal_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_category_rules_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "personal_subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_control_charts: {
+        Row: {
+          category_ids: string[]
+          created_at: string
+          id: string
+          is_visible: boolean
+          monthly_limit: number
+          name: string
+          sort_order: number
+          user_id: string
+        }
+        Insert: {
+          category_ids: string[]
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          monthly_limit?: number
+          name: string
+          sort_order?: number
+          user_id: string
+        }
+        Update: {
+          category_ids?: string[]
+          created_at?: string
+          id?: string
+          is_visible?: boolean
+          monthly_limit?: number
+          name?: string
+          sort_order?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personal_credit_cards: {
+        Row: {
+          brand: string | null
+          closing_day: number
+          color: string | null
+          created_at: string
+          credit_limit: number
+          due_day: number
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          owner: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand?: string | null
+          closing_day: number
+          color?: string | null
+          created_at?: string
+          credit_limit?: number
+          due_day: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          owner?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand?: string | null
+          closing_day?: number
+          color?: string | null
+          created_at?: string
+          credit_limit?: number
+          due_day?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          owner?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personal_goals: {
+        Row: {
+          color: string | null
+          created_at: string
+          current_amount: number
+          deadline: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          is_emergency_fund: boolean
+          name: string
+          owner: string
+          priority: string
+          target_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          current_amount?: number
+          deadline: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          is_emergency_fund?: boolean
+          name: string
+          owner?: string
+          priority?: string
+          target_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          current_amount?: number
+          deadline?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          is_emergency_fund?: boolean
+          name?: string
+          owner?: string
+          priority?: string
+          target_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personal_import_sessions: {
+        Row: {
+          bank_detected: string | null
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          file_content: string | null
+          file_name: string
+          id: string
+          imported_rows: number | null
+          parsed_data: Json | null
+          status: string
+          total_rows: number | null
+          user_id: string
+        }
+        Insert: {
+          bank_detected?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_content?: string | null
+          file_name: string
+          id?: string
+          imported_rows?: number | null
+          parsed_data?: Json | null
+          status?: string
+          total_rows?: number | null
+          user_id: string
+        }
+        Update: {
+          bank_detected?: string | null
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_content?: string | null
+          file_name?: string
+          id?: string
+          imported_rows?: number | null
+          parsed_data?: Json | null
+          status?: string
+          total_rows?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personal_reconciliation: {
+        Row: {
+          created_at: string
+          id: string
+          imported_at: string | null
+          notes: string | null
+          reconciled_at: string | null
+          reference_month: string
+          source_id: string
+          source_type: string
+          status: string
+          total_expense: number | null
+          total_income: number | null
+          transaction_count: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          imported_at?: string | null
+          notes?: string | null
+          reconciled_at?: string | null
+          reference_month: string
+          source_id: string
+          source_type: string
+          status?: string
+          total_expense?: number | null
+          total_income?: number | null
+          transaction_count?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          imported_at?: string | null
+          notes?: string | null
+          reconciled_at?: string | null
+          reference_month?: string
+          source_id?: string
+          source_type?: string
+          status?: string
+          total_expense?: number | null
+          total_income?: number | null
+          transaction_count?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      personal_subcategories: {
+        Row: {
+          category_id: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_subcategories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "personal_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_transactions: {
+        Row: {
+          account_id: string | null
+          amount: number
+          category_id: string | null
+          created_at: string
+          credit_card_id: string | null
+          date: string
+          description: string | null
+          id: string
+          impact: string | null
+          import_session_id: string | null
+          is_essential: boolean | null
+          is_planned: boolean | null
+          is_recurring: boolean
+          kakeibo_group: string | null
+          kakeibo_note: string | null
+          nature: string | null
+          original_import_data: Json | null
+          person: string | null
+          status: string
+          subcategory_id: string | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          category_id?: string | null
+          created_at?: string
+          credit_card_id?: string | null
+          date: string
+          description?: string | null
+          id?: string
+          impact?: string | null
+          import_session_id?: string | null
+          is_essential?: boolean | null
+          is_planned?: boolean | null
+          is_recurring?: boolean
+          kakeibo_group?: string | null
+          kakeibo_note?: string | null
+          nature?: string | null
+          original_import_data?: Json | null
+          person?: string | null
+          status?: string
+          subcategory_id?: string | null
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          category_id?: string | null
+          created_at?: string
+          credit_card_id?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          impact?: string | null
+          import_session_id?: string | null
+          is_essential?: boolean | null
+          is_planned?: boolean | null
+          is_recurring?: boolean
+          kakeibo_group?: string | null
+          kakeibo_note?: string | null
+          nature?: string | null
+          original_import_data?: Json | null
+          person?: string | null
+          status?: string
+          subcategory_id?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "personal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "personal_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transactions_credit_card_id_fkey"
+            columns: ["credit_card_id"]
+            isOneToOne: false
+            referencedRelation: "personal_credit_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transactions_import_session_fkey"
+            columns: ["import_session_id"]
+            isOneToOne: false
+            referencedRelation: "personal_import_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transactions_subcategory_id_fkey"
+            columns: ["subcategory_id"]
+            isOneToOne: false
+            referencedRelation: "personal_subcategories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_transfers: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          description: string | null
+          from_account_id: string
+          id: string
+          status: string
+          to_account_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          date: string
+          description?: string | null
+          from_account_id: string
+          id?: string
+          status?: string
+          to_account_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          description?: string | null
+          from_account_id?: string
+          id?: string
+          status?: string
+          to_account_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_transfers_from_account_id_fkey"
+            columns: ["from_account_id"]
+            isOneToOne: false
+            referencedRelation: "personal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transfers_to_account_id_fkey"
+            columns: ["to_account_id"]
+            isOneToOne: false
+            referencedRelation: "personal_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           account_id: string | null
@@ -273,6 +946,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          preferred_mode: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          preferred_mode?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          preferred_mode?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       webhook_logs: {
         Row: {
