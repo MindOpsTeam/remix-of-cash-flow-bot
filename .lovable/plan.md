@@ -1,304 +1,161 @@
 
-# Design System Premium - ERP Financeiro de Alto Valor
+# Integracao Completa com API Asaas
 
 ## Visao Geral
 
-Redesign completo do FinanceAI para parecer um produto finalizado, premium, inspirado em Mercury/Brex/Linear. Sidebar escura, conteudo claro, tipografia com monospace para valores financeiros, sombras sutis, cores funcionais sofisticadas (indigo como accent, emerald para receita, rose para despesa), e elementos de inovacao como sparklines nos KPIs, AI Insight card, greeting contextual, e Command Palette (Cmd+K).
+Criar uma integracao production-ready com a API do Asaas, incluindo: tabela de configuracao, tabela de logs de webhook, Edge Function dedicada para receber webhooks do Asaas, Edge Function para operacoes na API Asaas (testar conexao, criar webhook automaticamente, reativar fila), e uma pagina completa de configuracao no frontend.
 
 ---
 
-## Fase 1 - Fundacao (Fontes, CSS Variables, Tailwind)
+## Fase 1 - Database (Migracoes SQL)
 
-### index.html
-- Substituir fontes: remover Playfair Display e Source Serif 4
-- Adicionar: Inter (400-700) + JetBrains Mono (400-700)
-- Adicionar `font-feature-settings: 'cv02','cv03','cv04','cv11'` no body
+### Tabela `asaas_config`
+Armazena credenciais e configuracao do Asaas por empresa.
 
-### src/index.css
-Substituir TODAS as CSS variables:
-
-**Light Mode:**
-- `--background`: #FAFAF8
-- `--foreground`: #1A1A1A
-- `--card`: #FFFFFF
-- `--card-foreground`: #1A1A1A
-- `--popover`: #FFFFFF
-- `--popover-foreground`: #1A1A1A
-- `--primary`: #6366F1 (indigo-500)
-- `--primary-foreground`: #FFFFFF
-- `--secondary`: #F4F4F5
-- `--secondary-foreground`: #1A1A1A
-- `--muted`: #F4F4F5
-- `--muted-foreground`: #71717A
-- `--accent`: #F4F4F5
-- `--accent-foreground`: #1A1A1A
-- `--destructive`: #F43F5E (rose-500)
-- `--destructive-foreground`: #FFFFFF
-- `--border`: #E4E4E7
-- `--input`: transparent (borda transparente por padrao)
-- `--ring`: #6366F1
-- `--revenue`: #10B981 (emerald-500)
-- `--expense`: #F43F5E (rose-500)
-- `--warning`: #F59E0B (amber-500)
-- `--info`: #6366F1
-- `--sidebar-background`: #111113
-- `--sidebar-foreground`: #E4E4E7
-- `--sidebar-muted`: #71717A
-- `--sidebar-primary`: #818CF8
-- `--sidebar-accent`: #1E1E21
-- `--sidebar-border`: #27272A
-
-**Dark Mode:**
-- `--background`: #0A0A0B
-- `--foreground`: #E4E4E7
-- `--card`: #18181B
-- `--primary`: #818CF8
-- `--border`: #27272A
-- `--revenue`: #34D399
-- `--expense`: #FB7185
-
-Adicionar classes utilitarias:
-- `.font-mono` para valores financeiros (JetBrains Mono)
-- `.shadow-card`, `.shadow-card-hover`, `.shadow-dropdown`, `.shadow-modal`
-- Remover `.font-headline`, `.font-body` (nao usamos mais serif)
-
-### tailwind.config.ts
-- Atualizar `fontFamily`: ui (Inter), mono (JetBrains Mono)
-- Remover familias serif (headline, body)
-- Atualizar `borderRadius`: `lg: 12px`, `md: 8px`, `sm: 6px`
-- Adicionar cores: `info`, `warning`, `sidebar` com todas as sub-chaves
-- Container max-width: 1400px
-- Adicionar keyframes para `slide-up`, `count-up`
-
----
-
-## Fase 2 - Componentes Base (shadcn customizado)
-
-### Button (src/components/ui/button.tsx)
-- `border-radius: 8px` (nao mais pill)
-- Default: bg indigo-500, text white, hover indigo-600, shadow colorida no hover
-- Outline: border zinc-200, bg white, hover zinc-50
-- Ghost: transparente, text zinc-500, hover bg zinc-100
-- Destructive: bg rose-50, text rose-600, border rose-200
-- Active: `transform: scale(0.98)` por 100ms
-- Transicao: `all 0.15s cubic-bezier(0.4, 0, 0.2, 1)`
-
-### Card (src/components/ui/card.tsx)
-- `border-radius: 12px`
-- `box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 1px 3px rgba(0,0,0,0.04)`
-- Hover: `border-color: zinc-300, shadow: 0 4px 12px rgba(0,0,0,0.05), translateY(-1px)`
-- Transicao suave
-
-### Input (src/components/ui/input.tsx)
-- `background: #F5F5F3`
-- `border: 1px solid transparent`
-- `border-radius: 8px`
-- Focus: `bg white, border indigo-500, shadow: 0 0 0 3px rgba(99,102,241,0.1)`
-- Placeholder: zinc-400
-
-### Badge (src/components/ui/badge.tsx)
-- `border-radius: 6px`
-- Variantes: success (emerald bg/border), destructive (rose bg/border), info (indigo bg/border), neutral (zinc bg/border)
-- Font-size: 12px, font-weight: 500
-
-### Dialog (src/components/ui/dialog.tsx)
-- Overlay: `rgba(0,0,0,0.54)` com backdrop-blur leve
-- Card: `border-radius: 12px, shadow-modal`
-
-### Tooltip (src/components/ui/tooltip.tsx)
-- Background: #111113, color: #E4E4E7, border-radius: 8px
-
-### Sonner (src/components/ui/sonner.tsx)
-- Position: bottom-right
-- Background: #111113, color: #E4E4E7, border-radius: 12px
-- Shadow: `0 8px 30px rgba(0,0,0,0.15)`
-
-### Select (src/components/ui/select.tsx)
-- Trigger: mesmas regras do Input (bg cinza, border transparente, focus indigo)
-- Content: shadow-dropdown
-
----
-
-## Fase 3 - Sidebar Escura (src/components/AppSidebar.tsx)
-
-Redesign completo:
-- Background: #111113 (quase-preto frio)
-- Width: 240px
-- Logo: Inter bold 16px, branco, subtitulo "ERP Financeiro" 11px zinc-500
-- Mode switcher: tabs com bg #1E1E21, tab ativa #27272A branco, inativa zinc-500
-- Nav items: 14px, icones 18px stroke-width 1.5, color zinc-500
-  - Hover: bg #1E1E21, color zinc-200
-  - Active: bg `rgba(99,102,241,0.12)`, color #818CF8, font-weight 500, icone #818CF8
-- Separador: 1px solid #27272A
-- Empresa ativa: card bg #1E1E21, radius 8px, label 11px zinc-500, nome 13px zinc-200
-- Botao Sair: zinc-500, hover rose-500
-
----
-
-## Fase 4 - AppLayout (src/components/AppLayout.tsx)
-
-- Background: usa var(--background) = #FAFAF8
-- Conteudo: max-width 1400px, padding 32px 40px
-- Transicao de pagina: fade-in suave no children
-
----
-
-## Fase 5 - KPICard Redesign (src/components/KPICard.tsx)
-
-- Card branco, border zinc-200, radius 12px, shadow-card
-- Hover: translateY(-1px), shadow-card-hover, border zinc-300
-- Estrutura:
-  - Label: 14px, zinc-500 (ACIMA do valor)
-  - Icone: 20px, zinc-400, canto superior direito
-  - Valor: 32px, font-weight 700, JetBrains Mono, letter-spacing -0.03em
-    - Cor contextual: verde para receita, rose para despesa, foreground para neutro
-  - Badge de variacao: seta colorida + "12.4%" + "vs mes anterior" em 11px zinc-400
-- Animacao count-up mantida
-
----
-
-## Fase 6 - Novo Componente: AI Insight Card
-
-Criar em `src/components/AIInsightCard.tsx`:
-- Border-left: 3px solid indigo-500
-- Background: gradiente sutil de indigo-50 para branco
-- Icone sparkle em indigo
-- Titulo: "Insight da IA" 14px, font-weight 600, indigo-500
-- Texto: insight financeiro, 14px, line-height 1.6, zinc-700
-- CTA: "Ver analise completa ->" em 13px, indigo-500, sem background
-- Animacao: fade + slide-up 300ms
-
----
-
-## Fase 7 - Paginas Principais
-
-### Index.tsx (Dashboard)
-- Greeting contextual: "Bom dia, [nome]" baseado na hora + subtitulo contextual
-- KPI grid: 4 colunas desktop
-- AI Insight Card abaixo dos KPIs
-- Chart tooltip: bg #111113, text zinc-200, radius 8px
-- Grid lines: zinc-100
-- Cores do chart: indigo para receita, rose para despesa
-
-### PersonalDashboard.tsx
-- Mesmo greeting contextual
-- Cards KPI com valores em monospace
-- Cores emerald/rose para receita/despesa
-- Empty state com emoji + texto encorajador
-
-### Auth.tsx
-- Background #FAFAF8
-- Card branco, radius 12px, shadow-card
-- Logo + nome em Inter bold
-- Inputs com bg cinza, focus indigo
-- Botao primario indigo
-
-### Transactions.tsx
-- Tabela com header bg #FAFAF8, uppercase 12px zinc-500, letter-spacing 0.05em
-- Rows: hover bg #FAFAF8
-- Valores em monospace, alinhados a direita
-- Acoes aparecem no hover com transicao de opacity
-
-### TransactionRow.tsx
-- Valores em `font-mono`
-- Hover bg background (#FAFAF8)
-- Icones de fonte com cor contextual
-
-### TransactionForm.tsx
-- Inputs com bg #F5F5F3, border transparente
-- Focus: border indigo, ring shadow
-- Botao primario: indigo
-
-### DRE.tsx, Reports.tsx
-- Headers de tabela estilizados (uppercase, zinc-500, 12px)
-- Chart tooltip escuro
-
-### CashFlowForecast.tsx, ExecutiveSummary.tsx, Simulator.tsx, CFODigital.tsx
-- Aplicar mesmo padrao de cards, tipografia, cores
-- Chart tooltip escuro
-
-### Settings.tsx, ChartOfAccounts.tsx, CostCenters.tsx, Integrations.tsx
-- Cards com hover translateY(-1px)
-- Inputs com novo estilo
-
-### PersonalTransactions.tsx, PersonalAccounts.tsx
-- Valores em monospace
-- Cores emerald/rose
-
-### FinancialScore.tsx
-- Card com shadow-card
-- Ring SVG com cores do novo tema
-
-### CFOChatWidget.tsx
-- FAB: bg #111113, sem glow
-- Chat panel: bg branco, radius 12px, shadow-dropdown
-- Mensagem user: bg indigo-500
-- Mensagem assistant: bg zinc-100
-- Input: bg #F5F5F3
-
----
-
-## Fase 8 - Elementos de Inovacao
-
-### Greeting contextual (Index.tsx, PersonalDashboard.tsx)
-```
-const hour = new Date().getHours();
-const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-// Usar user.email ou user.user_metadata.name
+```text
+Colunas:
+- id (uuid, PK)
+- company_id (uuid, FK -> companies, UNIQUE)
+- environment ('sandbox' | 'production')
+- api_key_sandbox (text, encrypted at rest)
+- api_key_production (text, encrypted at rest)
+- webhook_auth_token (text) -- token para validar webhooks
+- webhook_id (text, nullable) -- ID do webhook criado no Asaas
+- webhook_status ('active' | 'inactive' | 'interrupted', default 'inactive')
+- notification_email (text, nullable)
+- enabled_events (jsonb, default all events)
+- created_at, updated_at
 ```
 
-### Skeleton Loading (src/components/ui/skeleton.tsx)
-- Animacao pulse com cores zinc-100 para zinc-200
-- Usar em todas as paginas com loading state (substituir Loader2 spinner)
+RLS: somente membros da empresa (is_company_member) podem CRUD.
 
-### Empty States
-- Emoji grande + texto encorajador + botao CTA
-- Aplicar em Transactions, PersonalTransactions, PersonalAccounts
+### Tabela `asaas_webhook_logs`
+Registra cada notificacao recebida do Asaas.
+
+```text
+Colunas:
+- id (uuid, PK)
+- company_id (uuid, FK -> companies)
+- asaas_event (text) -- ex: PAYMENT_RECEIVED
+- entity_id (text, nullable) -- ex: pay_abc123
+- payload (jsonb)
+- http_status_returned (integer, default 200)
+- idempotency_key (text, UNIQUE) -- para deduplicacao
+- processed (boolean, default false)
+- error_message (text, nullable)
+- created_at
+```
+
+RLS: somente membros da empresa podem SELECT. INSERT via service role (edge function).
 
 ---
 
-## Resumo de Arquivos
+## Fase 2 - Edge Functions
 
-**Arquivos a editar (29):**
-- `index.html`
-- `src/index.css`
-- `tailwind.config.ts`
-- `src/components/ui/button.tsx`
-- `src/components/ui/card.tsx`
-- `src/components/ui/input.tsx`
-- `src/components/ui/badge.tsx`
-- `src/components/ui/dialog.tsx`
-- `src/components/ui/tooltip.tsx`
-- `src/components/ui/sonner.tsx`
-- `src/components/ui/select.tsx`
-- `src/components/ui/skeleton.tsx`
-- `src/components/AppSidebar.tsx`
-- `src/components/AppLayout.tsx`
-- `src/components/KPICard.tsx`
-- `src/components/FinancialScore.tsx`
-- `src/components/TransactionRow.tsx`
-- `src/components/TransactionForm.tsx`
-- `src/components/CFOChatWidget.tsx`
-- `src/components/cfo/CFODashboard.tsx`
-- `src/pages/Auth.tsx`
-- `src/pages/Index.tsx`
-- `src/pages/Transactions.tsx`
-- `src/pages/DRE.tsx`
-- `src/pages/Reports.tsx`
-- `src/pages/CashFlowForecast.tsx`
-- `src/pages/ExecutiveSummary.tsx`
-- `src/pages/Simulator.tsx`
-- `src/pages/CFODigital.tsx`
-- `src/pages/WhatsAppAgent.tsx`
-- `src/pages/Settings.tsx`
-- `src/pages/settings/ChartOfAccounts.tsx`
-- `src/pages/settings/CostCenters.tsx`
-- `src/pages/settings/Integrations.tsx`
-- `src/pages/personal/PersonalDashboard.tsx`
-- `src/pages/personal/PersonalTransactions.tsx`
-- `src/pages/personal/PersonalAccounts.tsx`
+### Edge Function: `asaas-webhook` (recebe notificacoes)
 
-**Arquivos a criar (1):**
-- `src/components/AIInsightCard.tsx`
+Endpoint publico (verify_jwt = false) que:
+1. Recebe POST do Asaas
+2. Extrai `asaas-access-token` do header para autenticar
+3. Busca `asaas_config` pelo token
+4. Gera idempotency_key = `{event}_{entity_id}_{dateCreated}` para evitar duplicatas
+5. Verifica se ja existe log com esse idempotency_key (processamento idempotente)
+6. Registra na tabela `asaas_webhook_logs`
+7. Retorna 200 imediatamente (Asaas espera resposta rapida)
 
-**Nenhuma alteracao de logica, hooks, rotas ou banco de dados.** Mudanca puramente visual + componente de insight decorativo.
+Eventos suportados (todos do Asaas):
+- PAYMENT_* (CREATED, UPDATED, CONFIRMED, RECEIVED, OVERDUE, DELETED, REFUNDED, etc.)
+- TRANSFER_* (CREATED, PENDING, IN_BANK_PROCESSING, DONE, FAILED, etc.)
+- BILL_* (CREATED, PENDING, BANK_PROCESSING, PAID, CANCELLED, FAILED, REFUNDED)
+- INVOICE_* (CREATED, UPDATED, SYNCHRONIZED, AUTHORIZED, CANCELLED, ERROR)
+- ANTICIPATION_* (CREATED, APPROVED, DENIED, CREDITED, etc.)
+- MOBILE_PHONE_RECHARGE_* (CONFIRMED, CANCELLED)
+- ACCOUNT_STATUS_* (INITIAL_ALERT, FINAL_ALERT, AWAITING_ACTION_AUTHORIZATION)
+- PAYMENT_DUEDATE_WARNING, PAYMENT_CHECKOUT_VIEWED
+
+### Edge Function: `asaas-api` (proxy autenticado)
+
+Edge Function autenticada (valida JWT do usuario) que faz proxy para a API Asaas:
+
+Acoes suportadas (via `action` no body):
+1. **test-connection**: GET /v3/finance/getCurrentBalance -- retorna saldo
+2. **create-webhook**: POST /v3/webhooks -- cria webhook automaticamente com a URL do edge function e todos os eventos habilitados
+3. **reactivate-webhook**: PUT /v3/webhooks/{id} -- reenvia com `interrupted: false`
+4. **get-webhook-status**: GET /v3/webhooks/{id} -- verifica status atual
+
+A funcao busca a API key e environment da tabela `asaas_config` usando o company_id do usuario autenticado.
+
+---
+
+## Fase 3 - Frontend
+
+### Rota: `/settings/integrations/asaas`
+
+Nova pagina `src/pages/settings/AsaasIntegration.tsx` com 3 secoes:
+
+**Secao 1 - Credenciais:**
+- Input password para API Key Producao (toggle visibilidade)
+- Input password para API Key Sandbox (toggle visibilidade)
+- Switch Sandbox/Producao
+- Input para Webhook Auth Token + botao "Gerar token" (crypto.randomUUID)
+- Input para email de notificacao
+- Botao "Salvar credenciais" (upsert na tabela asaas_config)
+- Botao "Testar conexao" (chama edge function asaas-api action=test-connection, mostra saldo)
+
+**Secao 2 - Webhook:**
+- Badge de status colorido (ativo=verde, inativo=cinza, interrompido=amarelo)
+- URL readonly do webhook (copiavel)
+- Botao "Criar/Atualizar Webhook" (chama edge function asaas-api action=create-webhook)
+- Botao "Reativar Fila" (se interrompido, chama action=reactivate-webhook)
+- Tabela com ultimos 20 logs (data, evento, entity_id, status HTTP)
+
+**Secao 3 - Eventos Ativos:**
+- Grid de checkboxes agrupadas por categoria:
+  - Cobranças (PAYMENT_*)
+  - Transferências (TRANSFER_*)
+  - Contas a Pagar (BILL_*)
+  - Notas Fiscais (INVOICE_*)
+  - Antecipações (ANTICIPATION_*)
+  - Recarga Celular (MOBILE_PHONE_RECHARGE_*)
+  - Status da Conta (ACCOUNT_STATUS_*)
+- Botoes "Selecionar todos" / "Desmarcar todos"
+
+### Atualizacoes no Router e Sidebar
+
+- Adicionar rota `/settings/integrations/asaas` no App.tsx
+- Adicionar link "Asaas" na pagina de Integracoes como card navegavel (alem dos webhooks genericos)
+
+---
+
+## Fase 4 - Configuracao
+
+### config.toml
+Adicionar as 2 edge functions com `verify_jwt = false`:
+```toml
+[functions.asaas-webhook]
+verify_jwt = false
+
+[functions.asaas-api]
+verify_jwt = false
+```
+
+A funcao `asaas-api` valida JWT no codigo para acessar dados do usuario.
+A funcao `asaas-webhook` valida via token do header.
+
+---
+
+## Arquivos a Criar
+
+1. `supabase/functions/asaas-webhook/index.ts` -- receptor de webhooks
+2. `supabase/functions/asaas-api/index.ts` -- proxy para API Asaas
+3. `src/pages/settings/AsaasIntegration.tsx` -- pagina de configuracao
+
+## Arquivos a Editar
+
+1. `src/App.tsx` -- adicionar rota /settings/integrations/asaas
+2. `src/pages/settings/Integrations.tsx` -- adicionar card "Asaas" com link
+3. Migracoes SQL -- criar tabelas asaas_config e asaas_webhook_logs com RLS
+
+## Nenhuma Secret Nova Necessaria
+
+As API keys do Asaas sao armazenadas na tabela `asaas_config` (por empresa), nao como secrets do projeto. As edge functions usam SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY que ja existem.
