@@ -1,121 +1,182 @@
 
-
-# Unificar Plataforma Pessoal + Empresarial com WhatsApp
+# Aplicar Design System Inspirado no Medium.com
 
 ## Visao Geral
 
-Trazer as funcionalidades de gestao financeira pessoal do projeto "Couple's Coin" para dentro deste projeto (FinanceAI), criando uma plataforma unificada que atende tanto pessoa fisica quanto juridica, mantendo a integracao com WhatsApp.
+Transformar toda a identidade visual do FinanceAI: sair do tema dark/glassmorphism atual para um design editorial limpo, tipografico e minimalista inspirado no Medium.com. A mudanca afeta cores, tipografia, espacamento, componentes base e todas as paginas.
 
-## Arquitetura Proposta
+## Etapa 1 - Fontes do Google Fonts
 
-A abordagem sera criar um **modo de uso** (pessoal vs empresarial) que o usuario escolhe ao fazer login ou nas configuracoes. Isso determina quais modulos ficam visiveis na sidebar e quais tabelas sao usadas.
+Adicionar no `index.html` as fontes:
+- **Playfair Display** (titulos/headlines - serif)
+- **Source Serif Pro** (corpo de texto - serif)
+- **Inter** (interface/navegacao - sans-serif)
 
-```text
-+---------------------------+
-|       FinanceAI            |
-|  (plataforma unificada)    |
-+---------------------------+
-|                           |
-|  Modo Pessoal (PF)        |  Modo Empresarial (PJ)
-|  - Dashboard pessoal       |  - Dashboard empresarial
-|  - Transacoes pessoais     |  - Lancamentos / DRE
-|  - Contas bancarias        |  - Plano de Contas
-|  - Cartoes de credito      |  - Centros de Custo
-|  - Metas / Orcamentos      |  - CFO Digital
-|  - Categorias (Kakeibo)    |  - Simulador / Previsao
-|  - Importar CSV            |  - Resumo Executivo
-|  - Analise IA              |  - Relatorios
-|  - Controle de gastos      |  - WhatsApp Agent
-|                           |
-|  >> WhatsApp integrado     |  >> WhatsApp integrado
-|     em ambos os modos      |     em ambos os modos
-+---------------------------+
-```
+## Etapa 2 - CSS Variables e Tema (`src/index.css`)
 
-## Etapas de Implementacao
+Substituir todo o sistema de cores CSS variables:
 
-### Etapa 1 - Tabelas do modulo pessoal (migracao SQL)
+**Light Mode (padrao):**
+- `--background`: #F7F4ED (creme quente)
+- `--foreground`: #242424 (texto principal)
+- `--card`: #FFFFFF
+- `--primary`: #1A8917 (verde accent)
+- `--muted-foreground`: #6B6B6B
+- `--border`: #E6E6E6
+- `--destructive`: vermelho para erros
+- `--secondary`: #F2F2F2
 
-Criar as tabelas que existem no projeto pessoal mas nao existem aqui:
+**Dark Mode:**
+- `--background`: #121212
+- `--foreground`: #E6E6E6
+- `--card`: #1E1E1E
+- `--primary`: #2ECC40
 
-- `accounts` - contas bancarias pessoais (com saldo, tipo, owner)
-- `categories` - categorias de despesa/receita com icone e cor
-- `subcategories` - subcategorias vinculadas a categorias
-- `category_rules` - regras de auto-categorizacao
-- `credit_cards` - cartoes de credito (limite, vencimento, bandeira)
-- `budgets` - orcamentos mensais por categoria
-- `goals` - metas financeiras (reserva de emergencia, viagens, etc)
-- `control_charts` - paineis de controle personalizados
-- `import_sessions` - sessoes de importacao CSV
-- `reconciliation_checklist` - conciliacao bancaria
-- `alerts` - alertas inteligentes pessoais
-- `ai_conversations` - conversas com IA
+Remover todas as classes `glass-card`, `glass-card-premium`, `glow-border`, `glow-pulse`, `gradient-text`, `kpi-glow`, `score-ring` e substitui-las por estilos flat/clean.
 
-Todas com RLS baseado em `user_id = auth.uid()` (sem empresa).
+Adicionar classes utilitarias novas:
+- `.font-headline` (Playfair Display, serif)
+- `.font-body` (Source Serif Pro, serif)
+- `.font-ui` (Inter, sans-serif)
 
-### Etapa 2 - Configuracao de modo (pessoal/empresarial)
+## Etapa 3 - Tailwind Config (`tailwind.config.ts`)
 
-- Adicionar coluna `mode` na tabela `companies` ou criar uma tabela `user_preferences` com campo `preferred_mode` (`personal` | `business`)
-- Criar hook `useAppMode()` para alternar entre modos
-- Permitir que o usuario troque de modo a qualquer momento
+Atualizar:
+- `fontFamily` com as 3 familias (headline, body, ui)
+- Cores mapeadas para o novo sistema
+- `borderRadius` padrao para valores menores (4px inputs, 20px botoes pill)
+- Container max-width: 1192px
 
-### Etapa 3 - Sidebar unificada
+## Etapa 4 - Componentes Base (shadcn)
 
-Refatorar `AppSidebar.tsx` para mostrar menus diferentes baseado no modo:
+### Button (`src/components/ui/button.tsx`)
+- Pill shape (border-radius: 20px) para todos os botoes
+- Variante default: bg #242424, text white, hover #000
+- Variante accent: bg #1A8917, text white, hover #0F7B0F
+- Variante outline: border #242424, transparent bg
+- Variante ghost: sem border, cor #6B6B6B
+- Transicao: 150ms ease
 
-- **Modo Pessoal**: Dashboard, Transacoes, Contas, Cartoes, Transferencias, Metas, Orcamentos, Controle, Categorias, Relatorios, Importar CSV, Conciliacao, Analise IA, WhatsApp
-- **Modo Empresarial**: Dashboard, Lancamentos, DRE, Relatorios, CFO Digital, Simulador, Previsao, Resumo Executivo, WhatsApp, Configuracoes
+### Card (`src/components/ui/card.tsx`)
+- Sem shadow (flat)
+- Background branco
+- Border sutil #E6E6E6 ou apenas border-bottom #F2F2F2
+- Sem arredondamento excessivo (border-radius: 8px max)
 
-Um seletor de modo ficara no topo da sidebar.
+### Input (`src/components/ui/input.tsx`)
+- Border: 1px solid #E6E6E6
+- Border-radius: 4px
+- Focus: border-color #242424
+- Font-size: 16px
+- Placeholder: #9B9B9B
 
-### Etapa 4 - Paginas do modulo pessoal
+### Dialog (`src/components/ui/dialog.tsx`)
+- Overlay: rgba(0,0,0,0.54)
+- Card: bg white, border-radius 4px, max-width 560px, padding 44px
 
-Portar as seguintes paginas do projeto Couple's Coin:
+### Badge (`src/components/ui/badge.tsx`)
+- Pill shape (border-radius: 16px)
+- Background: #F2F2F2, color: #242424
+- Font-size: 13px, font-weight: 500
 
-1. **Dashboard pessoal** - cards de entradas/saidas, saldo, proxima fatura, radar alimentacao, top categorias, metas, grafico Kakeibo
-2. **Transacoes pessoais** - lista com filtros avancados (periodo, pessoa, conta, cartao, categoria)
-3. **Contas** - gerenciar contas bancarias com saldo
-4. **Cartoes de credito** - gerenciar cartoes, faturas, limites
-5. **Transferencias** - entre contas
-6. **Metas** - reserva de emergencia, metas de poupanca
-7. **Orcamentos** - limites mensais por categoria
-8. **Categorias** - com subcategorias e metodo Kakeibo
-9. **Controle** - paineis de controle personalizados
-10. **Importar CSV** - importacao de extratos bancarios
-11. **Conciliacao** - conciliacao bancaria
-12. **Analise IA** - consultor financeiro com IA
+### Tooltip
+- Background: #242424, color: white, border-radius: 4px
 
-### Etapa 5 - Hooks e logica de negocio
+## Etapa 5 - AppSidebar (`src/components/AppSidebar.tsx`)
 
-Portar os hooks do projeto pessoal:
-- `useAccounts`, `useCategories`, `useCreditCards`, `useGoals`, `useBudgets`
-- `useTransactions` (versao pessoal), `useTransfers`
-- `useDashboardData`, `useDashboardAnalytics`, `useKakeboSummary`
-- `useControlCharts`, `useReconciliation`, `useFinancialAdvisor`
-- `useReportsData`, `useSubscriptions`, `useAlerts`
+- Background: #FFFFFF
+- Border-right: 1px solid #E6E6E6
+- Logo em serif bold (Playfair Display)
+- Links em sans-serif (Inter), 14px, font-weight 400
+- Active state: font-weight 600, color #242424 (sem glow)
+- Hover: opacity 0.7
+- Mode switcher: estilo pill com cores flat
+- Remover `glass-card`, `glow-border` da empresa ativa
 
-### Etapa 6 - WhatsApp para modo pessoal
+## Etapa 6 - AppLayout (`src/components/AppLayout.tsx`)
 
-Adaptar a integracao WhatsApp existente para funcionar tambem no modo pessoal, permitindo:
-- Registrar despesas/receitas via mensagem
-- Consultar saldo e gastos do mes
-- Receber alertas de orcamento
+- Container com max-width 1192px
+- Padding: 40px lateral desktop, 24px mobile
+- Background: #F7F4ED
 
-## Sequencia recomendada
+## Etapa 7 - Paginas Principais
 
-Dado o tamanho do trabalho, sugiro dividir em fases:
+### Auth.tsx
+- Background creme #F7F4ED
+- Card branco, sem glass, sem glow
+- Botao pill preto
+- Titulos em serif
 
-**Fase 1** (esta sessao): Criar as tabelas, o sistema de modo, a sidebar unificada, e 2-3 paginas essenciais (Dashboard pessoal, Transacoes, Contas)
+### Index.tsx (Dashboard)
+- Titulo em serif (Playfair Display)
+- KPICards: fundo branco, flat, sem sombra, sem glow
+- Grafico: cores #1A8917 (receita) e #E53E3E (despesa)
+- Remover animacoes excessivas (manter fade-in sutil)
 
-**Fase 2** (proxima sessao): Cartoes, Metas, Orcamentos, Categorias
+### KPICard.tsx
+- Fundo branco, border sutil
+- Sem `glass-card-premium`, sem `hover:scale`, sem `glow-pulse`
+- Icone em verde accent
+- Texto em #242424
 
-**Fase 3**: Importar CSV, Conciliacao, Controle, Analise IA, adaptacao WhatsApp
+### FinancialScore.tsx
+- Fundo branco, flat
+- Remover `glass-card-premium`, `score-ring`
+- Anel SVG com cores flat
 
-## Detalhes tecnicos
+### TransactionRow.tsx
+- Sem background, border-bottom #F2F2F2
+- Hover: background #F7F4ED sutil
+- Valores em verde/vermelho flat
 
-- As tabelas pessoais usarao `user_id` diretamente (sem company_id), diferente das tabelas empresariais
-- O hook `useAppMode()` armazenara o modo em `localStorage` + contexto React
-- A autenticacao permanece a mesma (ja funciona para ambos)
-- Os componentes UI (shadcn) sao compartilhados
-- Edge functions do WhatsApp precisarao de uma flag para saber se o contexto e pessoal ou empresarial
+### Transactions.tsx, DRE, Reports, etc.
+- Aplicar mesmo padrao: titulos serif, containers brancos flat, botoes pill
 
+### PersonalDashboard.tsx, PersonalTransactions.tsx, PersonalAccounts.tsx
+- Mesmo tratamento: cards brancos flat, tipografia editorial
+
+### CFOChatWidget.tsx
+- FAB: fundo #242424, sem glow-pulse
+- Chat panel: fundo branco, sem glass
+- Mensagens user: bg #242424
+- Mensagens assistant: bg #F2F2F2
+
+## Etapa 8 - Limpeza
+
+- Remover `src/App.css` (estilos legados nao utilizados)
+- Remover todas as classes glass/glow do CSS
+- Manter animacoes sutis (fade-in 300ms, slide-up 400ms)
+- Skeleton loading: gradiente #F2F2F2 para #E6E6E6
+
+## Resumo Tecnico
+
+**Arquivos a criar:** nenhum novo (apenas editar existentes)
+
+**Arquivos a editar:**
+- `index.html` (fontes Google)
+- `src/index.css` (variaveis, classes utilitarias)
+- `tailwind.config.ts` (fontes, cores, spacing)
+- `src/components/ui/button.tsx`
+- `src/components/ui/card.tsx`
+- `src/components/ui/input.tsx`
+- `src/components/ui/badge.tsx`
+- `src/components/ui/dialog.tsx`
+- `src/components/ui/tooltip.tsx`
+- `src/components/AppSidebar.tsx`
+- `src/components/AppLayout.tsx`
+- `src/components/KPICard.tsx`
+- `src/components/FinancialScore.tsx`
+- `src/components/TransactionRow.tsx`
+- `src/components/TransactionForm.tsx`
+- `src/components/CFOChatWidget.tsx`
+- `src/pages/Auth.tsx`
+- `src/pages/Index.tsx`
+- `src/pages/Transactions.tsx`
+- `src/pages/personal/PersonalDashboard.tsx`
+- `src/pages/personal/PersonalTransactions.tsx`
+- `src/pages/personal/PersonalAccounts.tsx`
+- Demais paginas (DRE, Reports, Settings, etc.)
+
+**Arquivo a remover:** `src/App.css`
+
+A mudanca e puramente visual -- nenhuma logica de negocio, hooks, rotas ou banco de dados sera alterada.
