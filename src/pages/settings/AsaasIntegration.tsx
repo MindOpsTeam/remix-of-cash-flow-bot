@@ -10,10 +10,22 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import {
   Eye, EyeOff, Copy, RefreshCw, Zap, CheckCircle2, XCircle,
-  ArrowLeft, Loader2, Shield, Webhook as WebhookIcon
+  ArrowLeft, Loader2, Shield, Webhook as WebhookIcon, Lock,
+  Link2, List, AlertTriangle, Info, ChevronDown, ExternalLink
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -119,6 +131,12 @@ const ALL_EVENTS: Record<string, { label: string; events: string[] }> = {
 
 const ALL_EVENT_LIST = Object.values(ALL_EVENTS).flatMap((g) => g.events);
 
+function maskKey(key: string | null): string {
+  if (!key) return "";
+  if (key.length <= 8) return "••••••••";
+  return "••••••••••••" + key.slice(-4);
+}
+
 interface AsaasConfig {
   id: string;
   user_id: string;
@@ -165,8 +183,12 @@ export default function AsaasIntegrationPage() {
   const [webhookSendType, setWebhookSendType] = useState("SEQUENTIALLY");
   const [enabledEvents, setEnabledEvents] = useState<string[]>(ALL_EVENT_LIST);
 
+  // After save, keys are masked. Track if user is editing
+  const [editingKeyProduction, setEditingKeyProduction] = useState(false);
+  const [editingKeySandbox, setEditingKeySandbox] = useState(false);
   const [showKeySandbox, setShowKeySandbox] = useState(false);
   const [showKeyProduction, setShowKeyProduction] = useState(false);
+  const [ipInfoOpen, setIpInfoOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -181,7 +203,7 @@ export default function AsaasIntegrationPage() {
         .from("asaas_webhook_events")
         .select("id, event_type, event_category, entity_id, processed, created_at")
         .order("created_at", { ascending: false })
-        .limit(20),
+        .limit(10),
     ]);
 
     if (configRes.data) {
@@ -194,6 +216,8 @@ export default function AsaasIntegrationPage() {
       setNotificationEmail(c.notification_email || "");
       setWebhookSendType(c.webhook_send_type || "SEQUENTIALLY");
       setEnabledEvents((c.enabled_events as string[]) || ALL_EVENT_LIST);
+      setEditingKeyProduction(false);
+      setEditingKeySandbox(false);
     }
 
     setEvents((eventsRes.data || []) as WebhookEvent[]);
@@ -206,16 +230,18 @@ export default function AsaasIntegrationPage() {
     if (!user) return;
     setSaving(true);
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       user_id: user.id,
       environment,
-      api_key_sandbox: apiKeySandbox || null,
-      api_key_production: apiKeyProduction || null,
       webhook_auth_token: webhookAuthToken || null,
       notification_email: notificationEmail || null,
       webhook_send_type: webhookSendType,
       enabled_events: enabledEvents,
     };
+
+    // Only update keys if user actively edited them
+    if (editingKeyProduction) payload.api_key_production = apiKeyProduction || null;
+    if (editingKeySandbox) payload.api_key_sandbox = apiKeySandbox || null;
 
     if (config) {
       const { error } = await supabase
@@ -223,13 +249,16 @@ export default function AsaasIntegrationPage() {
         .update(payload)
         .eq("id", config.id);
       if (error) toast.error("Erro ao salvar: " + error.message);
-      else toast.success("Credenciais salvas!");
+      else toast.success("Configurações salvas com sucesso!");
     } else {
+      // For new config, always include the keys
+      payload.api_key_production = apiKeyProduction || null;
+      payload.api_key_sandbox = apiKeySandbox || null;
       const { error } = await supabase
         .from("asaas_config")
         .insert(payload as any);
       if (error) toast.error("Erro ao salvar: " + error.message);
-      else toast.success("Credenciais salvas!");
+      else toast.success("Configurações salvas com sucesso!");
     }
 
     await loadData();
@@ -310,15 +339,37 @@ export default function AsaasIntegrationPage() {
     );
   };
 
+  const toggleCategoryAll = (groupKey: string) => {
+    const group = ALL_EVENTS[groupKey];
+    if (!group) return;
+    const allSelected = group.events.every((e) => enabledEvents.includes(e));
+    if (allSelected) {
+      setEnabledEvents((prev) => prev.filter((e) => !group.events.includes(e)));
+    } else {
+      setEnabledEvents((prev) => [...new Set([...prev, ...group.events])]);
+    }
+  };
+
   const selectAll = () => setEnabledEvents(ALL_EVENT_LIST);
   const deselectAll = () => setEnabledEvents([]);
+
+  const connectionStatus = () => {
+    if (!config) return { label: "Não configurado", variant: "secondary" as const, color: "text-muted-foreground" };
+    const hasKey = environment === "production" ? !!config.api_key_production : !!config.api_key_sandbox;
+    if (!hasKey) return { label: "Não configurado", variant: "secondary" as const, color: "text-muted-foreground" };
+    if (config.webhook_status === "active") return { label: "Conectado", variant: "default" as const, color: "text-revenue" };
+    if (config.webhook_status === "interrupted") return { label: "Interrompido", variant: "destructive" as const, color: "text-destructive" };
+    return { label: "Configurado", variant: "outline" as const, color: "text-primary" };
+  };
 
   const webhookStatusBadge = () => {
     const status = config?.webhook_status || "inactive";
     if (status === "active") return <Badge variant="default" className="bg-revenue/10 text-revenue border-revenue/30">Ativo</Badge>;
-    if (status === "interrupted") return <Badge variant="default" className="bg-warning/10 text-warning border-warning/30">Interrompido</Badge>;
+    if (status === "interrupted") return <Badge variant="default" className="bg-destructive/10 text-destructive border-destructive/30 animate-pulse">Interrompido</Badge>;
     return <Badge variant="secondary">Inativo</Badge>;
   };
+
+  const connStatus = connectionStatus();
 
   if (loading) {
     return (
@@ -336,62 +387,111 @@ export default function AsaasIntegrationPage() {
         <Link to="/settings/integrations" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-4">
           <ArrowLeft className="h-3.5 w-3.5" /> Voltar para Integrações
         </Link>
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Shield className="h-5 w-5 text-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Integração Asaas</h1>
+              <p className="text-sm text-muted-foreground">Configure sua conta Asaas para sincronizar cobranças, assinaturas e transferências</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Asaas</h1>
-            <p className="text-sm text-muted-foreground">Configure a integração com a plataforma de pagamentos Asaas</p>
-          </div>
+          <Badge variant={connStatus.variant} className={connStatus.color}>
+            {connStatus.label}
+          </Badge>
         </div>
       </div>
 
       <div className="space-y-6">
+        {/* Security info card */}
+        <div className="flex items-start gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5">
+          <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+          <div className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Segurança:</span> As API Keys são salvas de forma segura no banco de dados com isolamento por usuário via RLS.
+            O webhook é autenticado via token exclusivo no header <code className="text-primary font-mono">asaas-access-token</code>.
+          </div>
+        </div>
+
         {/* Seção 1: Credenciais */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Credenciais</CardTitle>
-            <CardDescription>Configure suas chaves de API e token de autenticação</CardDescription>
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-primary" />
+              <div>
+                <CardTitle className="text-base">Credenciais</CardTitle>
+                <CardDescription>Configure suas chaves de API e token de autenticação</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs">API Key (Produção)</Label>
                 <div className="relative">
-                  <Input
-                    type={showKeyProduction ? "text" : "password"}
-                    value={apiKeyProduction}
-                    onChange={(e) => setApiKeyProduction(e.target.value)}
-                    placeholder="$aact_..."
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKeyProduction(!showKeyProduction)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showKeyProduction ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  {config?.api_key_production && !editingKeyProduction ? (
+                    <div className="flex gap-2">
+                      <Input
+                        readOnly
+                        value={maskKey(config.api_key_production)}
+                        className="font-mono text-xs"
+                      />
+                      <Button variant="outline" size="sm" onClick={() => { setEditingKeyProduction(true); setApiKeyProduction(""); }}>
+                        Alterar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Input
+                        type={showKeyProduction ? "text" : "password"}
+                        value={apiKeyProduction}
+                        onChange={(e) => { setApiKeyProduction(e.target.value); setEditingKeyProduction(true); }}
+                        placeholder="$aact_..."
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKeyProduction(!showKeyProduction)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showKeyProduction ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div>
                 <Label className="text-xs">API Key (Sandbox)</Label>
                 <div className="relative">
-                  <Input
-                    type={showKeySandbox ? "text" : "password"}
-                    value={apiKeySandbox}
-                    onChange={(e) => setApiKeySandbox(e.target.value)}
-                    placeholder="$aact_..."
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKeySandbox(!showKeySandbox)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showKeySandbox ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  {config?.api_key_sandbox && !editingKeySandbox ? (
+                    <div className="flex gap-2">
+                      <Input
+                        readOnly
+                        value={maskKey(config.api_key_sandbox)}
+                        className="font-mono text-xs"
+                      />
+                      <Button variant="outline" size="sm" onClick={() => { setEditingKeySandbox(true); setApiKeySandbox(""); }}>
+                        Alterar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <Input
+                        type={showKeySandbox ? "text" : "password"}
+                        value={apiKeySandbox}
+                        onChange={(e) => { setApiKeySandbox(e.target.value); setEditingKeySandbox(true); }}
+                        placeholder="$aact_..."
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKeySandbox(!showKeySandbox)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showKeySandbox ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -415,7 +515,7 @@ export default function AsaasIntegrationPage() {
                   value={webhookAuthToken}
                   onChange={(e) => setWebhookAuthToken(e.target.value)}
                   placeholder="Token de autenticação do webhook"
-                  className="flex-1"
+                  className="flex-1 font-mono text-xs"
                 />
                 <Button variant="outline" size="sm" onClick={generateToken} className="shrink-0">
                   <RefreshCw className="h-3.5 w-3.5 mr-1" /> Gerar
@@ -464,9 +564,12 @@ export default function AsaasIntegrationPage() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base">Webhook</CardTitle>
-                <CardDescription>Receba notificações do Asaas em tempo real</CardDescription>
+              <div className="flex items-center gap-2">
+                <Link2 className="h-4 w-4 text-primary" />
+                <div>
+                  <CardTitle className="text-base">Webhook</CardTitle>
+                  <CardDescription>Receba notificações do Asaas em tempo real</CardDescription>
+                </div>
               </div>
               {webhookStatusBadge()}
             </div>
@@ -486,24 +589,56 @@ export default function AsaasIntegrationPage() {
               </div>
             </div>
 
+            {config?.webhook_status === "interrupted" && (
+              <div className="flex items-start gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+                <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                <div className="text-xs text-destructive">
+                  A fila de webhook está interrompida. Isso pode ocorrer quando o Asaas não consegue entregar notificações. Clique em "Reativar fila" para retomar.
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button onClick={createWebhook} disabled={creatingWebhook || !config}>
                 {creatingWebhook ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <WebhookIcon className="h-4 w-4 mr-1" />}
                 {config?.webhook_id ? "Atualizar Webhook" : "Criar Webhook"}
               </Button>
               {config?.webhook_status === "interrupted" && (
-                <Button variant="outline" onClick={reactivateWebhook} disabled={reactivating}>
+                <Button variant="destructive" onClick={reactivateWebhook} disabled={reactivating}>
                   {reactivating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
                   Reativar fila
                 </Button>
               )}
             </div>
 
+            {/* IPs oficiais */}
+            <Collapsible open={ipInfoOpen} onOpenChange={setIpInfoOpen}>
+              <CollapsibleTrigger asChild>
+                <button className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full">
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${ipInfoOpen ? "rotate-180" : ""}`} />
+                  IPs oficiais do Asaas (whitelist de firewall)
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border text-xs text-muted-foreground space-y-2">
+                  <p>Se você usa firewall ou WAF, adicione os IPs oficiais do Asaas na whitelist para garantir o recebimento dos webhooks.</p>
+                  <a
+                    href="https://docs.asaas.com/docs/ips-oficiais-do-asaas"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                  >
+                    Ver lista de IPs oficiais <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
             {/* Events log */}
             {events.length > 0 && (
               <div>
-                <Label className="text-xs mb-2 block">Últimas notificações</Label>
-                <div className="border border-border rounded-lg overflow-hidden">
+                <Label className="text-xs mb-2 block">Últimas 10 notificações</Label>
+                <div className="border border-border rounded-xl overflow-hidden">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="bg-muted/50">
@@ -542,39 +677,63 @@ export default function AsaasIntegrationPage() {
           </CardContent>
         </Card>
 
-        {/* Seção 3: Eventos */}
+        {/* Seção 3: Eventos com Accordion */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-base">Eventos Ativos</CardTitle>
-                <CardDescription>Selecione quais eventos do Asaas deseja receber</CardDescription>
+              <div className="flex items-center gap-2">
+                <List className="h-4 w-4 text-primary" />
+                <div>
+                  <CardTitle className="text-base">Eventos Ativos</CardTitle>
+                  <CardDescription>Selecione quais eventos do Asaas deseja receber</CardDescription>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={selectAll}>Selecionar todos</Button>
-                <Button variant="outline" size="sm" onClick={deselectAll}>Desmarcar todos</Button>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground font-mono">{enabledEvents.length}/{ALL_EVENT_LIST.length}</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={selectAll}>Selecionar todos ({ALL_EVENT_LIST.length})</Button>
+                  <Button variant="outline" size="sm" onClick={deselectAll}>Desmarcar todos</Button>
+                </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Object.entries(ALL_EVENTS).map(([key, group]) => (
-                <div key={key}>
-                  <h4 className="text-xs font-semibold text-foreground mb-2">{group.label}</h4>
-                  <div className="space-y-1.5">
-                    {group.events.map((event) => (
-                      <label key={event} className="flex items-center gap-2 cursor-pointer">
+            <Accordion type="multiple" className="w-full">
+              {Object.entries(ALL_EVENTS).map(([key, group]) => {
+                const selectedCount = group.events.filter((e) => enabledEvents.includes(e)).length;
+                const allSelected = selectedCount === group.events.length;
+                return (
+                  <AccordionItem key={key} value={key}>
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <div className="flex items-center gap-3 w-full">
                         <Checkbox
-                          checked={enabledEvents.includes(event)}
-                          onCheckedChange={() => toggleEvent(event)}
+                          checked={allSelected}
+                          onCheckedChange={() => toggleCategoryAll(key)}
+                          onClick={(e) => e.stopPropagation()}
                         />
-                        <span className="text-xs text-muted-foreground">{event}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+                        <span className="text-sm font-medium text-foreground">{group.label}</span>
+                        <Badge variant="outline" className="text-[10px] ml-auto mr-2">
+                          {selectedCount}/{group.events.length}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 pl-8">
+                        {group.events.map((event) => (
+                          <label key={event} className="flex items-center gap-2 cursor-pointer py-0.5">
+                            <Checkbox
+                              checked={enabledEvents.includes(event)}
+                              onCheckedChange={() => toggleEvent(event)}
+                            />
+                            <span className="text-xs text-muted-foreground font-mono">{event}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
             <div className="pt-4">
               <Button onClick={saveCredentials} disabled={saving}>
                 {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}

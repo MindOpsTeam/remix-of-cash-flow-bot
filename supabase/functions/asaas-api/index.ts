@@ -67,7 +67,12 @@ Deno.serve(async (req) => {
     }
 
     const env = config.environment || "sandbox";
-    const apiKey = env === "production" ? config.api_key_production : config.api_key_sandbox;
+    // Priority: 1) Deno secret, 2) DB config
+    const secretKey = env === "production"
+      ? Deno.env.get("ASAAS_API_KEY_PRODUCTION")
+      : Deno.env.get("ASAAS_API_KEY_SANDBOX");
+    const dbKey = env === "production" ? config.api_key_production : config.api_key_sandbox;
+    const apiKey = secretKey || dbKey;
 
     if (!apiKey) {
       return new Response(
