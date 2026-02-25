@@ -73,14 +73,14 @@ export function usePersonalAccounts() {
         body: { action: "test-connection" },
       });
       if (error) throw error;
-      return data as { balance?: number; [key: string]: unknown };
+      return data as { ok: boolean; data?: { totalBalance?: number } };
     },
     enabled: !!user && !!asaasConfigQuery.data,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const hasAsaas = !!asaasConfigQuery.data && !!asaasBalanceQuery.data;
-  const asaasBalance = asaasBalanceQuery.data?.balance ?? 0;
+  const asaasBalance = asaasBalanceQuery.data?.data?.totalBalance ?? 0;
 
   const asaasAccount: PersonalAccount | null = hasAsaas
     ? {
