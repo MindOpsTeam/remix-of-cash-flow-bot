@@ -37,6 +37,8 @@ const personalItems = [
   { to: "/personal", label: "Dashboard", icon: LayoutDashboard },
   { to: "/personal/transactions", label: "Transações", icon: ArrowLeftRight },
   { to: "/personal/accounts", label: "Contas", icon: Wallet },
+  { to: "/personal/forecast", label: "Previsão Fluxo", icon: TrendingUp },
+  { to: "/personal/summary", label: "Resumo Executivo", icon: FileText },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
   { to: "/personal/settings", label: "Configurações", icon: Settings },
 ];
