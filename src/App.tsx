@@ -23,6 +23,8 @@ import AsaasIntegrationPage from "./pages/settings/AsaasIntegration";
 import PersonalDashboard from "./pages/personal/PersonalDashboard";
 import PersonalTransactions from "./pages/personal/PersonalTransactions";
 import PersonalAccounts from "./pages/personal/PersonalAccounts";
+import PersonalSettings from "./pages/personal/PersonalSettings";
+import PersonalIntegrations from "./pages/personal/PersonalIntegrations";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { ReactNode } from "react";
@@ -71,6 +73,9 @@ const AppRoutes = () => (
     <Route path="/personal" element={<ProtectedRoute><PersonalDashboard /></ProtectedRoute>} />
     <Route path="/personal/transactions" element={<ProtectedRoute><PersonalTransactions /></ProtectedRoute>} />
     <Route path="/personal/accounts" element={<ProtectedRoute><PersonalAccounts /></ProtectedRoute>} />
+    <Route path="/personal/settings" element={<ProtectedRoute><PersonalSettings /></ProtectedRoute>} />
+    <Route path="/personal/settings/integrations" element={<ProtectedRoute><PersonalIntegrations /></ProtectedRoute>} />
+    <Route path="/personal/settings/integrations/asaas" element={<ProtectedRoute><AsaasIntegrationPage /></ProtectedRoute>} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

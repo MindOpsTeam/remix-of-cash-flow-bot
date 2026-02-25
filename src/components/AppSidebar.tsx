@@ -38,6 +38,7 @@ const personalItems = [
   { to: "/personal/transactions", label: "Transações", icon: ArrowLeftRight },
   { to: "/personal/accounts", label: "Contas", icon: Wallet },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
+  { to: "/personal/settings", label: "Configurações", icon: Settings },
 ];
 
 export function AppSidebar() {

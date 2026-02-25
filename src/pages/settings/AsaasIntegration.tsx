@@ -27,7 +27,7 @@ import {
   ArrowLeft, Loader2, Shield, Webhook as WebhookIcon, Lock,
   Link2, List, AlertTriangle, Info, ChevronDown, ExternalLink
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const ALL_EVENTS: Record<string, { label: string; events: string[] }> = {
   payment: {
@@ -164,6 +164,9 @@ interface WebhookEvent {
 
 export default function AsaasIntegrationPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const isPersonalRoute = location.pathname.startsWith("/personal");
+  const backLink = isPersonalRoute ? "/personal/settings/integrations" : "/settings/integrations";
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
   const [config, setConfig] = useState<AsaasConfig | null>(null);
@@ -384,7 +387,7 @@ export default function AsaasIntegrationPage() {
   return (
     <AppLayout>
       <div className="mb-8">
-        <Link to="/settings/integrations" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-4">
+        <Link to={backLink} className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-4">
           <ArrowLeft className="h-3.5 w-3.5" /> Voltar para Integrações
         </Link>
         <div className="flex items-center justify-between">
