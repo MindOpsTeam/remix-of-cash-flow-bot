@@ -8,21 +8,28 @@ const corsHeaders = {
 
 function getEventCategory(event: string): string {
   if (event.startsWith("PAYMENT_")) return "PAYMENT";
+  if (event.startsWith("SUBSCRIPTION_")) return "SUBSCRIPTION";
+  if (event.startsWith("INVOICE_")) return "INVOICE";
   if (event.startsWith("TRANSFER_")) return "TRANSFER";
   if (event.startsWith("BILL_")) return "BILL";
-  if (event.startsWith("INVOICE_")) return "INVOICE";
-  if (event.startsWith("ANTICIPATION_")) return "ANTICIPATION";
+  if (event.startsWith("RECEIVABLE_ANTICIPATION_")) return "RECEIVABLE_ANTICIPATION";
   if (event.startsWith("MOBILE_PHONE_RECHARGE_")) return "MOBILE_PHONE_RECHARGE";
   if (event.startsWith("ACCOUNT_STATUS_")) return "ACCOUNT_STATUS";
+  if (event.startsWith("CHECKOUT_")) return "CHECKOUT";
+  if (event.startsWith("BALANCE_")) return "BALANCE";
+  if (event.startsWith("INTERNAL_TRANSFER_")) return "INTERNAL_TRANSFER";
+  if (event.startsWith("ACCESS_TOKEN_")) return "ACCESS_TOKEN";
   return "OTHER";
 }
 
 function getEntityFromPayload(body: Record<string, unknown>): { id: string | null; type: string | null } {
   if (body.payment) return { id: (body.payment as any)?.id || null, type: "payment" };
+  if (body.subscription) return { id: (body.subscription as any)?.id || null, type: "subscription" };
   if (body.transfer) return { id: (body.transfer as any)?.id || null, type: "transfer" };
   if (body.bill) return { id: (body.bill as any)?.id || null, type: "bill" };
   if (body.invoice) return { id: (body.invoice as any)?.id || null, type: "invoice" };
   if (body.anticipation) return { id: (body.anticipation as any)?.id || null, type: "anticipation" };
+  if (body.checkout) return { id: (body.checkout as any)?.id || null, type: "checkout" };
   return { id: null, type: null };
 }
 
