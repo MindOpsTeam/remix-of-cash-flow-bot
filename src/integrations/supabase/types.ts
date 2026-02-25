@@ -499,6 +499,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_company_for_user: { Args: { company_name: string }; Returns: Json }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
     }
     Enums: {

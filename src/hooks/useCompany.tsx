@@ -39,12 +39,9 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         const c = members[0].companies as any;
         setCompany({ id: c.id, name: c.name, cnpj: c.cnpj });
       } else {
-        // Auto-create a company for the user
+        // Auto-create a company for the user via SECURITY DEFINER function
         const { data: newCompany, error } = await supabase
-          .from("companies")
-          .insert({ name: "Minha Empresa" })
-          .select()
-          .single();
+          .rpc("create_company_for_user", { company_name: "Minha Empresa" });
 
         if (error) {
           console.error("Erro ao criar empresa:", error.message);
@@ -53,13 +50,8 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
             return;
           }
         } else if (newCompany) {
-          await supabase.from("company_members").insert({
-            company_id: newCompany.id,
-            user_id: user.id,
-            role: "admin",
-          });
-
-          setCompany({ id: newCompany.id, name: newCompany.name, cnpj: newCompany.cnpj });
+          const c = newCompany as any;
+          setCompany({ id: c.id, name: c.name, cnpj: c.cnpj });
         }
       }
       setLoading(false);
