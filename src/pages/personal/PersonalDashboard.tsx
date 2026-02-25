@@ -16,7 +16,7 @@ function fmt(value: number) {
 }
 
 export default function PersonalDashboard() {
-  const { accounts, totalBalance, isLoading: accountsLoading } = usePersonalAccounts();
+  const { accounts, totalBalance, isLoading: accountsLoading, hasAsaas, summary } = usePersonalAccounts();
   const { kpis, comparison, chartData, isLoading: kpisLoading } = usePersonalKPIs();
 
   const isLoading = accountsLoading || kpisLoading;
@@ -85,7 +85,7 @@ export default function PersonalDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold font-mono text-foreground">{fmt(totalBalance)}</div>
-              <p className="text-xs text-muted-foreground mt-1">{accounts.length} conta(s) ativa(s)</p>
+              <p className="text-xs text-muted-foreground mt-1">{summary.accountCount} conta(s) ativa(s)</p>
             </CardContent>
           </Card>
         </div>
