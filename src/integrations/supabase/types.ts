@@ -908,6 +908,8 @@ export type Database = {
           nature: string | null
           original_import_data: Json | null
           person: string | null
+          source: string
+          source_id: string | null
           status: string
           subcategory_id: string | null
           title: string
@@ -934,6 +936,8 @@ export type Database = {
           nature?: string | null
           original_import_data?: Json | null
           person?: string | null
+          source?: string
+          source_id?: string | null
           status?: string
           subcategory_id?: string | null
           title: string
@@ -960,6 +964,8 @@ export type Database = {
           nature?: string | null
           original_import_data?: Json | null
           person?: string | null
+          source?: string
+          source_id?: string | null
           status?: string
           subcategory_id?: string | null
           title?: string
@@ -1394,7 +1400,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_personal_kpis: {
+        Row: {
+          entradas_mes: number | null
+          saidas_mes: number | null
+          saldo_mes: number | null
+          taxas_mes: number | null
+          user_id: string | null
+          vencidas: number | null
+          vencidas_count: number | null
+        }
+        Relationships: []
+      }
+      v_personal_month_compare: {
+        Row: {
+          despesa_anterior: number | null
+          despesa_atual: number | null
+          receita_anterior: number | null
+          receita_atual: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       create_company_for_user: { Args: { company_name: string }; Returns: Json }
