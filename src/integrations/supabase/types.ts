@@ -14,6 +14,106 @@ export type Database = {
   }
   public: {
     Tables: {
+      asaas_config: {
+        Row: {
+          api_key_production: string | null
+          api_key_sandbox: string | null
+          company_id: string
+          created_at: string
+          enabled_events: Json
+          environment: string
+          id: string
+          notification_email: string | null
+          updated_at: string
+          webhook_auth_token: string | null
+          webhook_id: string | null
+          webhook_status: string
+        }
+        Insert: {
+          api_key_production?: string | null
+          api_key_sandbox?: string | null
+          company_id: string
+          created_at?: string
+          enabled_events?: Json
+          environment?: string
+          id?: string
+          notification_email?: string | null
+          updated_at?: string
+          webhook_auth_token?: string | null
+          webhook_id?: string | null
+          webhook_status?: string
+        }
+        Update: {
+          api_key_production?: string | null
+          api_key_sandbox?: string | null
+          company_id?: string
+          created_at?: string
+          enabled_events?: Json
+          environment?: string
+          id?: string
+          notification_email?: string | null
+          updated_at?: string
+          webhook_auth_token?: string | null
+          webhook_id?: string | null
+          webhook_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asaas_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asaas_webhook_logs: {
+        Row: {
+          asaas_event: string
+          company_id: string
+          created_at: string
+          entity_id: string | null
+          error_message: string | null
+          http_status_returned: number
+          id: string
+          idempotency_key: string
+          payload: Json
+          processed: boolean
+        }
+        Insert: {
+          asaas_event: string
+          company_id: string
+          created_at?: string
+          entity_id?: string | null
+          error_message?: string | null
+          http_status_returned?: number
+          id?: string
+          idempotency_key: string
+          payload?: Json
+          processed?: boolean
+        }
+        Update: {
+          asaas_event?: string
+          company_id?: string
+          created_at?: string
+          entity_id?: string | null
+          error_message?: string | null
+          http_status_returned?: number
+          id?: string
+          idempotency_key?: string
+          payload?: Json
+          processed?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asaas_webhook_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_accounts: {
         Row: {
           bank_name: string | null

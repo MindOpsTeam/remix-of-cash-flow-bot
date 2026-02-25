@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 import {
   Plus, Webhook, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff,
-  Activity, CheckCircle2, XCircle, Clock,
+  Activity, CheckCircle2, XCircle, Clock, Shield, ChevronRight,
 } from "lucide-react";
 
 interface WebhookConfig {
@@ -153,11 +154,35 @@ export default function IntegrationsPage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+      {/* Integrations cards */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Integrações</h1>
+        <p className="text-sm text-muted-foreground mt-1 mb-6">
+          Conecte com plataformas externas para automatizar seu financeiro
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          <Link to="/settings/integrations/asaas" className="block">
+            <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-card-hover transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Shield className="h-5 w-5 text-primary" />
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground">Asaas</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Receba cobranças, transferências e notas fiscais automaticamente
+              </p>
+            </div>
+          </Link>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Integrações</h1>
+          <h2 className="text-lg font-semibold text-foreground">Webhooks genéricos</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Gerencie webhooks para conectar com plataformas externas
+            Configure webhooks customizados para qualquer plataforma
           </p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
