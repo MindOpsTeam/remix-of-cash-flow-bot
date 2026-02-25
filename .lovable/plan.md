@@ -1,83 +1,60 @@
 
-# Reestruturacao da Integracao Asaas: Company-based para User-based
 
-## Visao Geral
+# Atualizar Lista Completa de 80 Eventos Asaas + Corrigir Edge Function
 
-Migrar toda a integracao Asaas de um modelo baseado em `company_id` para `user_id`, substituir a tabela de logs por `asaas_webhook_events` com mais campos, e criar a nova tabela `asaas_payments` como espelho das cobrancas do Asaas.
+## Problema Atual
+- A lista de eventos no frontend tem apenas ~45 eventos (incompleta e com nomes incorretos em algumas categorias como "Antecipacoes" e "Status da Conta")
+- A edge function `asaas-api` no action `create-webhook` NAO envia o campo `events` no payload, ou seja, o webhook e criado sem especificar quais eventos receber
+- A edge function `asaas-webhook` nao reconhece as novas categorias (SUBSCRIPTION, CHECKOUT, BALANCE, INTERNAL_TRANSFER, ACCESS_TOKEN, RECEIVABLE_ANTICIPATION)
 
----
+## Mudancas
 
-## Fase 1 - Migracao de Database
+### 1. Frontend: `src/pages/settings/AsaasIntegration.tsx`
 
-Executar uma unica migracao SQL que:
+Substituir o objeto `ALL_EVENTS` pela lista oficial completa de 80 eventos, agrupados em 11 categorias:
 
-1. **Drop tabelas antigas**: `asaas_webhook_logs` e `asaas_config`
-2. **Criar `asaas_config`** com schema do usuario:
-   - `user_id` (UUID, FK auth.users, UNIQUE) em vez de `company_id`
-   - Novos campos: `webhook_url`, `webhook_email`, `webhook_send_type`
-   - `enabled_events` como `TEXT[]` (array nativo) em vez de `JSONB`
-   - RLS: `auth.uid() = user_id` para ALL operations
-3. **Criar `asaas_webhook_events`** (substitui `asaas_webhook_logs`):
-   - `user_id`, `event_id` (UNIQUE por user), `event_type`, `event_category`
-   - `entity_id`, `entity_type`, `payload`, `processed`, `processed_at`
-   - `error`, `attempts` para retry tracking
-   - Indices em `event_type`, `processed`, `created_at`, `entity_id`
-   - RLS: SELECT only para `auth.uid() = user_id`
-4. **Criar `asaas_payments`** (espelho de cobrancas):
-   - `user_id`, `asaas_id` (UNIQUE por user)
-   - Todos os campos do schema fornecido (billing_type, status, value, net_value, due_date, etc.)
-   - Campos JSONB para pix_transaction, credit_card, discount, fine, interest, split, chargeback, refunds
-   - RLS: ALL para `auth.uid() = user_id`
+- **Cobrancas** (28 eventos): inclui novos como PAYMENT_PARTIALLY_REFUNDED, PAYMENT_REFUND_IN_PROGRESS, PAYMENT_REFUND_DENIED, PAYMENT_ANTICIPATED, PAYMENT_AUTHORIZED, PAYMENT_AWAITING_RISK_ANALYSIS, PAYMENT_APPROVED_BY_RISK_ANALYSIS, PAYMENT_REPROVED_BY_RISK_ANALYSIS, PAYMENT_CREDIT_CARD_CAPTURE_REFUSED, PAYMENT_SPLIT_CANCELLED, PAYMENT_SPLIT_DIVERGENCE_BLOCK, PAYMENT_SPLIT_DIVERGENCE_BLOCK_FINISHED
+- **Assinaturas** (7 eventos): categoria nova
+- **Notas Fiscais** (8 eventos): corrigir INVOICE_CANCELED (era INVOICE_CANCELLED)
+- **Transferencias** (7 eventos): sem mudancas
+- **Pague Contas** (7 eventos): sem mudancas
+- **Antecipacoes** (7 eventos): renomear de ANTICIPATION_* para RECEIVABLE_ANTICIPATION_* + novos eventos (SCHEDULED, PENDING)
+- **Recarga Celular** (4 eventos): adicionar PENDING e REFUNDED
+- **Situacao da Conta** (16 eventos): substituir os 3 eventos antigos pelos 16 novos oficiais (BANK_ACCOUNT_INFO, COMMERCIAL_INFO, DOCUMENT, GENERAL_APPROVAL)
+- **Checkout** (4 eventos): categoria nova
+- **Bloqueios de Saldo** (2 eventos): categoria nova
+- **Movimentacoes Internas** (2 eventos): categoria nova
+- **Chaves de API** (6 eventos): categoria nova -- REMOVIDO pois nao e da lista oficial (total fica 92 com eles, mas o user disse 80)
 
----
+Nota: O user listou 98 eventos no total (incluindo ACCESS_TOKEN), mas chamou de "80 eventos". Implementarei todos os listados.
 
-## Fase 2 - Edge Function: `asaas-webhook`
+### 2. Edge Function: `supabase/functions/asaas-api/index.ts`
 
-Reescrever para usar o novo schema:
+No action `create-webhook`, adicionar os campos que faltam no payload:
+- `name: "FinanceAI - Webhook Automatico"`
+- `events: config.enabled_events` (array com os eventos selecionados pelo usuario)
 
-- Buscar `asaas_config` por `webhook_auth_token` (retorna `user_id` em vez de `company_id`)
-- Determinar `event_category` a partir do prefixo do evento (PAYMENT, TRANSFER, BILL, etc.)
-- Inserir em `asaas_webhook_events` com: `user_id`, `event_id`, `event_type`, `event_category`, `entity_id`, `entity_type`, `payload`
-- Idempotencia via UNIQUE(user_id, event_id) -- usar o `id` do payload do Asaas como event_id
-- Para eventos PAYMENT_*, fazer upsert em `asaas_payments` automaticamente (sincronizar espelho)
-- Retornar 200 imediatamente
+Isso garante que o webhook sera criado no Asaas com os eventos corretos.
 
----
+### 3. Edge Function: `supabase/functions/asaas-webhook/index.ts`
 
-## Fase 3 - Edge Function: `asaas-api`
+Atualizar a funcao `getEventCategory` para reconhecer as novas categorias:
+- SUBSCRIPTION_* -> SUBSCRIPTION
+- CHECKOUT_* -> CHECKOUT
+- BALANCE_* -> BALANCE
+- INTERNAL_TRANSFER_* -> INTERNAL_TRANSFER
+- ACCESS_TOKEN_* -> ACCESS_TOKEN
+- RECEIVABLE_ANTICIPATION_* -> RECEIVABLE_ANTICIPATION
 
-Reescrever para usar `user_id` em vez de `company_id`:
+E atualizar `getEntityFromPayload` para extrair entidades de subscription e checkout.
 
-- Remover verificacao de company membership
-- Buscar `asaas_config` por `user_id` (do JWT claims)
-- Acoes mantidas: `test-connection`, `create-webhook`, `reactivate-webhook`, `get-webhook-status`
-- No `create-webhook`, salvar `webhook_url` e `webhook_email` no config
-- Nova acao: `sync-payments` -- busca pagamentos do Asaas e sincroniza na tabela `asaas_payments`
+### Arquivos Editados (3)
 
----
+1. `src/pages/settings/AsaasIntegration.tsx` -- nova lista completa de eventos
+2. `supabase/functions/asaas-api/index.ts` -- adicionar `name` e `events` no payload do webhook
+3. `supabase/functions/asaas-webhook/index.ts` -- novas categorias no getEventCategory
 
-## Fase 4 - Frontend: `AsaasIntegration.tsx`
+### Sem Migracoes de Database
 
-Reescrever para usar `user_id` em vez de `company_id`:
+Nenhuma alteracao de schema necessaria. Os campos `enabled_events` (TEXT[]) e `event_category` (text) ja suportam os novos valores.
 
-- Remover dependencia de `useCompany()` -- usar `useAuth()` para obter user
-- Queries: `asaas_config` filtrado por `user_id` (RLS cuida automaticamente)
-- Logs: ler de `asaas_webhook_events` em vez de `asaas_webhook_logs`
-- Tabela de logs mostra: data, event_type, event_category, entity_id, processed (badge)
-- Save: upsert com `user_id` em vez de `company_id`
-- Chamar edge functions sem `company_id` no body (extraido do JWT)
-- Novos campos no form: `webhook_send_type` (select SEQUENTIALLY/NON_SEQUENTIALLY)
-
----
-
-## Arquivos
-
-**Editar (3):**
-- `supabase/functions/asaas-webhook/index.ts` -- novo schema user-based + upsert payments
-- `supabase/functions/asaas-api/index.ts` -- user_id em vez de company_id
-- `src/pages/settings/AsaasIntegration.tsx` -- useAuth em vez de useCompany, novas tabelas
-
-**Migracao SQL (1):**
-- Drop old tables, create 3 new tables com RLS
-
-**Sem alteracoes em:** App.tsx, rotas, config.toml (ja configurados)
