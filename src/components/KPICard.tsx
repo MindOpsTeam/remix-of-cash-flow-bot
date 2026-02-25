@@ -47,12 +47,12 @@ export function KPICard({ label, value, change, icon, format = "currency", delay
 
   return (
     <div 
-      className="glass-card-premium p-5 transition-all duration-500 hover:scale-[1.03] group animate-slide-up"
+      className="bg-card border border-border rounded-lg p-5 transition-colors duration-150 animate-slide-up"
       style={{ animationDelay: `${delay}ms`, animationFillMode: "backwards" }}
     >
       <div className="flex items-start justify-between mb-3">
         <span className="text-sm text-muted-foreground font-medium">{label}</span>
-        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary/20 transition-colors duration-300 group-hover:scale-110">
+        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
           {icon}
         </div>
       </div>

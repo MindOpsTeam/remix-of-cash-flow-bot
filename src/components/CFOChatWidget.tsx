@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Brain, Send, X, MessageSquare, Loader2 } from "lucide-react";
+import { Brain, Send, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
 import { useToast } from "@/hooks/use-toast";
@@ -91,7 +91,7 @@ export function CFOChatWidget() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-300 glow-pulse"
+          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-foreground text-background flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-150"
         >
           <Brain className="h-6 w-6" />
         </button>
@@ -99,11 +99,11 @@ export function CFOChatWidget() {
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-h-[520px] flex flex-col glass-card-premium overflow-hidden animate-scale-in shadow-2xl">
+        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-h-[520px] flex flex-col bg-card border border-border rounded-lg overflow-hidden animate-scale-in shadow-lg">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Brain className="h-4 w-4 text-primary" />
               </div>
               <div>
@@ -111,7 +111,7 @@ export function CFOChatWidget() {
                 <p className="text-[10px] text-muted-foreground">Assistente Financeiro</p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -120,14 +120,14 @@ export function CFOChatWidget() {
           <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[200px] max-h-[340px]">
             {messages.length === 0 && (
               <div className="text-center py-8">
-                <Brain className="h-10 w-10 text-primary/30 mx-auto mb-3" />
+                <Brain className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">Pergunte qualquer coisa sobre suas finanças</p>
                 <div className="mt-3 space-y-1.5">
                   {["Qual meu score financeiro?", "Posso contratar mais alguém?", "Como reduzir custos?"].map((q) => (
                     <button
                       key={q}
                       onClick={() => streamChat(q)}
-                      className="block w-full text-left text-xs px-3 py-2 rounded-lg bg-secondary/50 text-secondary-foreground hover:bg-secondary transition-colors"
+                      className="block w-full text-left text-xs px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors duration-150"
                     >
                       {q}
                     </button>
@@ -139,7 +139,7 @@ export function CFOChatWidget() {
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[80%] rounded-xl px-3 py-2 text-xs ${
                   msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-foreground text-background"
                     : "bg-secondary text-secondary-foreground"
                 }`}>
                   <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -157,7 +157,7 @@ export function CFOChatWidget() {
           </div>
 
           {/* Input */}
-          <div className="border-t border-border/30 p-2">
+          <div className="border-t border-border p-2">
             <form
               onSubmit={(e) => { e.preventDefault(); if (input.trim() && !isLoading) streamChat(input); }}
               className="flex gap-2"
@@ -167,7 +167,7 @@ export function CFOChatWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Pergunte ao CFO..."
-                className="flex-1 bg-background/50 border border-border/50 rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground transition-colors duration-150"
               />
               <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="h-9 w-9 shrink-0">
                 {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}

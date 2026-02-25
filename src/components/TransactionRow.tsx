@@ -35,10 +35,10 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
   const isRevenue = transaction.type === "revenue";
 
   return (
-    <div className="flex items-center justify-between py-3 px-4 hover:bg-accent/30 rounded-lg transition-colors group">
+    <div className="flex items-center justify-between py-3 px-4 border-b border-border/50 hover:bg-secondary/40 transition-colors duration-150">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
-          isRevenue ? "bg-revenue/10 text-revenue" : "bg-expense/10 text-expense"
+          isRevenue ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
         }`}>
           {sourceIcons[transaction.source]}
         </div>
@@ -55,7 +55,7 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
             {transaction.cost_center_name && (
               <>
                 <span className="text-xs text-muted-foreground">•</span>
-                <span className="text-xs text-primary/70 font-medium">{transaction.cost_center_name}</span>
+                <span className="text-xs text-primary font-medium">{transaction.cost_center_name}</span>
               </>
             )}
           </div>
