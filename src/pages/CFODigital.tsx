@@ -136,7 +136,7 @@ export default function CFODigital() {
               <Brain className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">CFO Digital</h1>
+              <h1 className="text-xl font-bold font-headline text-foreground">CFO Digital</h1>
               <p className="text-sm text-muted-foreground">Assistente Estratégico Financeiro</p>
             </div>
           </div>
@@ -162,7 +162,7 @@ export default function CFODigital() {
         {!hasInitialAnalysis && messages.length === 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card
-              className="glass-card cursor-pointer hover:glow-border transition-all"
+              className="cursor-pointer hover:bg-accent/40 transition-all"
               onClick={() => streamChat()}
             >
               <CardContent className="flex items-center gap-3 p-4">
@@ -174,7 +174,7 @@ export default function CFODigital() {
               </CardContent>
             </Card>
             <Card
-              className="glass-card cursor-pointer hover:glow-border transition-all"
+              className="cursor-pointer hover:bg-accent/40 transition-all"
               onClick={() => streamChat("Identifique os 5 maiores riscos financeiros e sugira ações preventivas.")}
             >
               <CardContent className="flex items-center gap-3 p-4">
@@ -186,7 +186,7 @@ export default function CFODigital() {
               </CardContent>
             </Card>
             <Card
-              className="glass-card cursor-pointer hover:glow-border transition-all"
+              className="cursor-pointer hover:bg-accent/40 transition-all"
               onClick={() => streamChat("Faça uma análise detalhada dos centros de custo e sugira otimizações.")}
             >
               <CardContent className="flex items-center gap-3 p-4">
@@ -202,7 +202,7 @@ export default function CFODigital() {
 
         {/* Chat Area */}
         {(messages.length > 0 || isLoading) && (
-          <Card className="glass-card">
+          <Card>
             <CardContent className="p-0">
               <div className="max-h-[60vh] overflow-y-auto p-4 space-y-4">
                 {messages.map((msg, i) => (
@@ -215,7 +215,7 @@ export default function CFODigital() {
                       }`}
                     >
                       {msg.role === "assistant" ? (
-                        <div className="prose prose-sm prose-invert max-w-none whitespace-pre-wrap">
+                        <div className="prose prose-sm max-w-none whitespace-pre-wrap">
                           {msg.content}
                         </div>
                       ) : (
@@ -256,7 +256,7 @@ export default function CFODigital() {
         )}
 
         {/* Input */}
-        <Card className="glass-card">
+        <Card>
           <CardContent className="p-3">
             <form onSubmit={handleSubmit} className="flex gap-2">
               <Textarea

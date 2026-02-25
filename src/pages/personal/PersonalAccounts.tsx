@@ -61,7 +61,7 @@ export default function PersonalAccounts() {
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Contas</h1>
+            <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Contas</h1>
             <p className="text-sm text-muted-foreground mt-1">Gerencie suas contas e carteiras</p>
           </div>
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Nova Conta</Button>
@@ -70,7 +70,7 @@ export default function PersonalAccounts() {
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-32" />)}</div>
         ) : accounts.length === 0 ? (
-          <Card className="glass-card">
+          <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col items-center py-12 text-center">
                 <div className="rounded-full bg-muted p-4 mb-4"><Wallet className="h-8 w-8 text-muted-foreground" /></div>
@@ -84,15 +84,15 @@ export default function PersonalAccounts() {
           <>
             {/* Summary */}
             <div className="grid gap-4 md:grid-cols-3">
-              <Card className="glass-card"><CardContent className="pt-4">
+              <Card><CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Saldo Total</p>
                 <p className="text-xl font-bold">{fmt(summary.totalBalance)}</p>
               </CardContent></Card>
-              <Card className="glass-card"><CardContent className="pt-4">
+              <Card><CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Contas Ativas</p>
                 <p className="text-xl font-bold">{summary.accountCount}</p>
               </CardContent></Card>
-              <Card className="glass-card"><CardContent className="pt-4">
+              <Card><CardContent className="pt-4">
                 <p className="text-xs text-muted-foreground">Maior Saldo</p>
                 <p className="text-xl font-bold">{fmt(summary.highestBalance)}</p>
               </CardContent></Card>
@@ -101,7 +101,7 @@ export default function PersonalAccounts() {
             {/* Account Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {accounts.map((a) => (
-                <Card key={a.id} className="glass-card">
+                <Card key={a.id}>
                   <CardContent className="pt-5">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">

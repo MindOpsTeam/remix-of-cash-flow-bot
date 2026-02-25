@@ -155,7 +155,7 @@ export default function IntegrationsPage() {
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Integrações</h1>
+          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Integrações</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Gerencie webhooks para conectar com plataformas externas
           </p>
@@ -240,7 +240,7 @@ export default function IntegrationsPage() {
       </div>
 
       {webhooks.length === 0 ? (
-        <div className="glass-card p-12 text-center">
+        <div className="bg-card border border-border rounded-lg p-12 text-center">
           <Webhook className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-sm font-semibold text-foreground mb-1">Nenhuma integração configurada</h3>
           <p className="text-xs text-muted-foreground">
@@ -250,7 +250,7 @@ export default function IntegrationsPage() {
       ) : (
         <div className="space-y-3">
           {webhooks.map((wh) => (
-            <div key={wh.id} className="glass-card p-5">
+            <div key={wh.id} className="bg-card border border-border rounded-lg p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   {wh.direction === "inbound" ? (

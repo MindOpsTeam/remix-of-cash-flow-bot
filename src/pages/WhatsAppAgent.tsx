@@ -105,7 +105,7 @@ export default function WhatsApp() {
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Agente WhatsApp</h1>
+          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Agente WhatsApp</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Assistente financeiro inteligente via WhatsApp (Evolution API)
           </p>
@@ -158,7 +158,7 @@ export default function WhatsApp() {
       </div>
 
       {/* Webhook URL info card */}
-      <div className="glass-card p-5 mb-6">
+      <div className="bg-card border border-border rounded-lg p-5 mb-6">
         <div className="flex items-center gap-3 mb-3">
           <div className="p-2 rounded-lg bg-primary/10">
             <Settings2 className="h-4 w-4 text-primary" />
@@ -180,7 +180,7 @@ export default function WhatsApp() {
 
       {/* Connected instances */}
       {configs.length === 0 ? (
-        <div className="glass-card p-12 text-center">
+        <div className="bg-card border border-border rounded-lg p-12 text-center">
           <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-sm font-semibold text-foreground mb-1">Nenhuma instância conectada</h3>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
@@ -190,7 +190,7 @@ export default function WhatsApp() {
       ) : (
         <div className="space-y-3">
           {configs.map((c) => (
-            <div key={c.id} className="glass-card p-5">
+            <div key={c.id} className="bg-card border border-border rounded-lg p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="p-2 rounded-lg bg-revenue/10">
@@ -225,21 +225,21 @@ export default function WhatsApp() {
 
       {/* Feature cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-        <div className="glass-card p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <ArrowDownLeft className="h-5 w-5 text-revenue mb-3" />
           <h3 className="text-sm font-semibold text-foreground mb-1">Lançamento Automático</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Envie "Despesa R$ 150 Almoço" e o sistema cria o lançamento automaticamente.
           </p>
         </div>
-        <div className="glass-card p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <ArrowUpRight className="h-5 w-5 text-primary mb-3" />
           <h3 className="text-sm font-semibold text-foreground mb-1">Consultas Instantâneas</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
             Pergunte "Qual meu saldo?" e receba um resumo financeiro no WhatsApp.
           </p>
         </div>
-        <div className="glass-card p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <MessageSquare className="h-5 w-5 text-accent-foreground mb-3" />
           <h3 className="text-sm font-semibold text-foreground mb-1">IA Classificadora</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">

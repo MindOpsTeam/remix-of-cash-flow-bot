@@ -97,7 +97,7 @@ function SectionCard({
 
   return (
     <div
-      className="glass-card-premium p-5 animate-slide-up"
+      className="bg-card border border-border rounded-lg p-5 animate-slide-up"
       style={{ animationDelay: `${delay}ms`, animationFillMode: "backwards" }}
     >
       {title && (
@@ -191,7 +191,7 @@ export default function ExecutiveSummary() {
             <FileText className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground tracking-tight">Resumo Executivo</h1>
+            <h1 className="text-xl font-bold font-headline text-foreground tracking-tight">Resumo Executivo</h1>
             <p className="text-sm text-muted-foreground capitalize">{monthLabel} — Gerado por IA</p>
           </div>
         </div>
@@ -208,8 +208,8 @@ export default function ExecutiveSummary() {
 
       {/* Empty State */}
       {!summary && !loading && !error && (
-        <div className="glass-card-premium p-12 text-center animate-scale-in">
-          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-5 glow-pulse">
+        <div className="bg-card border border-border rounded-lg p-12 text-center animate-scale-in">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-5">
             <FileText className="h-8 w-8 text-primary" />
           </div>
           <h3 className="text-lg font-bold text-foreground mb-2">Resumo Executivo Mensal</h3>
@@ -226,7 +226,7 @@ export default function ExecutiveSummary() {
 
       {/* Error */}
       {error && (
-        <div className="glass-card border-expense/30 p-6 text-center animate-fade-in">
+        <div className="bg-card border border-border rounded-lg border-expense/30 p-6 text-center animate-fade-in">
           <AlertTriangle className="h-8 w-8 text-expense mx-auto mb-3" />
           <p className="text-sm text-expense mb-4">{error}</p>
           <Button onClick={loadSummary} size="sm" variant="outline">
@@ -237,7 +237,7 @@ export default function ExecutiveSummary() {
 
       {/* Loading state */}
       {loading && !summary && (
-        <div className="glass-card-premium p-12 text-center animate-fade-in">
+        <div className="bg-card border border-border rounded-lg p-12 text-center animate-fade-in">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
           <p className="text-sm text-muted-foreground">Analisando transações e gerando relatório...</p>
           <div className="flex justify-center gap-1 mt-4">
