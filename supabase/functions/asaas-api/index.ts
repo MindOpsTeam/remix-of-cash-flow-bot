@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Validate JWT
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -44,67 +43,42 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { action, company_id } = body;
+    const { action } = body;
 
-    if (!action || !company_id) {
-      return new Response(JSON.stringify({ error: "Missing action or company_id" }), {
+    if (!action) {
+      return new Response(JSON.stringify({ error: "Missing action" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Verify user is member of company
-    const { data: member } = await serviceClient
-      .from("company_members")
-      .select("id")
-      .eq("company_id", company_id)
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (!member) {
-      return new Response(JSON.stringify({ error: "Not a member of this company" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Get Asaas config
+    // Get Asaas config by user_id
     const { data: config } = await serviceClient
       .from("asaas_config")
       .select("*")
-      .eq("company_id", company_id)
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (!config) {
       return new Response(
-        JSON.stringify({ error: "Asaas not configured for this company" }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: "Asaas not configured" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const env = config.environment || "sandbox";
-    const apiKey =
-      env === "production" ? config.api_key_production : config.api_key_sandbox;
+    const apiKey = env === "production" ? config.api_key_production : config.api_key_sandbox;
 
     if (!apiKey) {
       return new Response(
-        JSON.stringify({
-          error: `API key not configured for environment: ${env}`,
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: `API key not configured for environment: ${env}` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const baseUrl =
-      env === "production"
-        ? "https://api.asaas.com"
-        : "https://api-sandbox.asaas.com";
+    const baseUrl = env === "production"
+      ? "https://api.asaas.com"
+      : "https://api-sandbox.asaas.com";
 
     const asaasHeaders = {
       accept: "application/json",
@@ -131,27 +105,22 @@ Deno.serve(async (req) => {
 
       case "create-webhook": {
         const webhookUrl = `${supabaseUrl}/functions/v1/asaas-webhook`;
-        const enabledEvents = (config.enabled_events as string[]) || [];
-
         const webhookPayload: Record<string, unknown> = {
           url: webhookUrl,
-          email: config.notification_email || undefined,
+          email: config.webhook_email || config.notification_email || undefined,
           enabled: true,
           interrupted: false,
           authToken: config.webhook_auth_token || undefined,
           apiVersion: 3,
+          sendType: config.webhook_send_type || "SEQUENTIALLY",
         };
 
-        // If we have an existing webhook, update it
         if (config.webhook_id) {
-          const resp = await fetch(
-            `${baseUrl}/v3/webhooks/${config.webhook_id}`,
-            {
-              method: "PUT",
-              headers: asaasHeaders,
-              body: JSON.stringify(webhookPayload),
-            }
-          );
+          const resp = await fetch(`${baseUrl}/v3/webhooks/${config.webhook_id}`, {
+            method: "PUT",
+            headers: asaasHeaders,
+            body: JSON.stringify(webhookPayload),
+          });
           result = await resp.json();
         } else {
           const resp = await fetch(`${baseUrl}/v3/webhooks`, {
@@ -162,13 +131,13 @@ Deno.serve(async (req) => {
           result = await resp.json();
         }
 
-        // Update config with webhook info
         const webhookResult = result as Record<string, unknown>;
         if (webhookResult.id) {
           await serviceClient
             .from("asaas_config")
             .update({
               webhook_id: webhookResult.id as string,
+              webhook_url: webhookUrl,
               webhook_status: webhookResult.enabled ? "active" : "inactive",
             })
             .eq("id", config.id);
@@ -178,23 +147,17 @@ Deno.serve(async (req) => {
 
       case "reactivate-webhook": {
         if (!config.webhook_id) {
-          return new Response(
-            JSON.stringify({ error: "No webhook configured" }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
+          return new Response(JSON.stringify({ error: "No webhook configured" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
-        const resp = await fetch(
-          `${baseUrl}/v3/webhooks/${config.webhook_id}`,
-          {
-            method: "PUT",
-            headers: asaasHeaders,
-            body: JSON.stringify({ interrupted: false, enabled: true }),
-          }
-        );
+        const resp = await fetch(`${baseUrl}/v3/webhooks/${config.webhook_id}`, {
+          method: "PUT",
+          headers: asaasHeaders,
+          body: JSON.stringify({ interrupted: false, enabled: true }),
+        });
         result = await resp.json();
 
         await serviceClient
@@ -210,10 +173,9 @@ Deno.serve(async (req) => {
           break;
         }
 
-        const resp = await fetch(
-          `${baseUrl}/v3/webhooks/${config.webhook_id}`,
-          { headers: asaasHeaders }
-        );
+        const resp = await fetch(`${baseUrl}/v3/webhooks/${config.webhook_id}`, {
+          headers: asaasHeaders,
+        });
         result = await resp.json();
 
         const webhookData = result as Record<string, unknown>;
@@ -228,13 +190,67 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "sync-payments": {
+        let offset = 0;
+        const limit = 100;
+        let totalSynced = 0;
+
+        while (true) {
+          const resp = await fetch(
+            `${baseUrl}/v3/payments?offset=${offset}&limit=${limit}`,
+            { headers: asaasHeaders }
+          );
+          const data = await resp.json() as { data?: Record<string, unknown>[]; totalCount?: number };
+
+          if (!data.data || data.data.length === 0) break;
+
+          for (const p of data.data) {
+            await serviceClient
+              .from("asaas_payments")
+              .upsert({
+                user_id: userId,
+                asaas_id: p.id as string,
+                customer_id: p.customer as string || null,
+                subscription_id: p.subscription as string || null,
+                installment_id: p.installment as string || null,
+                payment_link: p.paymentLink as string || null,
+                billing_type: p.billingType as string || null,
+                status: p.status as string,
+                value: p.value as number || null,
+                net_value: p.netValue as number || null,
+                description: p.description as string || null,
+                external_reference: p.externalReference as string || null,
+                due_date: p.dueDate as string || null,
+                payment_date: p.paymentDate as string || null,
+                confirmed_date: p.confirmedDate as string || null,
+                credit_date: p.creditDate as string || null,
+                invoice_url: p.invoiceUrl as string || null,
+                bank_slip_url: p.bankSlipUrl as string || null,
+                pix_transaction: p.pixTransaction || null,
+                credit_card: p.creditCard || null,
+                discount: p.discount || null,
+                fine: p.fine || null,
+                interest: p.interest || null,
+                split: p.split || null,
+                chargeback: p.chargeback || null,
+                refunds: p.refunds || null,
+                raw_payload: p,
+              }, { onConflict: "user_id,asaas_id" });
+            totalSynced++;
+          }
+
+          if (!data.totalCount || offset + limit >= data.totalCount) break;
+          offset += limit;
+        }
+
+        result = { synced: totalSynced };
+        break;
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Unknown action: ${action}` }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
     }
 
@@ -246,10 +262,7 @@ Deno.serve(async (req) => {
     console.error("Asaas API error:", err);
     return new Response(
       JSON.stringify({ error: "Internal error", message: String(err) }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
