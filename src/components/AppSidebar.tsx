@@ -49,28 +49,27 @@ export function AppSidebar() {
   const navItems = isPersonal ? personalItems : businessItems;
 
   return (
-    <aside className="hidden lg:flex w-64 flex-col bg-card border-r border-border">
-      <div className="p-6">
+    <aside className="hidden lg:flex w-60 flex-col bg-sidebar border-r border-sidebar-border">
+      {/* Logo */}
+      <div className="p-5 pb-4">
         <div className="flex items-center gap-3">
-          <img src={logo} alt="FinanceAI" className="h-9 w-9 rounded-lg" />
+          <img src={logo} alt="FinanceAI" className="h-8 w-8 rounded-lg" />
           <div>
-            <h1 className="text-sm font-bold font-headline text-foreground tracking-tight">FinanceAI</h1>
-            <p className="text-xs text-muted-foreground">
-              {isPersonal ? "Finanças Pessoais" : "ERP Financeiro"}
-            </p>
+            <h1 className="text-base font-bold text-sidebar-foreground tracking-tight">FinanceAI</h1>
+            <p className="text-[11px] text-sidebar-muted">ERP Financeiro</p>
           </div>
         </div>
       </div>
 
       {/* Mode Switcher */}
       <div className="px-3 mb-3">
-        <div className="flex rounded-full bg-secondary p-1">
+        <div className="flex rounded-md bg-sidebar-accent p-0.5">
           <button
             onClick={() => setMode("personal")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
               isPersonal
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-sidebar-border text-sidebar-foreground"
+                : "text-sidebar-muted hover:text-sidebar-foreground"
             }`}
           >
             <User className="h-3.5 w-3.5" />
@@ -78,10 +77,10 @@ export function AppSidebar() {
           </button>
           <button
             onClick={() => setMode("business")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
               !isPersonal
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-sidebar-border text-sidebar-foreground"
+                : "text-sidebar-muted hover:text-sidebar-foreground"
             }`}
           >
             <Building2 className="h-3.5 w-3.5" />
@@ -90,6 +89,7 @@ export function AppSidebar() {
         </div>
       </div>
 
+      {/* Navigation */}
       <nav className="flex-1 px-3 space-y-0.5">
         {navItems.map((item) => {
           const isActive = location.pathname === item.to;
@@ -97,34 +97,39 @@ export function AppSidebar() {
             <Link
               key={item.to}
               to={item.to}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all duration-150 ${
                 isActive
-                  ? "bg-secondary text-foreground font-semibold"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+                  ? "bg-primary/[0.12] text-sidebar-primary font-medium"
+                  : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
               }`}
             >
-              <item.icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
+              <item.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-sidebar-primary" : ""}`} strokeWidth={1.5} />
               {item.label}
             </Link>
           );
         })}
       </nav>
 
+      {/* Separator */}
+      <div className="mx-4 my-2 h-px bg-sidebar-border" />
+
+      {/* Logout */}
       <div className="px-3 mb-2">
         <button
           onClick={signOut}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-all duration-150 w-full"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-sidebar-muted hover:text-expense transition-all duration-150 w-full"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-[18px] w-[18px]" strokeWidth={1.5} />
           Sair
         </button>
       </div>
 
+      {/* Active Company */}
       {!isPersonal && company && (
-        <div className="p-4 mx-3 mb-4 rounded-lg border border-border bg-secondary/50">
-          <p className="text-xs text-muted-foreground mb-1">Empresa ativa</p>
-          <p className="text-sm font-semibold text-foreground">{company.name}</p>
-          {company.cnpj && <p className="text-xs text-muted-foreground">{company.cnpj}</p>}
+        <div className="p-3 mx-3 mb-4 rounded-md bg-sidebar-accent">
+          <p className="text-[11px] text-sidebar-muted mb-0.5">Empresa ativa</p>
+          <p className="text-[13px] font-medium text-sidebar-foreground">{company.name}</p>
+          {company.cnpj && <p className="text-[11px] text-sidebar-muted">{company.cnpj}</p>}
         </div>
       )}
     </aside>

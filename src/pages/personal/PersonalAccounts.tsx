@@ -61,7 +61,7 @@ export default function PersonalAccounts() {
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Contas</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Contas</h1>
             <p className="text-sm text-muted-foreground mt-1">Gerencie suas contas e carteiras</p>
           </div>
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Nova Conta</Button>
@@ -116,7 +116,7 @@ export default function PersonalAccounts() {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(a)}><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
-                    <p className={`text-lg font-bold ${Number(a.current_balance) >= 0 ? "text-emerald-500" : "text-destructive"}`}>{fmt(Number(a.current_balance))}</p>
+                    <p className={`text-lg font-bold font-mono ${Number(a.current_balance) >= 0 ? "text-revenue" : "text-destructive"}`}>{fmt(Number(a.current_balance))}</p>
                     <p className="text-xs text-muted-foreground mt-1">{accountTypes.find((t) => t.value === a.type)?.label || a.type}</p>
                   </CardContent>
                 </Card>

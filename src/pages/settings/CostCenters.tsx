@@ -96,7 +96,7 @@ export default function CostCentersPage() {
           <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Centros de Custo</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Centros de Custo</h1>
           <p className="text-sm text-muted-foreground mt-1">Departamentos, projetos e clientes</p>
         </div>
         <Button className="gap-2" onClick={openNew}><Plus className="h-4 w-4" />Novo Centro</Button>

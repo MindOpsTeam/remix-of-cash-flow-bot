@@ -86,7 +86,7 @@ export default function Simulator() {
             <FlaskConical className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold font-headline text-foreground">Simulador "E se?"</h1>
+            <h1 className="text-xl font-bold text-foreground tracking-[-0.02em]">Simulador "E se?"</h1>
             <p className="text-sm text-muted-foreground">Simule cenários financeiros com IA</p>
           </div>
         </div>

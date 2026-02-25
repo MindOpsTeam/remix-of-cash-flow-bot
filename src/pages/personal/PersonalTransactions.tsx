@@ -45,7 +45,7 @@ export default function PersonalTransactions() {
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Transações Pessoais</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Transações Pessoais</h1>
             <p className="text-sm text-muted-foreground mt-1">Receitas e despesas pessoais</p>
           </div>
           <Button className="gap-2" onClick={() => setFormOpen(true)}>
@@ -58,19 +58,19 @@ export default function PersonalTransactions() {
           <Card>
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">Receitas</p>
-              <p className="text-xl font-bold text-emerald-500">{fmt(summary.receitas)}</p>
+              <p className="text-xl font-bold font-mono text-revenue">{fmt(summary.receitas)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">Despesas</p>
-              <p className="text-xl font-bold text-destructive">{fmt(summary.despesas)}</p>
+              <p className="text-xl font-bold font-mono text-destructive">{fmt(summary.despesas)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">Saldo</p>
-              <p className={`text-xl font-bold ${summary.saldo >= 0 ? "text-emerald-500" : "text-destructive"}`}>{fmt(summary.saldo)}</p>
+              <p className={`text-xl font-bold font-mono ${summary.saldo >= 0 ? "text-revenue" : "text-destructive"}`}>{fmt(summary.saldo)}</p>
             </CardContent>
           </Card>
         </div>
@@ -124,7 +124,7 @@ export default function PersonalTransactions() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-sm font-semibold ${t.type === "receita" ? "text-emerald-500" : "text-destructive"}`}>
+                  <span className={`text-sm font-semibold font-mono ${t.type === "receita" ? "text-revenue" : "text-destructive"}`}>
                     {t.type === "receita" ? "+" : "-"}{fmt(Number(t.amount))}
                   </span>
                   <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(t.id)}>

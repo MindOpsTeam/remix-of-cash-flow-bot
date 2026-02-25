@@ -5,21 +5,21 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        default: "bg-foreground text-background hover:bg-foreground/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-foreground bg-transparent text-foreground hover:bg-secondary",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_2px_8px_hsl(var(--primary)/0.3)]",
+        destructive: "bg-[hsl(356,100%,97%)] text-destructive border border-destructive/20 hover:bg-[hsl(356,100%,95%)]",
+        outline: "border border-border bg-card text-foreground hover:bg-secondary hover:border-[hsl(240,4%,84%)]",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "text-muted-foreground hover:text-foreground hover:bg-transparent",
+        ghost: "text-muted-foreground hover:text-foreground hover:bg-secondary",
         link: "text-primary underline-offset-4 hover:underline",
-        accent: "bg-primary text-primary-foreground hover:bg-primary/85",
+        accent: "bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-[0_2px_8px_hsl(var(--primary)/0.3)]",
       },
       size: {
         default: "h-10 px-5 py-2",
-        sm: "h-9 px-4",
+        sm: "h-9 px-4 text-xs",
         lg: "h-11 px-8",
         icon: "h-10 w-10",
       },

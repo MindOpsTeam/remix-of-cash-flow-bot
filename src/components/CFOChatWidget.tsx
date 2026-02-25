@@ -91,7 +91,7 @@ export function CFOChatWidget() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-foreground text-background flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-150"
+          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-[hsl(240,8%,7%)] text-[hsl(240,5%,90%)] flex items-center justify-center shadow-dropdown hover:scale-105 transition-transform duration-150"
         >
           <Brain className="h-6 w-6" />
         </button>
@@ -99,15 +99,15 @@ export function CFOChatWidget() {
 
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-h-[520px] flex flex-col bg-card border border-border rounded-lg overflow-hidden animate-scale-in shadow-lg">
+        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-h-[520px] flex flex-col bg-card border border-border rounded-lg overflow-hidden animate-scale-in shadow-dropdown">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
                 <Brain className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-bold text-foreground">CFO Digital</p>
+                <p className="text-sm font-semibold text-foreground">CFO Digital</p>
                 <p className="text-[10px] text-muted-foreground">Assistente Financeiro</p>
               </div>
             </div>
@@ -127,7 +127,7 @@ export function CFOChatWidget() {
                     <button
                       key={q}
                       onClick={() => streamChat(q)}
-                      className="block w-full text-left text-xs px-3 py-2 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors duration-150"
+                      className="block w-full text-left text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors duration-150"
                     >
                       {q}
                     </button>
@@ -137,9 +137,9 @@ export function CFOChatWidget() {
             )}
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[80%] rounded-xl px-3 py-2 text-xs ${
+                <div className={`max-w-[80%] rounded-lg px-3 py-2 text-xs ${
                   msg.role === "user"
-                    ? "bg-foreground text-background"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground"
                 }`}>
                   <div className="whitespace-pre-wrap">{msg.content}</div>
@@ -148,7 +148,7 @@ export function CFOChatWidget() {
             ))}
             {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
               <div className="flex justify-start">
-                <div className="bg-secondary rounded-xl px-3 py-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="bg-secondary rounded-lg px-3 py-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3 w-3 animate-spin" /> Analisando...
                 </div>
               </div>
@@ -167,7 +167,7 @@ export function CFOChatWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Pergunte ao CFO..."
-                className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground transition-colors duration-150"
+                className="flex-1 bg-[hsl(var(--input-bg))] border border-transparent rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:bg-card focus:border-primary transition-all duration-150"
               />
               <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="h-9 w-9 shrink-0">
                 {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}

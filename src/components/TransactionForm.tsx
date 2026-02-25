@@ -139,7 +139,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-headline">Novo Lançamento</DialogTitle>
+          <DialogTitle>Novo Lançamento</DialogTitle>
           <DialogDescription>Registre uma receita ou despesa</DialogDescription>
         </DialogHeader>
 

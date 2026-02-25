@@ -130,7 +130,7 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="mb-8 animate-fade-in">
-        <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Dashboard Financeiro</h1>
+        <h1 className="text-[28px] font-semibold text-foreground tracking-[-0.02em]">Dashboard Financeiro</h1>
         <p className="text-sm text-muted-foreground mt-1 capitalize">Visão geral de {monthLabel}</p>
       </div>
 

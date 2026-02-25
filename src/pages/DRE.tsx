@@ -136,7 +136,7 @@ export default function DRE() {
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Demonstração do Resultado</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Demonstração do Resultado</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} — Baseado nas contas contábeis
           </p>

@@ -98,7 +98,7 @@ export default function CashFlowForecast() {
     <AppLayout>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Previsão de Fluxo de Caixa</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Previsão de Fluxo de Caixa</h1>
           <p className="text-sm text-muted-foreground mt-1">Projeção inteligente dos próximos 3 meses com IA</p>
         </div>
         <Button onClick={loadForecast} disabled={loading} variant="outline" size="sm">

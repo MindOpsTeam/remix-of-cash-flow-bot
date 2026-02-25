@@ -53,7 +53,7 @@ export default function Transactions() {
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Lançamentos</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Lançamentos</h1>
           <p className="text-sm text-muted-foreground mt-1">Receitas e despesas da empresa</p>
         </div>
         <Button className="gap-2" variant="accent" onClick={() => setFormOpen(true)}>
