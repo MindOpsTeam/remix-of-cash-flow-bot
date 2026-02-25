@@ -36,9 +36,9 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [classifying, setClassifying] = useState(false);
-  const [accounts, setAccounts<{ id: string; name: string; code: string | null; type: string }[]>([]);
-  const [costCenters, setCostCenters<{ id: string; name: string; category: string }[]>([]);
-  const [bankAccounts, setBankAccounts<{ id: string; name: string }[]>([]);
+  const [accounts, setAccounts] = useState<{ id: string; name: string; code: string | null; type: string }[]>([]);
+  const [costCenters, setCostCenters] = useState<{ id: string; name: string; category: string }[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string }[]>([]);
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split("T")[0],
@@ -52,7 +52,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     project: "",
   });
 
-  const [aiSuggested, setAiSuggested(false);
+  const [aiSuggested, setAiSuggested] = useState(false);
 
   useEffect(() => {
     if (!company) return;

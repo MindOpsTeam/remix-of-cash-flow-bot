@@ -34,12 +34,12 @@ export default function PersonalDashboard() {
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard Pessoal</h1>
+          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Dashboard Pessoal</h1>
           <p className="text-sm text-muted-foreground mt-1">Visão geral das suas finanças pessoais</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="glass-card">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Entradas (mês)</CardTitle>
               <TrendingUp className="h-4 w-4 text-emerald-500" />
@@ -49,7 +49,7 @@ export default function PersonalDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Saídas (mês)</CardTitle>
               <TrendingDown className="h-4 w-4 text-destructive" />
@@ -59,7 +59,7 @@ export default function PersonalDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Saldo do Mês</CardTitle>
               <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -71,7 +71,7 @@ export default function PersonalDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Saldo Total</CardTitle>
               <Landmark className="h-4 w-4 text-primary" />
@@ -84,7 +84,7 @@ export default function PersonalDashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <Card className="glass-card">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg">Ações Rápidas</CardTitle>
             </CardHeader>
@@ -98,7 +98,7 @@ export default function PersonalDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg">Resumo</CardTitle>
             </CardHeader>

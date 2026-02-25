@@ -136,7 +136,7 @@ export default function DRE() {
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Demonstração do Resultado</h1>
+          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Demonstração do Resultado</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} — Baseado nas contas contábeis
           </p>
@@ -155,7 +155,7 @@ export default function DRE() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2 glass-card p-5 overflow-x-auto">
+        <div className="xl:col-span-2 bg-card border border-border rounded-lg p-5 overflow-x-auto">
           {lines.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground text-sm">Nenhum lançamento confirmado neste mês.</p>
@@ -185,7 +185,7 @@ export default function DRE() {
           )}
         </div>
 
-        <div className="glass-card p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Lucro Mensal</h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={monthlyData}>

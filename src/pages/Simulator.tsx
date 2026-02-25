@@ -86,7 +86,7 @@ export default function Simulator() {
             <FlaskConical className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Simulador "E se?"</h1>
+            <h1 className="text-xl font-bold font-headline text-foreground">Simulador "E se?"</h1>
             <p className="text-sm text-muted-foreground">Simule cenários financeiros com IA</p>
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function Simulator() {
           {SCENARIOS.map((s, i) => (
             <Card
               key={i}
-              className="glass-card cursor-pointer hover:glow-border transition-all duration-300 hover:scale-[1.02] animate-slide-up"
+              className="cursor-pointer hover:bg-accent/40 transition-all duration-300 animate-slide-up"
               style={{ animationDelay: `${i * 80}ms`, animationFillMode: "backwards" }}
               onClick={() => simulate(s.question)}
             >
@@ -111,7 +111,7 @@ export default function Simulator() {
         </div>
 
         {/* Custom Input */}
-        <Card className="glass-card">
+        <Card>
           <CardContent className="p-4">
             <form
               onSubmit={(e) => { e.preventDefault(); if (input.trim() && !isLoading) simulate(input); }}
@@ -135,7 +135,7 @@ export default function Simulator() {
 
         {/* Result */}
         {(result || isLoading) && (
-          <Card className="glass-card-premium animate-fade-in">
+          <Card className="animate-fade-in">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <Lightbulb className="h-4 w-4 text-primary" />
@@ -149,7 +149,7 @@ export default function Simulator() {
                   <span className="text-sm">Calculando cenário...</span>
                 </div>
               ) : (
-                <div className="prose prose-sm prose-invert max-w-none">
+                <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>{result}</ReactMarkdown>
                 </div>
               )}

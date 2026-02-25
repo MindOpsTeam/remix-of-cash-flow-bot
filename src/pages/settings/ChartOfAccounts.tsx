@@ -110,13 +110,13 @@ export default function ChartOfAccountsPage() {
           <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Plano de Contas</h1>
+          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Plano de Contas</h1>
           <p className="text-sm text-muted-foreground mt-1">Gerencie suas contas contábeis</p>
         </div>
         <Button className="gap-2" onClick={openNew}><Plus className="h-4 w-4" />Nova Conta</Button>
       </div>
 
-      <div className="glass-card p-5 max-w-2xl">
+      <div className="bg-card border border-border rounded-lg p-5 max-w-2xl">
         {renderGroup("RECEITAS", revenueAccounts)}
         {renderGroup("CUSTOS E DESPESAS", expenseAccounts)}
       </div>

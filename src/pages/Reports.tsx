@@ -117,7 +117,7 @@ export default function Reports() {
     <AppLayout>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Relatórios Gerenciais</h1>
+          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Relatórios Gerenciais</h1>
           <p className="text-sm text-muted-foreground mt-1">Análises e indicadores da empresa</p>
         </div>
         <Button
@@ -137,7 +137,7 @@ export default function Reports() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="glass-card p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Despesas por Categoria</h2>
           {categoryData.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-12">Nenhuma despesa confirmada neste mês.</p>
@@ -168,7 +168,7 @@ export default function Reports() {
           )}
         </div>
 
-        <div className="glass-card p-5">
+        <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">Por Centro de Custo</h2>
           {costCenterData.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-12">Nenhum lançamento com centro de custo neste mês.</p>

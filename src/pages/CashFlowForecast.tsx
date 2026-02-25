@@ -98,7 +98,7 @@ export default function CashFlowForecast() {
     <AppLayout>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Previsão de Fluxo de Caixa</h1>
+          <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Previsão de Fluxo de Caixa</h1>
           <p className="text-sm text-muted-foreground mt-1">Projeção inteligente dos próximos 3 meses com IA</p>
         </div>
         <Button onClick={loadForecast} disabled={loading} variant="outline" size="sm">
@@ -113,7 +113,7 @@ export default function CashFlowForecast() {
           <span className="ml-3 text-muted-foreground">Analisando dados e gerando previsão...</span>
         </div>
       ) : error ? (
-        <Card className="glass-card">
+        <Card>
           <CardContent className="p-6 text-center">
             <AlertTriangle className="h-8 w-8 text-expense mx-auto mb-3" />
             <p className="text-sm text-muted-foreground">{error}</p>
@@ -124,25 +124,25 @@ export default function CashFlowForecast() {
         <div className="space-y-6">
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="glass-card">
+            <Card>
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground mb-1">Receita Projetada (3m)</p>
                 <p className="text-2xl font-bold text-revenue">{formatCurrency(totalProjRevenue)}</p>
               </CardContent>
             </Card>
-            <Card className="glass-card">
+            <Card>
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground mb-1">Despesa Projetada (3m)</p>
                 <p className="text-2xl font-bold text-expense">{formatCurrency(totalProjExpense)}</p>
               </CardContent>
             </Card>
-            <Card className="glass-card">
+            <Card>
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground mb-1">Saldo Projetado (3m)</p>
                 <p className={`text-2xl font-bold ${totalProjBalance >= 0 ? "text-revenue" : "text-expense"}`}>{formatCurrency(totalProjBalance)}</p>
               </CardContent>
             </Card>
-            <Card className="glass-card">
+            <Card>
               <CardContent className="p-5">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-sm text-muted-foreground">Nível de Risco</p>
@@ -156,7 +156,7 @@ export default function CashFlowForecast() {
           </div>
 
           {/* Chart */}
-          <Card className="glass-card">
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold">Histórico + Projeção</CardTitle>
             </CardHeader>
@@ -179,7 +179,7 @@ export default function CashFlowForecast() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Forecast Details */}
-            <Card className="glass-card">
+            <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold">Projeção Mensal</CardTitle>
               </CardHeader>
@@ -203,7 +203,7 @@ export default function CashFlowForecast() {
             </Card>
 
             {/* Insights + Risk */}
-            <Card className="glass-card">
+            <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-primary" /> Insights da IA

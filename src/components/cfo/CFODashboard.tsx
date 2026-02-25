@@ -88,7 +88,7 @@ export function CFODashboard({ data }: CFODashboardProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Chart */}
-        <Card className="glass-card lg:col-span-2">
+        <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Receitas vs Despesas (6 meses)</CardTitle>
           </CardHeader>
@@ -108,7 +108,7 @@ export function CFODashboard({ data }: CFODashboardProps) {
         </Card>
 
         {/* Cost Centers */}
-        <Card className="glass-card">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold">Centros de Custo</CardTitle>
           </CardHeader>
@@ -136,7 +136,7 @@ export function CFODashboard({ data }: CFODashboardProps) {
       </div>
 
       {/* CFO Tip */}
-      <Card className="glass-card border-primary/20">
+      <Card className="border-primary/20">
         <CardContent className="p-4 flex gap-3">
           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
             <Lightbulb className="h-4 w-4 text-primary" />
