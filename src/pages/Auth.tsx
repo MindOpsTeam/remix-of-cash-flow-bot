@@ -41,17 +41,17 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="glass-card glow-border p-8 w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="bg-card border border-border rounded-lg p-8 w-full max-w-sm">
         <div className="flex items-center gap-3 mb-8 justify-center">
           <img src={logo} alt="FinanceAI" className="h-11 w-11 rounded-xl" />
           <div>
-            <h1 className="text-lg font-bold gradient-text">FinanceAI</h1>
+            <h1 className="text-lg font-bold font-headline text-foreground">FinanceAI</h1>
             <p className="text-xs text-muted-foreground">ERP Financeiro</p>
           </div>
         </div>
 
-        <h2 className="text-lg font-semibold text-foreground mb-1 text-center">
+        <h2 className="text-lg font-semibold font-headline text-foreground mb-1 text-center">
           {isLogin ? "Entrar" : "Criar conta"}
         </h2>
         <p className="text-sm text-muted-foreground text-center mb-6">
@@ -68,7 +68,7 @@ export default function Auth() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
               required
-              className="mt-1 bg-background/50"
+              className="mt-1"
             />
           </div>
           <div>
@@ -81,7 +81,7 @@ export default function Auth() {
               placeholder="••••••••"
               required
               minLength={6}
-              className="mt-1 bg-background/50"
+              className="mt-1"
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>

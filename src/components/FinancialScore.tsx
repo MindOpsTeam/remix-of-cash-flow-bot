@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trophy, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 interface FinancialScoreProps {
   revenue: number;
@@ -14,16 +14,12 @@ function getScoreData(revenue: number, expense: number, prevRevenue: number, pre
 
   const profit = revenue - expense;
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-  const prevProfit = prevRevenue - prevExpense;
-  const prevMargin = prevRevenue > 0 ? (prevProfit / prevRevenue) * 100 : 0;
 
-  // Margin score
   if (margin > 30) { score += 20; tips.push("Margem excelente acima de 30%"); }
   else if (margin > 15) { score += 10; tips.push("Margem saudável"); }
   else if (margin > 0) { score += 5; tips.push("Margem baixa — busque otimizar custos"); }
   else { score -= 15; tips.push("⚠️ Operando com prejuízo!"); }
 
-  // Revenue growth
   if (prevRevenue > 0) {
     const growth = ((revenue - prevRevenue) / prevRevenue) * 100;
     if (growth > 10) { score += 15; tips.push("Receita crescendo — ótimo sinal!"); }
@@ -31,20 +27,18 @@ function getScoreData(revenue: number, expense: number, prevRevenue: number, pre
     else { score -= 10; tips.push("Receita em queda — atenção!"); }
   }
 
-  // Expense control
   if (prevExpense > 0) {
     const expGrowth = ((expense - prevExpense) / prevExpense) * 100;
     if (expGrowth < 0) { score += 10; tips.push("Despesas reduzidas — gestão eficiente"); }
     else if (expGrowth > 20) { score -= 10; tips.push("Despesas crescendo rápido"); }
   }
 
-  // Has data
   if (revenue === 0 && expense === 0) { score = 0; tips.length = 0; tips.push("Adicione lançamentos para calcular o score"); }
 
   score = Math.max(0, Math.min(100, score));
   
   const level = score >= 80 ? "Excelente" : score >= 60 ? "Bom" : score >= 40 ? "Regular" : score >= 20 ? "Atenção" : "Crítico";
-  const color = score >= 80 ? "hsl(152, 76%, 46%)" : score >= 60 ? "hsl(172, 66%, 50%)" : score >= 40 ? "hsl(43, 96%, 56%)" : score >= 20 ? "hsl(25, 95%, 53%)" : "hsl(0, 72%, 51%)";
+  const color = score >= 80 ? "hsl(120, 76%, 31%)" : score >= 60 ? "hsl(172, 66%, 40%)" : score >= 40 ? "hsl(43, 96%, 46%)" : score >= 20 ? "hsl(25, 95%, 53%)" : "hsl(0, 72%, 51%)";
   const badge = score >= 80 ? "🏆" : score >= 60 ? "✅" : score >= 40 ? "📊" : score >= 20 ? "⚠️" : "🔴";
 
   return { score, level, color, badge, tips };
@@ -71,16 +65,15 @@ export function FinancialScore({ revenue, expense, prevRevenue, prevExpense }: F
   }, [score]);
 
   return (
-    <div className="glass-card-premium p-6 animate-slide-up" style={{ animationDelay: "200ms", animationFillMode: "backwards" }}>
+    <div className="bg-card border border-border rounded-lg p-6 animate-slide-up" style={{ animationDelay: "200ms", animationFillMode: "backwards" }}>
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-5 w-5 text-primary" />
         <h2 className="text-sm font-bold text-foreground">Score Financeiro</h2>
       </div>
 
       <div className="flex items-center gap-6">
-        {/* Circular Score */}
         <div className="relative flex items-center justify-center shrink-0">
-          <svg width="130" height="130" className="score-ring -rotate-90">
+          <svg width="130" height="130" className="-rotate-90">
             <circle cx="65" cy="65" r="54" fill="none" stroke="hsl(var(--border))" strokeWidth="8" />
             <circle
               cx="65" cy="65" r="54" fill="none"
@@ -98,7 +91,6 @@ export function FinancialScore({ revenue, expense, prevRevenue, prevExpense }: F
           </div>
         </div>
 
-        {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-2xl">{badge}</span>

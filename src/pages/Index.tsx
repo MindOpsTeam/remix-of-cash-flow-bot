@@ -21,7 +21,7 @@ interface MonthData {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload) return null;
   return (
-    <div className="glass-card p-3 text-xs">
+    <div className="bg-card border border-border rounded-md p-3 text-xs">
       <p className="font-semibold text-foreground mb-1">{label}</p>
       {payload.map((p: any) => (
         <p key={p.name} style={{ color: p.color }}>
@@ -130,7 +130,7 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="mb-8 animate-fade-in">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard Financeiro</h1>
+        <h1 className="text-2xl font-bold font-headline text-foreground tracking-tight">Dashboard Financeiro</h1>
         <p className="text-sm text-muted-foreground mt-1 capitalize">Visão geral de {monthLabel}</p>
       </div>
 
@@ -146,13 +146,12 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* Score */}
           <div className="mb-6">
             <FinancialScore revenue={revenue} expense={expense} prevRevenue={prevRevenue} prevExpense={prevExpense} />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <div className="xl:col-span-2 glass-card-premium p-5 animate-slide-up" style={{ animationDelay: "400ms", animationFillMode: "backwards" }}>
+            <div className="xl:col-span-2 bg-card border border-border rounded-lg p-5 animate-slide-up" style={{ animationDelay: "400ms", animationFillMode: "backwards" }}>
               <h2 className="text-sm font-semibold text-foreground mb-4">Receitas vs Despesas</h2>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData} barGap={4}>
@@ -167,10 +166,10 @@ export default function Dashboard() {
               </ResponsiveContainer>
             </div>
 
-            <div className="glass-card-premium p-5 animate-slide-up" style={{ animationDelay: "500ms", animationFillMode: "backwards" }}>
+            <div className="bg-card border border-border rounded-lg p-5 animate-slide-up" style={{ animationDelay: "500ms", animationFillMode: "backwards" }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-foreground">Últimos Lançamentos</h2>
-              <Link to="/transactions" className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors">
+              <Link to="/transactions" className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors duration-150">
                 Ver todos <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
