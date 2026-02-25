@@ -1,161 +1,83 @@
 
-# Integracao Completa com API Asaas
+# Reestruturacao da Integracao Asaas: Company-based para User-based
 
 ## Visao Geral
 
-Criar uma integracao production-ready com a API do Asaas, incluindo: tabela de configuracao, tabela de logs de webhook, Edge Function dedicada para receber webhooks do Asaas, Edge Function para operacoes na API Asaas (testar conexao, criar webhook automaticamente, reativar fila), e uma pagina completa de configuracao no frontend.
+Migrar toda a integracao Asaas de um modelo baseado em `company_id` para `user_id`, substituir a tabela de logs por `asaas_webhook_events` com mais campos, e criar a nova tabela `asaas_payments` como espelho das cobrancas do Asaas.
 
 ---
 
-## Fase 1 - Database (Migracoes SQL)
+## Fase 1 - Migracao de Database
 
-### Tabela `asaas_config`
-Armazena credenciais e configuracao do Asaas por empresa.
+Executar uma unica migracao SQL que:
 
-```text
-Colunas:
-- id (uuid, PK)
-- company_id (uuid, FK -> companies, UNIQUE)
-- environment ('sandbox' | 'production')
-- api_key_sandbox (text, encrypted at rest)
-- api_key_production (text, encrypted at rest)
-- webhook_auth_token (text) -- token para validar webhooks
-- webhook_id (text, nullable) -- ID do webhook criado no Asaas
-- webhook_status ('active' | 'inactive' | 'interrupted', default 'inactive')
-- notification_email (text, nullable)
-- enabled_events (jsonb, default all events)
-- created_at, updated_at
-```
-
-RLS: somente membros da empresa (is_company_member) podem CRUD.
-
-### Tabela `asaas_webhook_logs`
-Registra cada notificacao recebida do Asaas.
-
-```text
-Colunas:
-- id (uuid, PK)
-- company_id (uuid, FK -> companies)
-- asaas_event (text) -- ex: PAYMENT_RECEIVED
-- entity_id (text, nullable) -- ex: pay_abc123
-- payload (jsonb)
-- http_status_returned (integer, default 200)
-- idempotency_key (text, UNIQUE) -- para deduplicacao
-- processed (boolean, default false)
-- error_message (text, nullable)
-- created_at
-```
-
-RLS: somente membros da empresa podem SELECT. INSERT via service role (edge function).
+1. **Drop tabelas antigas**: `asaas_webhook_logs` e `asaas_config`
+2. **Criar `asaas_config`** com schema do usuario:
+   - `user_id` (UUID, FK auth.users, UNIQUE) em vez de `company_id`
+   - Novos campos: `webhook_url`, `webhook_email`, `webhook_send_type`
+   - `enabled_events` como `TEXT[]` (array nativo) em vez de `JSONB`
+   - RLS: `auth.uid() = user_id` para ALL operations
+3. **Criar `asaas_webhook_events`** (substitui `asaas_webhook_logs`):
+   - `user_id`, `event_id` (UNIQUE por user), `event_type`, `event_category`
+   - `entity_id`, `entity_type`, `payload`, `processed`, `processed_at`
+   - `error`, `attempts` para retry tracking
+   - Indices em `event_type`, `processed`, `created_at`, `entity_id`
+   - RLS: SELECT only para `auth.uid() = user_id`
+4. **Criar `asaas_payments`** (espelho de cobrancas):
+   - `user_id`, `asaas_id` (UNIQUE por user)
+   - Todos os campos do schema fornecido (billing_type, status, value, net_value, due_date, etc.)
+   - Campos JSONB para pix_transaction, credit_card, discount, fine, interest, split, chargeback, refunds
+   - RLS: ALL para `auth.uid() = user_id`
 
 ---
 
-## Fase 2 - Edge Functions
+## Fase 2 - Edge Function: `asaas-webhook`
 
-### Edge Function: `asaas-webhook` (recebe notificacoes)
+Reescrever para usar o novo schema:
 
-Endpoint publico (verify_jwt = false) que:
-1. Recebe POST do Asaas
-2. Extrai `asaas-access-token` do header para autenticar
-3. Busca `asaas_config` pelo token
-4. Gera idempotency_key = `{event}_{entity_id}_{dateCreated}` para evitar duplicatas
-5. Verifica se ja existe log com esse idempotency_key (processamento idempotente)
-6. Registra na tabela `asaas_webhook_logs`
-7. Retorna 200 imediatamente (Asaas espera resposta rapida)
-
-Eventos suportados (todos do Asaas):
-- PAYMENT_* (CREATED, UPDATED, CONFIRMED, RECEIVED, OVERDUE, DELETED, REFUNDED, etc.)
-- TRANSFER_* (CREATED, PENDING, IN_BANK_PROCESSING, DONE, FAILED, etc.)
-- BILL_* (CREATED, PENDING, BANK_PROCESSING, PAID, CANCELLED, FAILED, REFUNDED)
-- INVOICE_* (CREATED, UPDATED, SYNCHRONIZED, AUTHORIZED, CANCELLED, ERROR)
-- ANTICIPATION_* (CREATED, APPROVED, DENIED, CREDITED, etc.)
-- MOBILE_PHONE_RECHARGE_* (CONFIRMED, CANCELLED)
-- ACCOUNT_STATUS_* (INITIAL_ALERT, FINAL_ALERT, AWAITING_ACTION_AUTHORIZATION)
-- PAYMENT_DUEDATE_WARNING, PAYMENT_CHECKOUT_VIEWED
-
-### Edge Function: `asaas-api` (proxy autenticado)
-
-Edge Function autenticada (valida JWT do usuario) que faz proxy para a API Asaas:
-
-Acoes suportadas (via `action` no body):
-1. **test-connection**: GET /v3/finance/getCurrentBalance -- retorna saldo
-2. **create-webhook**: POST /v3/webhooks -- cria webhook automaticamente com a URL do edge function e todos os eventos habilitados
-3. **reactivate-webhook**: PUT /v3/webhooks/{id} -- reenvia com `interrupted: false`
-4. **get-webhook-status**: GET /v3/webhooks/{id} -- verifica status atual
-
-A funcao busca a API key e environment da tabela `asaas_config` usando o company_id do usuario autenticado.
+- Buscar `asaas_config` por `webhook_auth_token` (retorna `user_id` em vez de `company_id`)
+- Determinar `event_category` a partir do prefixo do evento (PAYMENT, TRANSFER, BILL, etc.)
+- Inserir em `asaas_webhook_events` com: `user_id`, `event_id`, `event_type`, `event_category`, `entity_id`, `entity_type`, `payload`
+- Idempotencia via UNIQUE(user_id, event_id) -- usar o `id` do payload do Asaas como event_id
+- Para eventos PAYMENT_*, fazer upsert em `asaas_payments` automaticamente (sincronizar espelho)
+- Retornar 200 imediatamente
 
 ---
 
-## Fase 3 - Frontend
+## Fase 3 - Edge Function: `asaas-api`
 
-### Rota: `/settings/integrations/asaas`
+Reescrever para usar `user_id` em vez de `company_id`:
 
-Nova pagina `src/pages/settings/AsaasIntegration.tsx` com 3 secoes:
-
-**Secao 1 - Credenciais:**
-- Input password para API Key Producao (toggle visibilidade)
-- Input password para API Key Sandbox (toggle visibilidade)
-- Switch Sandbox/Producao
-- Input para Webhook Auth Token + botao "Gerar token" (crypto.randomUUID)
-- Input para email de notificacao
-- Botao "Salvar credenciais" (upsert na tabela asaas_config)
-- Botao "Testar conexao" (chama edge function asaas-api action=test-connection, mostra saldo)
-
-**Secao 2 - Webhook:**
-- Badge de status colorido (ativo=verde, inativo=cinza, interrompido=amarelo)
-- URL readonly do webhook (copiavel)
-- Botao "Criar/Atualizar Webhook" (chama edge function asaas-api action=create-webhook)
-- Botao "Reativar Fila" (se interrompido, chama action=reactivate-webhook)
-- Tabela com ultimos 20 logs (data, evento, entity_id, status HTTP)
-
-**Secao 3 - Eventos Ativos:**
-- Grid de checkboxes agrupadas por categoria:
-  - Cobranças (PAYMENT_*)
-  - Transferências (TRANSFER_*)
-  - Contas a Pagar (BILL_*)
-  - Notas Fiscais (INVOICE_*)
-  - Antecipações (ANTICIPATION_*)
-  - Recarga Celular (MOBILE_PHONE_RECHARGE_*)
-  - Status da Conta (ACCOUNT_STATUS_*)
-- Botoes "Selecionar todos" / "Desmarcar todos"
-
-### Atualizacoes no Router e Sidebar
-
-- Adicionar rota `/settings/integrations/asaas` no App.tsx
-- Adicionar link "Asaas" na pagina de Integracoes como card navegavel (alem dos webhooks genericos)
+- Remover verificacao de company membership
+- Buscar `asaas_config` por `user_id` (do JWT claims)
+- Acoes mantidas: `test-connection`, `create-webhook`, `reactivate-webhook`, `get-webhook-status`
+- No `create-webhook`, salvar `webhook_url` e `webhook_email` no config
+- Nova acao: `sync-payments` -- busca pagamentos do Asaas e sincroniza na tabela `asaas_payments`
 
 ---
 
-## Fase 4 - Configuracao
+## Fase 4 - Frontend: `AsaasIntegration.tsx`
 
-### config.toml
-Adicionar as 2 edge functions com `verify_jwt = false`:
-```toml
-[functions.asaas-webhook]
-verify_jwt = false
+Reescrever para usar `user_id` em vez de `company_id`:
 
-[functions.asaas-api]
-verify_jwt = false
-```
-
-A funcao `asaas-api` valida JWT no codigo para acessar dados do usuario.
-A funcao `asaas-webhook` valida via token do header.
+- Remover dependencia de `useCompany()` -- usar `useAuth()` para obter user
+- Queries: `asaas_config` filtrado por `user_id` (RLS cuida automaticamente)
+- Logs: ler de `asaas_webhook_events` em vez de `asaas_webhook_logs`
+- Tabela de logs mostra: data, event_type, event_category, entity_id, processed (badge)
+- Save: upsert com `user_id` em vez de `company_id`
+- Chamar edge functions sem `company_id` no body (extraido do JWT)
+- Novos campos no form: `webhook_send_type` (select SEQUENTIALLY/NON_SEQUENTIALLY)
 
 ---
 
-## Arquivos a Criar
+## Arquivos
 
-1. `supabase/functions/asaas-webhook/index.ts` -- receptor de webhooks
-2. `supabase/functions/asaas-api/index.ts` -- proxy para API Asaas
-3. `src/pages/settings/AsaasIntegration.tsx` -- pagina de configuracao
+**Editar (3):**
+- `supabase/functions/asaas-webhook/index.ts` -- novo schema user-based + upsert payments
+- `supabase/functions/asaas-api/index.ts` -- user_id em vez de company_id
+- `src/pages/settings/AsaasIntegration.tsx` -- useAuth em vez de useCompany, novas tabelas
 
-## Arquivos a Editar
+**Migracao SQL (1):**
+- Drop old tables, create 3 new tables com RLS
 
-1. `src/App.tsx` -- adicionar rota /settings/integrations/asaas
-2. `src/pages/settings/Integrations.tsx` -- adicionar card "Asaas" com link
-3. Migracoes SQL -- criar tabelas asaas_config e asaas_webhook_logs com RLS
-
-## Nenhuma Secret Nova Necessaria
-
-As API keys do Asaas sao armazenadas na tabela `asaas_config` (por empresa), nao como secrets do projeto. As edge functions usam SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY que ja existem.
+**Sem alteracoes em:** App.tsx, rotas, config.toml (ja configurados)
