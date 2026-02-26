@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -139,7 +140,6 @@ function maskKey(key: string | null): string {
 
 interface AsaasConfig {
   id: string;
-  user_id: string;
   environment: string;
   api_key_sandbox: string | null;
   api_key_production: string | null;
@@ -164,10 +164,20 @@ interface WebhookEvent {
 
 export default function AsaasIntegrationPage() {
   const { user } = useAuth();
+  const { company } = useCompany();
   const location = useLocation();
   const isPersonalRoute = location.pathname.startsWith("/personal");
+  const isBusinessMode = !isPersonalRoute;
   const backLink = isPersonalRoute ? "/personal/settings/integrations" : "/settings/integrations";
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+
+  // Dynamic table/function names based on mode
+  const configTable = isBusinessMode ? "company_asaas_config" : "asaas_config";
+  const eventsTable = isBusinessMode ? "company_asaas_webhook_events" : "asaas_webhook_events";
+  const edgeFunction = isBusinessMode ? "company-asaas-api" : "asaas-api";
+  const webhookFunction = isBusinessMode ? "company-asaas-webhook" : "asaas-webhook";
+  const ownerKey = isBusinessMode ? "company_id" : "user_id";
+  const ownerId = isBusinessMode ? company?.id : user?.id;
 
   const [config, setConfig] = useState<AsaasConfig | null>(null);
   const [events, setEvents] = useState<WebhookEvent[]>([]);
@@ -186,7 +196,6 @@ export default function AsaasIntegrationPage() {
   const [webhookSendType, setWebhookSendType] = useState("SEQUENTIALLY");
   const [enabledEvents, setEnabledEvents] = useState<string[]>(ALL_EVENT_LIST);
 
-  // After save, keys are masked. Track if user is editing
   const [editingKeyProduction, setEditingKeyProduction] = useState(false);
   const [editingKeySandbox, setEditingKeySandbox] = useState(false);
   const [showKeySandbox, setShowKeySandbox] = useState(false);
@@ -194,17 +203,19 @@ export default function AsaasIntegrationPage() {
   const [ipInfoOpen, setIpInfoOpen] = useState(false);
 
   const loadData = useCallback(async () => {
-    if (!user) return;
+    if (!ownerId) return;
     setLoading(true);
 
     const [configRes, eventsRes] = await Promise.all([
       supabase
-        .from("asaas_config")
+        .from(configTable as any)
         .select("*")
+        .eq(ownerKey, ownerId)
         .maybeSingle(),
       supabase
-        .from("asaas_webhook_events")
+        .from(eventsTable as any)
         .select("id, event_type, event_category, entity_id, processed, created_at")
+        .eq(ownerKey, ownerId)
         .order("created_at", { ascending: false })
         .limit(10),
     ]);
@@ -223,18 +234,18 @@ export default function AsaasIntegrationPage() {
       setEditingKeySandbox(false);
     }
 
-    setEvents((eventsRes.data || []) as WebhookEvent[]);
+    setEvents((eventsRes.data || []) as unknown as WebhookEvent[]);
     setLoading(false);
-  }, [user]);
+  }, [ownerId, configTable, eventsTable, ownerKey]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const saveCredentials = async () => {
-    if (!user) return;
+    if (!ownerId) return;
     setSaving(true);
 
     const payload: Record<string, unknown> = {
-      user_id: user.id,
+      [ownerKey]: ownerId,
       environment,
       webhook_auth_token: webhookAuthToken || null,
       notification_email: notificationEmail || null,
@@ -242,23 +253,21 @@ export default function AsaasIntegrationPage() {
       enabled_events: enabledEvents,
     };
 
-    // Only update keys if user actively edited them
     if (editingKeyProduction) payload.api_key_production = apiKeyProduction || null;
     if (editingKeySandbox) payload.api_key_sandbox = apiKeySandbox || null;
 
     if (config) {
       const { error } = await supabase
-        .from("asaas_config")
+        .from(configTable as any)
         .update(payload)
         .eq("id", config.id);
       if (error) toast.error("Erro ao salvar: " + error.message);
       else toast.success("Configurações salvas com sucesso!");
     } else {
-      // For new config, always include the keys
       payload.api_key_production = apiKeyProduction || null;
       payload.api_key_sandbox = apiKeySandbox || null;
       const { error } = await supabase
-        .from("asaas_config")
+        .from(configTable as any)
         .insert(payload as any);
       if (error) toast.error("Erro ao salvar: " + error.message);
       else toast.success("Configurações salvas com sucesso!");
@@ -268,12 +277,16 @@ export default function AsaasIntegrationPage() {
     setSaving(false);
   };
 
+  const invokeEdgeFunction = async (action: string) => {
+    const body: Record<string, unknown> = { action };
+    if (isBusinessMode) body.company_id = ownerId;
+    return supabase.functions.invoke(edgeFunction, { body });
+  };
+
   const testConnection = async () => {
     setTesting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("asaas-api", {
-        body: { action: "test-connection" },
-      });
+      const { data, error } = await invokeEdgeFunction("test-connection");
       if (error) throw error;
       if (data?.data?.balance !== undefined) {
         toast.success(`Conexão OK! Saldo: R$ ${Number(data.data.balance).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`);
@@ -291,9 +304,7 @@ export default function AsaasIntegrationPage() {
   const createWebhook = async () => {
     setCreatingWebhook(true);
     try {
-      const { data, error } = await supabase.functions.invoke("asaas-api", {
-        body: { action: "create-webhook" },
-      });
+      const { data, error } = await invokeEdgeFunction("create-webhook");
       if (error) throw error;
       if (data?.ok) {
         toast.success("Webhook criado/atualizado no Asaas!");
@@ -310,9 +321,7 @@ export default function AsaasIntegrationPage() {
   const reactivateWebhook = async () => {
     setReactivating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("asaas-api", {
-        body: { action: "reactivate-webhook" },
-      });
+      const { data, error } = await invokeEdgeFunction("reactivate-webhook");
       if (error) throw error;
       if (data?.ok) {
         toast.success("Fila reativada!");
@@ -331,7 +340,7 @@ export default function AsaasIntegrationPage() {
   };
 
   const copyWebhookUrl = () => {
-    const url = `https://${projectId}.supabase.co/functions/v1/asaas-webhook`;
+    const url = `https://${projectId}.supabase.co/functions/v1/${webhookFunction}`;
     navigator.clipboard.writeText(url);
     toast.success("URL copiada!");
   };
@@ -396,7 +405,9 @@ export default function AsaasIntegrationPage() {
               <Shield className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Integração Asaas</h1>
+              <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">
+                Integração Asaas {isBusinessMode ? "(Empresa)" : "(Pessoal)"}
+              </h1>
               <p className="text-sm text-muted-foreground">Configure sua conta Asaas para sincronizar cobranças, assinaturas e transferências</p>
             </div>
           </div>
@@ -411,7 +422,7 @@ export default function AsaasIntegrationPage() {
         <div className="flex items-start gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5">
           <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
           <div className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Segurança:</span> As API Keys são salvas de forma segura no banco de dados com isolamento por usuário via RLS.
+            <span className="font-medium text-foreground">Segurança:</span> As API Keys são salvas de forma segura no banco de dados com isolamento por {isBusinessMode ? "empresa" : "usuário"} via RLS.
             O webhook é autenticado via token exclusivo no header <code className="text-primary font-mono">asaas-access-token</code>.
           </div>
         </div>
@@ -583,7 +594,7 @@ export default function AsaasIntegrationPage() {
               <div className="flex gap-2">
                 <Input
                   readOnly
-                  value={`https://${projectId}.supabase.co/functions/v1/asaas-webhook`}
+                  value={`https://${projectId}.supabase.co/functions/v1/${webhookFunction}`}
                   className="font-mono text-xs"
                 />
                 <Button variant="outline" size="icon" onClick={copyWebhookUrl}>
