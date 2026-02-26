@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Trash2, Zap } from "lucide-react";
+import { Plus, Search, Zap, Upload, Pencil } from "lucide-react";
 import { usePersonalTransactions, PersonalTransactionFormData } from "@/hooks/usePersonalTransactions";
 import { usePersonalAccounts } from "@/hooks/usePersonalAccounts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,9 +14,20 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { TransactionItem } from "@/components/personal/TransactionItem";
+import { format, isToday, isYesterday, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+}
+
+function formatGroupDate(dateStr: string): string {
+  const d = parseISO(dateStr);
+  if (isToday(d)) return "Hoje";
+  if (isYesterday(d)) return "Ontem";
+  return format(d, "dd 'de' MMM", { locale: ptBR });
 }
 
 export default function PersonalTransactions() {
@@ -40,13 +51,29 @@ export default function PersonalTransactions() {
     });
   };
 
+  // Group transactions by date
+  const grouped = useMemo(() => {
+    const groups: Record<string, typeof transactions> = {};
+    for (const t of transactions) {
+      const key = t.date || "sem-data";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(t);
+    }
+    return Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
+  }, [transactions]);
+
+  const receitaCount = transactions.filter((t) => t.type === "receita").length;
+  const despesaCount = transactions.filter((t) => t.type === "despesa").length;
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Transações Pessoais</h1>
-            <p className="text-sm text-muted-foreground mt-1">Receitas e despesas pessoais</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {summary.count} transações no período
+            </p>
           </div>
           <Button className="gap-2" onClick={() => setFormOpen(true)}>
             <Plus className="h-4 w-4" /> Nova Transação
@@ -59,24 +86,27 @@ export default function PersonalTransactions() {
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">Receitas</p>
               <p className="text-xl font-bold font-mono text-revenue">{fmt(summary.receitas)}</p>
+              <p className="text-[10px] text-muted-foreground">{receitaCount} transações</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">Despesas</p>
               <p className="text-xl font-bold font-mono text-destructive">{fmt(summary.despesas)}</p>
+              <p className="text-[10px] text-muted-foreground">{despesaCount} transações</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground">Saldo</p>
               <p className={`text-xl font-bold font-mono ${summary.saldo >= 0 ? "text-revenue" : "text-destructive"}`}>{fmt(summary.saldo)}</p>
+              <p className="text-[10px] text-muted-foreground">{summary.count} total</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -86,8 +116,9 @@ export default function PersonalTransactions() {
               onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
             />
           </div>
+
           <Select value={filters.period} onValueChange={(v: any) => setFilters((f) => ({ ...f, period: v }))}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="this_month">Este mês</SelectItem>
               <SelectItem value="last_month">Mês passado</SelectItem>
@@ -95,54 +126,77 @@ export default function PersonalTransactions() {
               <SelectItem value="all">Tudo</SelectItem>
             </SelectContent>
           </Select>
+
+          {/* Type toggle */}
+          <ToggleGroup
+            type="single"
+            value={filters.types.length === 1 ? filters.types[0] : "all"}
+            onValueChange={(v) => setFilters((f) => ({ ...f, types: v && v !== "all" ? [v] : [] }))}
+            size="sm"
+            variant="outline"
+          >
+            <ToggleGroupItem value="all" className="text-xs px-2.5">Todos</ToggleGroupItem>
+            <ToggleGroupItem value="receita" className="text-xs px-2.5">Receitas</ToggleGroupItem>
+            <ToggleGroupItem value="despesa" className="text-xs px-2.5">Despesas</ToggleGroupItem>
+          </ToggleGroup>
         </div>
 
-        {/* List */}
-        <div className="bg-card border border-border rounded-lg divide-y divide-border">
+        {/* Source filter badges */}
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { key: "manual", icon: Pencil, label: "Manual" },
+            { key: "imported", icon: Upload, label: "Importado" },
+            { key: "asaas", icon: Zap, label: "Asaas" },
+          ].map(({ key, icon: Icon, label }) => {
+            const active = filters.sources.includes(key);
+            return (
+              <Badge
+                key={key}
+                variant={active ? "default" : "outline"}
+                className="cursor-pointer gap-1 select-none"
+                onClick={() =>
+                  setFilters((f) => ({
+                    ...f,
+                    sources: active ? f.sources.filter((s) => s !== key) : [...f.sources, key],
+                  }))
+                }
+              >
+                <Icon className="h-3 w-3" /> {label}
+              </Badge>
+            );
+          })}
+        </div>
+
+        {/* Transaction list grouped by date */}
+        <div className="space-y-2">
           {isLoading ? (
-            <p className="p-6 text-center text-muted-foreground text-sm">Carregando...</p>
-          ) : transactions.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground text-sm">Nenhuma transação encontrada.</p>
-              <Button variant="outline" className="mt-4 gap-2" onClick={() => setFormOpen(true)}>
-                <Plus className="h-4 w-4" /> Criar primeira transação
-              </Button>
-            </div>
+            <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">Carregando...</CardContent></Card>
+          ) : grouped.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <p className="text-muted-foreground text-sm">Nenhuma transação encontrada.</p>
+                <Button variant="outline" className="mt-4 gap-2" onClick={() => setFormOpen(true)}>
+                  <Plus className="h-4 w-4" /> Criar primeira transação
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
-            transactions.map((t) => {
-              const isAsaas = t.source === "asaas";
+            grouped.map(([dateKey, items]) => {
+              const dayTotal = items.reduce((s, t) => s + (t.type === "receita" ? Number(t.amount) : -Number(t.amount)), 0);
               return (
-                <div key={t.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate">{t.title}</p>
-                      {isAsaas && (
-                        <Badge variant="outline" className="text-xs gap-1 border-primary/30 text-primary">
-                          <Zap className="h-3 w-3" /> Asaas
-                        </Badge>
-                      )}
-                      {t.personal_categories && (
-                        <Badge variant="secondary" className="text-xs">{t.personal_categories.name}</Badge>
-                      )}
-                      {isAsaas && t.billing_type && (
-                        <Badge variant="secondary" className="text-[10px]">{t.billing_type}</Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {t.date ? new Date(t.date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
-                      {t.personal_accounts && ` • ${t.personal_accounts.name}`}
-                      {isAsaas && t.person && ` • ${t.person}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-sm font-semibold font-mono ${t.type === "receita" ? "text-revenue" : "text-destructive"}`}>
-                      {t.type === "receita" ? "+" : "-"}{fmt(Number(t.amount))}
+                <div key={dateKey}>
+                  <div className="flex items-center justify-between px-2 py-1.5">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {dateKey === "sem-data" ? "Sem data" : formatGroupDate(dateKey)}
                     </span>
-                    {!isAsaas && (
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(t.id)}>
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    )}
+                    <span className={`text-xs font-mono font-medium ${dayTotal >= 0 ? "text-revenue" : "text-destructive"}`}>
+                      {fmt(dayTotal)}
+                    </span>
+                  </div>
+                  <div className="bg-card border border-border rounded-lg divide-y divide-border">
+                    {items.map((t) => (
+                      <TransactionItem key={t.id} transaction={t} onDelete={(id) => setDeleteId(id)} />
+                    ))}
                   </div>
                 </div>
               );

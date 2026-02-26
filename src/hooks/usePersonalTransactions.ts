@@ -44,6 +44,7 @@ export interface PersonalTransactionFormData {
 
 export interface PersonalTransactionFilters {
   types: string[];
+  sources: string[];
   period: "this_month" | "last_month" | "last_3_months" | "all";
   search?: string;
 }
@@ -53,6 +54,7 @@ export function usePersonalTransactions() {
   const queryClient = useQueryClient();
   const [filters, setFilters] = useState<PersonalTransactionFilters>({
     types: [],
+    sources: [],
     period: "this_month",
   });
 
@@ -115,6 +117,7 @@ export function usePersonalTransactions() {
   const filteredTransactions = useMemo(() => {
     let result = [...allMerged];
     if (filters.types.length > 0) result = result.filter((t) => filters.types.includes(t.type));
+    if (filters.sources.length > 0) result = result.filter((t) => filters.sources.includes(t.source || "manual"));
 
     const now = new Date();
     let startDate: Date | null = null;
