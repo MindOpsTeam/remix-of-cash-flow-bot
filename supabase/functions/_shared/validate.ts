@@ -2,11 +2,17 @@
  * Shared validation helpers for edge functions.
  */
 
-export async function parseJsonBody(req: Request): Promise<Record<string, unknown>> {
+export async function parseJsonBody(
+  req: Request
+): Promise<{ data: Record<string, unknown> } | { error: string }> {
   try {
-    return (await req.json()) as Record<string, unknown>;
+    const body = await req.json();
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return { error: "Request body must be a JSON object" };
+    }
+    return { data: body as Record<string, unknown> };
   } catch {
-    throw new Error("Invalid JSON body");
+    return { error: "Invalid JSON in request body" };
   }
 }
 
