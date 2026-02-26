@@ -1,67 +1,65 @@
 
 
-# Integrar Pagamentos Asaas nos KPIs e Transacoes
+# Melhorar Visualizacao de Transacoes Pessoais
 
-## Problema
-Os pagamentos recebidos via Asaas (tabela `asaas_payments`) nao aparecem nos KPIs do Dashboard nem na lista de transacoes. O usuario quer ver:
-- Quem enviou e quando
-- Valores deste mes contando no "Entradas (mes)" e "Saldo do Mes"
-- Historico de transacoes Asaas visivel na pagina de transacoes
+## Problema Atual
+A pagina de transacoes mostra apenas: titulo, data, conta, valor e tipo. Faltam dados importantes que ja existem no banco: categoria, cartao de credito, pessoa, descricao, status, recorrencia, grupo kakeibo e origem.
 
-## Dados Disponiveis
-A tabela `asaas_payments` ja tem dados sincronizados:
-- `value`, `net_value` (valor bruto e liquido)
-- `payment_date`, `confirmed_date`, `credit_date` (datas relevantes)
-- `customer_id` (quem pagou)
-- `status` (RECEIVED, CONFIRMED, etc.)
-- `description`, `billing_type` (PIX, BOLETO, etc.)
+## Melhorias Propostas
 
-## Alteracoes
+### 1. Layout com mais informacoes visiveis
+Cada linha de transacao passa a mostrar:
+- **Icone colorido** por categoria (usando `personal_categories.icon` e `personal_categories.color`)
+- **Titulo** + **descricao** (se houver)
+- **Data** formatada + **conta** ou **cartao de credito**
+- **Pessoa** (quem pagou/recebeu)
+- **Badge de categoria** com cor
+- **Badge de status** (confirmado, pendente)
+- **Indicador de recorrencia** (icone de loop se `is_recurring`)
+- **Badge de origem**: Manual, Importado, Asaas (com icones distintos)
+- **Billing type** para transacoes Asaas (PIX, Boleto, etc.)
 
-### 1. `src/hooks/usePersonalKPIs.ts` - Incluir pagamentos Asaas nos KPIs
-- Adicionar query para buscar `asaas_payments` com status RECEIVED ou CONFIRMED do mes atual
-- Somar os valores (`net_value`) nas entradas do mes
-- Incluir nos dados do grafico de 6 meses (como receita)
-- Recalcular `saldo_mes` incluindo pagamentos Asaas
+### 2. Filtros adicionais
+Adicionar filtros por:
+- **Tipo** (receita/despesa) - botoes toggle
+- **Origem** (manual, importado, asaas)
+- **Conta** (dropdown com contas do usuario)
 
-### 2. `src/hooks/usePersonalTransactions.ts` - Mesclar transacoes Asaas
-- Adicionar query para buscar `asaas_payments` do usuario
-- Converter cada pagamento Asaas em formato `PersonalTransaction` (virtual, readonly)
-- Mesclar com transacoes manuais na lista filtrada
-- Marcar com `source: "asaas"` para diferenciar na UI
+### 3. Agrupamento por data
+Transacoes agrupadas por dia com separador visual mostrando a data e subtotal do dia.
 
-### 3. `src/pages/personal/PersonalTransactions.tsx` - Exibir transacoes Asaas
-- Renderizar transacoes Asaas com badge "Asaas" ou icone Zap
-- Mostrar `billing_type` (PIX, Boleto) e `customer_id` como informacoes adicionais
-- Transacoes Asaas sao read-only (sem botao de excluir)
-
-### 4. `src/pages/personal/PersonalDashboard.tsx` - Ajustar KPIs
-- O card "Entradas (mes)" passa a incluir pagamentos Asaas recebidos no mes
-- O card "Saldo do Mes" reflete o novo total
-- O grafico de 6 meses inclui receitas Asaas
+### 4. Contagem de transacoes no summary
+Adicionar o total de transacoes no periodo nos cards de resumo (ex: "42 transacoes").
 
 ## Detalhes Tecnicos
 
-**Query de pagamentos Asaas (no hook):**
-```text
-supabase.from("asaas_payments")
-  .select("*")
-  .eq("user_id", userId)
-  .in("status", ["RECEIVED", "CONFIRMED"])
-```
+### Arquivo: `src/pages/personal/PersonalTransactions.tsx`
 
-**Mapeamento para transacao virtual:**
-- `title`: description ou "Pagamento Asaas"
-- `amount`: net_value (valor liquido)
-- `date`: confirmed_date ou payment_date ou due_date
-- `type`: "receita"
-- `person`: customer_id
-- `source`: "asaas" (novo campo visual)
+**Mudancas na lista de transacoes:**
+- Substituir o layout flat por um agrupado por data (usando `Object.groupBy` ou reduce manual)
+- Cada grupo tem um header com data formatada ("Hoje", "Ontem", "25 de fev") e subtotal
+- Cada linha exibe:
+  - Icone da categoria (circulo colorido com emoji/icone) ou icone de origem (Zap para Asaas, Upload para importado, Pencil para manual)
+  - Titulo em negrito + descricao em texto menor
+  - Badges: categoria, status, billing_type, recorrencia
+  - Pessoa (se existir)
+  - Conta ou cartao de credito
+  - Valor com cor (verde receita, vermelho despesa)
+  - Botao de excluir (apenas para manuais)
 
-**Calculo de KPIs ajustado:**
-- `entradas_mes` = entradas manuais (view) + soma asaas_payments RECEIVED/CONFIRMED do mes
-- `saldo_mes` = saldo manual (view) + soma asaas do mes
-- Taxas: `value - net_value` somado ao `taxas_mes`
+**Mudancas nos filtros:**
+- Adicionar toggle buttons "Receita" / "Despesa" / "Todos"
+- Adicionar filtro por origem (manual/importado/asaas) com badges clicaveis
+- Manter filtro de periodo e busca existentes
 
-O grafico de 6 meses tambem inclui os pagamentos Asaas agrupados por mes usando `confirmed_date`.
+**Mudancas nos cards de resumo:**
+- Adicionar contagem de transacoes (`summary.count`) em cada card
+- Mostrar quantidade de receitas vs despesas
+
+### Arquivo: `src/hooks/usePersonalTransactions.ts`
+
+- Adicionar campo `source` ao filtro (para filtrar por origem)
+- O hook ja retorna `personal_categories`, `personal_accounts`, `personal_credit_cards` - apenas precisamos usar esses dados na UI
+
+Nenhuma alteracao de banco de dados necessaria. Todos os dados ja existem nas tabelas e ja sao buscados pelo hook.
 
