@@ -1,86 +1,130 @@
 
 
-# Clonar Integracao Asaas para Modo Empresa (PJ)
+# Expansao de Eventos Asaas — Combater Confusao Patrimonial
 
-## Objetivo
-Replicar toda a infraestrutura de integracao Asaas que hoje funciona por `user_id` (pessoal) para funcionar por `company_id` (empresarial), seguindo o padrao existente do projeto onde tabelas PJ usam `company_id` + RLS via `is_company_member()`.
+## Problemas Atuais (Build Errors)
 
-## Alteracoes
+Antes de implementar novas funcionalidades, existem 2 arquivos compartilhados que estao faltando no repositorio e causam erros de build em TODAS as edge functions:
 
-### 1. Banco de Dados - 3 novas tabelas + realtime
+1. **`supabase/functions/_shared/cors.ts`** — exporta `getCorsHeaders()` e `corsPreflightResponse()`, usado por 11 edge functions
+2. **`supabase/functions/_shared/validate.ts`** — exporta `parseJsonBody()`, `validate()`, `validateRequired()`, `validateEnum()`, `validateUUID()`, `validateString()`, `sanitizeForPrompt()`, usado por 6 edge functions
+3. **Tipo `SupabaseClient` em `asaas-processor.ts`** — o tipo customizado nao bate com o cliente real do Supabase. Precisa usar `any` ou o tipo correto.
 
-**Tabela `company_asaas_config`** - Espelho da `asaas_config` mas com `company_id`:
-- Mesmas colunas: environment, api_keys, webhook_*, enabled_events, etc.
-- RLS: `is_company_member(company_id)` para ALL
+Esses arquivos serao criados primeiro para resolver o build.
 
-**Tabela `company_asaas_payments`** - Espelho da `asaas_payments` mas com `company_id`:
-- Mesmas colunas: asaas_id, customer_id, status, value, net_value, billing_type, etc.
-- UNIQUE(company_id, asaas_id)
-- RLS: `is_company_member(company_id)` para ALL
+---
 
-**Tabela `company_asaas_webhook_events`** - Espelho da `asaas_webhook_events` mas com `company_id`:
-- Mesmas colunas: event_id, event_type, event_category, payload, etc.
-- UNIQUE(company_id, event_id)
-- RLS: `is_company_member(company_id)` para SELECT (service role insere)
+## Etapa 1: Corrigir Build — Criar arquivos _shared faltantes
 
-Habilitar realtime para `company_asaas_payments`.
+### `supabase/functions/_shared/cors.ts`
+Implementar CORS helpers usados por todas as edge functions:
+- `getCorsHeaders(req, extraHeaders?)` — retorna headers CORS padrao
+- `corsPreflightResponse(req, extraHeaders?)` — responde OPTIONS com 204
 
-### 2. Edge Functions
+### `supabase/functions/_shared/validate.ts`
+Implementar validadores usados pelas edge functions:
+- `parseJsonBody(req)` — parse seguro do body JSON
+- `validate(...errors)` — combina erros de validacao
+- `validateRequired(body, fields)` — valida campos obrigatorios
+- `validateEnum(value, name, options)` — valida valor em lista
+- `validateUUID(value, name)` — valida formato UUID
+- `validateString(value, name)` — valida string nao vazia
+- `sanitizeForPrompt(text)` — sanitiza texto para uso em prompts AI
 
-**`supabase/functions/company-asaas-api/index.ts`** - Clone do `asaas-api`:
-- Recebe `company_id` no body
-- Valida que o usuario e membro da empresa via query em `company_members`
-- Busca config em `company_asaas_config` por `company_id`
-- Sync de pagamentos grava em `company_asaas_payments`
-- Restante da logica identica (test-connection, create-webhook, sync-payments, etc.)
+### `supabase/functions/_shared/asaas-processor.ts`
+Corrigir o tipo `SupabaseClient` para aceitar o cliente real do Supabase (usar `any` no parametro).
 
-**`supabase/functions/company-asaas-webhook/index.ts`** - Clone do `asaas-webhook`:
-- Busca config em `company_asaas_config` por `webhook_auth_token`
-- Insere eventos em `company_asaas_webhook_events`
-- Upsert de pagamentos em `company_asaas_payments`
+---
 
-### 3. Pagina de Configuracao
+## Etapa 2: Migration SQL — Novas tabelas estruturadas
 
-**`src/pages/settings/AsaasIntegration.tsx`** - Adaptar para modo dual:
-- Detectar se esta no modo business (rota `/settings/...`) ou personal (rota `/personal/...`)
-- No modo business: usar `company_id` do hook `useCompany`, chamar `company-asaas-api`, ler de `company_asaas_config`
-- No modo personal: manter comportamento atual com `user_id` e `asaas-api`
-- A UI permanece identica, apenas muda a fonte de dados e as funcoes chamadas
+Uma unica migration criando 10 novas tabelas (5 categorias x 2 modos PF/PJ):
 
-### 4. Rota no App.tsx
-A rota `/settings/integrations/asaas` ja existe e aponta para `AsaasIntegrationPage`. Nenhuma mudanca necessaria aqui.
-
-### 5. Integracao com Dashboard Empresarial (futuro)
-As tabelas `company_asaas_payments` ficarao disponiveis para futura integracao com os KPIs e transacoes do modo empresarial, similar ao que ja foi feito no modo pessoal.
-
-## Detalhes Tecnicos
-
-**Migration SQL** cria as 3 tabelas, indices unicos, RLS policies e habilita realtime.
-
-**AsaasIntegration.tsx** - mudanca principal:
+### Transfers (PF + PJ)
 ```text
-const isBusinessRoute = !location.pathname.startsWith("/personal");
-const { company } = useCompany();
-
-// Tabelas e funcoes variam conforme o modo:
-const configTable = isBusinessRoute ? "company_asaas_config" : "asaas_config";
-const eventsTable = isBusinessRoute ? "company_asaas_webhook_events" : "asaas_webhook_events";
-const edgeFunction = isBusinessRoute ? "company-asaas-api" : "asaas-api";
-const ownerFilter = isBusinessRoute 
-  ? { key: "company_id", value: company?.id }
-  : { key: "user_id", value: user?.id };
+asaas_transfers / company_asaas_transfers
+Colunas: asaas_id, type, status, value, net_value, fee, transfer_fee,
+         description, bank_account (JSONB), scheduled_date,
+         transaction_receipt_url, authorized, operation_type,
+         external_reference, raw_payload
+UNIQUE: (owner_id, asaas_id)
 ```
 
-**Edge function `company-asaas-api`** - validacao de membro:
+### Bills (PF + PJ)
 ```text
-const { data: membership } = await serviceClient
-  .from("company_members")
-  .select("id")
-  .eq("company_id", companyId)
-  .eq("user_id", userId)
-  .maybeSingle();
-if (!membership) return 403;
+asaas_bills / company_asaas_bills
+Colunas: asaas_id, status, value, fee, description, company_name,
+         identification_field, type, due_date, schedule_date,
+         payment_date, can_be_cancelled, failure_reason, raw_payload
+UNIQUE: (owner_id, asaas_id)
 ```
 
-Isso garante isolamento completo entre dados pessoais e empresariais, cada um com suas proprias tabelas, RLS e edge functions.
+### Subscriptions (PF + PJ)
+```text
+asaas_subscriptions / company_asaas_subscriptions
+Colunas: asaas_id, customer_id, billing_type, status, value,
+         next_due_date, cycle, description, discount/fine/interest/split (JSONB),
+         max_payments, payment_count, external_reference, end_date, raw_payload
+UNIQUE: (owner_id, asaas_id)
+```
+
+### Invoices (PF + PJ)
+```text
+asaas_invoices / company_asaas_invoices
+Colunas: asaas_id, payment_id, status, number, service_description,
+         value, net_value, observations, taxes (JSONB), customer_id,
+         effective_date, external_reference, municipality_inscription,
+         rps_series, rps_number, pdf_url, xml_url, error_message, raw_payload
+UNIQUE: (owner_id, asaas_id)
+```
+
+### Anticipations (PF + PJ)
+```text
+asaas_anticipations / company_asaas_anticipations
+Colunas: asaas_id, status, anticipated_value, net_value, fee,
+         total_value, installment_count, payment_id, anticipation_date,
+         credit_date, debit_date, due_date, denial_reason, raw_payload
+UNIQUE: (owner_id, asaas_id)
+```
+
+Todas com:
+- RLS: `auth.uid() = user_id` (PF) / `is_company_member(company_id)` (PJ)
+- Trigger `update_updated_at_column()`
+- Realtime habilitado para todas as tabelas PF
+- Indices em `status` e `created_at`
+
+---
+
+## Etapa 3: Expandir Notificacoes
+
+### `src/hooks/usePersonalNotifications.ts`
+Adicionar novos eventos ao `eventMap`:
+- TRANSFER_DONE, TRANSFER_FAILED, TRANSFER_BLOCKED, etc.
+- BILL_PAID, BILL_FAILED, BILL_CANCELLED, etc.
+- SUBSCRIPTION_INACTIVATED, SUBSCRIPTION_DELETED
+- INVOICE_AUTHORIZED, INVOICE_ERROR, INVOICE_CANCELED
+- RECEIVABLE_ANTICIPATION_CREDITED, _DENIED, _OVERDUE
+- BALANCE_VALUE_BLOCKED, BALANCE_VALUE_UNBLOCKED
+- INTERNAL_TRANSFER_CREDIT, INTERNAL_TRANSFER_DEBIT
+
+Expandir invalidacoes de queries para incluir as novas tabelas:
+- `asaas_transfers`, `asaas_bills`, `asaas_subscriptions`, `asaas_invoices`, `asaas_anticipations`
+
+---
+
+## Etapa 4: Deploy
+
+As edge functions `asaas-webhook`, `company-asaas-webhook`, `asaas-api` e `company-asaas-api` ja tem a logica de processamento via `asaas-processor.ts` (que ja cobre TRANSFER, BILL, SUBSCRIPTION, INVOICE e RECEIVABLE_ANTICIPATION). So precisam ser re-deployadas apos a criacao dos arquivos `_shared` faltantes.
+
+---
+
+## Resumo de Arquivos
+
+| Arquivo | Acao |
+|---------|------|
+| `supabase/functions/_shared/cors.ts` | **Criar** — CORS helpers |
+| `supabase/functions/_shared/validate.ts` | **Criar** — validadores |
+| `supabase/functions/_shared/asaas-processor.ts` | **Editar** — corrigir tipo SupabaseClient |
+| Migration SQL | **Criar** — 10 tabelas + RLS + realtime |
+| `src/hooks/usePersonalNotifications.ts` | **Editar** — expandir eventMap + invalidacoes |
 
