@@ -14,6 +14,132 @@ export type Database = {
   }
   public: {
     Tables: {
+      asaas_anticipations: {
+        Row: {
+          anticipated_value: number | null
+          anticipation_date: string | null
+          asaas_id: string
+          created_at: string
+          credit_date: string | null
+          debit_date: string | null
+          denial_reason: string | null
+          due_date: string | null
+          fee: number | null
+          id: string
+          installment_count: number | null
+          net_value: number | null
+          payment_id: string | null
+          raw_payload: Json | null
+          status: string
+          total_value: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anticipated_value?: number | null
+          anticipation_date?: string | null
+          asaas_id: string
+          created_at?: string
+          credit_date?: string | null
+          debit_date?: string | null
+          denial_reason?: string | null
+          due_date?: string | null
+          fee?: number | null
+          id?: string
+          installment_count?: number | null
+          net_value?: number | null
+          payment_id?: string | null
+          raw_payload?: Json | null
+          status: string
+          total_value?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anticipated_value?: number | null
+          anticipation_date?: string | null
+          asaas_id?: string
+          created_at?: string
+          credit_date?: string | null
+          debit_date?: string | null
+          denial_reason?: string | null
+          due_date?: string | null
+          fee?: number | null
+          id?: string
+          installment_count?: number | null
+          net_value?: number | null
+          payment_id?: string | null
+          raw_payload?: Json | null
+          status?: string
+          total_value?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      asaas_bills: {
+        Row: {
+          asaas_id: string
+          can_be_cancelled: boolean | null
+          company_name: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          failure_reason: string | null
+          fee: number | null
+          id: string
+          identification_field: string | null
+          payment_date: string | null
+          raw_payload: Json | null
+          schedule_date: string | null
+          status: string
+          type: string | null
+          updated_at: string
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          asaas_id: string
+          can_be_cancelled?: boolean | null
+          company_name?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          failure_reason?: string | null
+          fee?: number | null
+          id?: string
+          identification_field?: string | null
+          payment_date?: string | null
+          raw_payload?: Json | null
+          schedule_date?: string | null
+          status: string
+          type?: string | null
+          updated_at?: string
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          asaas_id?: string
+          can_be_cancelled?: boolean | null
+          company_name?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          failure_reason?: string | null
+          fee?: number | null
+          id?: string
+          identification_field?: string | null
+          payment_date?: string | null
+          raw_payload?: Json | null
+          schedule_date?: string | null
+          status?: string
+          type?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: []
+      }
       asaas_config: {
         Row: {
           api_key_production: string | null
@@ -65,6 +191,84 @@ export type Database = {
           webhook_send_type?: string | null
           webhook_status?: string
           webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      asaas_invoices: {
+        Row: {
+          asaas_id: string
+          created_at: string
+          customer_id: string | null
+          effective_date: string | null
+          error_message: string | null
+          external_reference: string | null
+          id: string
+          municipality_inscription: string | null
+          net_value: number | null
+          number: string | null
+          observations: string | null
+          payment_id: string | null
+          pdf_url: string | null
+          raw_payload: Json | null
+          rps_number: string | null
+          rps_series: string | null
+          service_description: string | null
+          status: string
+          taxes: Json | null
+          updated_at: string
+          user_id: string
+          value: number | null
+          xml_url: string | null
+        }
+        Insert: {
+          asaas_id: string
+          created_at?: string
+          customer_id?: string | null
+          effective_date?: string | null
+          error_message?: string | null
+          external_reference?: string | null
+          id?: string
+          municipality_inscription?: string | null
+          net_value?: number | null
+          number?: string | null
+          observations?: string | null
+          payment_id?: string | null
+          pdf_url?: string | null
+          raw_payload?: Json | null
+          rps_number?: string | null
+          rps_series?: string | null
+          service_description?: string | null
+          status: string
+          taxes?: Json | null
+          updated_at?: string
+          user_id: string
+          value?: number | null
+          xml_url?: string | null
+        }
+        Update: {
+          asaas_id?: string
+          created_at?: string
+          customer_id?: string | null
+          effective_date?: string | null
+          error_message?: string | null
+          external_reference?: string | null
+          id?: string
+          municipality_inscription?: string | null
+          net_value?: number | null
+          number?: string | null
+          observations?: string | null
+          payment_id?: string | null
+          pdf_url?: string | null
+          raw_payload?: Json | null
+          rps_number?: string | null
+          rps_series?: string | null
+          service_description?: string | null
+          status?: string
+          taxes?: Json | null
+          updated_at?: string
+          user_id?: string
+          value?: number | null
+          xml_url?: string | null
         }
         Relationships: []
       }
@@ -161,6 +365,144 @@ export type Database = {
           split?: Json | null
           status?: string
           subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: []
+      }
+      asaas_subscriptions: {
+        Row: {
+          asaas_id: string
+          billing_type: string | null
+          created_at: string
+          customer_id: string | null
+          cycle: string | null
+          description: string | null
+          discount: Json | null
+          end_date: string | null
+          external_reference: string | null
+          fine: Json | null
+          id: string
+          interest: Json | null
+          max_payments: number | null
+          next_due_date: string | null
+          payment_count: number | null
+          raw_payload: Json | null
+          split: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          asaas_id: string
+          billing_type?: string | null
+          created_at?: string
+          customer_id?: string | null
+          cycle?: string | null
+          description?: string | null
+          discount?: Json | null
+          end_date?: string | null
+          external_reference?: string | null
+          fine?: Json | null
+          id?: string
+          interest?: Json | null
+          max_payments?: number | null
+          next_due_date?: string | null
+          payment_count?: number | null
+          raw_payload?: Json | null
+          split?: Json | null
+          status: string
+          updated_at?: string
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          asaas_id?: string
+          billing_type?: string | null
+          created_at?: string
+          customer_id?: string | null
+          cycle?: string | null
+          description?: string | null
+          discount?: Json | null
+          end_date?: string | null
+          external_reference?: string | null
+          fine?: Json | null
+          id?: string
+          interest?: Json | null
+          max_payments?: number | null
+          next_due_date?: string | null
+          payment_count?: number | null
+          raw_payload?: Json | null
+          split?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: []
+      }
+      asaas_transfers: {
+        Row: {
+          asaas_id: string
+          authorized: boolean | null
+          bank_account: Json | null
+          created_at: string
+          description: string | null
+          external_reference: string | null
+          fee: number | null
+          id: string
+          net_value: number | null
+          operation_type: string | null
+          raw_payload: Json | null
+          scheduled_date: string | null
+          status: string
+          transaction_receipt_url: string | null
+          transfer_fee: number | null
+          type: string | null
+          updated_at: string
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          asaas_id: string
+          authorized?: boolean | null
+          bank_account?: Json | null
+          created_at?: string
+          description?: string | null
+          external_reference?: string | null
+          fee?: number | null
+          id?: string
+          net_value?: number | null
+          operation_type?: string | null
+          raw_payload?: Json | null
+          scheduled_date?: string | null
+          status: string
+          transaction_receipt_url?: string | null
+          transfer_fee?: number | null
+          type?: string | null
+          updated_at?: string
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          asaas_id?: string
+          authorized?: boolean | null
+          bank_account?: Json | null
+          created_at?: string
+          description?: string | null
+          external_reference?: string | null
+          fee?: number | null
+          id?: string
+          net_value?: number | null
+          operation_type?: string | null
+          raw_payload?: Json | null
+          scheduled_date?: string | null
+          status?: string
+          transaction_receipt_url?: string | null
+          transfer_fee?: number | null
+          type?: string | null
           updated_at?: string
           user_id?: string
           value?: number | null
@@ -319,6 +661,132 @@ export type Database = {
         }
         Relationships: []
       }
+      company_asaas_anticipations: {
+        Row: {
+          anticipated_value: number | null
+          anticipation_date: string | null
+          asaas_id: string
+          company_id: string
+          created_at: string
+          credit_date: string | null
+          debit_date: string | null
+          denial_reason: string | null
+          due_date: string | null
+          fee: number | null
+          id: string
+          installment_count: number | null
+          net_value: number | null
+          payment_id: string | null
+          raw_payload: Json | null
+          status: string
+          total_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          anticipated_value?: number | null
+          anticipation_date?: string | null
+          asaas_id: string
+          company_id: string
+          created_at?: string
+          credit_date?: string | null
+          debit_date?: string | null
+          denial_reason?: string | null
+          due_date?: string | null
+          fee?: number | null
+          id?: string
+          installment_count?: number | null
+          net_value?: number | null
+          payment_id?: string | null
+          raw_payload?: Json | null
+          status: string
+          total_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          anticipated_value?: number | null
+          anticipation_date?: string | null
+          asaas_id?: string
+          company_id?: string
+          created_at?: string
+          credit_date?: string | null
+          debit_date?: string | null
+          denial_reason?: string | null
+          due_date?: string | null
+          fee?: number | null
+          id?: string
+          installment_count?: number | null
+          net_value?: number | null
+          payment_id?: string | null
+          raw_payload?: Json | null
+          status?: string
+          total_value?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      company_asaas_bills: {
+        Row: {
+          asaas_id: string
+          can_be_cancelled: boolean | null
+          company_id: string
+          company_name: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          failure_reason: string | null
+          fee: number | null
+          id: string
+          identification_field: string | null
+          payment_date: string | null
+          raw_payload: Json | null
+          schedule_date: string | null
+          status: string
+          type: string | null
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          asaas_id: string
+          can_be_cancelled?: boolean | null
+          company_id: string
+          company_name?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          failure_reason?: string | null
+          fee?: number | null
+          id?: string
+          identification_field?: string | null
+          payment_date?: string | null
+          raw_payload?: Json | null
+          schedule_date?: string | null
+          status: string
+          type?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          asaas_id?: string
+          can_be_cancelled?: boolean | null
+          company_id?: string
+          company_name?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          failure_reason?: string | null
+          fee?: number | null
+          id?: string
+          identification_field?: string | null
+          payment_date?: string | null
+          raw_payload?: Json | null
+          schedule_date?: string | null
+          status?: string
+          type?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: []
+      }
       company_asaas_config: {
         Row: {
           api_key_production: string | null
@@ -380,6 +848,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      company_asaas_invoices: {
+        Row: {
+          asaas_id: string
+          company_id: string
+          created_at: string
+          customer_id: string | null
+          effective_date: string | null
+          error_message: string | null
+          external_reference: string | null
+          id: string
+          municipality_inscription: string | null
+          net_value: number | null
+          number: string | null
+          observations: string | null
+          payment_id: string | null
+          pdf_url: string | null
+          raw_payload: Json | null
+          rps_number: string | null
+          rps_series: string | null
+          service_description: string | null
+          status: string
+          taxes: Json | null
+          updated_at: string
+          value: number | null
+          xml_url: string | null
+        }
+        Insert: {
+          asaas_id: string
+          company_id: string
+          created_at?: string
+          customer_id?: string | null
+          effective_date?: string | null
+          error_message?: string | null
+          external_reference?: string | null
+          id?: string
+          municipality_inscription?: string | null
+          net_value?: number | null
+          number?: string | null
+          observations?: string | null
+          payment_id?: string | null
+          pdf_url?: string | null
+          raw_payload?: Json | null
+          rps_number?: string | null
+          rps_series?: string | null
+          service_description?: string | null
+          status: string
+          taxes?: Json | null
+          updated_at?: string
+          value?: number | null
+          xml_url?: string | null
+        }
+        Update: {
+          asaas_id?: string
+          company_id?: string
+          created_at?: string
+          customer_id?: string | null
+          effective_date?: string | null
+          error_message?: string | null
+          external_reference?: string | null
+          id?: string
+          municipality_inscription?: string | null
+          net_value?: number | null
+          number?: string | null
+          observations?: string | null
+          payment_id?: string | null
+          pdf_url?: string | null
+          raw_payload?: Json | null
+          rps_number?: string | null
+          rps_series?: string | null
+          service_description?: string | null
+          status?: string
+          taxes?: Json | null
+          updated_at?: string
+          value?: number | null
+          xml_url?: string | null
+        }
+        Relationships: []
       }
       company_asaas_payments: {
         Row: {
@@ -487,6 +1033,144 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      company_asaas_subscriptions: {
+        Row: {
+          asaas_id: string
+          billing_type: string | null
+          company_id: string
+          created_at: string
+          customer_id: string | null
+          cycle: string | null
+          description: string | null
+          discount: Json | null
+          end_date: string | null
+          external_reference: string | null
+          fine: Json | null
+          id: string
+          interest: Json | null
+          max_payments: number | null
+          next_due_date: string | null
+          payment_count: number | null
+          raw_payload: Json | null
+          split: Json | null
+          status: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          asaas_id: string
+          billing_type?: string | null
+          company_id: string
+          created_at?: string
+          customer_id?: string | null
+          cycle?: string | null
+          description?: string | null
+          discount?: Json | null
+          end_date?: string | null
+          external_reference?: string | null
+          fine?: Json | null
+          id?: string
+          interest?: Json | null
+          max_payments?: number | null
+          next_due_date?: string | null
+          payment_count?: number | null
+          raw_payload?: Json | null
+          split?: Json | null
+          status: string
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          asaas_id?: string
+          billing_type?: string | null
+          company_id?: string
+          created_at?: string
+          customer_id?: string | null
+          cycle?: string | null
+          description?: string | null
+          discount?: Json | null
+          end_date?: string | null
+          external_reference?: string | null
+          fine?: Json | null
+          id?: string
+          interest?: Json | null
+          max_payments?: number | null
+          next_due_date?: string | null
+          payment_count?: number | null
+          raw_payload?: Json | null
+          split?: Json | null
+          status?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: []
+      }
+      company_asaas_transfers: {
+        Row: {
+          asaas_id: string
+          authorized: boolean | null
+          bank_account: Json | null
+          company_id: string
+          created_at: string
+          description: string | null
+          external_reference: string | null
+          fee: number | null
+          id: string
+          net_value: number | null
+          operation_type: string | null
+          raw_payload: Json | null
+          scheduled_date: string | null
+          status: string
+          transaction_receipt_url: string | null
+          transfer_fee: number | null
+          type: string | null
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          asaas_id: string
+          authorized?: boolean | null
+          bank_account?: Json | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          external_reference?: string | null
+          fee?: number | null
+          id?: string
+          net_value?: number | null
+          operation_type?: string | null
+          raw_payload?: Json | null
+          scheduled_date?: string | null
+          status: string
+          transaction_receipt_url?: string | null
+          transfer_fee?: number | null
+          type?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          asaas_id?: string
+          authorized?: boolean | null
+          bank_account?: Json | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          external_reference?: string | null
+          fee?: number | null
+          id?: string
+          net_value?: number | null
+          operation_type?: string | null
+          raw_payload?: Json | null
+          scheduled_date?: string | null
+          status?: string
+          transaction_receipt_url?: string | null
+          transfer_fee?: number | null
+          type?: string | null
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: []
       }
       company_asaas_webhook_events: {
         Row: {
