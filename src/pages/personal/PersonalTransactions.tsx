@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2, Zap } from "lucide-react";
 import { usePersonalTransactions, PersonalTransactionFormData } from "@/hooks/usePersonalTransactions";
 import { usePersonalAccounts } from "@/hooks/usePersonalAccounts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -109,30 +109,44 @@ export default function PersonalTransactions() {
               </Button>
             </div>
           ) : (
-            transactions.map((t) => (
-              <div key={t.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium truncate">{t.title}</p>
-                    {t.personal_categories && (
-                      <Badge variant="secondary" className="text-xs">{t.personal_categories.name}</Badge>
+            transactions.map((t) => {
+              const isAsaas = t.source === "asaas";
+              return (
+                <div key={t.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium truncate">{t.title}</p>
+                      {isAsaas && (
+                        <Badge variant="outline" className="text-xs gap-1 border-primary/30 text-primary">
+                          <Zap className="h-3 w-3" /> Asaas
+                        </Badge>
+                      )}
+                      {t.personal_categories && (
+                        <Badge variant="secondary" className="text-xs">{t.personal_categories.name}</Badge>
+                      )}
+                      {isAsaas && t.billing_type && (
+                        <Badge variant="secondary" className="text-[10px]">{t.billing_type}</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t.date ? new Date(t.date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+                      {t.personal_accounts && ` • ${t.personal_accounts.name}`}
+                      {isAsaas && t.person && ` • ${t.person}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-sm font-semibold font-mono ${t.type === "receita" ? "text-revenue" : "text-destructive"}`}>
+                      {t.type === "receita" ? "+" : "-"}{fmt(Number(t.amount))}
+                    </span>
+                    {!isAsaas && (
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(t.id)}>
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      </Button>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(t.date + "T00:00:00").toLocaleDateString("pt-BR")}
-                    {t.personal_accounts && ` • ${t.personal_accounts.name}`}
-                  </p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-sm font-semibold font-mono ${t.type === "receita" ? "text-revenue" : "text-destructive"}`}>
-                    {t.type === "receita" ? "+" : "-"}{fmt(Number(t.amount))}
-                  </span>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteId(t.id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
