@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
@@ -29,6 +29,28 @@ interface MonthlyData {
 
 export function usePersonalKPIs() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Realtime subscription on asaas_payments for dashboard auto-refresh
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel("dashboard-asaas-payments")
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "asaas_payments",
+        filter: `user_id=eq.${user.id}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["asaas_payments_kpis"] });
+        queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
+        queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
+        queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
+        queryClient.invalidateQueries({ queryKey: ["asaas_balance"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id, queryClient]);
 
   const { data: kpis, isLoading: kpisLoading } = useQuery({
     queryKey: ["personal_kpis", user?.id],

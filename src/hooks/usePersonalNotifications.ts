@@ -90,6 +90,12 @@ export function usePersonalNotifications() {
           // Invalidate alerts
           queryClient.invalidateQueries({ queryKey: ["personal_alerts"] });
           queryClient.invalidateQueries({ queryKey: ["personal_alerts_unread"] });
+          // Invalidate dashboard KPI and transaction queries
+          queryClient.invalidateQueries({ queryKey: ["asaas_payments_kpis"] });
+          queryClient.invalidateQueries({ queryKey: ["asaas_payments_transactions"] });
+          queryClient.invalidateQueries({ queryKey: ["asaas_balance"] });
+          queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
+          queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
         }
       )
       .subscribe();
