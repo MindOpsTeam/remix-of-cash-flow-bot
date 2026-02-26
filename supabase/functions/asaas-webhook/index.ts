@@ -1,10 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { processEvent } from "../_shared/asaas-processor.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, asaas-access-token",
-};
+const EXTRA_HEADERS = "asaas-access-token";
 
 function getEventCategory(event: string): string {
   if (event.startsWith("PAYMENT_")) return "PAYMENT";
@@ -34,9 +32,9 @@ function getEntityFromPayload(body: Record<string, unknown>): { id: string | nul
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsHeaders = getCorsHeaders(req, EXTRA_HEADERS);
+  const preflight = corsPreflightResponse(req, EXTRA_HEADERS);
+  if (preflight) return preflight;
 
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -116,43 +114,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // For PAYMENT events, upsert into asaas_payments
-    if (eventCategory === "PAYMENT" && body.payment) {
-      const p = body.payment as Record<string, unknown>;
-      const paymentData = {
-        user_id: config.user_id,
-        asaas_id: p.id as string,
-        customer_id: p.customer as string || null,
-        subscription_id: p.subscription as string || null,
-        installment_id: p.installment as string || null,
-        payment_link: p.paymentLink as string || null,
-        billing_type: p.billingType as string || null,
-        status: p.status as string,
-        value: p.value as number || null,
-        net_value: p.netValue as number || null,
-        description: p.description as string || null,
-        external_reference: p.externalReference as string || null,
-        due_date: p.dueDate as string || null,
-        payment_date: p.paymentDate as string || null,
-        confirmed_date: p.confirmedDate as string || null,
-        credit_date: p.creditDate as string || null,
-        invoice_url: p.invoiceUrl as string || null,
-        bank_slip_url: p.bankSlipUrl as string || null,
-        pix_transaction: p.pixTransaction || null,
-        credit_card: p.creditCard || null,
-        discount: p.discount || null,
-        fine: p.fine || null,
-        interest: p.interest || null,
-        split: p.split || null,
-        chargeback: p.chargeback || null,
-        refunds: p.refunds || null,
-        raw_payload: p,
-      };
-
-      await supabase
-        .from("asaas_payments")
-        .upsert(paymentData, { onConflict: "user_id,asaas_id" });
-    }
+    // Process event into structured table (payments, transfers, bills, etc.)
+    await processEvent(supabase, "user_id", config.user_id, eventCategory, body);
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

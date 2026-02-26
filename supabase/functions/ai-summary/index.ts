@@ -1,19 +1,28 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { parseJsonBody, validate, validateRequired, validateUUID } from "../_shared/validate.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsHeaders = getCorsHeaders(req);
+  const preflight = corsPreflightResponse(req);
+  if (preflight) return preflight;
 
   try {
-    const { company_id } = await req.json();
-    if (!company_id) {
-      return new Response(JSON.stringify({ error: "Missing company_id" }), {
+    const parsed = await parseJsonBody(req);
+    if ("error" in parsed) {
+      return new Response(JSON.stringify({ error: parsed.error }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { company_id } = parsed.data;
+
+    const validationError = validate(
+      validateRequired(parsed.data, ["company_id"]),
+      validateUUID(company_id, "company_id"),
+    );
+    if (validationError) {
+      return new Response(JSON.stringify({ error: validationError }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

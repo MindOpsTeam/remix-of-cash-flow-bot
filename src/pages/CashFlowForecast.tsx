@@ -4,10 +4,9 @@ import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/mock-data";
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, TrendingUp, AlertTriangle, Shield, RefreshCw } from "lucide-react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line, ComposedChart, Area,
+  Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart,
 } from "recharts";
 
 interface ForecastMonth {

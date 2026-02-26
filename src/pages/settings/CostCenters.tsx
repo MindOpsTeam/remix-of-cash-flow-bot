@@ -93,7 +93,7 @@ export default function CostCentersPage() {
     <AppLayout>
       <div className="flex items-center gap-3 mb-8">
         <Link to="/settings">
-          <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Voltar"><ArrowLeft className="h-4 w-4" /></Button>
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Centros de Custo</h1>
@@ -111,8 +111,8 @@ export default function CostCentersPage() {
                 <div key={c.id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-accent/30 transition-colors group">
                   <span className="text-sm text-foreground">{c.name}</span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(c)} aria-label="Editar centro de custo"><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(c.id)} aria-label="Excluir centro de custo"><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 </div>
               ))}

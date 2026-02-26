@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, memo } from "react";
 
 interface MonthData {
   month: string;
@@ -18,19 +18,29 @@ interface MonthData {
   despesas: number;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface TooltipPayloadItem {
+  name: string;
+  value: number;
+  color: string;
+}
+
+const CustomTooltip = memo(({ active, payload, label }: {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string;
+}) => {
   if (!active || !payload) return null;
   return (
     <div className="bg-card border border-border rounded-md p-3 text-xs">
       <p className="font-semibold text-foreground mb-1">{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }}>
           {p.name}: {formatCurrency(p.value)}
         </p>
       ))}
     </div>
   );
-};
+});
 
 export default function Dashboard() {
   const { company } = useCompany();

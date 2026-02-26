@@ -6,22 +6,37 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { TransactionRowData } from "@/components/TransactionRow";
+
+const ITEMS_PER_PAGE = 25;
 
 export default function Transactions() {
   const { company } = useCompany();
   const [transactions, setTransactions] = useState<TransactionRowData[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   const fetchTransactions = useCallback(async () => {
     if (!company) return;
-    const { data } = await supabase
+
+    let query = supabase
       .from("transactions")
-      .select("*, chart_of_accounts(name), cost_centers(name)")
+      .select("*, chart_of_accounts(name), cost_centers(name)", { count: "exact" })
       .eq("company_id", company.id)
       .order("date", { ascending: false });
+
+    if (search.trim()) {
+      query = query.ilike("description", `%${search.trim()}%`);
+    }
+
+    const from = page * ITEMS_PER_PAGE;
+    const to = from + ITEMS_PER_PAGE - 1;
+    query = query.range(from, to);
+
+    const { data, count } = await query;
 
     if (data) {
       setTransactions(
@@ -38,16 +53,21 @@ export default function Transactions() {
         }))
       );
     }
-  }, [company]);
+    if (count !== null) setTotalCount(count);
+  }, [company, page, search]);
 
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
 
-  const filtered = transactions.filter((t) =>
-    t.description.toLowerCase().includes(search.toLowerCase()) ||
-    t.account_name.toLowerCase().includes(search.toLowerCase())
-  );
+  // Reset to first page when search changes
+  useEffect(() => {
+    setPage(0);
+  }, [search]);
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+  const showingFrom = totalCount > 0 ? page * ITEMS_PER_PAGE + 1 : 0;
+  const showingTo = Math.min((page + 1) * ITEMS_PER_PAGE, totalCount);
 
   return (
     <AppLayout>
@@ -75,7 +95,7 @@ export default function Transactions() {
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {transactions.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground text-sm">Nenhum lançamento encontrado.</p>
             <Button variant="outline" className="mt-4 gap-2" onClick={() => setFormOpen(true)}>
@@ -84,11 +104,44 @@ export default function Transactions() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-0">
-            {filtered.map((t) => (
-              <TransactionRow key={t.id} transaction={t} />
-            ))}
-          </div>
+          <>
+            <div className="space-y-0">
+              {transactions.map((t) => (
+                <TransactionRow key={t.id} transaction={t} />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
+                <p className="text-sm text-muted-foreground">
+                  {showingFrom}–{showingTo} de {totalCount}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    aria-label="Página anterior"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground px-2">
+                    {page + 1} / {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={page >= totalPages - 1}
+                    aria-label="Próxima página"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

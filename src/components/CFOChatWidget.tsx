@@ -91,6 +91,7 @@ export function CFOChatWidget() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
+          aria-label="Abrir CFO Digital"
           className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-[hsl(240,8%,7%)] text-[hsl(240,5%,90%)] flex items-center justify-center shadow-dropdown hover:scale-105 transition-transform duration-150"
         >
           <Brain className="h-6 w-6" />
@@ -111,7 +112,7 @@ export function CFOChatWidget() {
                 <p className="text-[10px] text-muted-foreground">Assistente Financeiro</p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
+            <button onClick={() => setIsOpen(false)} aria-label="Fechar chat" className="text-muted-foreground hover:text-foreground transition-colors duration-150">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -169,7 +170,7 @@ export function CFOChatWidget() {
                 placeholder="Pergunte ao CFO..."
                 className="flex-1 bg-[hsl(var(--input-bg))] border border-transparent rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:bg-card focus:border-primary transition-all duration-150"
               />
-              <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="h-9 w-9 shrink-0">
+              <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="h-9 w-9 shrink-0" aria-label="Enviar mensagem">
                 {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               </Button>
             </form>

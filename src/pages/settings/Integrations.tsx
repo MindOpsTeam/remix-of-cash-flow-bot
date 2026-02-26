@@ -333,11 +333,11 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button variant="ghost" size="icon" onClick={() => viewLogs(wh)} title="Ver logs">
+                  <Button variant="ghost" size="icon" onClick={() => viewLogs(wh)} title="Ver logs" aria-label="Ver logs">
                     <Activity className="h-4 w-4" />
                   </Button>
                   <Switch checked={wh.active} onCheckedChange={() => toggleActive(wh)} />
-                  <Button variant="ghost" size="icon" onClick={() => deleteWebhook(wh.id)} title="Excluir">
+                  <Button variant="ghost" size="icon" onClick={() => deleteWebhook(wh.id)} title="Excluir" aria-label="Excluir webhook">
                     <Trash2 className="h-4 w-4 text-expense" />
                   </Button>
                 </div>

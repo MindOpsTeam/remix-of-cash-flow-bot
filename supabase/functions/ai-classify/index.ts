@@ -1,20 +1,30 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { parseJsonBody, validate, validateRequired, validateString, validateEnum, validateUUID, sanitizeForPrompt } from "../_shared/validate.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsHeaders = getCorsHeaders(req);
+  const preflight = corsPreflightResponse(req);
+  if (preflight) return preflight;
 
   try {
-    const { description, type, company_id } = await req.json();
+    const parsed = await parseJsonBody(req);
+    if ("error" in parsed) {
+      return new Response(JSON.stringify({ error: parsed.error }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { description, type, company_id } = parsed.data;
 
-    if (!description || !company_id) {
-      return new Response(JSON.stringify({ error: "Missing description or company_id" }), {
+    const validationError = validate(
+      validateRequired(parsed.data, ["description", "company_id"]),
+      validateString(description, "description", 2000),
+      validateUUID(company_id, "company_id"),
+      type != null ? validateEnum(type, "type", ["revenue", "expense"]) : null,
+    );
+    if (validationError) {
+      return new Response(JSON.stringify({ error: validationError }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -71,7 +81,7 @@ Escolha a classificação mais provável. Se não tiver certeza, use confidence 
           },
           {
             role: "user",
-            content: `Tipo: ${type === "revenue" ? "Receita" : "Despesa"}\nDescrição: ${description}`,
+            content: `Tipo: ${type === "revenue" ? "Receita" : "Despesa"}\nDescrição: ${sanitizeForPrompt(description as string)}`,
           },
         ],
         temperature: 0.1,

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useCompany } from "@/hooks/useCompany";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Brain, Send, RefreshCw, TrendingUp, AlertTriangle, Target, Loader2 } from "lucide-react";
@@ -271,7 +271,7 @@ export default function CFODigital() {
                   }
                 }}
               />
-              <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="shrink-0 h-11 w-11">
+              <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="shrink-0 h-11 w-11" aria-label="Enviar mensagem">
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </form>

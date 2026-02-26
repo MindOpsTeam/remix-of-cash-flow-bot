@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import { startOfMonth, subMonths, format } from "date-fns";
 
 interface KPIs {
   entradas_mes: number;
@@ -121,8 +121,6 @@ export function usePersonalKPIs() {
   // Calculate Asaas additions to KPIs
   const asaasKpiAdditions = useMemo(() => {
     const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
     const currentMonth = format(now, "yyyy-MM");
 
     let asaasEntradasMes = 0;

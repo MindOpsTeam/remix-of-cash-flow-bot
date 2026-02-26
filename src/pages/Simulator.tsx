@@ -4,7 +4,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { FlaskConical, Loader2, Send, TrendingUp, TrendingDown, DollarSign, Lightbulb } from "lucide-react";
+import { FlaskConical, Loader2, Send, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 
@@ -126,7 +126,7 @@ export default function Simulator() {
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (input.trim() && !isLoading) simulate(input); }
                 }}
               />
-              <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="shrink-0 h-11 w-11">
+              <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="shrink-0 h-11 w-11" aria-label="Enviar simulação">
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </form>

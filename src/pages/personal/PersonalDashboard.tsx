@@ -16,7 +16,7 @@ function fmt(value: number) {
 }
 
 export default function PersonalDashboard() {
-  const { accounts, totalBalance, isLoading: accountsLoading, hasAsaas, summary } = usePersonalAccounts();
+  const { totalBalance, isLoading: accountsLoading, summary } = usePersonalAccounts();
   const { kpis, comparison, chartData, isLoading: kpisLoading } = usePersonalKPIs();
 
   const isLoading = accountsLoading || kpisLoading;

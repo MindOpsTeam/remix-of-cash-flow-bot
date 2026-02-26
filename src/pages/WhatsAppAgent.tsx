@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  MessageSquare, Plus, Trash2, Copy, CheckCircle2, Clock,
+  MessageSquare, Plus, Trash2, Copy, CheckCircle2,
   ArrowDownLeft, ArrowUpRight, Phone, Settings2, Activity,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -209,11 +209,11 @@ export default function WhatsApp() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button variant="ghost" size="icon" onClick={() => viewMessages(c)} title="Ver mensagens">
+                  <Button variant="ghost" size="icon" onClick={() => viewMessages(c)} title="Ver mensagens" aria-label="Ver mensagens">
                     <Activity className="h-4 w-4" />
                   </Button>
                   <Switch checked={c.active} onCheckedChange={() => toggleActive(c)} />
-                  <Button variant="ghost" size="icon" onClick={() => deleteConfig(c.id)} title="Remover">
+                  <Button variant="ghost" size="icon" onClick={() => deleteConfig(c.id)} title="Remover" aria-label="Remover configuração">
                     <Trash2 className="h-4 w-4 text-expense" />
                   </Button>
                 </div>

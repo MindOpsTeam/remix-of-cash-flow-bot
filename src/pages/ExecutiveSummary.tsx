@@ -1,5 +1,4 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
 import { useState, useCallback, useMemo } from "react";
@@ -93,7 +92,6 @@ function SectionCard({
   delay: number;
 }) {
   const colors = colorMap[icon] || colorMap.default;
-  const iconColors = colors.split(" ")[0]; // just text color
 
   return (
     <div

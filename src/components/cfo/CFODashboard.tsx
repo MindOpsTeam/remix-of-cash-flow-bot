@@ -2,7 +2,7 @@ import { KPICard } from "@/components/KPICard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CFODashboardData } from "@/hooks/useCFODashboard";
 import { formatCurrency } from "@/lib/mock-data";
-import { DollarSign, TrendingDown, TrendingUp, Percent, Loader2, Brain, Lightbulb } from "lucide-react";
+import { DollarSign, TrendingDown, TrendingUp, Percent, Loader2, Lightbulb } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { useEffect, useState } from "react";
 import { useCompany } from "@/hooks/useCompany";

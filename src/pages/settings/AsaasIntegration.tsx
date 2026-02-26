@@ -597,7 +597,7 @@ export default function AsaasIntegrationPage() {
                   value={`https://${projectId}.supabase.co/functions/v1/${webhookFunction}`}
                   className="font-mono text-xs"
                 />
-                <Button variant="outline" size="icon" onClick={copyWebhookUrl}>
+                <Button variant="outline" size="icon" onClick={copyWebhookUrl} aria-label="Copiar URL do webhook">
                   <Copy className="h-4 w-4" />
                 </Button>
               </div>

@@ -9,12 +9,40 @@ function fmt(v: number) {
 }
 
 const eventMap: Record<string, { icon: string; style: "default" | "success" | "warning" | "error" | "info" }> = {
+  // Payments
   PAYMENT_RECEIVED: { icon: "💰", style: "success" },
   PAYMENT_CONFIRMED: { icon: "✅", style: "info" },
   PAYMENT_OVERDUE: { icon: "⚠️", style: "warning" },
   PAYMENT_REFUNDED: { icon: "🔄", style: "error" },
-  TRANSFER_DONE: { icon: "📤", style: "default" },
-  BILL_PAID: { icon: "📄", style: "default" },
+  PAYMENT_CHARGEBACK_REQUESTED: { icon: "🚨", style: "error" },
+  PAYMENT_DELETED: { icon: "🗑️", style: "warning" },
+  // Transfers
+  TRANSFER_CREATED: { icon: "📤", style: "info" },
+  TRANSFER_PENDING: { icon: "⏳", style: "info" },
+  TRANSFER_DONE: { icon: "✅", style: "success" },
+  TRANSFER_FAILED: { icon: "❌", style: "error" },
+  TRANSFER_BLOCKED: { icon: "🔒", style: "warning" },
+  TRANSFER_CANCELLED: { icon: "🚫", style: "warning" },
+  // Bills
+  BILL_CREATED: { icon: "📄", style: "info" },
+  BILL_PENDING: { icon: "⏳", style: "info" },
+  BILL_PAID: { icon: "✅", style: "success" },
+  BILL_FAILED: { icon: "❌", style: "error" },
+  BILL_CANCELLED: { icon: "🚫", style: "warning" },
+  BILL_REFUNDED: { icon: "🔄", style: "info" },
+  // Subscriptions
+  SUBSCRIPTION_CREATED: { icon: "🔄", style: "info" },
+  SUBSCRIPTION_UPDATED: { icon: "📝", style: "info" },
+  SUBSCRIPTION_INACTIVATED: { icon: "⚠️", style: "warning" },
+  SUBSCRIPTION_DELETED: { icon: "🗑️", style: "error" },
+  // Invoices
+  INVOICE_AUTHORIZED: { icon: "📋", style: "success" },
+  INVOICE_CANCELED: { icon: "🚫", style: "warning" },
+  INVOICE_ERROR: { icon: "❌", style: "error" },
+  // Anticipation
+  RECEIVABLE_ANTICIPATION_CREDITED: { icon: "💰", style: "success" },
+  RECEIVABLE_ANTICIPATION_DENIED: { icon: "❌", style: "error" },
+  RECEIVABLE_ANTICIPATION_OVERDUE: { icon: "⚠️", style: "warning" },
 };
 
 export function usePersonalNotifications() {
@@ -76,9 +104,9 @@ export function usePersonalNotifications() {
           const mapping = eventMap[eventType];
           if (!mapping) return;
 
-          const p = evt.payload?.payment || evt.payload || {};
+          const p = evt.payload?.payment || evt.payload?.transfer || evt.payload?.bill || evt.payload?.subscription || evt.payload?.invoice || evt.payload?.anticipation || evt.payload || {};
           const value = p.value ? fmt(Number(p.value)) : "";
-          const desc = p.description || p.customer || "";
+          const desc = p.description || p.companyName || p.customer || "";
 
           const message = `${mapping.icon} ${value}${desc ? ` — ${desc}` : ""}`;
 
@@ -96,6 +124,12 @@ export function usePersonalNotifications() {
           queryClient.invalidateQueries({ queryKey: ["asaas_balance"] });
           queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
           queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
+          // Invalidate expanded Asaas data
+          queryClient.invalidateQueries({ queryKey: ["asaas_transfers"] });
+          queryClient.invalidateQueries({ queryKey: ["asaas_bills"] });
+          queryClient.invalidateQueries({ queryKey: ["asaas_subscriptions"] });
+          queryClient.invalidateQueries({ queryKey: ["asaas_invoices"] });
+          queryClient.invalidateQueries({ queryKey: ["asaas_anticipations"] });
         }
       )
       .subscribe();

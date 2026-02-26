@@ -1,15 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { parseJsonBody, validate, validateRequired, validateEnum } from "../_shared/validate.ts";
+import { mapTransferData, mapBillData, mapSubscriptionData } from "../_shared/asaas-processor.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+const EXTRA_HEADERS = "x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsHeaders = getCorsHeaders(req, EXTRA_HEADERS);
+  const preflight = corsPreflightResponse(req, EXTRA_HEADERS);
+  if (preflight) return preflight;
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
@@ -42,11 +41,22 @@ Deno.serve(async (req) => {
   const userId = claimsData.claims.sub;
 
   try {
-    const body = await req.json();
+    const parsed = await parseJsonBody(req);
+    if ("error" in parsed) {
+      return new Response(JSON.stringify({ error: parsed.error }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const body = parsed.data;
     const { action } = body;
 
-    if (!action) {
-      return new Response(JSON.stringify({ error: "Missing action" }), {
+    const validationError = validate(
+      validateRequired(body, ["action"]),
+      validateEnum(action, "action", ["test-connection", "create-webhook", "reactivate-webhook", "get-webhook-status", "sync-payments", "sync-transfers", "sync-bills", "sync-subscriptions"]),
+    );
+    if (validationError) {
+      return new Response(JSON.stringify({ error: validationError }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -252,6 +262,63 @@ Deno.serve(async (req) => {
           offset += limit;
         }
 
+        result = { synced: totalSynced };
+        break;
+      }
+
+      case "sync-transfers": {
+        let offset = 0;
+        const limit = 100;
+        let totalSynced = 0;
+        while (true) {
+          const resp = await fetch(`${baseUrl}/v3/transfers?offset=${offset}&limit=${limit}`, { headers: asaasHeaders });
+          const data = await resp.json() as { data?: Record<string, unknown>[]; totalCount?: number };
+          if (!data.data || data.data.length === 0) break;
+          for (const t of data.data) {
+            await serviceClient.from("asaas_transfers").upsert(mapTransferData("user_id", userId, t), { onConflict: "user_id,asaas_id" });
+            totalSynced++;
+          }
+          if (!data.totalCount || offset + limit >= data.totalCount) break;
+          offset += limit;
+        }
+        result = { synced: totalSynced };
+        break;
+      }
+
+      case "sync-bills": {
+        let offset = 0;
+        const limit = 100;
+        let totalSynced = 0;
+        while (true) {
+          const resp = await fetch(`${baseUrl}/v3/bill?offset=${offset}&limit=${limit}`, { headers: asaasHeaders });
+          const data = await resp.json() as { data?: Record<string, unknown>[]; totalCount?: number };
+          if (!data.data || data.data.length === 0) break;
+          for (const b of data.data) {
+            await serviceClient.from("asaas_bills").upsert(mapBillData("user_id", userId, b), { onConflict: "user_id,asaas_id" });
+            totalSynced++;
+          }
+          if (!data.totalCount || offset + limit >= data.totalCount) break;
+          offset += limit;
+        }
+        result = { synced: totalSynced };
+        break;
+      }
+
+      case "sync-subscriptions": {
+        let offset = 0;
+        const limit = 100;
+        let totalSynced = 0;
+        while (true) {
+          const resp = await fetch(`${baseUrl}/v3/subscriptions?offset=${offset}&limit=${limit}`, { headers: asaasHeaders });
+          const data = await resp.json() as { data?: Record<string, unknown>[]; totalCount?: number };
+          if (!data.data || data.data.length === 0) break;
+          for (const s of data.data) {
+            await serviceClient.from("asaas_subscriptions").upsert(mapSubscriptionData("user_id", userId, s), { onConflict: "user_id,asaas_id" });
+            totalSynced++;
+          }
+          if (!data.totalCount || offset + limit >= data.totalCount) break;
+          offset += limit;
+        }
         result = { synced: totalSynced };
         break;
       }

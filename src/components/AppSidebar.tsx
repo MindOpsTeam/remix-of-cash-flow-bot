@@ -47,7 +47,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { signOut } = useAuth();
   const { company } = useCompany();
-  const { mode, setMode, isPersonal } = useAppMode();
+  const { setMode, isPersonal } = useAppMode();
 
   const navItems = isPersonal ? personalItems : businessItems;
 

@@ -142,8 +142,8 @@ export default function PersonalAccounts() {
                         </div>
                       </div>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(a)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)} aria-label="Editar conta"><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDeleteTarget(a)} aria-label="Excluir conta"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
                     <p className={`text-lg font-bold font-mono ${Number(a.current_balance) >= 0 ? "text-revenue" : "text-destructive"}`}>{fmt(Number(a.current_balance))}</p>

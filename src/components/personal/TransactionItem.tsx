@@ -131,7 +131,7 @@ export function TransactionItem({ transaction: t, onDelete }: TransactionItemPro
           {t.type === "receita" ? "+" : "-"}{fmt(Number(t.amount))}
         </span>
         {isManual && (
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(t.id)}>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onDelete(t.id)} aria-label="Excluir transação">
             <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         )}
