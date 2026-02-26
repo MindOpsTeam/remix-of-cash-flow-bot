@@ -23,6 +23,9 @@ export interface PersonalTransaction {
   personal_categories?: { id: string; name: string; icon: string | null; color: string | null } | null;
   personal_accounts?: { id: string; name: string } | null;
   personal_credit_cards?: { id: string; name: string } | null;
+  // Asaas-specific fields
+  source?: string;
+  billing_type?: string | null;
 }
 
 export interface PersonalTransactionFormData {
@@ -63,13 +66,54 @@ export function usePersonalTransactions() {
         .eq("user_id", user.id)
         .order("date", { ascending: false });
       if (error) throw error;
-      return data as PersonalTransaction[];
+      return (data as PersonalTransaction[]).map((t) => ({ ...t, source: t.source || "manual" }));
     },
     enabled: !!user?.id,
   });
 
+  // Fetch Asaas payments
+  const { data: asaasTransactions = [], isLoading: asaasLoading } = useQuery({
+    queryKey: ["asaas_payments_transactions", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("asaas_payments")
+        .select("id, description, net_value, value, confirmed_date, payment_date, due_date, status, customer_id, billing_type")
+        .eq("user_id", user.id)
+        .in("status", ["RECEIVED", "CONFIRMED"])
+        .order("confirmed_date", { ascending: false });
+      if (error) throw error;
+      return (data || []).map((p: any): PersonalTransaction => ({
+        id: `asaas_${p.id}`,
+        date: p.confirmed_date || p.payment_date || p.due_date || "",
+        title: p.description || "Pagamento Asaas",
+        description: p.billing_type ? `${p.billing_type} • ${p.customer_id || ""}` : p.customer_id || null,
+        amount: Number(p.net_value || 0),
+        type: "receita",
+        status: p.status.toLowerCase(),
+        person: p.customer_id || null,
+        category_id: null,
+        account_id: null,
+        credit_card_id: null,
+        kakeibo_group: null,
+        is_recurring: false,
+        created_at: "",
+        source: "asaas",
+        billing_type: p.billing_type,
+      }));
+    },
+    enabled: !!user?.id,
+  });
+
+  // Merge manual + Asaas transactions
+  const allMerged = useMemo(() => {
+    return [...transactions, ...asaasTransactions].sort(
+      (a, b) => (b.date || "").localeCompare(a.date || "")
+    );
+  }, [transactions, asaasTransactions]);
+
   const filteredTransactions = useMemo(() => {
-    let result = [...transactions];
+    let result = [...allMerged];
     if (filters.types.length > 0) result = result.filter((t) => filters.types.includes(t.type));
 
     const now = new Date();
@@ -86,14 +130,14 @@ export function usePersonalTransactions() {
       endDate = endOfMonth(now);
     }
     if (startDate && endDate) {
-      result = result.filter((t) => isWithinInterval(parseISO(t.date), { start: startDate!, end: endDate! }));
+      result = result.filter((t) => t.date && isWithinInterval(parseISO(t.date), { start: startDate!, end: endDate! }));
     }
     if (filters.search) {
       const s = filters.search.toLowerCase();
       result = result.filter((t) => t.title.toLowerCase().includes(s) || t.description?.toLowerCase().includes(s));
     }
     return result;
-  }, [transactions, filters]);
+  }, [allMerged, filters]);
 
   const summary = useMemo(() => {
     const receitas = filteredTransactions.filter((t) => t.type === "receita").reduce((s, t) => s + Number(t.amount), 0);
@@ -129,8 +173,8 @@ export function usePersonalTransactions() {
 
   return {
     transactions: filteredTransactions,
-    allTransactions: transactions,
-    isLoading,
+    allTransactions: allMerged,
+    isLoading: isLoading || asaasLoading,
     filters,
     setFilters,
     summary,

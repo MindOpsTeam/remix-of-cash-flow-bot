@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { startOfMonth, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
 
 interface KPIs {
   entradas_mes: number;
@@ -60,7 +60,25 @@ export function usePersonalKPIs() {
     enabled: !!user?.id,
   });
 
-  // Last 6 months data for chart
+  // Fetch Asaas payments (RECEIVED/CONFIRMED)
+  const { data: asaasPayments = [], isLoading: asaasLoading } = useQuery({
+    queryKey: ["asaas_payments_kpis", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const sixMonthsAgo = startOfMonth(subMonths(new Date(), 5));
+      const { data, error } = await supabase
+        .from("asaas_payments")
+        .select("net_value, value, confirmed_date, payment_date, due_date, status")
+        .eq("user_id", user.id)
+        .in("status", ["RECEIVED", "CONFIRMED"])
+        .gte("confirmed_date", sixMonthsAgo.toISOString().split("T")[0]);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Last 6 months data for chart (manual transactions)
   const { data: monthlyData = [], isLoading: monthlyLoading } = useQuery({
     queryKey: ["personal_monthly_chart", user?.id],
     queryFn: async () => {
@@ -78,18 +96,50 @@ export function usePersonalKPIs() {
     enabled: !!user?.id,
   });
 
+  // Calculate Asaas additions to KPIs
+  const asaasKpiAdditions = useMemo(() => {
+    const now = new Date();
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    const currentMonth = format(now, "yyyy-MM");
+
+    let asaasEntradasMes = 0;
+    let asaasTaxasMes = 0;
+
+    asaasPayments.forEach((p: any) => {
+      const pDate = p.confirmed_date || p.payment_date || p.due_date;
+      if (!pDate) return;
+      const pMonth = pDate.substring(0, 7);
+      if (pMonth === currentMonth) {
+        asaasEntradasMes += Number(p.net_value || 0);
+        asaasTaxasMes += Number(p.value || 0) - Number(p.net_value || 0);
+      }
+    });
+
+    return { asaasEntradasMes, asaasTaxasMes };
+  }, [asaasPayments]);
+
   const chartData: MonthlyData[] = useMemo(() => {
     const months: Record<string, { receita: number; despesa: number }> = {};
-    // Initialize last 6 months
     for (let i = 5; i >= 0; i--) {
       const m = format(subMonths(new Date(), i), "yyyy-MM");
       months[m] = { receita: 0, despesa: 0 };
     }
+    // Manual transactions
     monthlyData.forEach((t: any) => {
       const m = t.date?.substring(0, 7);
       if (m && months[m]) {
         if (t.type === "receita") months[m].receita += Number(t.amount);
         else months[m].despesa += Number(t.amount);
+      }
+    });
+    // Asaas payments as receita
+    asaasPayments.forEach((p: any) => {
+      const pDate = p.confirmed_date || p.payment_date || p.due_date;
+      if (!pDate) return;
+      const m = pDate.substring(0, 7);
+      if (m && months[m]) {
+        months[m].receita += Number(p.net_value || 0);
       }
     });
     return Object.entries(months).map(([month, v]) => ({
@@ -98,7 +148,7 @@ export function usePersonalKPIs() {
       despesa: v.despesa,
       resultado: v.receita - v.despesa,
     }));
-  }, [monthlyData]);
+  }, [monthlyData, asaasPayments]);
 
   const defaultKpis: KPIs = {
     entradas_mes: 0, saidas_mes: 0, saldo_mes: 0,
@@ -110,11 +160,20 @@ export function usePersonalKPIs() {
     receita_anterior: 0, despesa_anterior: 0,
   };
 
+  // Merge base KPIs with Asaas additions
+  const baseKpis = kpis || defaultKpis;
+  const mergedKpis: KPIs = {
+    ...baseKpis,
+    entradas_mes: baseKpis.entradas_mes + asaasKpiAdditions.asaasEntradasMes,
+    saldo_mes: baseKpis.saldo_mes + asaasKpiAdditions.asaasEntradasMes,
+    taxas_mes: baseKpis.taxas_mes + asaasKpiAdditions.asaasTaxasMes,
+  };
+
   return {
-    kpis: kpis || defaultKpis,
+    kpis: mergedKpis,
     comparison: comparison || defaultComparison,
     chartData,
-    isLoading: kpisLoading || compLoading || monthlyLoading,
+    isLoading: kpisLoading || compLoading || monthlyLoading || asaasLoading,
   };
 }
 
@@ -125,11 +184,9 @@ function fmt(v: number) {
 export function generateInsight(kpis: KPIs, comparison: MonthComparison): string {
   const insights: string[] = [];
 
-  // Inadimplência
   if (kpis.vencidas > 0)
     insights.push(`Você tem ${fmt(kpis.vencidas)} em cobranças vencidas. Envie lembretes para reduzir inadimplência.`);
 
-  // Crescimento
   if (comparison.receita_anterior > 0) {
     const growth = ((comparison.receita_atual - comparison.receita_anterior) / comparison.receita_anterior * 100);
     if (growth > 10)
@@ -138,14 +195,12 @@ export function generateInsight(kpis: KPIs, comparison: MonthComparison): string
       insights.push(`Sua receita caiu ${Math.abs(growth).toFixed(0)}% este mês. Verifique suas cobranças pendentes.`);
   }
 
-  // Taxas altas
   if (kpis.entradas_mes > 0) {
     const taxRate = kpis.taxas_mes / kpis.entradas_mes * 100;
     if (taxRate > 5)
       insights.push(`Suas taxas de gateway estão em ${taxRate.toFixed(1)}% da receita. Considere priorizar Pix para reduzir custos.`);
   }
 
-  // Saldo negativo
   if (kpis.saldo_mes < 0)
     insights.push(`⚠️ Seu saldo do mês está negativo. Suas despesas superaram suas receitas em ${fmt(Math.abs(kpis.saldo_mes))}.`);
 
