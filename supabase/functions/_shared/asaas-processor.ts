@@ -3,11 +3,8 @@
  * Processes events into structured tables for both PF (user_id) and PJ (company_id).
  */
 
-type SupabaseClient = {
-  from: (table: string) => {
-    upsert: (data: Record<string, unknown>, opts?: { onConflict: string }) => Promise<{ error: unknown }>;
-  };
-};
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = any;
 
 interface ProcessResult {
   table: string;
