@@ -1,27 +1,67 @@
 
-# Corrigir leitura do saldo Asaas
+
+# Integrar Pagamentos Asaas nos KPIs e Transacoes
 
 ## Problema
+Os pagamentos recebidos via Asaas (tabela `asaas_payments`) nao aparecem nos KPIs do Dashboard nem na lista de transacoes. O usuario quer ver:
+- Quem enviou e quando
+- Valores deste mes contando no "Entradas (mes)" e "Saldo do Mes"
+- Historico de transacoes Asaas visivel na pagina de transacoes
 
-A edge function `asaas-api` retorna:
+## Dados Disponiveis
+A tabela `asaas_payments` ja tem dados sincronizados:
+- `value`, `net_value` (valor bruto e liquido)
+- `payment_date`, `confirmed_date`, `credit_date` (datas relevantes)
+- `customer_id` (quem pagou)
+- `status` (RECEIVED, CONFIRMED, etc.)
+- `description`, `billing_type` (PIX, BOLETO, etc.)
+
+## Alteracoes
+
+### 1. `src/hooks/usePersonalKPIs.ts` - Incluir pagamentos Asaas nos KPIs
+- Adicionar query para buscar `asaas_payments` com status RECEIVED ou CONFIRMED do mes atual
+- Somar os valores (`net_value`) nas entradas do mes
+- Incluir nos dados do grafico de 6 meses (como receita)
+- Recalcular `saldo_mes` incluindo pagamentos Asaas
+
+### 2. `src/hooks/usePersonalTransactions.ts` - Mesclar transacoes Asaas
+- Adicionar query para buscar `asaas_payments` do usuario
+- Converter cada pagamento Asaas em formato `PersonalTransaction` (virtual, readonly)
+- Mesclar com transacoes manuais na lista filtrada
+- Marcar com `source: "asaas"` para diferenciar na UI
+
+### 3. `src/pages/personal/PersonalTransactions.tsx` - Exibir transacoes Asaas
+- Renderizar transacoes Asaas com badge "Asaas" ou icone Zap
+- Mostrar `billing_type` (PIX, Boleto) e `customer_id` como informacoes adicionais
+- Transacoes Asaas sao read-only (sem botao de excluir)
+
+### 4. `src/pages/personal/PersonalDashboard.tsx` - Ajustar KPIs
+- O card "Entradas (mes)" passa a incluir pagamentos Asaas recebidos no mes
+- O card "Saldo do Mes" reflete o novo total
+- O grafico de 6 meses inclui receitas Asaas
+
+## Detalhes Tecnicos
+
+**Query de pagamentos Asaas (no hook):**
 ```text
-{ "ok": true, "data": { "totalBalance": 0.01 } }
+supabase.from("asaas_payments")
+  .select("*")
+  .eq("user_id", userId)
+  .in("status", ["RECEIVED", "CONFIRMED"])
 ```
 
-O hook `usePersonalAccounts.ts` acessa `data?.balance` (linha 82), mas o campo correto e `data?.data?.totalBalance`.
+**Mapeamento para transacao virtual:**
+- `title`: description ou "Pagamento Asaas"
+- `amount`: net_value (valor liquido)
+- `date`: confirmed_date ou payment_date ou due_date
+- `type`: "receita"
+- `person`: customer_id
+- `source`: "asaas" (novo campo visual)
 
-Resultado: `asaasBalance` fica `0` e `hasAsaas` funciona (porque `asaasBalanceQuery.data` existe), mas o saldo exibido e R$ 0,00 em vez de R$ 0,01.
+**Calculo de KPIs ajustado:**
+- `entradas_mes` = entradas manuais (view) + soma asaas_payments RECEIVED/CONFIRMED do mes
+- `saldo_mes` = saldo manual (view) + soma asaas do mes
+- Taxas: `value - net_value` somado ao `taxas_mes`
 
-## Correcao
+O grafico de 6 meses tambem inclui os pagamentos Asaas agrupados por mes usando `confirmed_date`.
 
-**Arquivo:** `src/hooks/usePersonalAccounts.ts`
-
-1. Linha 76: Ajustar o tipo de retorno para refletir a estrutura real da API:
-   - De: `{ balance?: number; [key: string]: unknown }`
-   - Para: `{ ok: boolean; data?: { totalBalance?: number } }`
-
-2. Linha 82: Corrigir o acesso ao saldo:
-   - De: `asaasBalanceQuery.data?.balance ?? 0`
-   - Para: `asaasBalanceQuery.data?.data?.totalBalance ?? 0`
-
-Nenhuma outra alteracao necessaria. O Dashboard e a pagina de Contas ja consomem `asaasBalance` e `totalBalance` do hook, entao a correcao se propaga automaticamente.
