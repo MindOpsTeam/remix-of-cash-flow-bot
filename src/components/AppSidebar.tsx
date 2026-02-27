@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { useAppMode } from "@/hooks/useAppMode";
@@ -26,54 +27,246 @@ import {
   PiggyBank,
   Target,
   CreditCard,
+  ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
 
-const businessItems = [
+// ---------- Types ----------
+
+interface NavItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+interface NavGroup {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  items: NavItem[];
+}
+
+type NavEntry = NavItem | NavGroup;
+
+function isGroup(entry: NavEntry): entry is NavGroup {
+  return "items" in entry;
+}
+
+// ---------- Navigation structure ----------
+
+const businessNav: NavEntry[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
-  { to: "/transfers", label: "Transferências", icon: ArrowUpDown },
-  { to: "/bills", label: "Contas a Pagar", icon: Receipt },
-  { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
-  { to: "/documents", label: "Documentos", icon: ScanLine },
-  { to: "/dre", label: "DRE", icon: FileBarChart2 },
-  { to: "/reports", label: "Relatórios", icon: PieChart },
-  { to: "/cfo-digital", label: "CFO Digital", icon: Brain },
-  { to: "/simulator", label: "Simulador E se?", icon: FlaskConical },
-  { to: "/forecast", label: "Previsão Fluxo", icon: TrendingUp },
-  { to: "/summary", label: "Resumo Executivo", icon: FileText },
-  { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
+  {
+    key: "ops",
+    label: "Operações",
+    icon: ArrowLeftRight,
+    items: [
+      { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
+      { to: "/transfers", label: "Transferências", icon: ArrowUpDown },
+      { to: "/bills", label: "Contas a Pagar", icon: Receipt },
+      { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
+      { to: "/documents", label: "Documentos", icon: ScanLine },
+    ],
+  },
+  {
+    key: "analysis",
+    label: "Análise",
+    icon: PieChart,
+    items: [
+      { to: "/dre", label: "DRE", icon: FileBarChart2 },
+      { to: "/reports", label: "Relatórios", icon: PieChart },
+      { to: "/forecast", label: "Previsão Fluxo", icon: TrendingUp },
+      { to: "/summary", label: "Resumo Executivo", icon: FileText },
+    ],
+  },
+  {
+    key: "ai",
+    label: "Inteligência",
+    icon: Brain,
+    items: [
+      { to: "/cfo-digital", label: "CFO Digital", icon: Brain },
+      { to: "/simulator", label: "Simulador E se?", icon: FlaskConical },
+      { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
+    ],
+  },
   { to: "/settings", label: "Configurações", icon: Settings },
 ];
 
-const personalItems = [
+const personalNav: NavEntry[] = [
   { to: "/personal", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/personal/transactions", label: "Transações", icon: ArrowLeftRight },
-  { to: "/personal/transfers", label: "Transferências", icon: ArrowUpDown },
-  { to: "/personal/bills", label: "Contas a Pagar", icon: Receipt },
-  { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
-  { to: "/documents", label: "Documentos", icon: ScanLine },
-  { to: "/personal/accounts", label: "Contas", icon: Wallet },
-  { to: "/personal/categories", label: "Categorias", icon: Tag },
-  { to: "/personal/budgets", label: "Orçamentos", icon: PiggyBank },
-  { to: "/personal/goals", label: "Metas", icon: Target },
-  { to: "/personal/credit-cards", label: "Cartões", icon: CreditCard },
-  { to: "/personal/reports", label: "Relatórios", icon: PieChart },
-  { to: "/personal/forecast", label: "Previsão Fluxo", icon: TrendingUp },
-  { to: "/personal/summary", label: "Resumo Executivo", icon: FileText },
-  { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
-  { to: "/personal/settings", label: "Configurações", icon: Settings },
+  {
+    key: "finance",
+    label: "Financeiro",
+    icon: ArrowLeftRight,
+    items: [
+      { to: "/personal/transactions", label: "Transações", icon: ArrowLeftRight },
+      { to: "/personal/transfers", label: "Transferências", icon: ArrowUpDown },
+      { to: "/personal/bills", label: "Contas a Pagar", icon: Receipt },
+      { to: "/personal/credit-cards", label: "Cartões", icon: CreditCard },
+      { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
+    ],
+  },
+  {
+    key: "plan",
+    label: "Planejamento",
+    icon: Target,
+    items: [
+      { to: "/personal/budgets", label: "Orçamentos", icon: PiggyBank },
+      { to: "/personal/goals", label: "Metas", icon: Target },
+      { to: "/documents", label: "Documentos", icon: ScanLine },
+    ],
+  },
+  {
+    key: "analysis",
+    label: "Análise",
+    icon: PieChart,
+    items: [
+      { to: "/personal/reports", label: "Relatórios", icon: PieChart },
+      { to: "/personal/forecast", label: "Previsão Fluxo", icon: TrendingUp },
+      { to: "/personal/summary", label: "Resumo Executivo", icon: FileText },
+      { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
+    ],
+  },
+  {
+    key: "config",
+    label: "Configurações",
+    icon: Settings,
+    items: [
+      { to: "/personal/accounts", label: "Contas", icon: Wallet },
+      { to: "/personal/categories", label: "Categorias", icon: Tag },
+      { to: "/personal/settings", label: "Geral", icon: Settings },
+    ],
+  },
 ];
 
-export function AppSidebar() {
+// ---------- Helpers ----------
+
+function getActiveGroup(nav: NavEntry[], pathname: string): string | null {
+  for (const entry of nav) {
+    if (isGroup(entry) && entry.items.some((i) => pathname === i.to)) {
+      return entry.key;
+    }
+  }
+  return null;
+}
+
+// ---------- Components ----------
+
+function NavLink({
+  item,
+  isActive,
+  onClick,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Link
+      to={item.to}
+      onClick={onClick}
+      className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-150 ${
+        isActive
+          ? "bg-primary/[0.12] text-sidebar-primary font-medium"
+          : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
+      }`}
+    >
+      <item.icon
+        className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-sidebar-primary" : ""}`}
+        strokeWidth={1.5}
+      />
+      {item.label}
+    </Link>
+  );
+}
+
+function NavGroupSection({
+  group,
+  pathname,
+  isOpen,
+  onToggle,
+  onNavigate,
+}: {
+  group: NavGroup;
+  pathname: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onNavigate?: () => void;
+}) {
+  const hasActive = group.items.some((i) => pathname === i.to);
+
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full transition-all duration-150 ${
+          hasActive && !isOpen
+            ? "text-sidebar-primary font-medium"
+            : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
+        }`}
+      >
+        <group.icon className={`h-[18px] w-[18px] shrink-0 ${hasActive ? "text-sidebar-primary" : ""}`} strokeWidth={1.5} />
+        <span className="flex-1 text-left">{group.label}</span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          strokeWidth={1.5}
+        />
+      </button>
+      <div
+        className={`overflow-hidden transition-all duration-200 ${
+          isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="ml-3 pl-3 border-l border-sidebar-border space-y-0.5 mt-0.5 mb-1">
+          {group.items.map((item) => (
+            <NavLink
+              key={item.to}
+              item={item}
+              isActive={pathname === item.to}
+              onClick={onNavigate}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Sidebar content (shared between desktop and mobile) ----------
+
+export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const { signOut } = useAuth();
   const { company } = useCompany();
   const { setMode, isPersonal } = useAppMode();
 
-  const navItems = isPersonal ? personalItems : businessItems;
+  const nav = isPersonal ? personalNav : businessNav;
+
+  // Track which groups are open
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    const active = getActiveGroup(nav, location.pathname);
+    return new Set(active ? [active] : []);
+  });
+
+  // Auto-open group when route changes
+  useEffect(() => {
+    const active = getActiveGroup(nav, location.pathname);
+    if (active && !openGroups.has(active)) {
+      setOpenGroups((prev) => new Set([...prev, active]));
+    }
+  }, [location.pathname, nav]);
+
+  const toggleGroup = (key: string) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   return (
-    <aside className="hidden lg:flex w-60 flex-col bg-sidebar border-r border-sidebar-border">
+    <>
       {/* Logo */}
       <div className="p-5 pb-4">
         <div className="flex items-center gap-3">
@@ -114,24 +307,26 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 space-y-0.5">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.to;
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-all duration-150 ${
-                isActive
-                  ? "bg-primary/[0.12] text-sidebar-primary font-medium"
-                  : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
-              }`}
-            >
-              <item.icon className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-sidebar-primary" : ""}`} strokeWidth={1.5} />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+        {nav.map((entry) =>
+          isGroup(entry) ? (
+            <NavGroupSection
+              key={entry.key}
+              group={entry}
+              pathname={location.pathname}
+              isOpen={openGroups.has(entry.key)}
+              onToggle={() => toggleGroup(entry.key)}
+              onNavigate={onNavigate}
+            />
+          ) : (
+            <NavLink
+              key={entry.to}
+              item={entry}
+              isActive={location.pathname === entry.to}
+              onClick={onNavigate}
+            />
+          ),
+        )}
       </nav>
 
       {/* Separator */}
@@ -156,6 +351,16 @@ export function AppSidebar() {
           {company.cnpj && <p className="text-[11px] text-sidebar-muted">{company.cnpj}</p>}
         </div>
       )}
+    </>
+  );
+}
+
+// ---------- Desktop sidebar ----------
+
+export function AppSidebar() {
+  return (
+    <aside className="hidden lg:flex w-60 flex-col bg-sidebar border-r border-sidebar-border">
+      <SidebarContent />
     </aside>
   );
 }
