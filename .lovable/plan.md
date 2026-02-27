@@ -1,29 +1,60 @@
 
 
-# Atualizar Edge Functions de API Sync (PF + PJ)
+# Criar Storage Bucket + Migration + Corrigir Build Errors
 
-## Objetivo
-Substituir completamente os arquivos `asaas-api/index.ts` e `company-asaas-api/index.ts` com as versoes expandidas que incluem 3 novas acoes de sync: `sync-transfers`, `sync-bills` e `sync-subscriptions`.
+## 1. Corrigir erros de build em edge functions
 
-## Alteracoes
+Duas edge functions passam 3 argumentos para `validateString`, mas a funcao so aceita 2. Para suportar o terceiro argumento (maxLength), a funcao `validateString` em `_shared/validate.ts` sera atualizada:
 
-### 1. `supabase/functions/asaas-api/index.ts` (PF)
-Substituicao completa com o codigo fornecido. Mudancas em relacao ao atual:
-- Adiciona import de `mapTransferData`, `mapBillData`, `mapSubscriptionData` do `_shared/asaas-processor.ts`
-- Expande o `validateEnum` para aceitar as 3 novas acoes
-- Adiciona 3 novos cases no switch: `sync-transfers`, `sync-bills`, `sync-subscriptions`
-- Cada sync usa paginacao com offset/limit=100, chama o endpoint Asaas correspondente e faz upsert nas tabelas PF (`asaas_transfers`, `asaas_bills`, `asaas_subscriptions`)
+```text
+Antes:
+  export function validateString(value: unknown, name: string): string | null {
 
-### 2. `supabase/functions/company-asaas-api/index.ts` (PJ)
-Substituicao completa com o codigo fornecido. Mesma logica do PF mas:
-- Requer `company_id` no body (validado com `validateUUID`)
-- Valida membresia do usuario na empresa via `company_members`
-- Upsert nas tabelas PJ (`company_asaas_transfers`, `company_asaas_bills`, `company_asaas_subscriptions`)
-- Webhook URL aponta para `company-asaas-webhook`
+Depois:
+  export function validateString(value: unknown, name: string, maxLength?: number): string | null {
+    if (typeof value !== "string" || value.trim().length === 0) {
+      return `${name} must be a non-empty string`;
+    }
+    if (maxLength && value.length > maxLength) {
+      return `${name} must be at most ${maxLength} characters`;
+    }
+    return null;
+  }
+```
 
-### 3. Deploy
-Ambas as funcoes serao deployadas automaticamente apos a escrita dos arquivos.
+Arquivos afetados:
+- `supabase/functions/_shared/validate.ts` (linha 49-54)
+- Nenhuma alteracao em `ai-classify` ou `cfo-digital` (eles ja passam o argumento correto)
 
-## Nenhuma outra alteracao
-Nenhum outro arquivo sera modificado. As tabelas ja existem no banco. Os modulos `_shared/` ja estao criados.
+## 2. Migration SQL
+
+Uma unica migration que:
+- Cria o storage bucket `documents` (privado, 10MB, tipos restritos)
+- Cria RLS policies de INSERT e SELECT no bucket
+- Adiciona coluna `attachment_url TEXT` em `personal_transactions`
+
+```sql
+-- Bucket
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'documents', 'documents', false, 10485760,
+  ARRAY['image/jpeg','image/png','image/webp','image/heic','application/pdf']
+);
+
+-- RLS INSERT
+CREATE POLICY "Authenticated users can upload documents"
+  ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'documents' AND auth.uid() IS NOT NULL);
+
+-- RLS SELECT
+CREATE POLICY "Users can read own documents"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'documents' AND auth.uid() IS NOT NULL);
+
+-- Coluna attachment
+ALTER TABLE personal_transactions ADD COLUMN IF NOT EXISTS attachment_url TEXT;
+```
+
+## 3. Nenhuma alteracao frontend
+Conforme solicitado, nenhum arquivo frontend sera modificado.
 
