@@ -1,30 +1,29 @@
 
-# Mover Login para a rota /
+# Migration: Criar tabela `owner_transactions`
 
-## Objetivo
-A rota `/` passara a exibir o formulario de login/cadastro. Apos login, o usuario sera redirecionado para `/dashboard`.
+## Resumo
+Criar uma migration SQL com duas acoes (sem alterar nenhum arquivo frontend):
 
-## Alteracoes
+### 1. Criar tabela `owner_transactions`
+- Campos: id, user_id, company_id, transaction_type (com CHECK constraint), amount, date, description, pf_account_id, pj_bank_account_id, pf_transaction_id, pj_transaction_id, status, created_at, updated_at
+- Foreign keys para: auth.users, companies, personal_accounts, bank_accounts, personal_transactions, transactions
+- 3 indices (user_id, company_id, date DESC)
+- RLS habilitado com 4 policies (SELECT, INSERT, UPDATE, DELETE) baseadas em auth.uid() = user_id
+- Trigger update_updated_at usando funcao ja existente
 
-### 1. `src/App.tsx`
-- Trocar a rota `/` para exibir `Auth` como PublicRoute (redireciona para `/dashboard` se ja logado)
-- Mover o Dashboard para a rota `/dashboard` como ProtectedRoute
-- Atualizar redirecionamento do PublicRoute: de `"/"` para `"/dashboard"`
-- Atualizar redirecionamento do ProtectedRoute (fallback): de `"/auth"` para `"/"`
+### 2. Colunas `source` e `source_id` em `personal_transactions`
+- Ja verificado: ambas as colunas **ja existem** no banco
+- O `ADD COLUMN IF NOT EXISTS` sera incluido por seguranca (no-op)
 
-### 2. `src/pages/Auth.tsx`
-- Apos login com sucesso, `navigate("/")` muda para `navigate("/dashboard")`
+### 3. Regenerar types.ts
+- Apos a migration, os types serao regenerados automaticamente para incluir `owner_transactions`
 
-### 3. `src/components/AppSidebar.tsx` (se houver link para `/`)
-- Atualizar link do dashboard de `/` para `/dashboard`
+### Verificacoes feitas
+- Tabela `owner_transactions` ainda NAO existe
+- `personal_transactions.source` ja existe (text, NOT NULL, default 'manual')
+- `personal_transactions.source_id` ja existe (uuid)
+- `transactions.source` ja existe
+- Funcao `update_updated_at_column()` ja existe
 
-### 4. Demais referencias
-- Qualquer link ou `navigate("/")` no projeto que aponte para o dashboard precisara apontar para `/dashboard`
-- A rota `/auth` sera removida (o login agora vive em `/`)
-
-## Resumo de rotas
-```text
-/            -> Auth (PublicRoute) - redireciona para /dashboard se logado
-/dashboard   -> Dashboard (ProtectedRoute) - redireciona para / se nao logado
-/transactions, /dre, etc -> sem mudanca (ProtectedRoute, redireciona para /)
-```
+### Nenhuma alteracao frontend
+Nenhum arquivo em `src/` sera modificado manualmente. Apenas a migration SQL e a regeneracao automatica de types.
