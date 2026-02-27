@@ -1,60 +1,28 @@
 
+# Deploy de 2 Edge Functions: ocr-document + whatsapp-webhook
 
-# Criar Storage Bucket + Migration + Corrigir Build Errors
+## Problema
+As funcoes `ocr-document` e `whatsapp-webhook` existem no codigo mas:
+1. Nao estao registradas no `supabase/config.toml`
+2. Nao foram deployadas
 
-## 1. Corrigir erros de build em edge functions
+## Alteracoes
 
-Duas edge functions passam 3 argumentos para `validateString`, mas a funcao so aceita 2. Para suportar o terceiro argumento (maxLength), a funcao `validateString` em `_shared/validate.ts` sera atualizada:
+### 1. Atualizar `supabase/config.toml`
+Adicionar entradas para ambas as funcoes com `verify_jwt = false`:
+- `ocr-document`: precisa ser chamada pelo frontend (que envia o token via header, mas a validacao e feita no codigo)
+- `whatsapp-webhook`: recebe chamadas externas da Evolution API, nao tem JWT
 
 ```text
-Antes:
-  export function validateString(value: unknown, name: string): string | null {
+[functions.ocr-document]
+verify_jwt = false
 
-Depois:
-  export function validateString(value: unknown, name: string, maxLength?: number): string | null {
-    if (typeof value !== "string" || value.trim().length === 0) {
-      return `${name} must be a non-empty string`;
-    }
-    if (maxLength && value.length > maxLength) {
-      return `${name} must be at most ${maxLength} characters`;
-    }
-    return null;
-  }
+[functions.whatsapp-webhook]
+verify_jwt = false
 ```
 
-Arquivos afetados:
-- `supabase/functions/_shared/validate.ts` (linha 49-54)
-- Nenhuma alteracao em `ai-classify` ou `cfo-digital` (eles ja passam o argumento correto)
+### 2. Deploy
+Deployar ambas as funcoes: `ocr-document` e `whatsapp-webhook`.
 
-## 2. Migration SQL
-
-Uma unica migration que:
-- Cria o storage bucket `documents` (privado, 10MB, tipos restritos)
-- Cria RLS policies de INSERT e SELECT no bucket
-- Adiciona coluna `attachment_url TEXT` em `personal_transactions`
-
-```sql
--- Bucket
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-  'documents', 'documents', false, 10485760,
-  ARRAY['image/jpeg','image/png','image/webp','image/heic','application/pdf']
-);
-
--- RLS INSERT
-CREATE POLICY "Authenticated users can upload documents"
-  ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'documents' AND auth.uid() IS NOT NULL);
-
--- RLS SELECT
-CREATE POLICY "Users can read own documents"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'documents' AND auth.uid() IS NOT NULL);
-
--- Coluna attachment
-ALTER TABLE personal_transactions ADD COLUMN IF NOT EXISTS attachment_url TEXT;
-```
-
-## 3. Nenhuma alteracao frontend
-Conforme solicitado, nenhum arquivo frontend sera modificado.
-
+### Nenhuma outra alteracao
+O codigo das funcoes ja esta correto e nao sera modificado.
