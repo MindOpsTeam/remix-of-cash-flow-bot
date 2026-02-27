@@ -66,9 +66,37 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+    } else if (message?.imageMessage) {
+      // Analyze document image via Gemini Vision
+      try {
+        await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._");
+        const imageBase64 = await getMediaBase64(instanceName, key.id, remoteJid);
+        if (!imageBase64) {
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.");
+          return new Response(JSON.stringify({ ok: true, error: "image-download-failed" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const imageDescription = await analyzeDocumentImage(imageBase64, message.imageMessage.mimetype || "image/jpeg");
+        if (!imageDescription) {
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui analisar a imagem. Tente enviar uma foto mais nítida.");
+          return new Response(JSON.stringify({ ok: true, error: "image-analysis-failed" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const caption = message.imageMessage.caption || "";
+        textContent = `[DOCUMENTO ESCANEADO]\n${imageDescription}${caption ? `\n\nMensagem do usuário: ${caption}` : "\n\nO usuário enviou este documento. Apresente os dados extraídos e pergunte se deseja criar um lançamento."}`;
+        console.log("Image analyzed:", textContent.slice(0, 300));
+      } catch (err) {
+        console.error("Image processing error:", err);
+        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar a imagem. Tente novamente.");
+        return new Response(JSON.stringify({ ok: true, error: "image-error" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     } else {
       await sendWhatsAppMessage(instanceName, remoteJid,
-        "🤖 Por enquanto, consigo processar mensagens de *texto* e *áudio*. Envie uma descrição do lançamento ou faça uma pergunta sobre suas finanças!"
+        "🤖 Consigo processar *texto*, *áudio* e *imagens de documentos*! Envie uma descrição, um áudio ou foto de boleto/nota/recibo."
       );
       return new Response(JSON.stringify({ ok: true, skipped: "non-text" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -500,6 +528,44 @@ async function transcribeAudio(audioBase64: string, mimetype: string): Promise<s
     const result = await res.json();
     return result.choices?.[0]?.message?.content?.trim() || null;
   } catch (err) { console.error("Transcription error:", err); return null; }
+}
+
+// ─── IMAGE ANALYSIS ──────────────────────────────────────────────────────────
+
+async function analyzeDocumentImage(imageBase64: string, mimetype: string): Promise<string | null> {
+  const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableApiKey) return null;
+
+  try {
+    const imageUrl = `data:${mimetype};base64,${imageBase64}`;
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableApiKey}` },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: `Analise esta imagem de documento financeiro brasileiro e extraia todas as informações relevantes.
+Identifique o tipo (boleto, nota fiscal, NFS-e, cupom fiscal, recibo, comprovante PIX, extrato, etc).
+Extraia: valor, data, emitente, CNPJ/CPF, beneficiário, descrição, código de barras/linha digitável (se boleto), número do documento.
+Formate a resposta em texto corrido descritivo, ex: "Boleto de R$ 150,00, vencimento 15/03/2026, emitido por Empresa X (CNPJ 12.345.678/0001-99), referente a serviços de internet."
+Se não for um documento financeiro, descreva o que vê na imagem.` },
+            { type: "image_url", image_url: { url: imageUrl } },
+          ],
+        }],
+        temperature: 0.1,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Image analysis AI error:", res.status, await res.text());
+      return null;
+    }
+
+    const result = await res.json();
+    return result.choices?.[0]?.message?.content?.trim() || null;
+  } catch (err) { console.error("Image analysis error:", err); return null; }
 }
 
 // ─── EVOLUTION API HELPERS ─────────────────────────────────────────────────────
