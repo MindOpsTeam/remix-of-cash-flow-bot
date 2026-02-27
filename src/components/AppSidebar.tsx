@@ -22,6 +22,7 @@ import {
   Receipt,
   ScanLine,
   Scale,
+  Tag,
 } from "lucide-react";
 
 const businessItems = [
@@ -49,6 +50,8 @@ const personalItems = [
   { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
   { to: "/documents", label: "Documentos", icon: ScanLine },
   { to: "/personal/accounts", label: "Contas", icon: Wallet },
+  { to: "/personal/categories", label: "Categorias", icon: Tag },
+  { to: "/personal/reports", label: "Relatórios", icon: PieChart },
   { to: "/personal/forecast", label: "Previsão Fluxo", icon: TrendingUp },
   { to: "/personal/summary", label: "Resumo Executivo", icon: FileText },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },

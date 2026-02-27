@@ -41,6 +41,8 @@ const CompanyTransfers = lazy(() => import("./pages/CompanyTransfers"));
 const CompanyBills = lazy(() => import("./pages/CompanyBills"));
 const DocumentScanner = lazy(() => import("./pages/DocumentScanner"));
 const OwnerTransactions = lazy(() => import("./pages/OwnerTransactions"));
+const PersonalReports = lazy(() => import("./pages/personal/PersonalReports"));
+const PersonalCategories = lazy(() => import("./pages/personal/PersonalCategories"));
 
 const queryClient = new QueryClient();
 
@@ -99,6 +101,8 @@ const AppRoutes = () => (
       <Route path="/personal/accounts" element={<ProtectedRoute><PersonalAccounts /></ProtectedRoute>} />
       <Route path="/personal/forecast" element={<ProtectedRoute><PersonalForecast /></ProtectedRoute>} />
       <Route path="/personal/summary" element={<ProtectedRoute><PersonalSummary /></ProtectedRoute>} />
+      <Route path="/personal/reports" element={<ProtectedRoute><PersonalReports /></ProtectedRoute>} />
+      <Route path="/personal/categories" element={<ProtectedRoute><PersonalCategories /></ProtectedRoute>} />
       <Route path="/personal/settings" element={<ProtectedRoute><PersonalSettings /></ProtectedRoute>} />
       <Route path="/personal/settings/integrations" element={<ProtectedRoute><PersonalIntegrations /></ProtectedRoute>} />
       <Route path="/personal/settings/integrations/asaas" element={<ProtectedRoute><AsaasIntegrationPage /></ProtectedRoute>} />

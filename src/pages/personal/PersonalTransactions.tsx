@@ -4,9 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Zap, Upload, Pencil } from "lucide-react";
+import { Plus, Search, Zap, Upload, Pencil, Sparkles } from "lucide-react";
 import { usePersonalTransactions, PersonalTransactionFormData } from "@/hooks/usePersonalTransactions";
 import { usePersonalAccounts } from "@/hooks/usePersonalAccounts";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,12 +38,51 @@ export default function PersonalTransactions() {
   const { transactions, isLoading, filters, setFilters, summary, createTransaction, deleteTransaction, isCreating } =
     usePersonalTransactions();
   const { accounts } = usePersonalAccounts();
+  const { user } = useAuth();
   const [formOpen, setFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [classifying, setClassifying] = useState(false);
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["personal_categories", user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("personal_categories")
+        .select("id, name, type, icon")
+        .or(`user_id.eq.${user.id},user_id.is.null`)
+        .order("name");
+      if (error) throw error;
+      return data as { id: string; name: string; type: string; icon: string | null }[];
+    },
+    enabled: !!user,
+  });
 
   const [form, setForm] = useState<PersonalTransactionFormData>({
     title: "", amount: 0, type: "despesa", date: new Date().toISOString().split("T")[0],
   });
+
+  const handleAiClassify = async () => {
+    if (!form.title || !user) return;
+    setClassifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-classify-personal", {
+        body: { description: form.title, type: form.type, user_id: user.id },
+      });
+      if (error) throw error;
+      if (data?.category_id) {
+        setForm((f) => ({ ...f, category_id: data.category_id }));
+        const catName = categories.find((c) => c.id === data.category_id)?.name;
+        toast.success(`Classificado: ${catName || "Categoria encontrada"}`);
+      } else {
+        toast.info("Não foi possível classificar automaticamente");
+      }
+    } catch {
+      toast.error("Erro na classificação IA");
+    } finally {
+      setClassifying(false);
+    }
+  };
 
   const handleSubmit = () => {
     if (!form.title || !form.amount) return;
@@ -244,6 +287,32 @@ export default function PersonalTransactions() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <Label>Categoria</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-xs h-6"
+                  disabled={classifying || !form.title}
+                  onClick={handleAiClassify}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {classifying ? "Classificando..." : "IA"}
+                </Button>
+              </div>
+              <Select value={form.category_id || ""} onValueChange={(v) => setForm((f) => ({ ...f, category_id: v || null }))}>
+                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                <SelectContent>
+                  {categories
+                    .filter((c) => form.type === "receita" ? (c.type === "income" || c.type === "receita") : (c.type === "expense" || c.type === "despesa"))
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.icon || "•"} {c.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Descrição (opcional)</Label>

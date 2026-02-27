@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.company-asaas-webhook]
 verify_jwt = false
 
+[functions.ai-classify-personal]
+verify_jwt = false
+
 [functions.ocr-document]
 verify_jwt = false
 
