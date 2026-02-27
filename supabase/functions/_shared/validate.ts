@@ -46,9 +46,12 @@ export function validateUUID(value: unknown, name: string): string | null {
   return uuidRegex.test(value) ? null : `${name} must be a valid UUID`;
 }
 
-export function validateString(value: unknown, name: string): string | null {
+export function validateString(value: unknown, name: string, maxLength?: number): string | null {
   if (typeof value !== "string" || value.trim().length === 0) {
     return `${name} must be a non-empty string`;
+  }
+  if (maxLength && value.length > maxLength) {
+    return `${name} must be at most ${maxLength} characters`;
   }
   return null;
 }
