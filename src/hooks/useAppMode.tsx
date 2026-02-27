@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -20,6 +21,7 @@ const AppModeContext = createContext<AppModeContextType>({
 
 export function AppModeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [mode, setModeState] = useState<AppMode>(() => {
     return (localStorage.getItem("app_mode") as AppMode) || "business";
   });
@@ -45,6 +47,10 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
     (newMode: AppMode) => {
       setModeState(newMode);
       localStorage.setItem("app_mode", newMode);
+      // Invalidate cached data so the new mode loads fresh
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
       if (user) {
         supabase
           .from("user_preferences")
@@ -54,7 +60,7 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
           });
       }
     },
-    [user]
+    [user, queryClient]
   );
 
   return (

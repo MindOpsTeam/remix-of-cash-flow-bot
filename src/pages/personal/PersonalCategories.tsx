@@ -96,7 +96,8 @@ export default function PersonalCategories() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("personal_categories").delete().eq("id", id);
+      if (!user) throw new Error("Não autenticado");
+      const { error } = await supabase.from("personal_categories").delete().eq("id", id).eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {

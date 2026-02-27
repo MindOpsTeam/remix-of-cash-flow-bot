@@ -35,7 +35,7 @@ export function usePersonalKPIs() {
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel("dashboard-asaas-payments")
+      .channel("dashboard-personal-realtime")
       .on("postgres_changes", {
         event: "*",
         schema: "public",
@@ -47,6 +47,28 @@ export function usePersonalKPIs() {
         queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
         queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
         queryClient.invalidateQueries({ queryKey: ["asaas_balance"] });
+      })
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "personal_transactions",
+        filter: `user_id=eq.${user.id}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
+        queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
+        queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
+        queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["personal_budgets"] });
+        queryClient.invalidateQueries({ queryKey: ["personal_spending_month"] });
+      })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "personal_accounts",
+        filter: `user_id=eq.${user.id}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };

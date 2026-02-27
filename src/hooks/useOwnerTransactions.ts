@@ -96,6 +96,10 @@ export function useOwnerTransactions() {
       queryClient.invalidateQueries({ queryKey: ["owner_transactions"] });
       queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
       toast.success("Transferência sócio ↔ empresa registrada!");
     },
     onError: (err) => {

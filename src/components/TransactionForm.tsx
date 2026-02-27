@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +35,7 @@ const paymentMethods = [
 export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFormProps) {
   const { company } = useCompany();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [classifying, setClassifying] = useState(false);
   const [accounts, setAccounts] = useState<{ id: string; name: string; code: string | null; type: string }[]>([]);
@@ -124,6 +126,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     else {
       toast.success("Lançamento criado com sucesso!");
       setForm({ date: new Date().toISOString().split("T")[0], description: "", amount: "", type: "expense", account_id: "", cost_center_id: "", bank_account_id: "", payment_method: "", project: "" });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
       onSuccess();
       onOpenChange(false);
     }

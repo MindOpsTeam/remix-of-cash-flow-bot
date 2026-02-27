@@ -120,6 +120,7 @@ export function useDocumentScanner() {
 
       toast.success("Lançamento criado com sucesso!");
       queryClient.invalidateQueries({ queryKey: isPersonal ? ["personal_transactions"] : ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: isPersonal ? ["recent_scans_personal"] : ["recent_scans_company"] });
       setResult(null);
       return true;
     } catch (e: any) {

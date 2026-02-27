@@ -115,10 +115,12 @@ export default function PersonalGoals() {
     mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
       const goal = goals.find((g) => g.id === id);
       if (!goal) throw new Error("Meta não encontrada");
+      if (!user) throw new Error("Não autenticado");
       const { error } = await supabase
         .from("personal_goals")
         .update({ current_amount: goal.current_amount + amount })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -132,7 +134,8 @@ export default function PersonalGoals() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("personal_goals").update({ is_active: false }).eq("id", id);
+      if (!user) throw new Error("Não autenticado");
+      const { error } = await supabase.from("personal_goals").update({ is_active: false }).eq("id", id).eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {

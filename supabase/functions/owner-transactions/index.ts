@@ -145,6 +145,37 @@ Deno.serve(async (req) => {
     const pjDescription = `${label}${description !== label ? ` - ${description}` : ""}`;
     const pfTitle = pjDescription;
 
+    // 0. Idempotency: check for duplicate within 5 minutes
+    const { data: existingTx } = await supabase
+      .from("owner_transactions")
+      .select("id, pj_transaction_id, pf_transaction_id")
+      .eq("user_id", userId)
+      .eq("company_id", companyId)
+      .eq("transaction_type", transactionType)
+      .eq("amount", amount)
+      .eq("date", date)
+      .gte("created_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+      .limit(1)
+      .maybeSingle();
+
+    if (existingTx) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: {
+            id: existingTx.id,
+            pj_transaction_id: existingTx.pj_transaction_id,
+            pf_transaction_id: existingTx.pf_transaction_id,
+          },
+          deduplicated: true,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // 1. Insert owner_transaction record
     const { data: ownerTx, error: ownerError } = await supabase
       .from("owner_transactions")
@@ -211,13 +242,21 @@ Deno.serve(async (req) => {
     }
 
     // 4. Update owner_transaction with references
-    await supabase
+    const { error: updateError } = await supabase
       .from("owner_transactions")
       .update({
         pj_transaction_id: pjTx.id,
         pf_transaction_id: pfTx.id,
       })
       .eq("id", ownerTx.id);
+
+    if (updateError) {
+      // Rollback all 3 records
+      await supabase.from("personal_transactions").delete().eq("id", pfTx.id);
+      await supabase.from("transactions").delete().eq("id", pjTx.id);
+      await supabase.from("owner_transactions").delete().eq("id", ownerTx.id);
+      throw updateError;
+    }
 
     return new Response(
       JSON.stringify({

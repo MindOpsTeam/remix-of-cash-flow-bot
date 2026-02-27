@@ -156,6 +156,12 @@ export function usePersonalTransactions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_budgets"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_spending_month"] });
       toast.success("Transação criada!");
     },
     onError: () => toast.error("Erro ao criar transação"),
@@ -169,6 +175,12 @@ export function usePersonalTransactions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_budgets"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_spending_month"] });
       toast.success("Transação excluída!");
     },
     onError: () => toast.error("Erro ao excluir transação"),

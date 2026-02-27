@@ -41,6 +41,7 @@ export function usePersonalAccounts() {
       const { data, error } = await supabase
         .from("personal_accounts")
         .select("*")
+        .eq("user_id", user.id)
         .eq("is_active", true)
         .order("name");
       if (error) throw error;
@@ -125,7 +126,8 @@ export function usePersonalAccounts() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<PersonalAccountFormData> }) => {
-      const { error } = await supabase.from("personal_accounts").update(data).eq("id", id);
+      if (!user) throw new Error("Não autenticado");
+      const { error } = await supabase.from("personal_accounts").update(data).eq("id", id).eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -137,7 +139,8 @@ export function usePersonalAccounts() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("personal_accounts").update({ is_active: false }).eq("id", id);
+      if (!user) throw new Error("Não autenticado");
+      const { error } = await supabase.from("personal_accounts").update({ is_active: false }).eq("id", id).eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {
