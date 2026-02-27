@@ -1,29 +1,26 @@
 
-# Migration: Criar tabela `owner_transactions`
 
-## Resumo
-Criar uma migration SQL com duas acoes (sem alterar nenhum arquivo frontend):
+# Migration: Auto-update personal_accounts.current_balance
 
-### 1. Criar tabela `owner_transactions`
-- Campos: id, user_id, company_id, transaction_type (com CHECK constraint), amount, date, description, pf_account_id, pj_bank_account_id, pf_transaction_id, pj_transaction_id, status, created_at, updated_at
-- Foreign keys para: auth.users, companies, personal_accounts, bank_accounts, personal_transactions, transactions
-- 3 indices (user_id, company_id, date DESC)
-- RLS habilitado com 4 policies (SELECT, INSERT, UPDATE, DELETE) baseadas em auth.uid() = user_id
-- Trigger update_updated_at usando funcao ja existente
+## What will be executed
 
-### 2. Colunas `source` e `source_id` em `personal_transactions`
-- Ja verificado: ambas as colunas **ja existem** no banco
-- O `ADD COLUMN IF NOT EXISTS` sera incluido por seguranca (no-op)
+A single SQL migration containing 5 operations (no frontend changes):
 
-### 3. Regenerar types.ts
-- Apos a migration, os types serao regenerados automaticamente para incluir `owner_transactions`
+1. **Backfill** - Recalculate `current_balance` for all `personal_accounts` from `initial_balance` + sum of transactions
+2. **Trigger function + trigger** on `personal_transactions` - Auto-adjust account balance on INSERT/UPDATE/DELETE
+3. **Trigger function + trigger** on `personal_transfers` - Auto-adjust both source and destination account balances
+4. **CHECK constraint** on `personal_transfers` - Prevent transfers to the same account (`from_account_id != to_account_id`)
+5. **Realtime** - Add `personal_transactions` and `personal_accounts` to `supabase_realtime` publication
 
-### Verificacoes feitas
-- Tabela `owner_transactions` ainda NAO existe
-- `personal_transactions.source` ja existe (text, NOT NULL, default 'manual')
-- `personal_transactions.source_id` ja existe (uuid)
-- `transactions.source` ja existe
-- Funcao `update_updated_at_column()` ja existe
+## Execution approach
 
-### Nenhuma alteracao frontend
-Nenhum arquivo em `src/` sera modificado manualmente. Apenas a migration SQL e a regeneracao automatica de types.
+- The entire SQL will be executed as a single database migration
+- The backfill runs first (before triggers exist), so no double-counting
+- No frontend files will be modified
+
+## Technical details
+
+- Two new functions: `update_personal_account_balance()` and `update_personal_transfer_balance()` (both `SECURITY DEFINER`)
+- Two new triggers: `trg_update_personal_account_balance` and `trg_update_personal_transfer_balance`
+- One new constraint: `chk_different_accounts`
+
