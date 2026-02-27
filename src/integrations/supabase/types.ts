@@ -1295,6 +1295,93 @@ export type Database = {
           },
         ]
       }
+      owner_transactions: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          pf_account_id: string | null
+          pf_transaction_id: string | null
+          pj_bank_account_id: string | null
+          pj_transaction_id: string | null
+          status: string
+          transaction_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          created_at?: string
+          date: string
+          description?: string | null
+          id?: string
+          pf_account_id?: string | null
+          pf_transaction_id?: string | null
+          pj_bank_account_id?: string | null
+          pj_transaction_id?: string | null
+          status?: string
+          transaction_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          pf_account_id?: string | null
+          pf_transaction_id?: string | null
+          pj_bank_account_id?: string | null
+          pj_transaction_id?: string | null
+          status?: string
+          transaction_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "owner_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_transactions_pf_account_id_fkey"
+            columns: ["pf_account_id"]
+            isOneToOne: false
+            referencedRelation: "personal_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_transactions_pf_transaction_id_fkey"
+            columns: ["pf_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "personal_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_transactions_pj_bank_account_id_fkey"
+            columns: ["pj_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_transactions_pj_transaction_id_fkey"
+            columns: ["pj_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personal_accounts: {
         Row: {
           bank_name: string | null
