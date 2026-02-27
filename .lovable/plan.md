@@ -1,28 +1,30 @@
 
-# Deploy de 2 Edge Functions: ocr-document + whatsapp-webhook
+# Mover Login para a rota /
 
-## Problema
-As funcoes `ocr-document` e `whatsapp-webhook` existem no codigo mas:
-1. Nao estao registradas no `supabase/config.toml`
-2. Nao foram deployadas
+## Objetivo
+A rota `/` passara a exibir o formulario de login/cadastro. Apos login, o usuario sera redirecionado para `/dashboard`.
 
 ## Alteracoes
 
-### 1. Atualizar `supabase/config.toml`
-Adicionar entradas para ambas as funcoes com `verify_jwt = false`:
-- `ocr-document`: precisa ser chamada pelo frontend (que envia o token via header, mas a validacao e feita no codigo)
-- `whatsapp-webhook`: recebe chamadas externas da Evolution API, nao tem JWT
+### 1. `src/App.tsx`
+- Trocar a rota `/` para exibir `Auth` como PublicRoute (redireciona para `/dashboard` se ja logado)
+- Mover o Dashboard para a rota `/dashboard` como ProtectedRoute
+- Atualizar redirecionamento do PublicRoute: de `"/"` para `"/dashboard"`
+- Atualizar redirecionamento do ProtectedRoute (fallback): de `"/auth"` para `"/"`
 
+### 2. `src/pages/Auth.tsx`
+- Apos login com sucesso, `navigate("/")` muda para `navigate("/dashboard")`
+
+### 3. `src/components/AppSidebar.tsx` (se houver link para `/`)
+- Atualizar link do dashboard de `/` para `/dashboard`
+
+### 4. Demais referencias
+- Qualquer link ou `navigate("/")` no projeto que aponte para o dashboard precisara apontar para `/dashboard`
+- A rota `/auth` sera removida (o login agora vive em `/`)
+
+## Resumo de rotas
 ```text
-[functions.ocr-document]
-verify_jwt = false
-
-[functions.whatsapp-webhook]
-verify_jwt = false
+/            -> Auth (PublicRoute) - redireciona para /dashboard se logado
+/dashboard   -> Dashboard (ProtectedRoute) - redireciona para / se nao logado
+/transactions, /dre, etc -> sem mudanca (ProtectedRoute, redireciona para /)
 ```
-
-### 2. Deploy
-Deployar ambas as funcoes: `ocr-document` e `whatsapp-webhook`.
-
-### Nenhuma outra alteracao
-O codigo das funcoes ja esta correto e nao sera modificado.
