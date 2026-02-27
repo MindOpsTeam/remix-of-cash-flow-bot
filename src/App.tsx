@@ -40,6 +40,7 @@ const PersonalBills = lazy(() => import("./pages/personal/PersonalBills"));
 const CompanyTransfers = lazy(() => import("./pages/CompanyTransfers"));
 const CompanyBills = lazy(() => import("./pages/CompanyBills"));
 const DocumentScanner = lazy(() => import("./pages/DocumentScanner"));
+const OwnerTransactions = lazy(() => import("./pages/OwnerTransactions"));
 
 const queryClient = new QueryClient();
 
@@ -77,6 +78,7 @@ const AppRoutes = () => (
       <Route path="/transfers" element={<ProtectedRoute><CompanyTransfers /></ProtectedRoute>} />
       <Route path="/bills" element={<ProtectedRoute><CompanyBills /></ProtectedRoute>} />
       <Route path="/documents" element={<ProtectedRoute><DocumentScanner /></ProtectedRoute>} />
+      <Route path="/owner-transactions" element={<ProtectedRoute><OwnerTransactions /></ProtectedRoute>} />
       <Route path="/dre" element={<ProtectedRoute><DRE /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />

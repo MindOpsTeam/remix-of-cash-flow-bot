@@ -4,6 +4,7 @@ import { FinancialScore } from "@/components/FinancialScore";
 import { TransactionRow } from "@/components/TransactionRow";
 import { formatCurrency } from "@/lib/mock-data";
 import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2, ArrowRight } from "lucide-react";
+import { ConsolidatedPatrimony } from "@/components/ConsolidatedPatrimony";
 import { Link } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -158,6 +159,10 @@ export default function Dashboard() {
 
           <div className="mb-6">
             <FinancialScore revenue={revenue} expense={expense} prevRevenue={prevRevenue} prevExpense={prevExpense} />
+          </div>
+
+          <div className="mb-6">
+            <ConsolidatedPatrimony />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

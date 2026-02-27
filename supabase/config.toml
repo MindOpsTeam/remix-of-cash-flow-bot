@@ -9,5 +9,8 @@ verify_jwt = false
 [functions.ocr-document]
 verify_jwt = false
 
+[functions.owner-transactions]
+verify_jwt = false
+
 [functions.whatsapp-webhook]
 verify_jwt = false

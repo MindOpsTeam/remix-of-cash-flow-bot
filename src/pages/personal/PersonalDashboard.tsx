@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Wallet, Landmark } from "lucide-react";
 import { usePersonalAccounts } from "@/hooks/usePersonalAccounts";
 import { usePersonalKPIs, generateInsight } from "@/hooks/usePersonalKPIs";
 import { AIInsightCard } from "@/components/AIInsightCard";
+import { ConsolidatedPatrimony } from "@/components/ConsolidatedPatrimony";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -89,6 +90,9 @@ export default function PersonalDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Consolidated Patrimony */}
+        <ConsolidatedPatrimony />
 
         {/* AI Insight */}
         <AIInsightCard text={insightText} linkTo="/personal/summary" linkLabel="Ver resumo completo" />

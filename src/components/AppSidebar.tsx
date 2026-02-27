@@ -21,6 +21,7 @@ import {
   ArrowUpDown,
   Receipt,
   ScanLine,
+  Scale,
 } from "lucide-react";
 
 const businessItems = [
@@ -28,6 +29,7 @@ const businessItems = [
   { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
   { to: "/transfers", label: "Transferências", icon: ArrowUpDown },
   { to: "/bills", label: "Contas a Pagar", icon: Receipt },
+  { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
   { to: "/documents", label: "Documentos", icon: ScanLine },
   { to: "/dre", label: "DRE", icon: FileBarChart2 },
   { to: "/reports", label: "Relatórios", icon: PieChart },
@@ -44,6 +46,7 @@ const personalItems = [
   { to: "/personal/transactions", label: "Transações", icon: ArrowLeftRight },
   { to: "/personal/transfers", label: "Transferências", icon: ArrowUpDown },
   { to: "/personal/bills", label: "Contas a Pagar", icon: Receipt },
+  { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
   { to: "/documents", label: "Documentos", icon: ScanLine },
   { to: "/personal/accounts", label: "Contas", icon: Wallet },
   { to: "/personal/forecast", label: "Previsão Fluxo", icon: TrendingUp },
