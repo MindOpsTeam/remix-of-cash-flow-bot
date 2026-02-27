@@ -23,6 +23,9 @@ import {
   ScanLine,
   Scale,
   Tag,
+  PiggyBank,
+  Target,
+  CreditCard,
 } from "lucide-react";
 
 const businessItems = [
@@ -51,6 +54,9 @@ const personalItems = [
   { to: "/documents", label: "Documentos", icon: ScanLine },
   { to: "/personal/accounts", label: "Contas", icon: Wallet },
   { to: "/personal/categories", label: "Categorias", icon: Tag },
+  { to: "/personal/budgets", label: "Orçamentos", icon: PiggyBank },
+  { to: "/personal/goals", label: "Metas", icon: Target },
+  { to: "/personal/credit-cards", label: "Cartões", icon: CreditCard },
   { to: "/personal/reports", label: "Relatórios", icon: PieChart },
   { to: "/personal/forecast", label: "Previsão Fluxo", icon: TrendingUp },
   { to: "/personal/summary", label: "Resumo Executivo", icon: FileText },

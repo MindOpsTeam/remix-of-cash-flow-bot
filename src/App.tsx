@@ -43,6 +43,9 @@ const DocumentScanner = lazy(() => import("./pages/DocumentScanner"));
 const OwnerTransactions = lazy(() => import("./pages/OwnerTransactions"));
 const PersonalReports = lazy(() => import("./pages/personal/PersonalReports"));
 const PersonalCategories = lazy(() => import("./pages/personal/PersonalCategories"));
+const PersonalBudgets = lazy(() => import("./pages/personal/PersonalBudgets"));
+const PersonalGoals = lazy(() => import("./pages/personal/PersonalGoals"));
+const PersonalCreditCards = lazy(() => import("./pages/personal/PersonalCreditCards"));
 
 const queryClient = new QueryClient();
 
@@ -105,6 +108,9 @@ const AppRoutes = () => (
       <Route path="/personal/categories" element={<ProtectedRoute><PersonalCategories /></ProtectedRoute>} />
       <Route path="/personal/settings" element={<ProtectedRoute><PersonalSettings /></ProtectedRoute>} />
       <Route path="/personal/settings/integrations" element={<ProtectedRoute><PersonalIntegrations /></ProtectedRoute>} />
+      <Route path="/personal/budgets" element={<ProtectedRoute><PersonalBudgets /></ProtectedRoute>} />
+      <Route path="/personal/goals" element={<ProtectedRoute><PersonalGoals /></ProtectedRoute>} />
+      <Route path="/personal/credit-cards" element={<ProtectedRoute><PersonalCreditCards /></ProtectedRoute>} />
       <Route path="/personal/settings/integrations/asaas" element={<ProtectedRoute><AsaasIntegrationPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
