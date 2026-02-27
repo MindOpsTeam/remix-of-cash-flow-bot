@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 const businessItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
   { to: "/transfers", label: "Transferências", icon: ArrowUpDown },
   { to: "/bills", label: "Contas a Pagar", icon: Receipt },

@@ -56,23 +56,23 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   if (loading) {
     return <PageLoader />;
   }
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
 const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
     <Routes>
-      <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
+      <Route path="/" element={<PublicRoute><Auth /></PublicRoute>} />
       {/* Business routes */}
-      <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
       <Route path="/transfers" element={<ProtectedRoute><CompanyTransfers /></ProtectedRoute>} />
       <Route path="/bills" element={<ProtectedRoute><CompanyBills /></ProtectedRoute>} />
