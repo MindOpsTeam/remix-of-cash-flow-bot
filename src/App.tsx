@@ -35,6 +35,10 @@ const PersonalForecast = lazy(() => import("./pages/personal/PersonalForecast"))
 const PersonalSummary = lazy(() => import("./pages/personal/PersonalSummary"));
 const PersonalSettings = lazy(() => import("./pages/personal/PersonalSettings"));
 const PersonalIntegrations = lazy(() => import("./pages/personal/PersonalIntegrations"));
+const PersonalTransfers = lazy(() => import("./pages/personal/PersonalTransfers"));
+const PersonalBills = lazy(() => import("./pages/personal/PersonalBills"));
+const CompanyTransfers = lazy(() => import("./pages/CompanyTransfers"));
+const CompanyBills = lazy(() => import("./pages/CompanyBills"));
 
 const queryClient = new QueryClient();
 
@@ -69,6 +73,8 @@ const AppRoutes = () => (
       {/* Business routes */}
       <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
       <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
+      <Route path="/transfers" element={<ProtectedRoute><CompanyTransfers /></ProtectedRoute>} />
+      <Route path="/bills" element={<ProtectedRoute><CompanyBills /></ProtectedRoute>} />
       <Route path="/dre" element={<ProtectedRoute><DRE /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
@@ -84,6 +90,8 @@ const AppRoutes = () => (
       {/* Personal routes */}
       <Route path="/personal" element={<ProtectedRoute><PersonalDashboard /></ProtectedRoute>} />
       <Route path="/personal/transactions" element={<ProtectedRoute><PersonalTransactions /></ProtectedRoute>} />
+      <Route path="/personal/transfers" element={<ProtectedRoute><PersonalTransfers /></ProtectedRoute>} />
+      <Route path="/personal/bills" element={<ProtectedRoute><PersonalBills /></ProtectedRoute>} />
       <Route path="/personal/accounts" element={<ProtectedRoute><PersonalAccounts /></ProtectedRoute>} />
       <Route path="/personal/forecast" element={<ProtectedRoute><PersonalForecast /></ProtectedRoute>} />
       <Route path="/personal/summary" element={<ProtectedRoute><PersonalSummary /></ProtectedRoute>} />

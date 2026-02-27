@@ -18,11 +18,15 @@ import {
   Wallet,
   User,
   Building2,
+  ArrowUpDown,
+  Receipt,
 } from "lucide-react";
 
 const businessItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
+  { to: "/transfers", label: "Transferências", icon: ArrowUpDown },
+  { to: "/bills", label: "Contas a Pagar", icon: Receipt },
   { to: "/dre", label: "DRE", icon: FileBarChart2 },
   { to: "/reports", label: "Relatórios", icon: PieChart },
   { to: "/cfo-digital", label: "CFO Digital", icon: Brain },
@@ -36,6 +40,8 @@ const businessItems = [
 const personalItems = [
   { to: "/personal", label: "Dashboard", icon: LayoutDashboard },
   { to: "/personal/transactions", label: "Transações", icon: ArrowLeftRight },
+  { to: "/personal/transfers", label: "Transferências", icon: ArrowUpDown },
+  { to: "/personal/bills", label: "Contas a Pagar", icon: Receipt },
   { to: "/personal/accounts", label: "Contas", icon: Wallet },
   { to: "/personal/forecast", label: "Previsão Fluxo", icon: TrendingUp },
   { to: "/personal/summary", label: "Resumo Executivo", icon: FileText },
