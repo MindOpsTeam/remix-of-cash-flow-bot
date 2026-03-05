@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useEffect, useRef } from "react";
 
 export interface PersonalAccount {
   id: string;
@@ -33,6 +34,7 @@ export interface PersonalAccountFormData {
 export function usePersonalAccounts() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const autoCreatingRef = useRef(false);
 
   const accountsQuery = useQuery({
     queryKey: ["personal_accounts", user?.id],
@@ -77,11 +79,32 @@ export function usePersonalAccounts() {
       return data as { ok: boolean; data?: { totalBalance?: number } };
     },
     enabled: !!user && !!asaasConfigQuery.data,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 
-  const hasAsaas = !!asaasConfigQuery.data && !!asaasBalanceQuery.data;
-  const asaasBalance = asaasBalanceQuery.data?.data?.totalBalance ?? 0;
+  // Fallback: sum net_value from asaas_payments with RECEIVED/CONFIRMED status
+  const asaasFallbackQuery = useQuery({
+    queryKey: ["asaas_payments_fallback_balance", user?.id],
+    queryFn: async () => {
+      if (!user) return 0;
+      const { data, error } = await supabase
+        .from("asaas_payments")
+        .select("net_value")
+        .eq("user_id", user.id)
+        .in("status", ["RECEIVED", "CONFIRMED"]);
+      if (error) throw error;
+      return (data || []).reduce((sum, p) => sum + (Number(p.net_value) || 0), 0);
+    },
+    enabled: !!user && !!asaasConfigQuery.data,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Determine Asaas balance: prefer API, fallback to sum of payments
+  const apiBalance = asaasBalanceQuery.data?.data?.totalBalance;
+  const hasApiBalance = typeof apiBalance === "number" && apiBalance > 0;
+  const fallbackBalance = asaasFallbackQuery.data ?? 0;
+  const asaasBalance = hasApiBalance ? apiBalance : fallbackBalance;
+  const hasAsaas = !!asaasConfigQuery.data && (hasApiBalance || fallbackBalance > 0);
 
   const asaasAccount: PersonalAccount | null = hasAsaas
     ? {
@@ -100,6 +123,35 @@ export function usePersonalAccounts() {
         updated_at: "",
       }
     : null;
+
+  // Auto-create default account if none exists
+  useEffect(() => {
+    if (
+      !user ||
+      accountsQuery.isLoading ||
+      !accountsQuery.data ||
+      accountsQuery.data.length > 0 ||
+      autoCreatingRef.current
+    )
+      return;
+
+    autoCreatingRef.current = true;
+    supabase
+      .from("personal_accounts")
+      .insert({
+        user_id: user.id,
+        name: "Carteira",
+        type: "checking",
+        initial_balance: 0,
+        current_balance: 0,
+      })
+      .then(({ error }) => {
+        if (!error) {
+          queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
+        }
+        autoCreatingRef.current = false;
+      });
+  }, [user, accountsQuery.isLoading, accountsQuery.data, queryClient]);
 
   const createMutation = useMutation({
     mutationFn: async (data: PersonalAccountFormData) => {
