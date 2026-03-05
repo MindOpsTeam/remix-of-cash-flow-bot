@@ -1,34 +1,63 @@
 
 
-# Por que o saldo Asaas não aparece no Patrimônio
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## Diagnóstico
+## Problema
 
-O fluxo já funciona parcialmente:
-- A `asaas_config` está configurada (production) ✅
-- O pagamento de R$120 existe em `asaas_payments` (CONFIRMED em 04/03) ✅
-- O hook `usePersonalKPIs` já soma pagamentos Asaas nos KPIs do mês (entradas, gráfico) ✅
-- O hook `usePersonalAccounts` já cria uma "Conta Asaas" virtual com o saldo da API ✅
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-**O problema**: o `ConsolidatedPatrimony` usa `totalBalance` de `usePersonalAccounts`, que **depende da Edge Function `asaas-api` retornar o saldo**. Se essa chamada falha silenciosamente ou retorna `totalBalance: undefined`, o saldo Asaas fica R$0. Além disso, a tabela `personal_accounts` está **vazia** — não há nenhuma conta manual cadastrada, então o saldo PF inteiro depende exclusivamente dessa chamada de API.
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-O R$120 é um **pagamento recebido**, não uma conta/saldo. Ele já aparece nos KPIs como "Entrada do mês", mas o **patrimônio** mostra o **saldo atual da conta Asaas** (que pode ser diferente do valor dos pagamentos).
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-## Plano de correção
+## Solução
 
-### 1. Garantir que o saldo Asaas reflita no patrimônio mesmo com falhas
-- Em `usePersonalAccounts`, tratar erro da Edge Function graciosamente: se falhar, usar fallback calculando a soma dos `net_value` dos `asaas_payments` com status RECEIVED/CONFIRMED como saldo aproximado.
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-### 2. Criar conta padrão automática
-- Ao detectar `personal_accounts` vazio e Asaas configurado, auto-criar uma conta "Carteira" (tipo `checking`, saldo 0) para que o usuário tenha onde vincular transações manuais futuras.
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-### 3. Vincular transação órfã existente
-- Migration SQL: associar a transação de R$3.240 (sem `account_id`) à conta recém-criada e recalcular saldo.
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
+
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
+
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
+
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
+
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
+
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
+
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
+
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
+
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
+
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
 
 ## Arquivos alterados
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/hooks/usePersonalAccounts.ts` | Fallback de saldo Asaas via `asaas_payments`; auto-criar conta padrão |
-| Migration SQL | Backfill `account_id` de transações órfãs + recálculo |
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
+
+Nenhuma migration SQL necessária.
 
