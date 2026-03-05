@@ -124,11 +124,22 @@ Deno.serve(async (req) => {
           headers: asaasHeaders,
         });
         result = await resp.json();
+
+        // External credential errors should not break frontend runtime flow.
+        // Return 200 with ok=false so callers can handle gracefully.
         if (!resp.ok) {
-          return new Response(JSON.stringify({ error: "Asaas API error", details: result }), {
-            status: resp.status,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+          return new Response(
+            JSON.stringify({
+              ok: false,
+              error: "Asaas API error",
+              asaas_status: resp.status,
+              details: result,
+            }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
         }
         break;
       }
