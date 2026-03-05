@@ -52,11 +52,12 @@ export function usePersonalAccounts() {
     enabled: !!user,
   });
 
-  // Auto-create default account if none exists
+  // Auto-create default account if none exists (with dedup protection)
   useEffect(() => {
     if (
       !user ||
       accountsQuery.isLoading ||
+      accountsQuery.isFetching ||
       !accountsQuery.data ||
       accountsQuery.data.length > 0 ||
       autoCreatingRef.current
@@ -66,20 +67,23 @@ export function usePersonalAccounts() {
     autoCreatingRef.current = true;
     supabase
       .from("personal_accounts")
-      .insert({
-        user_id: user.id,
-        name: "Carteira",
-        type: "checking",
-        initial_balance: 0,
-        current_balance: 0,
-      })
+      .upsert(
+        {
+          user_id: user.id,
+          name: "Carteira",
+          type: "checking",
+          initial_balance: 0,
+          current_balance: 0,
+        },
+        { onConflict: "user_id,name,type", ignoreDuplicates: true }
+      )
       .then(({ error }) => {
         if (!error) {
           queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
         }
         autoCreatingRef.current = false;
       });
-  }, [user, accountsQuery.isLoading, accountsQuery.data, queryClient]);
+  }, [user, accountsQuery.isLoading, accountsQuery.isFetching, accountsQuery.data, queryClient]);
 
   const createMutation = useMutation({
     mutationFn: async (data: PersonalAccountFormData) => {
