@@ -80,6 +80,7 @@ export function ConsolidatedPatrimony() {
     },
     enabled: !!company?.id && !!companyAsaasConfig,
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   // Fetch recent owner transactions
