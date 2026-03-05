@@ -18,20 +18,16 @@ export function ConsolidatedPatrimony() {
   const { company } = useCompany();
   const { totalBalance: pfBalance, isLoading: pfLoading } = usePersonalAccounts();
 
-  // Fetch PJ balance (sum of bank_accounts or net from transactions)
+  // Fetch PJ balance from transactions
   const { data: pjData, isLoading: pjLoading } = useQuery({
     queryKey: ["pj_balance_consolidated", company?.id],
     queryFn: async () => {
       if (!company?.id) return { balance: 0, revenue: 0, expense: 0 };
-      const now = new Date();
-      const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
       const { data, error } = await supabase
         .from("transactions")
         .select("amount, type")
         .eq("company_id", company.id)
         .eq("status", "confirmed");
-
       if (error) throw error;
       const revenue = (data || [])
         .filter((t) => t.type === "revenue")
@@ -42,6 +38,48 @@ export function ConsolidatedPatrimony() {
       return { balance: revenue - expense, revenue, expense };
     },
     enabled: !!company?.id,
+  });
+
+  // Fetch company Asaas balance (PJ gateway)
+  const { data: companyAsaasConfig } = useQuery({
+    queryKey: ["company_asaas_config_exists", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return null;
+      const { data, error } = await supabase
+        .from("company_asaas_config")
+        .select("id, environment")
+        .eq("company_id", company.id)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!company?.id,
+  });
+
+  const { data: companyAsaasBalance = 0 } = useQuery({
+    queryKey: ["company_asaas_balance_consolidated", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return 0;
+      // Try edge function first
+      try {
+        const { data, error } = await supabase.functions.invoke("company-asaas-api", {
+          body: { action: "test-connection", company_id: company.id },
+        });
+        if (!error && data?.ok && typeof data?.data?.totalBalance === "number") {
+          return data.data.totalBalance;
+        }
+      } catch {}
+      // Fallback: sum from company_asaas_payments
+      const { data: payments, error } = await supabase
+        .from("company_asaas_payments")
+        .select("net_value")
+        .eq("company_id", company.id)
+        .in("status", ["RECEIVED", "CONFIRMED"]);
+      if (error) return 0;
+      return (payments || []).reduce((sum, p) => sum + (Number(p.net_value) || 0), 0);
+    },
+    enabled: !!company?.id && !!companyAsaasConfig,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Fetch recent owner transactions
@@ -56,13 +94,14 @@ export function ConsolidatedPatrimony() {
         .eq("company_id", company.id)
         .order("date", { ascending: false })
         .limit(3);
-      if (error) return []; // Table may not exist yet
+      if (error) return [];
       return data || [];
     },
     enabled: !!user?.id && !!company?.id,
   });
 
-  const pjBalance = pjData?.balance ?? 0;
+  const pjTransactionsBalance = pjData?.balance ?? 0;
+  const pjBalance = pjTransactionsBalance + companyAsaasBalance;
   const totalPatrimony = pfBalance + pjBalance;
   const isLoading = pfLoading || pjLoading;
 

@@ -11,8 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Wallet, Pencil, Trash2, Landmark, Zap } from "lucide-react";
+import { Plus, Wallet, Pencil, Trash2, Landmark } from "lucide-react";
 import { usePersonalAccounts, PersonalAccount, PersonalAccountFormData } from "@/hooks/usePersonalAccounts";
 
 function fmt(v: number) {
@@ -24,11 +23,10 @@ const accountTypes = [
   { value: "savings", label: "Poupança" },
   { value: "investment", label: "Investimento" },
   { value: "wallet", label: "Carteira" },
-  { value: "gateway", label: "Gateway" },
 ];
 
 export default function PersonalAccounts() {
-  const { accounts, isLoading, summary, createAccount, updateAccount, deleteAccount, isCreating, isUpdating, isDeleting, hasAsaas, asaasAccount, asaasLoading } =
+  const { accounts, isLoading, summary, createAccount, updateAccount, deleteAccount, isCreating, isUpdating, isDeleting } =
     usePersonalAccounts();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<PersonalAccount | null>(null);
@@ -58,22 +56,20 @@ export default function PersonalAccounts() {
     }
   };
 
-  const showCards = !isLoading && (accounts.length > 0 || hasAsaas);
-
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Contas</h1>
-            <p className="text-sm text-muted-foreground mt-1">Gerencie suas contas e carteiras</p>
+            <p className="text-sm text-muted-foreground mt-1">Gerencie suas contas e carteiras pessoais</p>
           </div>
           <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Nova Conta</Button>
         </div>
 
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-32" />)}</div>
-        ) : !showCards ? (
+        ) : accounts.length === 0 ? (
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col items-center py-12 text-center">
@@ -104,32 +100,6 @@ export default function PersonalAccounts() {
 
             {/* Account Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {/* Asaas Virtual Account */}
-              {hasAsaas && asaasAccount && (
-                <Card className="border-[hsl(var(--revenue))]/30">
-                  <CardContent className="pt-5">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="rounded-full bg-[hsl(var(--revenue))]/10 p-2"><Zap className="h-4 w-4 text-[hsl(var(--revenue))]" /></div>
-                        <div>
-                          <p className="text-sm font-semibold">{asaasAccount.name}</p>
-                          <p className="text-xs text-muted-foreground">Asaas</p>
-                        </div>
-                      </div>
-                      <Badge variant="success">Sincronizada</Badge>
-                    </div>
-                    {asaasLoading ? (
-                      <Skeleton className="h-7 w-32" />
-                    ) : (
-                      <p className={`text-lg font-bold font-mono ${asaasAccount.current_balance >= 0 ? "text-revenue" : "text-destructive"}`}>
-                        {fmt(asaasAccount.current_balance)}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">Gateway de Pagamento</p>
-                  </CardContent>
-                </Card>
-              )}
-
               {accounts.map((a) => (
                 <Card key={a.id}>
                   <CardContent className="pt-5">
