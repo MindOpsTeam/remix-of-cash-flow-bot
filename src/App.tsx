@@ -27,7 +27,8 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 const ChartOfAccountsPage = lazy(() => import("./pages/settings/ChartOfAccounts"));
 const CostCentersPage = lazy(() => import("./pages/settings/CostCenters"));
 const IntegrationsPage = lazy(() => import("./pages/settings/Integrations"));
-const AsaasIntegrationPage = lazy(() => import("./pages/settings/AsaasIntegration"));
+const AsaasIntegrationPJ = lazy(() => import("./pages/settings/AsaasIntegrationPJ"));
+const AsaasIntegrationPF = lazy(() => import("./pages/personal/AsaasIntegrationPF"));
 const PersonalDashboard = lazy(() => import("./pages/personal/PersonalDashboard"));
 const PersonalTransactions = lazy(() => import("./pages/personal/PersonalTransactions"));
 const PersonalAccounts = lazy(() => import("./pages/personal/PersonalAccounts"));
@@ -95,7 +96,7 @@ const AppRoutes = () => (
       <Route path="/settings/chart-of-accounts" element={<ProtectedRoute><ChartOfAccountsPage /></ProtectedRoute>} />
       <Route path="/settings/cost-centers" element={<ProtectedRoute><CostCentersPage /></ProtectedRoute>} />
       <Route path="/settings/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
-      <Route path="/settings/integrations/asaas" element={<ProtectedRoute><AsaasIntegrationPage /></ProtectedRoute>} />
+      <Route path="/settings/integrations/asaas" element={<ProtectedRoute><AsaasIntegrationPJ /></ProtectedRoute>} />
       {/* Personal routes */}
       <Route path="/personal" element={<ProtectedRoute><PersonalDashboard /></ProtectedRoute>} />
       <Route path="/personal/transactions" element={<ProtectedRoute><PersonalTransactions /></ProtectedRoute>} />
@@ -111,7 +112,7 @@ const AppRoutes = () => (
       <Route path="/personal/budgets" element={<ProtectedRoute><PersonalBudgets /></ProtectedRoute>} />
       <Route path="/personal/goals" element={<ProtectedRoute><PersonalGoals /></ProtectedRoute>} />
       <Route path="/personal/credit-cards" element={<ProtectedRoute><PersonalCreditCards /></ProtectedRoute>} />
-      <Route path="/personal/settings/integrations/asaas" element={<ProtectedRoute><AsaasIntegrationPage /></ProtectedRoute>} />
+      <Route path="/personal/settings/integrations/asaas" element={<ProtectedRoute><AsaasIntegrationPF /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   </Suspense>

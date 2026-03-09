@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +26,7 @@ import {
   ArrowLeft, Loader2, Shield, Webhook as WebhookIcon, Lock,
   Link2, List, AlertTriangle, Info, ChevronDown, ExternalLink
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const ALL_EVENTS: Record<string, { label: string; events: string[] }> = {
   payment: {
@@ -162,22 +160,30 @@ interface WebhookEvent {
   created_at: string;
 }
 
-export default function AsaasIntegrationPage() {
-  const { user } = useAuth();
-  const { company } = useCompany();
-  const location = useLocation();
-  const isPersonalRoute = location.pathname.startsWith("/personal");
-  const isBusinessMode = !isPersonalRoute;
-  const backLink = isPersonalRoute ? "/personal/settings/integrations" : "/settings/integrations";
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+export interface AsaasIntegrationBaseProps {
+  configTable: "asaas_config" | "company_asaas_config";
+  eventsTable: "asaas_webhook_events" | "company_asaas_webhook_events";
+  edgeFunction: "asaas-api" | "company-asaas-api";
+  webhookFunction: "asaas-webhook" | "company-asaas-webhook";
+  ownerKey: "user_id" | "company_id";
+  ownerId: string | undefined;
+  backLink: string;
+  title: string;
+  securityIsolationLabel: string;
+}
 
-  // Dynamic table/function names based on mode
-  const configTable = isBusinessMode ? "company_asaas_config" : "asaas_config";
-  const eventsTable = isBusinessMode ? "company_asaas_webhook_events" : "asaas_webhook_events";
-  const edgeFunction = isBusinessMode ? "company-asaas-api" : "asaas-api";
-  const webhookFunction = isBusinessMode ? "company-asaas-webhook" : "asaas-webhook";
-  const ownerKey = isBusinessMode ? "company_id" : "user_id";
-  const ownerId = isBusinessMode ? company?.id : user?.id;
+export function AsaasIntegrationBase({
+  configTable,
+  eventsTable,
+  edgeFunction,
+  webhookFunction,
+  ownerKey,
+  ownerId,
+  backLink,
+  title,
+  securityIsolationLabel,
+}: AsaasIntegrationBaseProps) {
+  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
   const [config, setConfig] = useState<AsaasConfig | null>(null);
   const [events, setEvents] = useState<WebhookEvent[]>([]);
@@ -187,7 +193,6 @@ export default function AsaasIntegrationPage() {
   const [creatingWebhook, setCreatingWebhook] = useState(false);
   const [reactivating, setReactivating] = useState(false);
 
-  // Form state
   const [apiKeySandbox, setApiKeySandbox] = useState("");
   const [apiKeyProduction, setApiKeyProduction] = useState("");
   const [environment, setEnvironment] = useState("sandbox");
@@ -279,7 +284,7 @@ export default function AsaasIntegrationPage() {
 
   const invokeEdgeFunction = async (action: string) => {
     const body: Record<string, unknown> = { action };
-    if (isBusinessMode) body.company_id = ownerId;
+    if (ownerKey === "company_id") body.company_id = ownerId;
     return supabase.functions.invoke(edgeFunction, { body });
   };
 
@@ -335,9 +340,7 @@ export default function AsaasIntegrationPage() {
     setReactivating(false);
   };
 
-  const generateToken = () => {
-    setWebhookAuthToken(crypto.randomUUID());
-  };
+  const generateToken = () => setWebhookAuthToken(crypto.randomUUID());
 
   const copyWebhookUrl = () => {
     const url = `https://${projectId}.supabase.co/functions/v1/${webhookFunction}`;
@@ -345,11 +348,10 @@ export default function AsaasIntegrationPage() {
     toast.success("URL copiada!");
   };
 
-  const toggleEvent = (event: string) => {
+  const toggleEvent = (event: string) =>
     setEnabledEvents((prev) =>
       prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event]
     );
-  };
 
   const toggleCategoryAll = (groupKey: string) => {
     const group = ALL_EVENTS[groupKey];
@@ -405,9 +407,7 @@ export default function AsaasIntegrationPage() {
               <Shield className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">
-                Integração Asaas {isBusinessMode ? "(Empresa)" : "(Pessoal)"}
-              </h1>
+              <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">{title}</h1>
               <p className="text-sm text-muted-foreground">Configure sua conta Asaas para sincronizar cobranças, assinaturas e transferências</p>
             </div>
           </div>
@@ -418,16 +418,15 @@ export default function AsaasIntegrationPage() {
       </div>
 
       <div className="space-y-6">
-        {/* Security info card */}
         <div className="flex items-start gap-3 p-4 rounded-xl border border-primary/20 bg-primary/5">
           <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
           <div className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Segurança:</span> As API Keys são salvas de forma segura no banco de dados com isolamento por {isBusinessMode ? "empresa" : "usuário"} via RLS.
+            <span className="font-medium text-foreground">Segurança:</span> As API Keys são salvas de forma segura no banco de dados com isolamento por {securityIsolationLabel} via RLS.
             O webhook é autenticado via token exclusivo no header <code className="text-primary font-mono">asaas-access-token</code>.
           </div>
         </div>
 
-        {/* Seção 1: Credenciais */}
+        {/* Credenciais */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -442,71 +441,59 @@ export default function AsaasIntegrationPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs">API Key (Produção)</Label>
-                <div className="relative">
-                  {config?.api_key_production && !editingKeyProduction ? (
-                    <div className="flex gap-2">
-                      <Input
-                        readOnly
-                        value={maskKey(config.api_key_production)}
-                        className="font-mono text-xs"
-                      />
-                      <Button variant="outline" size="sm" onClick={() => { setEditingKeyProduction(true); setApiKeyProduction(""); }}>
-                        Alterar
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <Input
-                        type={showKeyProduction ? "text" : "password"}
-                        value={apiKeyProduction}
-                        onChange={(e) => { setApiKeyProduction(e.target.value); setEditingKeyProduction(true); }}
-                        placeholder="$aact_..."
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowKeyProduction(!showKeyProduction)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showKeyProduction ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {config?.api_key_production && !editingKeyProduction ? (
+                  <div className="flex gap-2">
+                    <Input readOnly value={maskKey(config.api_key_production)} className="font-mono text-xs" />
+                    <Button variant="outline" size="sm" onClick={() => { setEditingKeyProduction(true); setApiKeyProduction(""); }}>
+                      Alterar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      type={showKeyProduction ? "text" : "password"}
+                      value={apiKeyProduction}
+                      onChange={(e) => { setApiKeyProduction(e.target.value); setEditingKeyProduction(true); }}
+                      placeholder="$aact_..."
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKeyProduction(!showKeyProduction)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showKeyProduction ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <Label className="text-xs">API Key (Sandbox)</Label>
-                <div className="relative">
-                  {config?.api_key_sandbox && !editingKeySandbox ? (
-                    <div className="flex gap-2">
-                      <Input
-                        readOnly
-                        value={maskKey(config.api_key_sandbox)}
-                        className="font-mono text-xs"
-                      />
-                      <Button variant="outline" size="sm" onClick={() => { setEditingKeySandbox(true); setApiKeySandbox(""); }}>
-                        Alterar
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <Input
-                        type={showKeySandbox ? "text" : "password"}
-                        value={apiKeySandbox}
-                        onChange={(e) => { setApiKeySandbox(e.target.value); setEditingKeySandbox(true); }}
-                        placeholder="$aact_..."
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowKeySandbox(!showKeySandbox)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showKeySandbox ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {config?.api_key_sandbox && !editingKeySandbox ? (
+                  <div className="flex gap-2">
+                    <Input readOnly value={maskKey(config.api_key_sandbox)} className="font-mono text-xs" />
+                    <Button variant="outline" size="sm" onClick={() => { setEditingKeySandbox(true); setApiKeySandbox(""); }}>
+                      Alterar
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      type={showKeySandbox ? "text" : "password"}
+                      value={apiKeySandbox}
+                      onChange={(e) => { setApiKeySandbox(e.target.value); setEditingKeySandbox(true); }}
+                      placeholder="$aact_..."
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKeySandbox(!showKeySandbox)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showKeySandbox ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -574,7 +561,7 @@ export default function AsaasIntegrationPage() {
           </CardContent>
         </Card>
 
-        {/* Seção 2: Webhook */}
+        {/* Webhook */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -607,7 +594,7 @@ export default function AsaasIntegrationPage() {
               <div className="flex items-start gap-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
                 <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
                 <div className="text-xs text-destructive">
-                  A fila de webhook está interrompida. Isso pode ocorrer quando o Asaas não consegue entregar notificações. Clique em "Reativar fila" para retomar.
+                  A fila de webhook está interrompida. Clique em "Reativar fila" para retomar.
                 </div>
               </div>
             )}
@@ -625,7 +612,6 @@ export default function AsaasIntegrationPage() {
               )}
             </div>
 
-            {/* IPs oficiais */}
             <Collapsible open={ipInfoOpen} onOpenChange={setIpInfoOpen}>
               <CollapsibleTrigger asChild>
                 <button className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full">
@@ -648,7 +634,6 @@ export default function AsaasIntegrationPage() {
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Events log */}
             {events.length > 0 && (
               <div>
                 <Label className="text-xs mb-2 block">Últimas 10 notificações</Label>
@@ -666,20 +651,16 @@ export default function AsaasIntegrationPage() {
                     <tbody>
                       {events.map((ev) => (
                         <tr key={ev.id} className="border-t border-border">
-                          <td className="p-2 text-muted-foreground">
-                            {new Date(ev.created_at).toLocaleString("pt-BR")}
-                          </td>
+                          <td className="p-2 text-muted-foreground">{new Date(ev.created_at).toLocaleString("pt-BR")}</td>
                           <td className="p-2 font-mono">{ev.event_type}</td>
                           <td className="p-2">
                             <Badge variant="outline" className="text-[10px]">{ev.event_category}</Badge>
                           </td>
                           <td className="p-2 text-muted-foreground font-mono">{ev.entity_id || "—"}</td>
                           <td className="p-2 text-right">
-                            {ev.processed ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-revenue inline" />
-                            ) : (
-                              <XCircle className="h-3.5 w-3.5 text-muted-foreground inline" />
-                            )}
+                            {ev.processed
+                              ? <CheckCircle2 className="h-3.5 w-3.5 text-revenue inline" />
+                              : <XCircle className="h-3.5 w-3.5 text-muted-foreground inline" />}
                           </td>
                         </tr>
                       ))}
@@ -691,7 +672,7 @@ export default function AsaasIntegrationPage() {
           </CardContent>
         </Card>
 
-        {/* Seção 3: Eventos com Accordion */}
+        {/* Eventos */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
