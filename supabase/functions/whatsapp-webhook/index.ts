@@ -40,7 +40,6 @@ Deno.serve(async (req) => {
     } else if (message?.extendedTextMessage?.text) {
       textContent = message.extendedTextMessage.text;
     } else if (message?.audioMessage) {
-      // Transcribe audio message
       try {
         await sendWhatsAppMessage(instanceName, remoteJid, "🎙️ _Transcrevendo seu áudio..._");
         const audioBase64 = await getMediaBase64(instanceName, key.id, remoteJid);
@@ -67,7 +66,6 @@ Deno.serve(async (req) => {
         });
       }
     } else if (message?.imageMessage) {
-      // Analyze document image via Gemini Vision
       try {
         await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._");
         const imageBase64 = await getMediaBase64(instanceName, key.id, remoteJid);
@@ -134,13 +132,39 @@ Deno.serve(async (req) => {
 
     const companyId = whatsappConfig.company_id;
     const companyName = (whatsappConfig.companies as any)?.name || "sua empresa";
+    const userId = member.user_id;
 
-    // Run the AI agent
+    // ── Verificar se há pending action para este número ──────────────────────
+    const { data: pendingRecord } = await supabase
+      .from("whatsapp_pending_actions")
+      .select("*")
+      .eq("phone_number", phoneNumber)
+      .eq("company_id", companyId)
+      .gt("expires_at", new Date().toISOString())
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pendingRecord && isConfirmationReply(textContent)) {
+      await executePendingAction({
+        pending: pendingRecord,
+        reply: textContent.trim().toLowerCase(),
+        instanceName,
+        remoteJid,
+        supabase,
+        today: new Date().toISOString().split("T")[0],
+      });
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Rodar o agente financeiro ─────────────────────────────────────────────
     await runFinancialAgent({
       text: textContent,
       companyId,
       companyName,
-      userId: member.user_id,
+      userId,
       instanceName,
       remoteJid,
       phoneNumber,
@@ -160,7 +184,98 @@ Deno.serve(async (req) => {
   }
 });
 
-// ─── AI AGENT ──────────────────────────────────────────────────────────────────
+// ─── PENDING ACTION HELPERS ───────────────────────────────────────────────────
+
+function isConfirmationReply(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  return ["0", "1", "2", "sim", "não", "nao", "pessoal", "empresa", "confirmar", "cancelar", "ok", "cancel"].includes(t);
+}
+
+async function executePendingAction({
+  pending, reply, instanceName, remoteJid, supabase, today,
+}: {
+  pending: any;
+  reply: string;
+  instanceName: string;
+  remoteJid: string;
+  supabase: any;
+  today: string;
+}) {
+  // Deletar o pending independentemente do resultado
+  await supabase.from("whatsapp_pending_actions").delete().eq("id", pending.id);
+
+  if (["0", "cancelar", "cancel", "não", "nao"].includes(reply)) {
+    await sendWhatsAppMessage(instanceName, remoteJid, "✅ Lançamento cancelado.");
+    return;
+  }
+
+  const action = pending.pending_action;
+  const forceSide = ["1", "pessoal"].includes(reply) ? "pf" : ["2", "empresa"].includes(reply) ? "pj" : action.side;
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  if (forceSide === "pf") {
+    await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
+    await sendWhatsAppMessage(instanceName, remoteJid,
+      `✅ *Lançamento Pessoal registrado!*\n\n` +
+      `💰 *Valor:* ${fmt(action.amount)}\n` +
+      `📝 *Descrição:* ${action.description}\n` +
+      `📅 *Data:* ${action.date || today}\n` +
+      `_Registrado no módulo Pessoal (PF)._`
+    );
+  } else {
+    await insertPjTransaction({ supabase, action, companyId: pending.company_id, userId: pending.user_id, today });
+    await sendWhatsAppMessage(instanceName, remoteJid,
+      `✅ *Lançamento Empresarial registrado!*\n\n` +
+      `💰 *Valor:* ${fmt(action.amount)}\n` +
+      `📝 *Descrição:* ${action.description}\n` +
+      `📅 *Data:* ${action.date || today}\n` +
+      `_Registrado no módulo Empresa (PJ)._`
+    );
+  }
+}
+
+// ─── INSERT HELPERS ───────────────────────────────────────────────────────────
+
+async function insertPfTransaction({ supabase, action, userId, today }: {
+  supabase: any; action: any; userId: string; today: string;
+}) {
+  const { error } = await supabase.from("personal_transactions").insert({
+    user_id: userId,
+    title: action.description || "Lançamento via WhatsApp",
+    amount: Math.abs(action.amount),
+    type: action.type === "revenue" ? "receita" : "despesa",
+    date: action.date || today,
+    description: action.description,
+    category_id: action.pf_category_id || null,
+    account_id: action.pf_account_id || null,
+    source: "whatsapp",
+    status: "confirmed",
+  });
+  if (error) console.error("PF transaction insert error:", error);
+  return error;
+}
+
+async function insertPjTransaction({ supabase, action, companyId, userId, today }: {
+  supabase: any; action: any; companyId: string; userId: string; today: string;
+}) {
+  const { error } = await supabase.from("transactions").insert({
+    company_id: companyId,
+    user_id: userId,
+    description: action.description || "Lançamento via WhatsApp",
+    amount: Math.abs(action.amount),
+    type: action.type,
+    date: action.date || today,
+    source: "whatsapp",
+    status: "confirmed",
+    account_id: action.pj_account_id || null,
+    cost_center_id: action.pj_cost_center_id || null,
+    bank_account_id: action.pj_bank_account_id || null,
+  });
+  if (error) console.error("PJ transaction insert error:", error);
+  return error;
+}
+
+// ─── AI AGENT ────────────────────────────────────────────────────────────────
 
 interface AgentContext {
   text: string;
@@ -181,8 +296,14 @@ async function runFinancialAgent(ctx: AgentContext) {
     return;
   }
 
-  // Load company financial context
-  const [accountsRes, centersRes, recentTxRes] = await Promise.all([
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+  const monthName = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  // ── Carregar contexto PJ ──────────────────────────────────────────────────
+  const [accountsRes, centersRes, recentTxRes, bankAccountsRes] = await Promise.all([
     ctx.supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", ctx.companyId),
     ctx.supabase.from("cost_centers").select("id, name, category").eq("company_id", ctx.companyId).eq("active", true),
     ctx.supabase.from("transactions")
@@ -190,24 +311,44 @@ async function runFinancialAgent(ctx: AgentContext) {
       .eq("company_id", ctx.companyId)
       .order("date", { ascending: false })
       .limit(50),
+    ctx.supabase.from("bank_accounts").select("id, name, bank_name").eq("company_id", ctx.companyId).limit(5),
   ]);
 
   const accounts = accountsRes.data || [];
   const centers = centersRes.data || [];
   const recentTx = recentTxRes.data || [];
+  const bankAccounts = bankAccountsRes.data || [];
 
-  // Calculate financial summary
-  const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const today = now.toISOString().split("T")[0];
+  // ── Carregar contexto PF ──────────────────────────────────────────────────
+  const [pfCategoriesRes, pfAccountsRes, pfRecentTxRes] = await Promise.all([
+    ctx.supabase.from("personal_categories")
+      .select("id, name, type")
+      .or(`user_id.eq.${ctx.userId},user_id.is.null`)
+      .order("name"),
+    ctx.supabase.from("personal_accounts")
+      .select("id, name, type, current_balance")
+      .eq("user_id", ctx.userId)
+      .eq("is_active", true),
+    ctx.supabase.from("personal_transactions")
+      .select("type, amount, title, date, personal_categories(name)")
+      .eq("user_id", ctx.userId)
+      .order("date", { ascending: false })
+      .limit(20),
+  ]);
+
+  const pfCategories = pfCategoriesRes.data || [];
+  const pfAccounts = pfAccountsRes.data || [];
+  const pfRecentTx = pfRecentTxRes.data || [];
+  const defaultPfAccount = pfAccounts.find((a: any) => a.name === "Carteira") || pfAccounts[0];
+  const defaultBankAccount = bankAccounts[0];
+
+  // ── Resumo financeiro mensal PJ ───────────────────────────────────────────
   const monthTx = recentTx.filter((t: any) => t.date >= firstDay && t.date <= today);
-
   const revenue = monthTx.filter((t: any) => t.type === "revenue").reduce((s: number, t: any) => s + Number(t.amount), 0);
   const expense = monthTx.filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + Number(t.amount), 0);
   const balance = revenue - expense;
   const margin = revenue > 0 ? ((balance / revenue) * 100).toFixed(1) : "0";
 
-  // Group by account
   const expenseByAccount: Record<string, number> = {};
   const revenueByAccount: Record<string, number> = {};
   for (const t of monthTx) {
@@ -216,121 +357,140 @@ async function runFinancialAgent(ctx: AgentContext) {
     map[name] = (map[name] || 0) + Number(t.amount);
   }
 
-  const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-  const accountsList = accounts.map((a: any) => `${a.code} ${a.name} (${a.type}) [id: ${a.id}]`).join("\n");
-  const centersList = centers.map((c: any) => `${c.name} (${c.category}) [id: ${c.id}]`).join("\n");
+  const accountsList = accounts.map((a: any) => `${a.code} ${a.name} (${a.type}) [id:${a.id}]`).join("\n");
+  const centersList = centers.map((c: any) => `${c.name} (${c.category}) [id:${c.id}]`).join("\n");
+  const bankAccountsList = bankAccounts.map((b: any) => `${b.name} - ${b.bank_name} [id:${b.id}]`).join("\n");
 
   const expenseBreakdown = Object.entries(expenseByAccount).map(([n, v]) => `  • ${n}: ${fmt(v)}`).join("\n");
   const revenueBreakdown = Object.entries(revenueByAccount).map(([n, v]) => `  • ${n}: ${fmt(v)}`).join("\n");
-
   const recentTxList = monthTx.slice(0, 10).map((t: any) =>
-    `${t.date} | ${t.type === "revenue" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.description} | ${t.chart_of_accounts?.name || "-"} | ${t.cost_centers?.name || "-"} | ${t.status}`
+    `${t.date} | ${t.type === "revenue" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.description} | ${t.chart_of_accounts?.name || "-"} | ${t.status}`
   ).join("\n");
 
-  const monthName = now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  // ── Resumo PF ─────────────────────────────────────────────────────────────
+  const pfCategoriesList = pfCategories.map((c: any) => `${c.name} (${c.type}) [id:${c.id}]`).join("\n");
+  const pfAccountsList = pfAccounts.map((a: any) => `${a.name} - Saldo: ${fmt(Number(a.current_balance))} [id:${a.id}]`).join("\n");
+  const pfRecentTxList = pfRecentTx.slice(0, 10).map((t: any) =>
+    `${t.date} | ${t.type === "receita" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.title} | ${(t.personal_categories as any)?.name || "-"}`
+  ).join("\n");
 
   const systemPrompt = `Você é o *CFO Digital*, o assistente financeiro inteligente da empresa *${ctx.companyName}* no WhatsApp.
 
-Você é proativo, organizado e comunica tudo de forma clara e estruturada usando formatação do WhatsApp (*negrito*, _itálico_, ~tachado~).
+Você é proativo, organizado e comunica tudo de forma clara usando formatação WhatsApp (*negrito*, _itálico_).
 
-## Seu papel:
-- Registrar lançamentos financeiros (receitas e despesas)
-- Consultar saldos, resumos e relatórios
-- Gerar DRE (Demonstração do Resultado do Exercício)
-- Gerar *Resumo Executivo Mensal* completo com análises e recomendações
-- Gerar *Previsão de Fluxo de Caixa* dos próximos 3 meses com gráfico visual
-- Dar dicas e análises financeiras
-- Responder qualquer pergunta sobre a saúde financeira da empresa
+## SEU PAPEL PRINCIPAL — SEPARAÇÃO PATRIMONIAL PF/PJ
 
-## Dados da empresa (${monthName}):
-📈 Receita total: ${fmt(revenue)}
-${revenueBreakdown || "  Nenhuma receita registrada"}
-📉 Despesa total: ${fmt(expense)}
-${expenseBreakdown || "  Nenhuma despesa registrada"}
-💰 Saldo: ${fmt(balance)}
-📊 Margem: ${margin}%
+Toda vez que o usuário mencionar um gasto ou receita, você DEVE classificar automaticamente se é:
+- **PJ (Empresa)**: gastos empresariais (fornecedores, funcionários, ferramentas de trabalho, despesas operacionais, clientes)
+- **PF (Pessoal)**: gastos pessoais (supermercado, farmácia, escola, saúde pessoal, lazer, restaurante sem CNPJ, vestuário)
+- **MISTO**: pago com conta empresarial mas gasto é pessoal (ou vice-versa)
 
-## Últimos lançamentos:
-${recentTxList || "Nenhum lançamento recente"}
+### Regras de Classificação:
+PESSOAL (PF): supermercado, mercado, farmácia, escola, academia, restaurante/lanche (uso pessoal), saúde, dentista, roupa, lazer, streaming pessoal, combustível pessoal, seguro do carro pessoal, moradia pessoal, mesada
+EMPRESARIAL (PJ): fornecedor B2B, software de trabalho, funcionários/RH, aluguel comercial, marketing, matéria-prima, contador, advogado PJ, equipamento de trabalho, viagem de negócios, cliente recebimento
+MISTO: "comprei notebook pela empresa para uso pessoal", "paguei mercado no cartão da empresa", "usei dinheiro pessoal para pagar fornecedor"
 
-## Plano de contas disponível:
-${accountsList}
+### Confiança:
+- HIGH: gasto claramente PF ou PJ sem ambiguidade
+- MEDIUM: tem contexto mas pode ser dos dois lados
+- LOW: sem contexto suficiente
 
-## Centros de custo disponíveis:
-${centersList}
+---
 
-## Instruções de comportamento:
+## Dados da Empresa (PJ) — ${monthName}:
+📈 Receita: ${fmt(revenue)}
+${revenueBreakdown || "  Nenhuma receita"}
+📉 Despesas: ${fmt(expense)}
+${expenseBreakdown || "  Nenhuma despesa"}
+💰 Saldo: ${fmt(balance)} | Margem: ${margin}%
 
-### Para lançamentos:
-Quando o usuário enviar algo que parece um lançamento (ex: "paguei 200 de internet", "recebi 5000 do cliente X"):
-1. Identifique: tipo (receita/despesa), valor, descrição
-2. Classifique automaticamente a conta contábil e centro de custo mais adequados
-3. Confirme DETALHADAMENTE o que você está fazendo
-4. Responda no formato JSON na tag <ACTION> para eu processar
+Últimos lançamentos PJ:
+${recentTxList || "Nenhum lançamento"}
 
-Exemplo de resposta para lançamento:
-"✅ *Lançamento registrado!*
+Plano de contas PJ:
+${accountsList || "Nenhuma conta"}
 
-📉 *Tipo:* Despesa
-💰 *Valor:* R$ 200,00
-📝 *Descrição:* Pagamento de internet
-📂 *Conta:* 5.5 Softwares
-🏢 *Centro de custo:* Administrativo
-📅 *Data:* 18/02/2026
-⏳ *Status:* Pendente
+Centros de custo:
+${centersList || "Nenhum centro"}
 
-_Classificado automaticamente pelo CFO Digital._"
+Contas bancárias PJ:
+${bankAccountsList || "Nenhuma conta bancária"}
 
-<ACTION>{"action":"create_transaction","type":"expense","amount":200,"description":"Pagamento de internet","account_id":"xxx","cost_center_id":"yyy"}</ACTION>
+---
+
+## Dados Pessoais (PF):
+Contas pessoais:
+${pfAccountsList || "Nenhuma conta pessoal"}
+
+Categorias PF disponíveis:
+${pfCategoriesList || "Nenhuma categoria"}
+
+Últimos lançamentos PF:
+${pfRecentTxList || "Nenhum lançamento pessoal"}
+
+---
+
+## Como Responder:
+
+### Para lançamentos com ALTA confiança (high):
+Classifique e registre automaticamente. Confirme com detalhes.
+
+Para PJ:
+"✅ *Lançamento Empresarial registrado!*
+💰 *Valor:* R$ X
+📝 *Descrição:* ...
+📂 *Conta:* ... | *Centro:* ...
+📅 *Data:* ...
+_Registrado como gasto da empresa._"
+<ACTION>{"action":"create_pj_transaction","type":"expense","amount":X,"description":"...","pj_account_id":"...","pj_cost_center_id":"...","date":"YYYY-MM-DD"}</ACTION>
+
+Para PF:
+"✅ *Lançamento Pessoal registrado!*
+💰 *Valor:* R$ X
+📝 *Descrição:* ...
+📂 *Categoria:* ...
+📅 *Data:* ...
+_Registrado no módulo Pessoal._"
+<ACTION>{"action":"create_pf_transaction","type":"despesa","amount":X,"description":"...","pf_category_id":"...","pf_account_id":"${defaultPfAccount?.id || ""}","date":"YYYY-MM-DD"}</ACTION>
+
+Para MISTO (pago com conta PJ mas gasto é PF):
+"⚠️ *Atenção patrimonial!*
+Detectei que este gasto é *pessoal* mas pode ter sido pago com conta da empresa.
+Vou registrar como despesa pessoal e criar uma retirada de pró-labore para manter a separação patrimonial.
+💰 *Valor:* R$ X | 📝 *Descrição:* ..."
+<ACTION>{"action":"create_pf_transaction","type":"despesa","amount":X,"description":"...","pf_category_id":"...","pf_account_id":"${defaultPfAccount?.id || ""}","date":"YYYY-MM-DD"}</ACTION>
+<ACTION>{"action":"create_owner_transaction","transaction_type":"retirada","amount":X,"description":"Retirada — gasto pessoal pago pela empresa: ...","pf_account_id":"${defaultPfAccount?.id || ""}","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD"}</ACTION>
+
+### Para lançamentos com confiança MÉDIA ou BAIXA:
+Pergunte antes de lançar.
+"❓ *Preciso de uma confirmação:*
+💰 *Valor:* R$ X
+📝 *Descrição:* ...
+🤔 [Motivo da dúvida]
+Responda:
+*1* → Pessoal (PF)
+*2* → Empresa (PJ)
+*0* → Cancelar"
+<ACTION>{"action":"ask_confirmation","amount":X,"description":"...","type":"expense","pf_category_id":"...","pf_account_id":"${defaultPfAccount?.id || ""}","pj_account_id":"...","pj_cost_center_id":"...","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD","reason":"..."}</ACTION>
 
 ### Para consultas e relatórios:
-Quando perguntarem sobre saldo, gastos, receitas, DRE, resumo financeiro:
-- Responda com os dados reais que você tem acima
-- Organize com emojis e formatação rica
-- Adicione insights e dicas relevantes
+Responda com dados reais. Organize com emojis e formatação.
 
 ### Para DRE:
-Quando pedirem DRE ou demonstração de resultado, monte assim:
-"📊 *DRE — ${monthName}*
-━━━━━━━━━━━━━━━━━━━━━
-📈 *RECEITA BRUTA*
-[detalhar receitas por conta]
-━━━━━━━━━━━━━━━━━━━━━
-📉 *(-) DEDUÇÕES E CUSTOS*
-[detalhar custos código 4.x]
-━━━━━━━━━━━━━━━━━━━━━
-= *LUCRO BRUTO:* R$ X
-━━━━━━━━━━━━━━━━━━━━━
-📉 *(-) DESPESAS OPERACIONAIS*
-[detalhar despesas código 5.x]
-━━━━━━━━━━━━━━━━━━━━━
-💰 *RESULTADO LÍQUIDO:* R$ X
-📊 *Margem líquida:* X%"
-
-E depois adicione <ACTION>{"action":"send_chart"}</ACTION> para eu gerar um gráfico visual.
+Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
 
 ### Para Resumo Executivo:
-Quando o usuário pedir resumo executivo, relatório do mês, resumo mensal, análise do mês, ou algo similar:
-- Responda dizendo que está gerando o resumo
-- Inclua <ACTION>{"action":"send_executive_summary"}</ACTION>
+<ACTION>{"action":"send_executive_summary"}</ACTION>
 
 ### Para Previsão de Fluxo de Caixa:
-Quando o usuário pedir previsão de fluxo de caixa, forecast, projeção, quanto vou faturar, previsão dos próximos meses, ou algo similar:
-- Responda dizendo que está gerando a previsão
-- Inclua <ACTION>{"action":"send_cashflow_forecast"}</ACTION>
-
-### Para conversas gerais:
-- Seja simpático e profissional
-- Se não entender, pergunte de forma educada
-- Sempre ofereça ajuda sobre o que mais pode fazer
+<ACTION>{"action":"send_cashflow_forecast"}</ACTION>
 
 ### Regras:
 - SEMPRE responda em português brasileiro
 - SEMPRE use formatação WhatsApp
-- SEMPRE seja descritivo sobre o que está fazendo
-- Se tiver dúvida sobre a classificação, escolha a mais provável e informe ao usuário
-- Inclua tags <ACTION> APENAS quando precisar executar ações no sistema`;
+- SEMPRE classifique PF ou PJ em lançamentos
+- NÃO misture patrimônio pessoal com empresarial
+- Se a mensagem não for financeira, responda educadamente e ofereça ajuda`;
 
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -360,86 +520,105 @@ Quando o usuário pedir previsão de fluxo de caixa, forecast, projeção, quant
     const result = await response.json();
     const aiResponse = result.choices?.[0]?.message?.content || "";
 
-    // Extract actions from response
+    // Extrair ações
     const actionMatches = aiResponse.matchAll(/<ACTION>(.*?)<\/ACTION>/gs);
     const actions: any[] = [];
     for (const match of actionMatches) {
-      try {
-        actions.push(JSON.parse(match[1]));
-      } catch { /* skip invalid JSON */ }
+      try { actions.push(JSON.parse(match[1])); } catch { /* skip */ }
     }
 
-    // Clean response (remove ACTION tags) for display
+    // Enviar resposta limpa
     const cleanResponse = aiResponse.replace(/<ACTION>.*?<\/ACTION>/gs, "").trim();
-
-    // Send the AI response to WhatsApp
     if (cleanResponse) {
       await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, cleanResponse);
     }
 
-    // Process actions
+    // Processar ações
     for (const action of actions) {
-      if (action.action === "create_transaction") {
-        const { error: txError } = await ctx.supabase
-          .from("transactions")
-          .insert({
-            company_id: ctx.companyId,
-            user_id: ctx.userId,
-            description: action.description || "Lançamento via WhatsApp",
-            amount: action.amount,
-            type: action.type,
-            date: action.date || today,
-            source: "whatsapp",
-            status: "confirmed",
-            account_id: action.account_id || null,
-            cost_center_id: action.cost_center_id || null,
-          });
-
-        if (txError) {
-          console.error("Transaction insert error:", txError);
+      if (action.action === "create_pj_transaction") {
+        const err = await insertPjTransaction({
+          supabase: ctx.supabase, action,
+          companyId: ctx.companyId, userId: ctx.userId, today,
+        });
+        if (err) {
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-            `⚠️ O lançamento foi classificado mas houve um erro ao salvar: ${txError.message}`
+            `⚠️ Classificado mas erro ao salvar PJ: ${err.message}`
           );
         }
+
+      } else if (action.action === "create_pf_transaction") {
+        const err = await insertPfTransaction({
+          supabase: ctx.supabase, action, userId: ctx.userId, today,
+        });
+        if (err) {
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
+            `⚠️ Classificado mas erro ao salvar PF: ${err.message}`
+          );
+        }
+
+      } else if (action.action === "create_owner_transaction") {
+        // Chama a edge function owner-transactions para operação atômica PF↔PJ
+        const { error: ownerErr } = await ctx.supabase.functions.invoke("owner-transactions", {
+          body: {
+            transaction_type: action.transaction_type || "retirada",
+            amount: Math.abs(action.amount),
+            date: action.date || today,
+            description: action.description,
+            pf_account_id: action.pf_account_id || null,
+            pj_bank_account_id: action.pj_bank_account_id || null,
+            user_id: ctx.userId,
+            company_id: ctx.companyId,
+          },
+        });
+        if (ownerErr) {
+          console.error("Owner transaction error:", ownerErr);
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
+            `⚠️ Lançamento PF criado, mas erro ao criar a retirada: ${ownerErr.message}`
+          );
+        }
+
+      } else if (action.action === "ask_confirmation") {
+        // Salvar pending action e enviar pergunta
+        await ctx.supabase.from("whatsapp_pending_actions").delete()
+          .eq("phone_number", ctx.phoneNumber)
+          .eq("company_id", ctx.companyId);
+
+        await ctx.supabase.from("whatsapp_pending_actions").insert({
+          company_id: ctx.companyId,
+          user_id: ctx.userId,
+          phone_number: ctx.phoneNumber,
+          instance_name: ctx.instanceName,
+          pending_action: action,
+        });
+
       } else if (action.action === "send_chart") {
         try {
-          const chartData = {
-            revenue, expense, balance,
-            expenseByAccount, revenueByAccount,
-            month: monthName,
-          };
+          const chartData = { revenue, expense, balance, expenseByAccount, revenueByAccount, month: monthName };
           const imageBase64 = await generateFinancialChart(chartData, lovableApiKey);
           if (imageBase64) {
             await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, `📊 Dashboard Financeiro — ${monthName}`);
           }
-        } catch (chartErr) {
-          console.error("Chart generation error:", chartErr);
-        }
+        } catch (chartErr) { console.error("Chart generation error:", chartErr); }
+
       } else if (action.action === "send_executive_summary") {
         try {
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📝 _Gerando seu resumo executivo... aguarde._");
           const summaryText = await generateExecutiveSummary(ctx.companyId, ctx.supabase, lovableApiKey);
           if (summaryText) {
-            // Split long messages (WhatsApp limit ~4096 chars)
-            const chunks = splitMessage(summaryText, 3800);
-            for (const chunk of chunks) {
+            for (const chunk of splitMessage(summaryText, 3800)) {
               await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, chunk);
             }
           } else {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar o resumo executivo. Tente novamente.");
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar o resumo executivo.");
           }
-        } catch (err) {
-          console.error("Executive summary error:", err);
-          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "❌ Erro ao gerar resumo executivo.");
-        }
+        } catch (err) { console.error("Executive summary error:", err); }
+
       } else if (action.action === "send_cashflow_forecast") {
         try {
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📊 _Analisando dados e gerando previsão de fluxo de caixa..._");
           const forecastResult = await generateCashFlowForecast(ctx.companyId, ctx.supabase, lovableApiKey);
           if (forecastResult) {
-            // Send text summary
             await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, forecastResult.text);
-            // Generate and send visual chart
             if (forecastResult.chartData) {
               const imageBase64 = await generateForecastChart(forecastResult.chartData, lovableApiKey);
               if (imageBase64) {
@@ -447,16 +626,13 @@ Quando o usuário pedir previsão de fluxo de caixa, forecast, projeção, quant
               }
             }
           } else {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar a previsão. Tente novamente.");
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar a previsão.");
           }
-        } catch (err) {
-          console.error("Cashflow forecast error:", err);
-          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "❌ Erro ao gerar previsão de fluxo de caixa.");
-        }
+        } catch (err) { console.error("Cashflow forecast error:", err); }
       }
     }
 
-    // Log the interaction
+    // Log da interação
     await ctx.supabase.from("whatsapp_messages").insert({
       company_id: ctx.companyId,
       config_id: ctx.configId,
@@ -476,7 +652,7 @@ Quando o usuário pedir previsão de fluxo de caixa, forecast, projeção, quant
   }
 }
 
-// ─── AUDIO PROCESSING ──────────────────────────────────────────────────────────
+// ─── AUDIO PROCESSING ─────────────────────────────────────────────────────────
 
 async function getMediaBase64(instanceName: string, messageId: string, remoteJid: string): Promise<string | null> {
   const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
@@ -489,10 +665,7 @@ async function getMediaBase64(instanceName: string, messageId: string, remoteJid
       headers: { "Content-Type": "application/json", apikey: evolutionKey },
       body: JSON.stringify({ message: { key: { remoteJid, id: messageId } }, convertToMp4: false }),
     });
-    if (!res.ok) {
-      console.error(`Evolution getBase64 failed [${res.status}]:`, await res.text());
-      return null;
-    }
+    if (!res.ok) { console.error(`Evolution getBase64 failed [${res.status}]:`, await res.text()); return null; }
     const data = await res.json();
     return data?.base64 || null;
   } catch (err) { console.error("Error getting media base64:", err); return null; }
@@ -503,7 +676,6 @@ async function transcribeAudio(audioBase64: string, mimetype: string): Promise<s
   if (!lovableApiKey) return null;
 
   try {
-    const dataUri = `data:${mimetype};base64,${audioBase64}`;
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableApiKey}` },
@@ -519,18 +691,13 @@ async function transcribeAudio(audioBase64: string, mimetype: string): Promise<s
         temperature: 0.1,
       }),
     });
-
-    if (!res.ok) {
-      console.error("Transcription AI error:", res.status, await res.text());
-      return null;
-    }
-
+    if (!res.ok) { console.error("Transcription AI error:", res.status, await res.text()); return null; }
     const result = await res.json();
     return result.choices?.[0]?.message?.content?.trim() || null;
   } catch (err) { console.error("Transcription error:", err); return null; }
 }
 
-// ─── IMAGE ANALYSIS ──────────────────────────────────────────────────────────
+// ─── IMAGE ANALYSIS ───────────────────────────────────────────────────────────
 
 async function analyzeDocumentImage(imageBase64: string, mimetype: string): Promise<string | null> {
   const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
@@ -557,18 +724,13 @@ Se não for um documento financeiro, descreva o que vê na imagem.` },
         temperature: 0.1,
       }),
     });
-
-    if (!res.ok) {
-      console.error("Image analysis AI error:", res.status, await res.text());
-      return null;
-    }
-
+    if (!res.ok) { console.error("Image analysis AI error:", res.status, await res.text()); return null; }
     const result = await res.json();
     return result.choices?.[0]?.message?.content?.trim() || null;
   } catch (err) { console.error("Image analysis error:", err); return null; }
 }
 
-// ─── EVOLUTION API HELPERS ─────────────────────────────────────────────────────
+// ─── EVOLUTION API HELPERS ────────────────────────────────────────────────────
 
 async function sendWhatsAppMessage(instanceName: string, remoteJid: string, text: string) {
   const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
@@ -600,7 +762,7 @@ async function sendWhatsAppImage(instanceName: string, remoteJid: string, base64
   } catch (err) { console.error("Error sending WhatsApp image:", err); }
 }
 
-// ─── CHART GENERATION ──────────────────────────────────────────────────────────
+// ─── CHART & REPORT GENERATION ───────────────────────────────────────────────
 
 function splitMessage(text: string, maxLen: number): string[] {
   if (text.length <= maxLen) return [text];
@@ -662,7 +824,7 @@ Mês anterior (${prevMonthName}): Receita ${fmt(prevRevenue)}, Despesas ${fmt(pr
 Formate para WhatsApp usando *negrito*, _itálico_, emojis. Inclua:
 1. Visão geral do mês
 2. Destaques positivos
-3. Pontos de atenção  
+3. Pontos de atenção
 4. Comparativo vs mês anterior com %
 5. 3 recomendações práticas
 Seja direto e profissional.`;
@@ -732,9 +894,7 @@ async function generateCashFlowForecast(companyId: string, supabase: any, apiKey
     }
     text += `⚠️ *Nível de Risco:* ${riskLabel}\n${forecast.risk_explanation || ""}\n\n`;
     text += `💡 *Insights:*\n`;
-    for (const ins of forecast.insights || []) {
-      text += `• ${ins}\n`;
-    }
+    for (const ins of forecast.insights || []) text += `• ${ins}\n`;
 
     return { text, chartData: { history: monthlyData, forecast: forecast.forecast, monthNames } };
   } catch (err) { console.error("Forecast generation error:", err); return null; }
@@ -756,17 +916,11 @@ async function generateForecastChart(chartData: any, apiKey: string): Promise<st
   ).join("\n");
 
   const prompt = `Create a clean, professional cash flow forecast chart image in Portuguese (Brazil) with dark background (#1a1a2e).
-
 Title: "Previsão de Fluxo de Caixa — Próximos 3 Meses"
-
 Show a bar chart with:
-1. Historical months (solid bars):
-${historyLines || "No historical data"}
-
-2. Projected months (semi-transparent/striped bars):
-${forecastLines || "No forecast data"}
-
-Use green (#10b981) for revenue, red (#ef4444) for expenses. Projected bars should be slightly transparent or have a dashed border.
+1. Historical months (solid bars): ${historyLines || "No historical data"}
+2. Projected months (semi-transparent bars): ${forecastLines || "No forecast data"}
+Use green (#10b981) for revenue, red (#ef4444) for expenses.
 Add a trend line showing the net balance.
 Style: Modern fintech, 16:9 landscape, rounded corners, clean typography. No watermarks.`;
 
@@ -791,16 +945,13 @@ async function generateFinancialChart(chartData: any, lovableApiKey: string): Pr
   const revenueLines = Object.entries(chartData.revenueByAccount).map(([n, v]) => `${n}: ${fmt(v as number)}`).join(", ");
 
   const prompt = `Create a clean, professional financial dashboard chart image in Portuguese (Brazil) with a dark background (#1a1a2e) and vibrant colors.
-
 Title: "Resumo Financeiro — ${chartData.month}"
-
-Show these elements:
-1. A horizontal bar chart comparing Receitas (green #10b981, total ${fmt(chartData.revenue)}) vs Despesas (red #ef4444, total ${fmt(chartData.expense)})
-2. A donut/pie chart showing expense breakdown: ${expenseLines || "Sem dados"}
-3. A large KPI card showing "Saldo: ${fmt(chartData.balance)}" in ${chartData.balance >= 0 ? "green" : "red"}
+Show:
+1. Horizontal bar chart: Receitas (green #10b981, total ${fmt(chartData.revenue)}) vs Despesas (red #ef4444, total ${fmt(chartData.expense)})
+2. Donut chart expense breakdown: ${expenseLines || "Sem dados"}
+3. KPI card "Saldo: ${fmt(chartData.balance)}" in ${chartData.balance >= 0 ? "green" : "red"}
 4. Revenue breakdown: ${revenueLines || "Sem dados"}
-
-Style: Modern fintech dashboard, rounded corners, subtle gradients, clean typography. Size: landscape 16:9 ratio. No watermarks.`;
+Style: Modern fintech dashboard, rounded corners, subtle gradients, clean typography. 16:9 ratio. No watermarks.`;
 
   try {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -808,13 +959,10 @@ Style: Modern fintech dashboard, rounded corners, subtle gradients, clean typogr
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableApiKey}` },
       body: JSON.stringify({ model: "google/gemini-2.5-flash-image", messages: [{ role: "user", content: prompt }], modalities: ["image", "text"] }),
     });
-
     if (!res.ok) { console.error("Chart AI error:", res.status, await res.text()); return null; }
-
     const result = await res.json();
     const imageUrl = result.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     if (!imageUrl) { console.error("No image returned from AI"); return null; }
-
     return imageUrl.replace(/^data:image\/\w+;base64,/, "");
   } catch (err) { console.error("Chart generation error:", err); return null; }
 }
