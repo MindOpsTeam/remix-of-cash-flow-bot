@@ -170,6 +170,8 @@ export interface AsaasIntegrationBaseProps {
   backLink: string;
   title: string;
   securityIsolationLabel: string;
+  description?: string;
+  emailPlaceholder?: string;
 }
 
 export function AsaasIntegrationBase({
