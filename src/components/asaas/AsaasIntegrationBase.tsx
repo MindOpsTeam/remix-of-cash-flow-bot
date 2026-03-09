@@ -535,7 +535,7 @@ export function AsaasIntegrationBase({
                   type="email"
                   value={notificationEmail}
                   onChange={(e) => setNotificationEmail(e.target.value)}
-                  placeholder="alertas@suaempresa.com"
+                  placeholder={emailPlaceholder}
                 />
               </div>
               <div>
