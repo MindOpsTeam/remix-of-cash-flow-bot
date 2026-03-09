@@ -187,7 +187,7 @@ export function AsaasIntegrationBase({
   description = "Configure sua conta Asaas para sincronizar cobranças, assinaturas e transferências",
   emailPlaceholder = "alertas@email.com",
 }: AsaasIntegrationBaseProps) {
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+  const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string)?.replace(/\/$/, "");
 
   const [config, setConfig] = useState<AsaasConfig | null>(null);
   const [events, setEvents] = useState<WebhookEvent[]>([]);
@@ -347,7 +347,7 @@ export function AsaasIntegrationBase({
   const generateToken = () => setWebhookAuthToken(crypto.randomUUID());
 
   const copyWebhookUrl = () => {
-    const url = `https://${projectId}.supabase.co/functions/v1/${webhookFunction}`;
+    const url = `${supabaseUrl}/functions/v1/${webhookFunction}`;
     navigator.clipboard.writeText(url);
     toast.success("URL copiada!");
   };
@@ -585,7 +585,7 @@ export function AsaasIntegrationBase({
               <div className="flex gap-2">
                 <Input
                   readOnly
-                  value={`https://${projectId}.supabase.co/functions/v1/${webhookFunction}`}
+                  value={`${supabaseUrl}/functions/v1/${webhookFunction}`}
                   className="font-mono text-xs"
                 />
                 <Button variant="outline" size="icon" onClick={copyWebhookUrl} aria-label="Copiar URL do webhook">
