@@ -184,6 +184,8 @@ export function AsaasIntegrationBase({
   backLink,
   title,
   securityIsolationLabel,
+  description = "Configure sua conta Asaas para sincronizar cobranças, assinaturas e transferências",
+  emailPlaceholder = "alertas@email.com",
 }: AsaasIntegrationBaseProps) {
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
