@@ -170,6 +170,8 @@ export interface AsaasIntegrationBaseProps {
   backLink: string;
   title: string;
   securityIsolationLabel: string;
+  description?: string;
+  emailPlaceholder?: string;
 }
 
 export function AsaasIntegrationBase({
@@ -182,6 +184,8 @@ export function AsaasIntegrationBase({
   backLink,
   title,
   securityIsolationLabel,
+  description = "Configure sua conta Asaas para sincronizar cobranças, assinaturas e transferências",
+  emailPlaceholder = "alertas@email.com",
 }: AsaasIntegrationBaseProps) {
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 
@@ -408,7 +412,7 @@ export function AsaasIntegrationBase({
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">{title}</h1>
-              <p className="text-sm text-muted-foreground">Configure sua conta Asaas para sincronizar cobranças, assinaturas e transferências</p>
+              <p className="text-sm text-muted-foreground">{description}</p>
             </div>
           </div>
           <Badge variant={connStatus.variant} className={connStatus.color}>
@@ -531,7 +535,7 @@ export function AsaasIntegrationBase({
                   type="email"
                   value={notificationEmail}
                   onChange={(e) => setNotificationEmail(e.target.value)}
-                  placeholder="alertas@suaempresa.com"
+                  placeholder={emailPlaceholder}
                 />
               </div>
               <div>

@@ -15,6 +15,8 @@ export default function AsaasIntegrationPJ() {
       backLink="/settings/integrations"
       title="Integração Asaas — Empresa"
       securityIsolationLabel="empresa"
+      description="Sincronize cobranças, transferências e notas fiscais da conta empresarial Asaas"
+      emailPlaceholder="alertas@suaempresa.com"
     />
   );
 }

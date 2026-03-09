@@ -15,6 +15,8 @@ export default function AsaasIntegrationPF() {
       backLink="/personal/settings/integrations"
       title="Integração Asaas — Pessoal"
       securityIsolationLabel="usuário"
+      description="Sincronize cobranças, transferências e pagamentos da sua conta pessoal Asaas"
+      emailPlaceholder="seuemail@pessoal.com"
     />
   );
 }
