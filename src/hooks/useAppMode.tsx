@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -22,6 +23,7 @@ const AppModeContext = createContext<AppModeContextType>({
 export function AppModeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [mode, setModeState] = useState<AppMode>(() => {
     return (localStorage.getItem("app_mode") as AppMode) || "business";
   });
@@ -51,6 +53,14 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
       queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
+
+      // Navigate to the correct dashboard for the new mode
+      if (newMode === "personal") {
+        navigate("/personal");
+      } else {
+        navigate("/dashboard");
+      }
+
       if (user) {
         supabase
           .from("user_preferences")
@@ -60,7 +70,7 @@ export function AppModeProvider({ children }: { children: ReactNode }) {
           });
       }
     },
-    [user, queryClient]
+    [user, queryClient, navigate]
   );
 
   return (

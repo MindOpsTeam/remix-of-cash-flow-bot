@@ -8,6 +8,7 @@ import { CompanyProvider } from "@/hooks/useCompany";
 import { AppModeProvider } from "@/hooks/useAppMode";
 import { lazy, Suspense, ReactNode } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { BusinessRoute, PersonalRoute } from "@/components/ModeRoute";
 
 // Eagerly loaded (used on first render / small)
 import Auth from "./pages/Auth";
@@ -78,41 +79,46 @@ const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route path="/" element={<PublicRoute><Auth /></PublicRoute>} />
-      {/* Business routes */}
-      <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-      <Route path="/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
-      <Route path="/transfers" element={<ProtectedRoute><CompanyTransfers /></ProtectedRoute>} />
-      <Route path="/bills" element={<ProtectedRoute><CompanyBills /></ProtectedRoute>} />
+
+      {/* Business routes — guarded by BusinessRoute */}
+      <Route path="/dashboard" element={<ProtectedRoute><BusinessRoute><Index /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/transactions" element={<ProtectedRoute><BusinessRoute><Transactions /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/transfers" element={<ProtectedRoute><BusinessRoute><CompanyTransfers /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/bills" element={<ProtectedRoute><BusinessRoute><CompanyBills /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/dre" element={<ProtectedRoute><BusinessRoute><DRE /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/reports" element={<ProtectedRoute><BusinessRoute><Reports /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/cfo-digital" element={<ProtectedRoute><BusinessRoute><CFODigital /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/forecast" element={<ProtectedRoute><BusinessRoute><CashFlowForecast /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/summary" element={<ProtectedRoute><BusinessRoute><ExecutiveSummary /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/simulator" element={<ProtectedRoute><BusinessRoute><Simulator /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><BusinessRoute><SettingsPage /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings/chart-of-accounts" element={<ProtectedRoute><BusinessRoute><ChartOfAccountsPage /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings/cost-centers" element={<ProtectedRoute><BusinessRoute><CostCentersPage /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings/integrations" element={<ProtectedRoute><BusinessRoute><IntegrationsPage /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings/integrations/asaas" element={<ProtectedRoute><BusinessRoute><AsaasIntegrationPJ /></BusinessRoute></ProtectedRoute>} />
+
+      {/* Shared routes (accessible from both modes) */}
       <Route path="/documents" element={<ProtectedRoute><DocumentScanner /></ProtectedRoute>} />
       <Route path="/owner-transactions" element={<ProtectedRoute><OwnerTransactions /></ProtectedRoute>} />
-      <Route path="/dre" element={<ProtectedRoute><DRE /></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
       <Route path="/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
-      <Route path="/cfo-digital" element={<ProtectedRoute><CFODigital /></ProtectedRoute>} />
-      <Route path="/forecast" element={<ProtectedRoute><CashFlowForecast /></ProtectedRoute>} />
-      <Route path="/summary" element={<ProtectedRoute><ExecutiveSummary /></ProtectedRoute>} />
-      <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-      <Route path="/settings/chart-of-accounts" element={<ProtectedRoute><ChartOfAccountsPage /></ProtectedRoute>} />
-      <Route path="/settings/cost-centers" element={<ProtectedRoute><CostCentersPage /></ProtectedRoute>} />
-      <Route path="/settings/integrations" element={<ProtectedRoute><IntegrationsPage /></ProtectedRoute>} />
-      <Route path="/settings/integrations/asaas" element={<ProtectedRoute><AsaasIntegrationPJ /></ProtectedRoute>} />
-      {/* Personal routes */}
-      <Route path="/personal" element={<ProtectedRoute><PersonalDashboard /></ProtectedRoute>} />
-      <Route path="/personal/transactions" element={<ProtectedRoute><PersonalTransactions /></ProtectedRoute>} />
-      <Route path="/personal/transfers" element={<ProtectedRoute><PersonalTransfers /></ProtectedRoute>} />
-      <Route path="/personal/bills" element={<ProtectedRoute><PersonalBills /></ProtectedRoute>} />
-      <Route path="/personal/accounts" element={<ProtectedRoute><PersonalAccounts /></ProtectedRoute>} />
-      <Route path="/personal/forecast" element={<ProtectedRoute><PersonalForecast /></ProtectedRoute>} />
-      <Route path="/personal/summary" element={<ProtectedRoute><PersonalSummary /></ProtectedRoute>} />
-      <Route path="/personal/reports" element={<ProtectedRoute><PersonalReports /></ProtectedRoute>} />
-      <Route path="/personal/categories" element={<ProtectedRoute><PersonalCategories /></ProtectedRoute>} />
-      <Route path="/personal/settings" element={<ProtectedRoute><PersonalSettings /></ProtectedRoute>} />
-      <Route path="/personal/settings/integrations" element={<ProtectedRoute><PersonalIntegrations /></ProtectedRoute>} />
-      <Route path="/personal/budgets" element={<ProtectedRoute><PersonalBudgets /></ProtectedRoute>} />
-      <Route path="/personal/goals" element={<ProtectedRoute><PersonalGoals /></ProtectedRoute>} />
-      <Route path="/personal/credit-cards" element={<ProtectedRoute><PersonalCreditCards /></ProtectedRoute>} />
-      <Route path="/personal/settings/integrations/asaas" element={<ProtectedRoute><AsaasIntegrationPF /></ProtectedRoute>} />
+
+      {/* Personal routes — guarded by PersonalRoute */}
+      <Route path="/personal" element={<ProtectedRoute><PersonalRoute><PersonalDashboard /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/transactions" element={<ProtectedRoute><PersonalRoute><PersonalTransactions /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/transfers" element={<ProtectedRoute><PersonalRoute><PersonalTransfers /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/bills" element={<ProtectedRoute><PersonalRoute><PersonalBills /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/accounts" element={<ProtectedRoute><PersonalRoute><PersonalAccounts /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/forecast" element={<ProtectedRoute><PersonalRoute><PersonalForecast /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/summary" element={<ProtectedRoute><PersonalRoute><PersonalSummary /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/reports" element={<ProtectedRoute><PersonalRoute><PersonalReports /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/categories" element={<ProtectedRoute><PersonalRoute><PersonalCategories /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/settings" element={<ProtectedRoute><PersonalRoute><PersonalSettings /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/settings/integrations" element={<ProtectedRoute><PersonalRoute><PersonalIntegrations /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/settings/integrations/asaas" element={<ProtectedRoute><PersonalRoute><AsaasIntegrationPF /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/budgets" element={<ProtectedRoute><PersonalRoute><PersonalBudgets /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/goals" element={<ProtectedRoute><PersonalRoute><PersonalGoals /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/credit-cards" element={<ProtectedRoute><PersonalRoute><PersonalCreditCards /></PersonalRoute></ProtectedRoute>} />
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   </Suspense>
