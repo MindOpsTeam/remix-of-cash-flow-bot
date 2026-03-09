@@ -412,7 +412,7 @@ export function AsaasIntegrationBase({
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">{title}</h1>
-              <p className="text-sm text-muted-foreground">Configure sua conta Asaas para sincronizar cobranças, assinaturas e transferências</p>
+              <p className="text-sm text-muted-foreground">{description}</p>
             </div>
           </div>
           <Badge variant={connStatus.variant} className={connStatus.color}>
