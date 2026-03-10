@@ -228,7 +228,7 @@ function isConfirmationReply(text: string): boolean {
 }
 
 async function executePendingAction({
-  pending, reply, instanceName, remoteJid, supabase, today,
+  pending, reply, instanceName, remoteJid, supabase, today, evolutionUrl, evolutionKey,
 }: {
   pending: any;
   reply: string;
@@ -236,6 +236,8 @@ async function executePendingAction({
   remoteJid: string;
   supabase: any;
   today: string;
+  evolutionUrl: string | undefined;
+  evolutionKey: string | undefined;
 }) {
   // Deletar o pending independentemente do resultado
   await supabase.from("whatsapp_pending_actions").delete().eq("id", pending.id);
