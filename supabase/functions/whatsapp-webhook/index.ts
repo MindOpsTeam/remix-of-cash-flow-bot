@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
         await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._", evolutionUrl, evolutionKey);
         const imageBase64 = await getMediaBase64(instanceName, messageId, remoteJid, evolutionUrl, evolutionKey);
         if (!imageBase64) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.");
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "image-download-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
