@@ -89,7 +89,6 @@ const businessNav: NavEntry[] = [
       { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
     ],
   },
-  { to: "/settings", label: "Configurações", icon: Settings },
 ];
 
 const personalNav: NavEntry[] = [
@@ -127,25 +126,29 @@ const personalNav: NavEntry[] = [
       { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
     ],
   },
-  {
-    key: "config",
-    label: "Configurações",
-    icon: Settings,
-    items: [
-      { to: "/personal/accounts", label: "Contas", icon: Wallet },
-      { to: "/personal/categories", label: "Categorias", icon: Tag },
-      { to: "/personal/settings", label: "Geral", icon: Settings },
-    ],
-  },
 ];
+
+const personalSettingsGroup: NavGroup = {
+  key: "config",
+  label: "Configurações",
+  icon: Settings,
+  items: [
+    { to: "/personal/accounts", label: "Contas", icon: Wallet },
+    { to: "/personal/categories", label: "Categorias", icon: Tag },
+    { to: "/personal/settings", label: "Geral", icon: Settings },
+  ],
+};
 
 // ---------- Helpers ----------
 
-function getActiveGroup(nav: NavEntry[], pathname: string): string | null {
+function getActiveGroup(nav: NavEntry[], pathname: string, extra?: NavGroup): string | null {
   for (const entry of nav) {
     if (isGroup(entry) && entry.items.some((i) => pathname === i.to)) {
       return entry.key;
     }
+  }
+  if (extra && extra.items.some((i) => pathname === i.to)) {
+    return extra.key;
   }
   return null;
 }
@@ -242,15 +245,17 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   const nav = isPersonal ? personalNav : businessNav;
 
+  const extraGroup = isPersonal ? personalSettingsGroup : undefined;
+
   // Track which groups are open
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
-    const active = getActiveGroup(nav, location.pathname);
+    const active = getActiveGroup(nav, location.pathname, extraGroup);
     return new Set(active ? [active] : []);
   });
 
   // Auto-open group when route changes
   useEffect(() => {
-    const active = getActiveGroup(nav, location.pathname);
+    const active = getActiveGroup(nav, location.pathname, extraGroup);
     if (active && !openGroups.has(active)) {
       setOpenGroups((prev) => new Set([...prev, active]));
     }
@@ -329,8 +334,28 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         )}
       </nav>
 
+      {/* Settings — fixed at bottom */}
+      <div className="mx-4 mt-2 h-px bg-sidebar-border" />
+      <div className="px-3 py-2">
+        {isPersonal ? (
+          <NavGroupSection
+            group={personalSettingsGroup}
+            pathname={location.pathname}
+            isOpen={openGroups.has("config")}
+            onToggle={() => toggleGroup("config")}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          <NavLink
+            item={{ to: "/settings", label: "Configurações", icon: Settings }}
+            isActive={location.pathname.startsWith("/settings")}
+            onClick={onNavigate}
+          />
+        )}
+      </div>
+
       {/* Separator */}
-      <div className="mx-4 my-2 h-px bg-sidebar-border" />
+      <div className="mx-4 mb-2 h-px bg-sidebar-border" />
 
       {/* Logout */}
       <div className="px-3 mb-2">

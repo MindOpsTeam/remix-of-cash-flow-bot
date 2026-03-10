@@ -1,9 +1,57 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Webhook } from "lucide-react";
+import { Webhook, Wallet, Tag, MessageSquare, SlidersHorizontal, PiggyBank, Target } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
-  { icon: Webhook, title: "Integrações", description: "Conecte com plataformas externas como Asaas", to: "/personal/settings/integrations" },
+  {
+    icon: Wallet,
+    title: "Contas",
+    description: "Gerenciar contas bancárias, carteiras e cartões pessoais",
+    to: "/personal/accounts",
+    available: true,
+  },
+  {
+    icon: Tag,
+    title: "Categorias",
+    description: "Personalizar categorias de receitas e despesas",
+    to: "/personal/categories",
+    available: true,
+  },
+  {
+    icon: PiggyBank,
+    title: "Orçamentos",
+    description: "Definir limites de gastos por categoria",
+    to: "/personal/budgets",
+    available: true,
+  },
+  {
+    icon: Target,
+    title: "Metas",
+    description: "Acompanhar objetivos financeiros de longo prazo",
+    to: "/personal/goals",
+    available: true,
+  },
+  {
+    icon: Webhook,
+    title: "Integrações",
+    description: "Conecte com plataformas externas como Asaas",
+    to: "/personal/settings/integrations",
+    available: true,
+  },
+  {
+    icon: MessageSquare,
+    title: "Agente WhatsApp",
+    description: "Registrar gastos e receitas pelo WhatsApp",
+    to: "/whatsapp",
+    available: true,
+  },
+  {
+    icon: SlidersHorizontal,
+    title: "Preferências",
+    description: "Conta padrão, método de orçamento e notificações",
+    to: "/personal/settings/preferences",
+    available: true,
+  },
 ];
 
 export default function PersonalSettings() {
@@ -16,9 +64,14 @@ export default function PersonalSettings() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
         {sections.map((s) => (
-          <Link key={s.title} to={s.to}>
-            <div className="bg-card border border-border rounded-lg p-5 cursor-pointer hover:bg-accent/40 transition-colors">
-              <s.icon className="h-5 w-5 text-primary mb-3" />
+          <Link key={s.title} to={s.available ? s.to : "#"}>
+            <div className={`bg-card border border-border rounded-lg p-5 transition-colors ${s.available ? "cursor-pointer hover:bg-accent/40" : "opacity-50 cursor-not-allowed"}`}>
+              <div className="flex items-start justify-between mb-3">
+                <s.icon className="h-5 w-5 text-primary" />
+                {!s.available && (
+                  <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Em breve</span>
+                )}
+              </div>
               <h3 className="text-sm font-semibold text-foreground mb-1">{s.title}</h3>
               <p className="text-xs text-muted-foreground">{s.description}</p>
             </div>

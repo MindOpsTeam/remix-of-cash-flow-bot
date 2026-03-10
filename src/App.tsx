@@ -29,6 +29,8 @@ const ChartOfAccountsPage = lazy(() => import("./pages/settings/ChartOfAccounts"
 const CostCentersPage = lazy(() => import("./pages/settings/CostCenters"));
 const IntegrationsPage = lazy(() => import("./pages/settings/Integrations"));
 const AsaasIntegrationPJ = lazy(() => import("./pages/settings/AsaasIntegrationPJ"));
+const PreferencesPage = lazy(() => import("./pages/settings/Preferences"));
+const PersonalPreferences = lazy(() => import("./pages/personal/PersonalPreferences"));
 const AsaasIntegrationPF = lazy(() => import("./pages/personal/AsaasIntegrationPF"));
 const PersonalDashboard = lazy(() => import("./pages/personal/PersonalDashboard"));
 const PersonalTransactions = lazy(() => import("./pages/personal/PersonalTransactions"));
@@ -96,6 +98,7 @@ const AppRoutes = () => (
       <Route path="/settings/cost-centers" element={<ProtectedRoute><BusinessRoute><CostCentersPage /></BusinessRoute></ProtectedRoute>} />
       <Route path="/settings/integrations" element={<ProtectedRoute><BusinessRoute><IntegrationsPage /></BusinessRoute></ProtectedRoute>} />
       <Route path="/settings/integrations/asaas" element={<ProtectedRoute><BusinessRoute><AsaasIntegrationPJ /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings/preferences" element={<ProtectedRoute><BusinessRoute><PreferencesPage /></BusinessRoute></ProtectedRoute>} />
 
       {/* Shared routes (accessible from both modes) */}
       <Route path="/documents" element={<ProtectedRoute><DocumentScanner /></ProtectedRoute>} />
@@ -115,6 +118,7 @@ const AppRoutes = () => (
       <Route path="/personal/settings" element={<ProtectedRoute><PersonalRoute><PersonalSettings /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/settings/integrations" element={<ProtectedRoute><PersonalRoute><PersonalIntegrations /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/settings/integrations/asaas" element={<ProtectedRoute><PersonalRoute><AsaasIntegrationPF /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/settings/preferences" element={<ProtectedRoute><PersonalRoute><PersonalPreferences /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/budgets" element={<ProtectedRoute><PersonalRoute><PersonalBudgets /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/goals" element={<ProtectedRoute><PersonalRoute><PersonalGoals /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/credit-cards" element={<ProtectedRoute><PersonalRoute><PersonalCreditCards /></PersonalRoute></ProtectedRoute>} />
