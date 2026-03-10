@@ -90,6 +90,7 @@ const businessNav: NavEntry[] = [
       { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
     ],
   },
+  { to: "/settings/integrations", label: "Integrações", icon: Plug },
 ];
 
 const personalNav: NavEntry[] = [
