@@ -665,7 +665,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
         if (ownerErr) {
           console.error("Owner transaction error:", ownerErr);
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-            `⚠️ Lançamento PF criado, mas erro ao criar a retirada: ${ownerErr.message}`
+            `⚠️ Lançamento PF criado, mas erro ao criar a retirada: ${ownerErr.message}`, ctx.evolutionUrl, ctx.evolutionKey
           );
         }
 
