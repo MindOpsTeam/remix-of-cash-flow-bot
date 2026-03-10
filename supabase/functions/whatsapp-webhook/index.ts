@@ -30,9 +30,64 @@ Deno.serve(async (req) => {
       });
     }
 
-    const remoteJid = key?.remoteJid;
-    const phoneNumber = remoteJid?.replace("@s.whatsapp.net", "") || "";
+    const remoteJid = key?.remoteJid || "";
     const instanceName = body.instance;
+    const messageId = key?.id || "";
+
+    // ── Ignorar mensagens de grupos ───────────────────────────────────────────
+    if (remoteJid.endsWith("@g.us")) {
+      return new Response(JSON.stringify({ ok: true, skipped: "group" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const phoneNumber = remoteJid.replace("@s.whatsapp.net", "");
+
+    // ── Lookup da instância e empresa ANTES de processar mídia ────────────────
+    const { data: whatsappConfig } = await supabase
+      .from("whatsapp_configs")
+      .select("*, companies(name)")
+      .eq("instance_name", instanceName)
+      .eq("active", true)
+      .single();
+
+    if (!whatsappConfig) {
+      console.log("No active config found for instance:", instanceName);
+      return new Response(JSON.stringify({ ok: true, skipped: "no-config" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: member } = await supabase
+      .from("company_members")
+      .select("user_id")
+      .eq("company_id", whatsappConfig.company_id)
+      .eq("role", "admin")
+      .limit(1)
+      .single();
+
+    if (!member) {
+      await sendWhatsAppMessage(instanceName, remoteJid, "❌ Nenhum admin encontrado na empresa.");
+      return new Response(JSON.stringify({ ok: true, error: "no-admin" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Deduplicação: ignorar mensagem já processada ──────────────────────────
+    if (messageId) {
+      const { data: existing } = await supabase
+        .from("whatsapp_messages")
+        .select("id")
+        .eq("message_id", messageId)
+        .eq("company_id", whatsappConfig.company_id)
+        .maybeSingle();
+      if (existing) {
+        console.log("Duplicate message ignored:", messageId);
+        return new Response(JSON.stringify({ ok: true, skipped: "duplicate" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     let textContent = "";
     if (message?.conversation) {
@@ -42,7 +97,7 @@ Deno.serve(async (req) => {
     } else if (message?.audioMessage) {
       try {
         await sendWhatsAppMessage(instanceName, remoteJid, "🎙️ _Transcrevendo seu áudio..._");
-        const audioBase64 = await getMediaBase64(instanceName, key.id, remoteJid);
+        const audioBase64 = await getMediaBase64(instanceName, messageId, remoteJid);
         if (!audioBase64) {
           await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar o áudio. Tente enviar novamente.");
           return new Response(JSON.stringify({ ok: true, error: "audio-download-failed" }), {
@@ -68,7 +123,7 @@ Deno.serve(async (req) => {
     } else if (message?.imageMessage) {
       try {
         await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._");
-        const imageBase64 = await getMediaBase64(instanceName, key.id, remoteJid);
+        const imageBase64 = await getMediaBase64(instanceName, messageId, remoteJid);
         if (!imageBase64) {
           await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.");
           return new Response(JSON.stringify({ ok: true, error: "image-download-failed" }), {
@@ -97,35 +152,6 @@ Deno.serve(async (req) => {
         "🤖 Consigo processar *texto*, *áudio* e *imagens de documentos*! Envie uma descrição, um áudio ou foto de boleto/nota/recibo."
       );
       return new Response(JSON.stringify({ ok: true, skipped: "non-text" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: whatsappConfig } = await supabase
-      .from("whatsapp_configs")
-      .select("*, companies(name)")
-      .eq("instance_name", instanceName)
-      .eq("active", true)
-      .single();
-
-    if (!whatsappConfig) {
-      console.log("No active config found for instance:", instanceName);
-      return new Response(JSON.stringify({ ok: true, skipped: "no-config" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: member } = await supabase
-      .from("company_members")
-      .select("user_id")
-      .eq("company_id", whatsappConfig.company_id)
-      .eq("role", "admin")
-      .limit(1)
-      .single();
-
-    if (!member) {
-      await sendWhatsAppMessage(instanceName, remoteJid, "❌ Nenhum admin encontrado na empresa.");
-      return new Response(JSON.stringify({ ok: true, error: "no-admin" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -168,6 +194,7 @@ Deno.serve(async (req) => {
       instanceName,
       remoteJid,
       phoneNumber,
+      messageId,
       configId: whatsappConfig.id,
       supabase,
     });
@@ -212,24 +239,63 @@ async function executePendingAction({
   const action = pending.pending_action;
   const forceSide = ["1", "pessoal"].includes(reply) ? "pf" : ["2", "empresa"].includes(reply) ? "pj" : action.side;
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const paymentSource = action.payment_source as "pf" | "pj" | "unknown" | undefined;
 
   if (forceSide === "pf") {
     await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
+
+    // MISTO normal: usuário confirmou PF mas pagou com conta da empresa → criar retirada
+    if (paymentSource === "pj") {
+      const { error: ownerErr } = await supabase.functions.invoke("owner-transactions", {
+        body: {
+          transaction_type: "retirada",
+          amount: Math.abs(action.amount),
+          date: action.date || today,
+          description: `Retirada — gasto pessoal pago pela empresa: ${action.description}`,
+          pf_account_id: action.pf_account_id || null,
+          pj_bank_account_id: action.pj_bank_account_id || null,
+          user_id: pending.user_id,
+          company_id: pending.company_id,
+        },
+      });
+      if (ownerErr) console.error("Owner transaction (retirada) error:", ownerErr);
+    }
+
     await sendWhatsAppMessage(instanceName, remoteJid,
       `✅ *Lançamento Pessoal registrado!*\n\n` +
       `💰 *Valor:* ${fmt(action.amount)}\n` +
       `📝 *Descrição:* ${action.description}\n` +
       `📅 *Data:* ${action.date || today}\n` +
-      `_Registrado no módulo Pessoal (PF)._`
+      `_Registrado no módulo Pessoal (PF)._` +
+      (paymentSource === "pj" ? `\n_⚠️ Retirada criada para manter separação patrimonial._` : "")
     );
   } else {
     await insertPjTransaction({ supabase, action, companyId: pending.company_id, userId: pending.user_id, today });
+
+    // MISTO reverso: usuário confirmou PJ mas pagou do próprio bolso → criar aporte
+    if (paymentSource === "pf") {
+      const { error: ownerErr } = await supabase.functions.invoke("owner-transactions", {
+        body: {
+          transaction_type: "aporte",
+          amount: Math.abs(action.amount),
+          date: action.date || today,
+          description: `Aporte — despesa empresarial paga com recursos pessoais: ${action.description}`,
+          pf_account_id: action.pf_account_id || null,
+          pj_bank_account_id: action.pj_bank_account_id || null,
+          user_id: pending.user_id,
+          company_id: pending.company_id,
+        },
+      });
+      if (ownerErr) console.error("Owner transaction (aporte) error:", ownerErr);
+    }
+
     await sendWhatsAppMessage(instanceName, remoteJid,
       `✅ *Lançamento Empresarial registrado!*\n\n` +
       `💰 *Valor:* ${fmt(action.amount)}\n` +
       `📝 *Descrição:* ${action.description}\n` +
       `📅 *Data:* ${action.date || today}\n` +
-      `_Registrado no módulo Empresa (PJ)._`
+      `_Registrado no módulo Empresa (PJ)._` +
+      (paymentSource === "pf" ? `\n_⚠️ Aporte criado para reembolsar seus recursos pessoais._` : "")
     );
   }
 }
@@ -285,6 +351,7 @@ interface AgentContext {
   instanceName: string;
   remoteJid: string;
   phoneNumber: string;
+  messageId: string;
   configId: string;
   supabase: any;
 }
@@ -419,7 +486,7 @@ ${bankAccountsList || "Nenhuma conta bancária"}
 ---
 
 ## Dados Pessoais (PF):
-Contas pessoais:
+Contas pessoais (use o nome mencionado pelo usuário para selecionar o pf_account_id correto):
 ${pfAccountsList || "Nenhuma conta pessoal"}
 
 Categorias PF disponíveis:
@@ -434,35 +501,44 @@ ${pfRecentTxList || "Nenhum lançamento pessoal"}
 
 ### Para lançamentos com ALTA confiança (high):
 Classifique e registre automaticamente. Confirme com detalhes.
+IMPORTANTE: sempre inclua "payment_source":"pf" ou "payment_source":"pj" nos actions, indicando de qual conta o pagamento foi feito.
 
-Para PJ:
+Para PJ (pago com conta da empresa):
 "✅ *Lançamento Empresarial registrado!*
 💰 *Valor:* R$ X
 📝 *Descrição:* ...
 📂 *Conta:* ... | *Centro:* ...
 📅 *Data:* ...
 _Registrado como gasto da empresa._"
-<ACTION>{"action":"create_pj_transaction","type":"expense","amount":X,"description":"...","pj_account_id":"...","pj_cost_center_id":"...","date":"YYYY-MM-DD"}</ACTION>
+<ACTION>{"action":"create_pj_transaction","type":"expense","amount":X,"description":"...","pj_account_id":"...","pj_cost_center_id":"...","date":"YYYY-MM-DD","payment_source":"pj"}</ACTION>
 
-Para PF:
+Para PF (pago com conta pessoal):
 "✅ *Lançamento Pessoal registrado!*
 💰 *Valor:* R$ X
 📝 *Descrição:* ...
 📂 *Categoria:* ...
 📅 *Data:* ...
 _Registrado no módulo Pessoal._"
-<ACTION>{"action":"create_pf_transaction","type":"despesa","amount":X,"description":"...","pf_category_id":"...","pf_account_id":"${defaultPfAccount?.id || ""}","date":"YYYY-MM-DD"}</ACTION>
+<ACTION>{"action":"create_pf_transaction","type":"despesa","amount":X,"description":"...","pf_category_id":"...","pf_account_id":"[id da conta pessoal mencionada ou ${defaultPfAccount?.id || ""}]","date":"YYYY-MM-DD","payment_source":"pf"}</ACTION>
 
-Para MISTO (pago com conta PJ mas gasto é PF):
+Para MISTO (pago com conta PJ mas gasto é PF — ex: "paguei mercado no cartão da empresa"):
 "⚠️ *Atenção patrimonial!*
-Detectei que este gasto é *pessoal* mas pode ter sido pago com conta da empresa.
-Vou registrar como despesa pessoal e criar uma retirada de pró-labore para manter a separação patrimonial.
+Detectei que este gasto é *pessoal* mas foi pago com a conta da empresa.
+Vou registrar como despesa pessoal e criar uma retirada para manter a separação patrimonial.
 💰 *Valor:* R$ X | 📝 *Descrição:* ..."
-<ACTION>{"action":"create_pf_transaction","type":"despesa","amount":X,"description":"...","pf_category_id":"...","pf_account_id":"${defaultPfAccount?.id || ""}","date":"YYYY-MM-DD"}</ACTION>
+<ACTION>{"action":"create_pf_transaction","type":"despesa","amount":X,"description":"...","pf_category_id":"...","pf_account_id":"${defaultPfAccount?.id || ""}","date":"YYYY-MM-DD","payment_source":"pj"}</ACTION>
 <ACTION>{"action":"create_owner_transaction","transaction_type":"retirada","amount":X,"description":"Retirada — gasto pessoal pago pela empresa: ...","pf_account_id":"${defaultPfAccount?.id || ""}","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD"}</ACTION>
 
+Para MISTO REVERSO (pago com conta PF mas gasto é PJ — ex: "paguei o fornecedor do meu próprio bolso", "usei meu Pix pessoal para pagar despesa da empresa"):
+"⚠️ *Atenção patrimonial!*
+Detectei que este gasto é *empresarial* mas foi pago com recursos pessoais.
+Vou registrar como despesa da empresa e criar um aporte para que a empresa reembolse você.
+💰 *Valor:* R$ X | 📝 *Descrição:* ..."
+<ACTION>{"action":"create_pj_transaction","type":"expense","amount":X,"description":"...","pj_account_id":"...","pj_cost_center_id":"...","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD","payment_source":"pf"}</ACTION>
+<ACTION>{"action":"create_owner_transaction","transaction_type":"aporte","amount":X,"description":"Aporte — despesa empresarial paga com recursos pessoais: ...","pf_account_id":"${defaultPfAccount?.id || ""}","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD"}</ACTION>
+
 ### Para lançamentos com confiança MÉDIA ou BAIXA:
-Pergunte antes de lançar.
+Pergunte antes de lançar. Inclua sempre "payment_source" na action com o que você inferiu.
 "❓ *Preciso de uma confirmação:*
 💰 *Valor:* R$ X
 📝 *Descrição:* ...
@@ -471,7 +547,7 @@ Responda:
 *1* → Pessoal (PF)
 *2* → Empresa (PJ)
 *0* → Cancelar"
-<ACTION>{"action":"ask_confirmation","amount":X,"description":"...","type":"expense","pf_category_id":"...","pf_account_id":"${defaultPfAccount?.id || ""}","pj_account_id":"...","pj_cost_center_id":"...","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD","reason":"..."}</ACTION>
+<ACTION>{"action":"ask_confirmation","amount":X,"description":"...","type":"expense","pf_category_id":"...","pf_account_id":"${defaultPfAccount?.id || ""}","pj_account_id":"...","pj_cost_center_id":"...","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD","reason":"...","payment_source":"pf|pj|unknown"}</ACTION>
 
 ### Para consultas e relatórios:
 Responda com dados reais. Organize com emojis e formatação.
@@ -489,6 +565,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
 - SEMPRE responda em português brasileiro
 - SEMPRE use formatação WhatsApp
 - SEMPRE classifique PF ou PJ em lançamentos
+- SEMPRE inclua payment_source nos actions de transação
 - NÃO misture patrimônio pessoal com empresarial
 - Se a mensagem não for financeira, responda educadamente e ofereça ajuda`;
 
@@ -641,6 +718,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
       message_text: ctx.text,
       message_type: "text",
       processed: true,
+      message_id: ctx.messageId || null,
       classification: { actions, aiModel: "gemini-2.5-flash" },
     });
 

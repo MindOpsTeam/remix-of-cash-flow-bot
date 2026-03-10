@@ -42,8 +42,8 @@ export default function WhatsApp() {
   const [selectedConfig, setSelectedConfig] = useState<WhatsAppConfig | null>(null);
   const [formInstance, setFormInstance] = useState("");
 
-  const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-  const webhookUrl = `https://${projectId}.supabase.co/functions/v1/whatsapp-webhook`;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+  const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
 
   const loadConfigs = useCallback(async () => {
     if (!company) return;
