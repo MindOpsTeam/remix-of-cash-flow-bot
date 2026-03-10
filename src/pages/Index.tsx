@@ -1,10 +1,8 @@
 import { AppLayout } from "@/components/AppLayout";
 import { KPICard } from "@/components/KPICard";
-import { FinancialScore } from "@/components/FinancialScore";
 import { TransactionRow } from "@/components/TransactionRow";
 import { formatCurrency } from "@/lib/utils";
 import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2, ArrowRight, Brain, MessageSquare } from "lucide-react";
-import { ConsolidatedPatrimony } from "@/components/ConsolidatedPatrimony";
 import { Link } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -140,7 +138,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="mb-8 animate-fade-in">
+      <div className="mb-6 animate-fade-in">
         <h1 className="text-[28px] font-semibold text-foreground tracking-[-0.02em]">Dashboard Financeiro</h1>
         <p className="text-sm text-muted-foreground mt-1 capitalize">Visão geral de {monthLabel}</p>
       </div>
@@ -151,51 +149,40 @@ export default function Dashboard() {
         </div>
       ) : (
         <>
+          {/* KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             {kpis.map((kpi) => (
               <KPICard key={kpi.label} {...kpi} />
             ))}
           </div>
 
-          <div className="mb-6">
-            <FinancialScore revenue={revenue} expense={expense} prevRevenue={prevRevenue} prevExpense={prevExpense} />
-          </div>
-
-          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link to="/cfo-digital" className="group">
-              <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 transition-all duration-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Brain className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">CFO Digital</h3>
-                    <p className="text-xs text-muted-foreground">Análise inteligente com IA</p>
-                  </div>
+          {/* Quick access: CFO + WhatsApp (compact) */}
+          <div className="flex gap-3 mb-6">
+            <Link to="/cfo-digital" className="flex-1 group">
+              <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Brain className="h-4 w-4 text-primary" />
                 </div>
-                <p className="text-xs text-muted-foreground">Receba insights, relatórios automáticos e recomendações estratégicas baseadas nos seus dados reais.</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">CFO Digital</p>
+                  <p className="text-xs text-muted-foreground truncate">Análise inteligente com IA</p>
+                </div>
               </div>
             </Link>
-            <Link to="/whatsapp" className="group">
-              <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 transition-all duration-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">Agente WhatsApp</h3>
-                    <p className="text-xs text-muted-foreground">Lançamentos por mensagem</p>
-                  </div>
+            <Link to="/whatsapp" className="flex-1 group">
+              <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <MessageSquare className="h-4 w-4 text-primary" />
                 </div>
-                <p className="text-xs text-muted-foreground">Envie notas fiscais, recibos e comandos de voz pelo WhatsApp. A IA classifica e registra automaticamente.</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">Agente WhatsApp</p>
+                  <p className="text-xs text-muted-foreground truncate">Lançamentos por mensagem</p>
+                </div>
               </div>
             </Link>
           </div>
 
-          <div className="mb-6">
-            <ConsolidatedPatrimony />
-          </div>
-
+          {/* Chart + Recent Transactions */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 bg-card border border-border rounded-lg p-5 animate-slide-up" style={{ animationDelay: "400ms", animationFillMode: "backwards" }}>
               <h2 className="text-sm font-semibold text-foreground mb-4">Receitas vs Despesas</h2>

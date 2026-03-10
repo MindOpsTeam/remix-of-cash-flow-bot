@@ -5,9 +5,6 @@ import { TrendingUp, TrendingDown, Wallet, Landmark } from "lucide-react";
 import { usePersonalAccounts } from "@/hooks/usePersonalAccounts";
 import { usePersonalKPIs, generateInsight } from "@/hooks/usePersonalKPIs";
 import { AIInsightCard } from "@/components/AIInsightCard";
-import { ConsolidatedPatrimony } from "@/components/ConsolidatedPatrimony";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -46,6 +43,7 @@ export default function PersonalDashboard() {
           <p className="text-sm text-muted-foreground mt-1">Visão geral das suas finanças pessoais</p>
         </div>
 
+        {/* KPIs */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -91,9 +89,6 @@ export default function PersonalDashboard() {
           </Card>
         </div>
 
-        {/* Consolidated Patrimony */}
-        <ConsolidatedPatrimony />
-
         {/* AI Insight */}
         <AIInsightCard text={insightText} linkTo="/personal/summary" linkLabel="Ver resumo completo" />
 
@@ -120,36 +115,6 @@ export default function PersonalDashboard() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-
-        {/* Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Ações Rápidas</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
-              <Link to="/personal/transactions"><Button variant="outline" size="sm">Ver Transações</Button></Link>
-              <Link to="/personal/accounts"><Button variant="outline" size="sm">Gerenciar Contas</Button></Link>
-              <Link to="/personal/forecast"><Button variant="outline" size="sm">Previsão de Fluxo</Button></Link>
-              <Link to="/personal/summary"><Button variant="outline" size="sm">Resumo Executivo</Button></Link>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Resumo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {kpis.vencidas_count > 0
-                  ? `⚠️ ${kpis.vencidas_count} cobrança(s) vencida(s) totalizando ${fmt(kpis.vencidas)}.`
-                  : kpis.saldo_mes >= 0
-                    ? "Tudo certo! Seu saldo do mês está positivo."
-                    : "Gastos superaram receitas. Revise seus lançamentos."}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </AppLayout>
   );
