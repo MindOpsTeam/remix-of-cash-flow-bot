@@ -65,8 +65,8 @@ async function tlsRequest(
   const conn = await Deno.connectTls({
     hostname,
     port: 443,
-    certChain: certPem,  // certificado cliente (mTLS)
-    privateKey: keyPem,  // chave privada do certificado
+    cert: certPem,       // certificado cliente (mTLS)
+    key: keyPem,         // chave privada do certificado
   });
 
   try {
