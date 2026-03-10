@@ -30,6 +30,9 @@ const CostCentersPage = lazy(() => import("./pages/settings/CostCenters"));
 const IntegrationsPage = lazy(() => import("./pages/settings/Integrations"));
 const AsaasIntegrationPJ = lazy(() => import("./pages/settings/AsaasIntegrationPJ"));
 const PreferencesPage = lazy(() => import("./pages/settings/Preferences"));
+const CompanySettingsPage = lazy(() => import("./pages/settings/CompanySettings"));
+const UsersPage = lazy(() => import("./pages/settings/Users"));
+const BankAccountsPage = lazy(() => import("./pages/settings/BankAccounts"));
 const PersonalPreferences = lazy(() => import("./pages/personal/PersonalPreferences"));
 const AsaasIntegrationPF = lazy(() => import("./pages/personal/AsaasIntegrationPF"));
 const PersonalDashboard = lazy(() => import("./pages/personal/PersonalDashboard"));
@@ -99,6 +102,9 @@ const AppRoutes = () => (
       <Route path="/settings/integrations" element={<ProtectedRoute><BusinessRoute><IntegrationsPage /></BusinessRoute></ProtectedRoute>} />
       <Route path="/settings/integrations/asaas" element={<ProtectedRoute><BusinessRoute><AsaasIntegrationPJ /></BusinessRoute></ProtectedRoute>} />
       <Route path="/settings/preferences" element={<ProtectedRoute><BusinessRoute><PreferencesPage /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings/company" element={<ProtectedRoute><BusinessRoute><CompanySettingsPage /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings/users" element={<ProtectedRoute><BusinessRoute><UsersPage /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings/bank-accounts" element={<ProtectedRoute><BusinessRoute><BankAccountsPage /></BusinessRoute></ProtectedRoute>} />
 
       {/* Shared routes (accessible from both modes) */}
       <Route path="/documents" element={<ProtectedRoute><DocumentScanner /></ProtectedRoute>} />
