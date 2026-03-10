@@ -153,7 +153,8 @@ Deno.serve(async (req) => {
       }
     } else {
       await sendWhatsAppMessage(instanceName, remoteJid,
-        "🤖 Consigo processar *texto*, *áudio* e *imagens de documentos*! Envie uma descrição, um áudio ou foto de boleto/nota/recibo."
+        "🤖 Consigo processar *texto*, *áudio* e *imagens de documentos*! Envie uma descrição, um áudio ou foto de boleto/nota/recibo.",
+        evolutionUrl, evolutionKey
       );
       return new Response(JSON.stringify({ ok: true, skipped: "non-text" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
