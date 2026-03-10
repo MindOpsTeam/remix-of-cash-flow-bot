@@ -1295,6 +1295,75 @@ export type Database = {
           },
         ]
       }
+      inter_config: {
+        Row: {
+          account_number: string | null
+          active: boolean
+          bank_account_id: string | null
+          cert_pem: string
+          client_id: string
+          client_secret: string
+          company_id: string
+          created_at: string
+          environment: string
+          id: string
+          key_pem: string
+          last_balance: number | null
+          last_balance_at: string | null
+          last_sync_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          active?: boolean
+          bank_account_id?: string | null
+          cert_pem?: string
+          client_id?: string
+          client_secret?: string
+          company_id: string
+          created_at?: string
+          environment?: string
+          id?: string
+          key_pem?: string
+          last_balance?: number | null
+          last_balance_at?: string | null
+          last_sync_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          active?: boolean
+          bank_account_id?: string | null
+          cert_pem?: string
+          client_id?: string
+          client_secret?: string
+          company_id?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          key_pem?: string
+          last_balance?: number | null
+          last_balance_at?: string | null
+          last_sync_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inter_config_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inter_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_transactions: {
         Row: {
           amount: number
@@ -2075,6 +2144,7 @@ export type Database = {
           created_at: string
           date: string
           description: string
+          external_id: string | null
           id: string
           payment_method: string | null
           project: string | null
@@ -2094,6 +2164,7 @@ export type Database = {
           created_at?: string
           date: string
           description: string
+          external_id?: string | null
           id?: string
           payment_method?: string | null
           project?: string | null
@@ -2113,6 +2184,7 @@ export type Database = {
           created_at?: string
           date?: string
           description?: string
+          external_id?: string | null
           id?: string
           payment_method?: string | null
           project?: string | null
