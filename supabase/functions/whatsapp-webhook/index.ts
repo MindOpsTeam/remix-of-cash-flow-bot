@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
         }
         const imageDescription = await analyzeDocumentImage(imageBase64, message.imageMessage.mimetype || "image/jpeg");
         if (!imageDescription) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui analisar a imagem. Tente enviar uma foto mais nítida.");
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui analisar a imagem. Tente enviar uma foto mais nítida.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "image-analysis-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
