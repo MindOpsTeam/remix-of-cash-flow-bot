@@ -23,21 +23,13 @@ export default function PersonalIntegrations() {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {integrations.map((item) => (
-            <Link key={item.title} to={item.comingSoon ? "#" : item.to} className="block">
-              <div className={`bg-card border border-border rounded-lg p-5 transition-all ${
-                item.comingSoon
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:border-primary/40 hover:shadow-card-hover cursor-pointer"
-              }`}>
+            <Link key={item.title} to={item.to} className="block">
+              <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-card-hover transition-all cursor-pointer">
                 <div className="flex items-center justify-between mb-3">
                   <div className={`p-2 rounded-lg ${item.iconBg}`}>
                     <item.icon className={`h-5 w-5 ${item.iconColor}`} />
                   </div>
-                  {item.comingSoon ? (
-                    <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Em breve</span>
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  )}
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
                 <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
