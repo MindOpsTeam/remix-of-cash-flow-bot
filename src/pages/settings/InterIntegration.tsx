@@ -1,10 +1,10 @@
 import { AppLayout } from "@/components/AppLayout";
 import {
-  ArrowLeft, Save, Plug, RefreshCw, Wallet, CheckCircle2,
-  XCircle, AlertCircle, ExternalLink, Eye, EyeOff, CalendarDays,
+  ArrowLeft, Save, Plug, RefreshCw, CheckCircle2,
+  XCircle, ExternalLink, Eye, EyeOff, Upload, FileCheck,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +60,43 @@ export default function InterIntegration() {
   const [syncing, setSyncing] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "ok" | "error">("idle");
   const [testMsg, setTestMsg] = useState("");
+  const certInputRef = useRef<HTMLInputElement>(null);
+  const keyInputRef = useRef<HTMLInputElement>(null);
+
+  const readFile = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string);
+      reader.onerror = () => reject(new Error("Erro ao ler arquivo"));
+      reader.readAsText(file);
+    });
+
+  const handleCertFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const content = await readFile(file);
+      set("cert_pem", content.trim());
+      toast({ title: `Certificado carregado: ${file.name}` });
+    } catch {
+      toast({ title: "Erro ao ler o arquivo .crt", variant: "destructive" });
+    }
+    e.target.value = "";
+  };
+
+  const handleKeyFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const content = await readFile(file);
+      set("key_pem", content.trim());
+      setShowKey(false);
+      toast({ title: `Chave carregada: ${file.name}` });
+    } catch {
+      toast({ title: "Erro ao ler o arquivo .key", variant: "destructive" });
+    }
+    e.target.value = "";
+  };
   const [syncStartDate, setSyncStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -351,39 +388,138 @@ openssl pkcs12 -in cert.pfx -nocerts -nodes -out certificado.key`}
 
         {/* Certificados */}
         <section>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Certificado mTLS</h2>
+          <h2 className="text-sm font-semibold text-foreground mb-1">Certificado mTLS</h2>
+          <p className="text-xs text-muted-foreground mb-3">
+            Faça upload dos arquivos baixados no portal Inter ou cole o conteúdo manualmente.
+          </p>
           <div className="bg-card border border-border rounded-lg divide-y divide-border">
 
-            <div className="p-4 space-y-1.5">
-              <Label>Certificado PEM (cert.pem) *</Label>
-              <Textarea
-                value={form.cert_pem}
-                onChange={(e) => set("cert_pem", e.target.value)}
-                placeholder={"-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"}
-                className="font-mono text-xs min-h-32 resize-y"
+            {/* cert.crt / cert.pem */}
+            <div className="p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Certificado <span className="text-muted-foreground font-normal">(certificado.crt)</span> *</Label>
+                {form.cert_pem && (
+                  <span className="flex items-center gap-1 text-[11px] text-income">
+                    <FileCheck className="h-3.5 w-3.5" /> Carregado
+                  </span>
+                )}
+              </div>
+
+              {/* hidden file input */}
+              <input
+                ref={certInputRef}
+                type="file"
+                accept=".crt,.pem,.cer"
+                className="hidden"
+                onChange={handleCertFile}
               />
+
+              <div
+                onClick={() => certInputRef.current?.click()}
+                className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-lg p-5 cursor-pointer transition-colors ${
+                  form.cert_pem
+                    ? "border-income/40 bg-income/5"
+                    : "border-border hover:border-primary/40 hover:bg-accent/40"
+                }`}
+              >
+                {form.cert_pem ? (
+                  <>
+                    <FileCheck className="h-6 w-6 text-income" />
+                    <p className="text-xs text-muted-foreground">Clique para substituir</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-6 w-6 text-muted-foreground" />
+                    <p className="text-xs text-foreground font-medium">Clique para selecionar</p>
+                    <p className="text-[11px] text-muted-foreground">.crt · .pem · .cer</p>
+                  </>
+                )}
+              </div>
+
+              {/* Fallback: paste manual */}
+              <details className="group">
+                <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground list-none flex items-center gap-1">
+                  <span className="group-open:hidden">▶ Ou colar conteúdo manualmente</span>
+                  <span className="hidden group-open:inline">▼ Fechar</span>
+                </summary>
+                <Textarea
+                  value={form.cert_pem}
+                  onChange={(e) => set("cert_pem", e.target.value)}
+                  placeholder={"-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"}
+                  className="font-mono text-xs min-h-28 resize-y mt-2"
+                />
+              </details>
             </div>
 
-            <div className="p-4 space-y-1.5">
+            {/* certificado.key */}
+            <div className="p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <Label>Chave Privada PEM (key.pem) *</Label>
-                <button
-                  type="button"
-                  onClick={() => setShowKey(!showKey)}
-                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                >
-                  {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  {showKey ? "Ocultar" : "Mostrar"}
-                </button>
+                <Label>Chave Privada <span className="text-muted-foreground font-normal">(certificado.key)</span> *</Label>
+                {form.key_pem && (
+                  <span className="flex items-center gap-1 text-[11px] text-income">
+                    <FileCheck className="h-3.5 w-3.5" /> Carregada
+                  </span>
+                )}
               </div>
-              <Textarea
-                value={showKey ? form.key_pem : (form.key_pem ? "••••••••••••••••" : "")}
-                onChange={(e) => showKey && set("key_pem", e.target.value)}
-                onFocus={() => setShowKey(true)}
-                placeholder={"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"}
-                className="font-mono text-xs min-h-32 resize-y"
-                readOnly={!showKey && !!form.key_pem}
+
+              {/* hidden file input */}
+              <input
+                ref={keyInputRef}
+                type="file"
+                accept=".key,.pem"
+                className="hidden"
+                onChange={handleKeyFile}
               />
+
+              <div
+                onClick={() => keyInputRef.current?.click()}
+                className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-lg p-5 cursor-pointer transition-colors ${
+                  form.key_pem
+                    ? "border-income/40 bg-income/5"
+                    : "border-border hover:border-primary/40 hover:bg-accent/40"
+                }`}
+              >
+                {form.key_pem ? (
+                  <>
+                    <FileCheck className="h-6 w-6 text-income" />
+                    <p className="text-xs text-muted-foreground">Clique para substituir</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-6 w-6 text-muted-foreground" />
+                    <p className="text-xs text-foreground font-medium">Clique para selecionar</p>
+                    <p className="text-[11px] text-muted-foreground">.key · .pem</p>
+                  </>
+                )}
+              </div>
+
+              {/* Fallback: paste manual (oculto por padrão) */}
+              <details className="group">
+                <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground list-none flex items-center gap-1">
+                  <span className="group-open:hidden">▶ Ou colar conteúdo manualmente</span>
+                  <span className="hidden group-open:inline">▼ Fechar</span>
+                </summary>
+                <div className="mt-2">
+                  <div className="flex justify-end mb-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(!showKey)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    >
+                      {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      {showKey ? "Ocultar" : "Mostrar"}
+                    </button>
+                  </div>
+                  <Textarea
+                    value={showKey ? form.key_pem : (form.key_pem ? "•".repeat(40) : "")}
+                    onChange={(e) => showKey && set("key_pem", e.target.value)}
+                    onFocus={() => setShowKey(true)}
+                    placeholder={"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"}
+                    className="font-mono text-xs min-h-28 resize-y"
+                    readOnly={!showKey && !!form.key_pem}
+                  />
+                </div>
+              </details>
             </div>
 
           </div>
