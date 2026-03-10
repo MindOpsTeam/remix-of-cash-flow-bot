@@ -60,6 +60,7 @@ export default function PersonalBills() {
     setSaving(true);
     const { error } = await supabase.from("personal_transactions").insert({
       user_id: user.id,
+      title: form.description.trim(),
       description: form.description.trim(),
       amount,
       date: form.due_date,

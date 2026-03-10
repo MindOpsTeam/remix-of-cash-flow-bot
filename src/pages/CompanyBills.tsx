@@ -49,6 +49,8 @@ export default function CompanyBills() {
 
   const handleCreateBill = useCallback(async () => {
     if (!company) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
     const amount = parseFloat(form.amount);
     if (!form.description.trim() || isNaN(amount) || amount <= 0 || !form.due_date) {
       toast.error("Preencha todos os campos corretamente");
@@ -57,6 +59,7 @@ export default function CompanyBills() {
     setSaving(true);
     const { error } = await supabase.from("transactions").insert({
       company_id: company.id,
+      user_id: user.id,
       description: form.description.trim(),
       amount,
       date: form.due_date,
