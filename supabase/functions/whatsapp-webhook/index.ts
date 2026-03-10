@@ -243,7 +243,7 @@ async function executePendingAction({
   await supabase.from("whatsapp_pending_actions").delete().eq("id", pending.id);
 
   if (["0", "cancelar", "cancel", "não", "nao"].includes(reply)) {
-    await sendWhatsAppMessage(instanceName, remoteJid, "✅ Lançamento cancelado.");
+    await sendWhatsAppMessage(instanceName, remoteJid, "✅ Lançamento cancelado.", evolutionUrl, evolutionKey);
     return;
   }
 
