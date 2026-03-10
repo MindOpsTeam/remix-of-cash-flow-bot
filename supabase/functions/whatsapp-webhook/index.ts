@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
       textContent = message.extendedTextMessage.text;
     } else if (message?.audioMessage) {
       try {
-        await sendWhatsAppMessage(instanceName, remoteJid, "🎙️ _Transcrevendo seu áudio..._");
+        await sendWhatsAppMessage(instanceName, remoteJid, "🎙️ _Transcrevendo seu áudio..._", evolutionUrl, evolutionKey);
         const audioBase64 = await getMediaBase64(instanceName, messageId, remoteJid);
         if (!audioBase64) {
           await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar o áudio. Tente enviar novamente.");
