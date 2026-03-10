@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
         console.log("Audio transcribed:", textContent.slice(0, 200));
       } catch (err) {
         console.error("Audio processing error:", err);
-        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar o áudio. Tente novamente.");
+        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar o áudio. Tente novamente.", evolutionUrl, evolutionKey);
         return new Response(JSON.stringify({ ok: true, error: "audio-error" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
