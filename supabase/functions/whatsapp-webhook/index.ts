@@ -622,7 +622,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
     // Enviar resposta limpa
     const cleanResponse = aiResponse.replace(/<ACTION>.*?<\/ACTION>/gs, "").trim();
     if (cleanResponse) {
-      await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, cleanResponse);
+      await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, cleanResponse, ctx.evolutionUrl, ctx.evolutionKey);
     }
 
     // Processar ações
