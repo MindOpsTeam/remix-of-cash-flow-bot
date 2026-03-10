@@ -707,7 +707,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
 
       } else if (action.action === "send_cashflow_forecast") {
         try {
-          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📊 _Analisando dados e gerando previsão de fluxo de caixa..._");
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📊 _Analisando dados e gerando previsão de fluxo de caixa..._", ctx.evolutionUrl, ctx.evolutionKey);
           const forecastResult = await generateCashFlowForecast(ctx.companyId, ctx.supabase, lovableApiKey);
           if (forecastResult) {
             await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, forecastResult.text);
