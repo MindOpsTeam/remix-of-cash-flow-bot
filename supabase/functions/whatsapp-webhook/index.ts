@@ -701,7 +701,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
               await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, chunk, ctx.evolutionUrl, ctx.evolutionKey);
             }
           } else {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar o resumo executivo.");
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar o resumo executivo.", ctx.evolutionUrl, ctx.evolutionKey);
           }
         } catch (err) { console.error("Executive summary error:", err); }
 
