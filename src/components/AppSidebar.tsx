@@ -28,6 +28,7 @@ import {
   Target,
   CreditCard,
   ChevronDown,
+  Plug,
   type LucideIcon,
 } from "lucide-react";
 
@@ -89,6 +90,7 @@ const businessNav: NavEntry[] = [
       { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
     ],
   },
+  { to: "/settings/integrations", label: "Integrações", icon: Plug },
 ];
 
 const personalNav: NavEntry[] = [
@@ -126,6 +128,7 @@ const personalNav: NavEntry[] = [
       { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
     ],
   },
+  { to: "/personal/integrations", label: "Integrações", icon: Plug },
 ];
 
 const personalSettingsGroup: NavGroup = {

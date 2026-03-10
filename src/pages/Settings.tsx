@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree, Webhook, MessageSquare, SlidersHorizontal, Landmark } from "lucide-react";
+import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -36,13 +36,6 @@ const sections = [
     title: "Centros de Custo",
     description: "Departamentos, projetos e clientes",
     to: "/settings/cost-centers",
-    available: true,
-  },
-  {
-    icon: Webhook,
-    title: "Integrações",
-    description: "Asaas, webhooks e conexões com plataformas externas",
-    to: "/settings/integrations",
     available: true,
   },
   {

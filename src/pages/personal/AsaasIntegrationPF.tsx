@@ -12,7 +12,7 @@ export default function AsaasIntegrationPF() {
       webhookFunction="asaas-webhook"
       ownerKey="user_id"
       ownerId={user?.id}
-      backLink="/personal/settings/integrations"
+      backLink="/personal/integrations"
       title="Integração Asaas — Pessoal"
       securityIsolationLabel="usuário"
       description="Sincronize cobranças, transferências e pagamentos da sua conta pessoal Asaas"

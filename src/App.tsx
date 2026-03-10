@@ -124,8 +124,8 @@ const AppRoutes = () => (
       <Route path="/personal/reports" element={<ProtectedRoute><PersonalRoute><PersonalReports /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/categories" element={<ProtectedRoute><PersonalRoute><PersonalCategories /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/settings" element={<ProtectedRoute><PersonalRoute><PersonalSettings /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/settings/integrations" element={<ProtectedRoute><PersonalRoute><PersonalIntegrations /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/settings/integrations/asaas" element={<ProtectedRoute><PersonalRoute><AsaasIntegrationPF /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/integrations" element={<ProtectedRoute><PersonalRoute><PersonalIntegrations /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/integrations/asaas" element={<ProtectedRoute><PersonalRoute><AsaasIntegrationPF /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/settings/preferences" element={<ProtectedRoute><PersonalRoute><PersonalPreferences /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/budgets" element={<ProtectedRoute><PersonalRoute><PersonalBudgets /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/goals" element={<ProtectedRoute><PersonalRoute><PersonalGoals /></PersonalRoute></ProtectedRoute>} />

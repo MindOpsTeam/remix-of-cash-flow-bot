@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Webhook, Wallet, Tag, MessageSquare, SlidersHorizontal, PiggyBank, Target } from "lucide-react";
+import { Wallet, Tag, MessageSquare, SlidersHorizontal, PiggyBank, Target } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -29,13 +29,6 @@ const sections = [
     title: "Metas",
     description: "Acompanhar objetivos financeiros de longo prazo",
     to: "/personal/goals",
-    available: true,
-  },
-  {
-    icon: Webhook,
-    title: "Integrações",
-    description: "Conecte com plataformas externas como Asaas",
-    to: "/personal/settings/integrations",
     available: true,
   },
   {

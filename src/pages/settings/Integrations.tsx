@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
@@ -10,11 +12,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
-import {
-  Plus, Webhook, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff,
-  Activity, CheckCircle2, XCircle, Clock, Shield, ChevronRight,
-} from "lucide-react";
+
+const integrationCards = [
+  {
+    icon: Shield,
+    iconBg: "bg-primary/10",
+    iconColor: "text-primary",
+    title: "Asaas — Empresa",
+    description: "Cobranças, transferências e notas fiscais da conta empresarial Asaas",
+    to: "/settings/integrations/asaas",
+  },
+  {
+    icon: Landmark,
+    iconBg: "bg-orange-500/10",
+    iconColor: "text-orange-500",
+    title: "Banco Inter — Empresa",
+    description: "Sincronize extrato e saldo via API oficial (OAuth2 + mTLS)",
+    to: "/settings/integrations/inter",
+  },
+];
 
 interface WebhookConfig {
   id: string;
@@ -53,7 +69,6 @@ export default function IntegrationsPage() {
   const [logs, setLogs] = useState<WebhookLog[]>([]);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
 
-  // Form state
   const [formName, setFormName] = useState("");
   const [formDirection, setFormDirection] = useState<"inbound" | "outbound">("inbound");
   const [formUrl, setFormUrl] = useState("");
@@ -154,46 +169,31 @@ export default function IntegrationsPage() {
 
   return (
     <AppLayout>
-      {/* Integrations cards */}
+      {/* Integration Cards */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Integrações</h1>
+        <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Integrações — Empresa</h1>
         <p className="text-sm text-muted-foreground mt-1 mb-6">
-          Conecte com plataformas externas para automatizar seu financeiro
+          Conecte as contas da empresa para automatizar o financeiro
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          <Link to="/settings/integrations/asaas" className="block">
-            <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-card-hover transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Shield className="h-5 w-5 text-primary" />
+          {integrationCards.map((item) => (
+            <Link key={item.title} to={item.to} className="block">
+              <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-card-hover transition-all cursor-pointer">
+                <div className="flex items-center justify-between mb-3">
+                  <div className={`p-2 rounded-lg ${item.iconBg}`}>
+                    <item.icon className={`h-5 w-5 ${item.iconColor}`} />
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+                <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
               </div>
-              <h3 className="text-sm font-semibold text-foreground">Asaas</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Receba cobranças, transferências e notas fiscais automaticamente
-              </p>
-            </div>
-          </Link>
-          <Link to="/settings/integrations/inter" className="block">
-            <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-card-hover transition-all cursor-pointer">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-2 rounded-lg bg-orange-500/10">
-                  <svg className="h-5 w-5 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
-                  </svg>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <h3 className="text-sm font-semibold text-foreground">Banco Inter</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Sincronize extrato e saldo via API oficial (OAuth2 + mTLS)
-              </p>
-            </div>
-          </Link>
+            </Link>
+          ))}
         </div>
       </div>
 
+      {/* Webhooks section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Webhooks genéricos</h2>
@@ -214,7 +214,7 @@ export default function IntegrationsPage() {
             <div className="space-y-4 mt-2">
               <div>
                 <Label>Nome</Label>
-                <Input placeholder="Ex: Asaas Pagamentos" value={formName} onChange={(e) => setFormName(e.target.value)} />
+                <Input placeholder="Ex: Stripe Pagamentos" value={formName} onChange={(e) => setFormName(e.target.value)} />
               </div>
               <div>
                 <Label>Direção</Label>
@@ -283,9 +283,9 @@ export default function IntegrationsPage() {
       {webhooks.length === 0 ? (
         <div className="bg-card border border-border rounded-lg p-12 text-center">
           <Webhook className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-sm font-semibold text-foreground mb-1">Nenhuma integração configurada</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-1">Nenhum webhook configurado</h3>
           <p className="text-xs text-muted-foreground">
-            Crie um webhook para conectar com plataformas externas como Asaas, Stripe, ou qualquer sistema com API.
+            Crie um webhook para conectar com plataformas externas como Stripe ou qualquer sistema com API.
           </p>
         </div>
       ) : (
@@ -312,11 +312,6 @@ export default function IntegrationsPage() {
                       <Badge variant="outline" className="text-[10px]">
                         {wh.direction === "inbound" ? "Entrada" : "Saída"}
                       </Badge>
-                      {wh.auto_create_transaction && (
-                        <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
-                          Auto-lançamento
-                        </Badge>
-                      )}
                     </div>
                     {wh.direction === "inbound" && (
                       <div className="flex items-center gap-2 mt-1.5">
@@ -328,18 +323,12 @@ export default function IntegrationsPage() {
                         </button>
                       </div>
                     )}
-                    {wh.direction === "outbound" && wh.url && (
-                      <p className="text-[11px] text-muted-foreground mt-1 truncate">{wh.url}</p>
-                    )}
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[11px] text-muted-foreground">Token:</span>
                       <code className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                         {showTokens[wh.id] ? wh.secret_token : "••••••••••••"}
                       </code>
-                      <button
-                        onClick={() => setShowTokens((p) => ({ ...p, [wh.id]: !p[wh.id] }))}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
+                      <button onClick={() => setShowTokens((p) => ({ ...p, [wh.id]: !p[wh.id] }))} className="text-muted-foreground hover:text-foreground">
                         {showTokens[wh.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                       </button>
                       <button onClick={() => copyToken(wh.secret_token)} className="text-muted-foreground hover:text-foreground">
@@ -349,13 +338,9 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <Button variant="ghost" size="icon" onClick={() => viewLogs(wh)} title="Ver logs" aria-label="Ver logs">
-                    <Activity className="h-4 w-4" />
-                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => viewLogs(wh)} title="Ver logs"><Activity className="h-4 w-4" /></Button>
                   <Switch checked={wh.active} onCheckedChange={() => toggleActive(wh)} />
-                  <Button variant="ghost" size="icon" onClick={() => deleteWebhook(wh.id)} title="Excluir" aria-label="Excluir webhook">
-                    <Trash2 className="h-4 w-4 text-expense" />
-                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => deleteWebhook(wh.id)} title="Excluir"><Trash2 className="h-4 w-4 text-expense" /></Button>
                 </div>
               </div>
             </div>
@@ -384,11 +369,11 @@ export default function IntegrationsPage() {
                       {new Date(log.created_at).toLocaleString("pt-BR")}
                     </span>
                   </div>
-                  {log.error_message && (
-                    <p className="text-[11px] text-expense mt-1">{log.error_message}</p>
-                  )}
+                  {log.error_message && <p className="text-[11px] text-expense mt-1">{log.error_message}</p>}
                   <details className="mt-2">
-                    <summary className="text-[11px] text-muted-foreground cursor-pointer">Ver payload</summary>
+                    <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground">
+                      Ver payload
+                    </summary>
                     <pre className="text-[10px] bg-muted p-2 rounded mt-1 overflow-x-auto max-h-32">
                       {JSON.stringify(log.payload, null, 2)}
                     </pre>
