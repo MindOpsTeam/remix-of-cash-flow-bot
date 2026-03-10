@@ -63,7 +63,6 @@ const businessNav: NavEntry[] = [
     icon: ArrowLeftRight,
     items: [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
-      { to: "/transfers", label: "Transferências", icon: ArrowUpDown },
       { to: "/bills", label: "Contas a Pagar", icon: Receipt },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
       { to: "/documents", label: "Documentos", icon: ScanLine },
@@ -90,7 +89,15 @@ const businessNav: NavEntry[] = [
       { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
     ],
   },
-  { to: "/settings/integrations", label: "Integrações", icon: Plug },
+  {
+    key: "integrations",
+    label: "Integrações",
+    icon: Plug,
+    items: [
+      { to: "/settings/integrations", label: "Configurar", icon: Plug },
+      { to: "/transfers", label: "Movimentações Asaas", icon: ArrowUpDown },
+    ],
+  },
 ];
 
 const personalNav: NavEntry[] = [
