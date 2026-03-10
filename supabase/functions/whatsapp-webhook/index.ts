@@ -840,9 +840,9 @@ async function sendWhatsAppMessage(instanceName: string, remoteJid: string, text
   } catch (err) { console.error("Error sending WhatsApp message:", err); }
 }
 
-async function sendWhatsAppImage(instanceName: string, remoteJid: string, base64Image: string, caption: string) {
-  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
-  const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
+async function sendWhatsAppImage(instanceName: string, remoteJid: string, base64Image: string, caption: string, evoUrl?: string | undefined, evoKey?: string | undefined) {
+  const evolutionUrl = evoUrl || Deno.env.get("EVOLUTION_API_URL");
+  const evolutionKey = evoKey || Deno.env.get("EVOLUTION_API_KEY");
   if (!evolutionUrl || !evolutionKey) { console.error("Evolution credentials missing"); return; }
 
   try {
