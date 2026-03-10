@@ -204,6 +204,8 @@ Deno.serve(async (req) => {
       messageId,
       configId: whatsappConfig.id,
       supabase,
+      evolutionUrl,
+      evolutionKey,
     });
 
     return new Response(JSON.stringify({ ok: true }), {
