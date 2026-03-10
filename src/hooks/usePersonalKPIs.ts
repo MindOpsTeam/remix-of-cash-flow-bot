@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { startOfMonth, subMonths, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface KPIs {
   entradas_mes: number;
