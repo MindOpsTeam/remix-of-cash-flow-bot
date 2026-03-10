@@ -694,7 +694,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
 
       } else if (action.action === "send_executive_summary") {
         try {
-          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📝 _Gerando seu resumo executivo... aguarde._");
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📝 _Gerando seu resumo executivo... aguarde._", ctx.evolutionUrl, ctx.evolutionKey);
           const summaryText = await generateExecutiveSummary(ctx.companyId, ctx.supabase, lovableApiKey);
           if (summaryText) {
             for (const chunk of splitMessage(summaryText, 3800)) {
