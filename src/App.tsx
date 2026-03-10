@@ -33,6 +33,7 @@ const PreferencesPage = lazy(() => import("./pages/settings/Preferences"));
 const CompanySettingsPage = lazy(() => import("./pages/settings/CompanySettings"));
 const UsersPage = lazy(() => import("./pages/settings/Users"));
 const BankAccountsPage = lazy(() => import("./pages/settings/BankAccounts"));
+const InterIntegrationPage = lazy(() => import("./pages/settings/InterIntegration"));
 const PersonalPreferences = lazy(() => import("./pages/personal/PersonalPreferences"));
 const AsaasIntegrationPF = lazy(() => import("./pages/personal/AsaasIntegrationPF"));
 const PersonalDashboard = lazy(() => import("./pages/personal/PersonalDashboard"));
@@ -101,6 +102,7 @@ const AppRoutes = () => (
       <Route path="/settings/cost-centers" element={<ProtectedRoute><BusinessRoute><CostCentersPage /></BusinessRoute></ProtectedRoute>} />
       <Route path="/settings/integrations" element={<ProtectedRoute><BusinessRoute><IntegrationsPage /></BusinessRoute></ProtectedRoute>} />
       <Route path="/settings/integrations/asaas" element={<ProtectedRoute><BusinessRoute><AsaasIntegrationPJ /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/settings/integrations/inter" element={<ProtectedRoute><BusinessRoute><InterIntegrationPage /></BusinessRoute></ProtectedRoute>} />
       <Route path="/settings/preferences" element={<ProtectedRoute><BusinessRoute><PreferencesPage /></BusinessRoute></ProtectedRoute>} />
       <Route path="/settings/company" element={<ProtectedRoute><BusinessRoute><CompanySettingsPage /></BusinessRoute></ProtectedRoute>} />
       <Route path="/settings/users" element={<ProtectedRoute><BusinessRoute><UsersPage /></BusinessRoute></ProtectedRoute>} />
