@@ -66,8 +66,12 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
+    // ── Extrair credenciais Evolution do config ──────────────────────────────
+    const evolutionUrl = whatsappConfig.evolution_api_url || Deno.env.get("EVOLUTION_API_URL");
+    const evolutionKey = whatsappConfig.evolution_api_key || Deno.env.get("EVOLUTION_API_KEY");
+
     if (!member) {
-      await sendWhatsAppMessage(instanceName, remoteJid, "❌ Nenhum admin encontrado na empresa.");
+      await sendWhatsAppMessage(instanceName, remoteJid, "❌ Nenhum admin encontrado na empresa.", evolutionUrl, evolutionKey);
       return new Response(JSON.stringify({ ok: true, error: "no-admin" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
