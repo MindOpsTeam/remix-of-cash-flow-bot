@@ -184,6 +184,8 @@ Deno.serve(async (req) => {
         remoteJid,
         supabase,
         today: new Date().toISOString().split("T")[0],
+        evolutionUrl,
+        evolutionKey,
       });
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
