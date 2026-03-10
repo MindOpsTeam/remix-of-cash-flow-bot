@@ -1,63 +1,74 @@
 
 
-# Separação PF × PJ: Eliminar Confusão Patrimonial
+# Refatoração: Dashboard, Navegação e Páginas Financeiras
 
-## Problema
+## Problemas Identificados
 
-O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
+### 1. Dashboard PJ sobrecarregado
+O dashboard atual empilha 7 seções verticais: 4 KPIs + FinancialScore + 2 cards IA + Patrimônio Consolidado + Gráfico + Últimos Lançamentos. Informação demais sem hierarquia clara.
 
-1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
-2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
-3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
-4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
+### 2. "Transferências" vs "Lançamentos/Transações" confuso
+- **PJ**: "Lançamentos" = tabela `transactions` (receitas/despesas manuais). "Transferências" = dados do Asaas (transferências bancárias, assinaturas, antecipações). Conceitos completamente diferentes mas nomes parecidos.
+- **PF**: "Transações" = tabela `personal_transactions`. "Transferências" = mix de transferências entre contas internas + Asaas. Mesma confusão.
+- O usuário não entende por que existem duas páginas que parecem a mesma coisa.
 
-Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
+### 3. Contas a Pagar sem botão de cadastro
+Tanto PF quanto PJ, a página "Contas a Pagar" exibe APENAS dados vindos do Asaas. Sem botão "Nova Conta a Pagar" para cadastro manual. Se o Asaas não estiver configurado, a página é inútil.
 
-## Solução
+### 4. PJ não tem transferência entre contas bancárias
+A PF tem transferência entre contas pessoais, mas a PJ (que tem `bank_accounts`) não tem funcionalidade equivalente.
 
-Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
+---
 
-### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
+## Plano de Ação
 
-Remover do hook:
-- Query `asaas_config_exists`
-- Query `asaas_balance` (edge function)
-- Query `asaas_payments_fallback_balance`
-- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
-- Remoção do Asaas do cálculo de `totalBalance` e `summary`
+### Tarefa 1: Simplificar Dashboard PJ
+- Manter apenas: 4 KPIs no topo + gráfico receitas/despesas + últimos lançamentos
+- Remover `FinancialScore` e `ConsolidatedPatrimony` do dashboard (mover para Relatórios)
+- Manter cards CFO Digital e WhatsApp mas mais compactos (uma linha, não dois cards grandes)
+- Resultado: dashboard limpo com informação acionável
 
-O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
+### Tarefa 2: Simplificar Dashboard PF
+- Manter: 4 KPIs + gráfico + AI Insight
+- Remover `ConsolidatedPatrimony` do dashboard (mover para Relatórios)
+- Remover cards "Ações Rápidas" e "Resumo" (redundantes com sidebar)
 
-### 2. Limpar `usePersonalKPIs` — remover adições Asaas
+### Tarefa 3: Renomear e Reorganizar Menu
+Renomear itens para eliminar ambiguidade:
 
-Remover:
-- Query `asaas_payments_kpis`
-- `asaasKpiAdditions` e sua soma nos KPIs
-- Realtime listener de `asaas_payments`
+**PJ (Empresa):**
+- "Lançamentos" permanece (receitas/despesas)
+- "Transferências" → renomear para "Asaas" e mover para dentro de Integrações ou renomear para "Movimentações Asaas"
+- Adicionar "Transferências entre Contas" como item separado em Operações
+- "Contas a Pagar" permanece
 
-KPIs pessoais passam a refletir **apenas** `personal_transactions`.
+**PF (Pessoal):**
+- "Transações" permanece
+- "Transferências" → separar: tab "Entre Contas" fica como página própria, tabs Asaas movem para contexto da integração
+- "Contas a Pagar" permanece
 
-### 3. Limpar `PersonalAccounts` page — remover card Asaas
+### Tarefa 4: Adicionar Cadastro Manual em "Contas a Pagar"
+- Ambas as páginas (PF e PJ) ganham um botão "Nova Conta a Pagar"
+- Criar formulário simples: descrição, valor, vencimento, status (pendente/paga)
+- PF: salvar em `personal_transactions` com type="despesa" e status="pending"
+- PJ: salvar em `transactions` com type="expense" e status="pending"
+- Manter tabs Asaas como fonte secundária de dados
 
-Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
+### Tarefa 5: Adicionar Transferências entre Contas PJ
+- Criar página simples de transferência entre `bank_accounts` da empresa
+- Formulário: conta origem, conta destino, valor, data, descrição
+- Registrar como dois lançamentos espelhados em `transactions` (saída de uma conta, entrada em outra)
 
-### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
+---
 
-O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
-- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
-- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
-- Somar ao `pjBalance`
+## Resumo de Arquivos Afetados
 
-Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
-
-## Arquivos alterados
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
-| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
-| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
-| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
-
-Nenhuma migration SQL necessária.
+- `src/pages/Index.tsx` - simplificar dashboard PJ
+- `src/pages/personal/PersonalDashboard.tsx` - simplificar dashboard PF
+- `src/components/AppSidebar.tsx` - renomear/reorganizar menus
+- `src/pages/personal/PersonalBills.tsx` - adicionar botão + form de cadastro manual
+- `src/pages/CompanyBills.tsx` - adicionar botão + form de cadastro manual
+- `src/pages/CompanyTransfers.tsx` - renomear, esclarecer que é Asaas
+- `src/pages/personal/PersonalTransfers.tsx` - separar transferências internas do Asaas
+- Possível nova página para transferências entre contas PJ
 
