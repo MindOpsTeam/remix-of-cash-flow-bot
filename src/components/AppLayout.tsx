@@ -12,6 +12,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isBusiness } = useAppMode();
 
   return (
     <div className="flex min-h-screen bg-background">
