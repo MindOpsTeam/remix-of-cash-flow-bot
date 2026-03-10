@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
       }
     } else if (message?.imageMessage) {
       try {
-        await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._");
+        await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._", evolutionUrl, evolutionKey);
         const imageBase64 = await getMediaBase64(instanceName, messageId, remoteJid);
         if (!imageBase64) {
           await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.");
