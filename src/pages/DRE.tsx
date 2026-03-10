@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { exportDREtoPDF } from "@/lib/pdf-export";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,

@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate } from "@/lib/mock-data";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Building2, Pencil } from "lucide-react";
 

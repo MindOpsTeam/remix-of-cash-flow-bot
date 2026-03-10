@@ -45,7 +45,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </div>
       </main>
-      <CFOChatWidget />
+      {isBusiness && <CFOChatWidget />}
     </div>
   );
 }

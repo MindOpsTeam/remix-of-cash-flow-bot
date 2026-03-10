@@ -125,7 +125,7 @@ export function usePersonalKPIs() {
       }
     });
     return Object.entries(months).map(([month, v]) => ({
-      month: format(new Date(month + "-01"), "MMM"),
+      month: format(new Date(month + "-01"), "MMM", { locale: ptBR }),
       receita: v.receita,
       despesa: v.despesa,
       resultado: v.receita - v.despesa,

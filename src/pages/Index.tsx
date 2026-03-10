@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { KPICard } from "@/components/KPICard";
 import { FinancialScore } from "@/components/FinancialScore";
 import { TransactionRow } from "@/components/TransactionRow";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2, ArrowRight } from "lucide-react";
 import { ConsolidatedPatrimony } from "@/components/ConsolidatedPatrimony";
 import { Link } from "react-router-dom";

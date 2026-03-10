@@ -152,7 +152,7 @@ export function ConsolidatedPatrimony() {
             </p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-muted-foreground mb-1">Empresa (PJ)</p>
+            <p className="text-xs text-muted-foreground mb-1">Empresa (Resultado)</p>
             <p className={`text-lg font-bold font-mono ${pjBalance >= 0 ? "text-revenue" : "text-destructive"}`}>
               {fmt(pjBalance)}
             </p>
