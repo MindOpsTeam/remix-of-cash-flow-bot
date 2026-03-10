@@ -644,7 +644,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
         });
         if (err) {
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-            `⚠️ Classificado mas erro ao salvar PF: ${err.message}`
+            `⚠️ Classificado mas erro ao salvar PF: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey
           );
         }
 
