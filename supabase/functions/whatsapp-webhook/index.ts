@@ -278,7 +278,8 @@ async function executePendingAction({
       `📝 *Descrição:* ${action.description}\n` +
       `📅 *Data:* ${action.date || today}\n` +
       `_Registrado no módulo Pessoal (PF)._` +
-      (paymentSource === "pj" ? `\n_⚠️ Retirada criada para manter separação patrimonial._` : "")
+      (paymentSource === "pj" ? `\n_⚠️ Retirada criada para manter separação patrimonial._` : ""),
+      evolutionUrl, evolutionKey
     );
   } else {
     await insertPjTransaction({ supabase, action, companyId: pending.company_id, userId: pending.user_id, today });
