@@ -1,11 +1,20 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Receipt, FileText, ExternalLink, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Receipt, FileText, ExternalLink, AlertTriangle, Plus } from "lucide-react";
 import { useAsaasBills } from "@/hooks/useAsaasBills";
 import { BillItem } from "@/components/asaas/BillItem";
+import { useAuth } from "@/hooks/useAuth";
+import { usePersonalAccounts } from "@/hooks/usePersonalAccounts";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -25,8 +34,50 @@ const invoiceStatusLabels: Record<string, string> = {
   SYNCHRONIZED: "Sincronizada",
 };
 
+const emptyBillForm = {
+  description: "",
+  amount: "",
+  due_date: new Date().toISOString().split("T")[0],
+  status: "pending" as string,
+  account_id: "",
+};
+
 export default function PersonalBills() {
   const { bills, invoices, billsSummary, invoicesSummary, isLoading } = useAsaasBills();
+  const { user } = useAuth();
+  const { accounts } = usePersonalAccounts();
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState({ ...emptyBillForm });
+  const [saving, setSaving] = useState(false);
+
+  const handleCreateBill = useCallback(async () => {
+    if (!user?.id) return;
+    const amount = parseFloat(form.amount);
+    if (!form.description.trim() || isNaN(amount) || amount <= 0 || !form.due_date) {
+      toast.error("Preencha todos os campos corretamente");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("personal_transactions").insert({
+      user_id: user.id,
+      title: form.description.trim(),
+      description: form.description.trim(),
+      amount,
+      date: form.due_date,
+      type: "despesa",
+      status: form.status,
+      source: "manual",
+      account_id: form.account_id || null,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Erro ao criar conta a pagar");
+    } else {
+      toast.success("Conta a pagar criada!");
+      setFormOpen(false);
+      setForm({ ...emptyBillForm });
+    }
+  }, [user, form]);
 
   const groupedBills = useMemo(() => {
     const groups: Record<string, typeof bills> = {};
@@ -41,11 +92,14 @@ export default function PersonalBills() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Contas a Pagar</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Boletos, contas e notas fiscais
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Contas a Pagar</h1>
+            <p className="text-sm text-muted-foreground mt-1">Boletos, contas e notas fiscais</p>
+          </div>
+          <Button className="gap-2" variant="accent" onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4" /> Nova Conta
+          </Button>
         </div>
 
         <Tabs defaultValue="bills">
@@ -58,35 +112,11 @@ export default function PersonalBills() {
             </TabsTrigger>
           </TabsList>
 
-          {/* BILLS TAB */}
           <TabsContent value="bills" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <Card>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground">Total a Pagar</p>
-                  <p className="text-xl font-bold font-mono">{fmt(billsSummary.totalDue)}</p>
-                  <p className="text-[10px] text-muted-foreground">{billsSummary.count} contas</p>
-                </CardContent>
-              </Card>
-              <Card className={billsSummary.overdueCount > 0 ? "border-destructive/50" : ""}>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground">Vencidas</p>
-                  <p className={`text-xl font-bold font-mono ${billsSummary.overdueCount > 0 ? "text-destructive" : ""}`}>
-                    {billsSummary.overdueCount}
-                  </p>
-                  {billsSummary.overdueCount > 0 && (
-                    <p className="text-[10px] text-destructive flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" /> Atenção
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground">Pagas no Mês</p>
-                  <p className="text-xl font-bold font-mono text-revenue">{fmt(billsSummary.paidThisMonth)}</p>
-                </CardContent>
-              </Card>
+              <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total a Pagar</p><p className="text-xl font-bold font-mono">{fmt(billsSummary.totalDue)}</p><p className="text-[10px] text-muted-foreground">{billsSummary.count} contas</p></CardContent></Card>
+              <Card className={billsSummary.overdueCount > 0 ? "border-destructive/50" : ""}><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Vencidas</p><p className={`text-xl font-bold font-mono ${billsSummary.overdueCount > 0 ? "text-destructive" : ""}`}>{billsSummary.overdueCount}</p>{billsSummary.overdueCount > 0 && <p className="text-[10px] text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Atenção</p>}</CardContent></Card>
+              <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Pagas no Mês</p><p className="text-xl font-bold font-mono text-revenue">{fmt(billsSummary.paidThisMonth)}</p></CardContent></Card>
             </div>
 
             <div className="space-y-2">
@@ -97,7 +127,7 @@ export default function PersonalBills() {
                   <CardContent className="text-center py-12">
                     <Receipt className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
                     <p className="text-muted-foreground text-sm">Nenhuma conta a pagar encontrada.</p>
-                    <p className="text-xs text-muted-foreground mt-1">Contas pagas via Asaas aparecerão aqui automaticamente.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Use o botão acima para cadastrar manualmente.</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -117,30 +147,11 @@ export default function PersonalBills() {
             </div>
           </TabsContent>
 
-          {/* INVOICES TAB */}
           <TabsContent value="invoices" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-3">
-              <Card>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground">Total Faturado</p>
-                  <p className="text-xl font-bold font-mono">{fmt(invoicesSummary.total)}</p>
-                  <p className="text-[10px] text-muted-foreground">{invoicesSummary.count} notas</p>
-                </CardContent>
-              </Card>
-              <Card className={invoicesSummary.errorCount > 0 ? "border-destructive/50" : ""}>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground">Com Erro</p>
-                  <p className={`text-xl font-bold font-mono ${invoicesSummary.errorCount > 0 ? "text-destructive" : ""}`}>
-                    {invoicesSummary.errorCount}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-muted-foreground">NFS-e Emitidas</p>
-                  <p className="text-xl font-bold font-mono">{invoicesSummary.count}</p>
-                </CardContent>
-              </Card>
+              <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total Faturado</p><p className="text-xl font-bold font-mono">{fmt(invoicesSummary.total)}</p><p className="text-[10px] text-muted-foreground">{invoicesSummary.count} notas</p></CardContent></Card>
+              <Card className={invoicesSummary.errorCount > 0 ? "border-destructive/50" : ""}><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Com Erro</p><p className={`text-xl font-bold font-mono ${invoicesSummary.errorCount > 0 ? "text-destructive" : ""}`}>{invoicesSummary.errorCount}</p></CardContent></Card>
+              <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">NFS-e Emitidas</p><p className="text-xl font-bold font-mono">{invoicesSummary.count}</p></CardContent></Card>
             </div>
 
             {isLoading ? (
@@ -150,7 +161,6 @@ export default function PersonalBills() {
                 <CardContent className="text-center py-12">
                   <FileText className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
                   <p className="text-muted-foreground text-sm">Nenhuma nota fiscal encontrada.</p>
-                  <p className="text-xs text-muted-foreground mt-1">Notas fiscais emitidas via Asaas aparecerão aqui automaticamente.</p>
                 </CardContent>
               </Card>
             ) : (
@@ -202,6 +212,51 @@ export default function PersonalBills() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* New Bill Dialog */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nova Conta a Pagar</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Descrição</Label>
+              <Input className="mt-1" placeholder="Ex: Conta de luz" value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Valor (R$)</Label>
+              <Input className="mt-1" type="number" step="0.01" min="0.01" placeholder="0,00" value={form.amount} onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Vencimento</Label>
+              <Input className="mt-1" type="date" value={form.due_date} onChange={(e) => setForm(f => ({ ...f, due_date: e.target.value }))} />
+            </div>
+            {accounts.length > 0 && (
+              <div>
+                <Label>Conta (opcional)</Label>
+                <Select value={form.account_id} onValueChange={(v) => setForm(f => ({ ...f, account_id: v }))}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="confirmed">Paga</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" onClick={handleCreateBill} disabled={saving}>
+              {saving ? "Salvando..." : "Criar Conta a Pagar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

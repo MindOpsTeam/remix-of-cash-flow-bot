@@ -1,11 +1,19 @@
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Receipt, FileText, ExternalLink, AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Receipt, FileText, ExternalLink, AlertTriangle, Plus } from "lucide-react";
 import { useCompanyAsaasBills } from "@/hooks/useCompanyAsaasBills";
 import { BillItem } from "@/components/asaas/BillItem";
+import { useCompany } from "@/hooks/useCompany";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -25,8 +33,49 @@ const invoiceStatusLabels: Record<string, string> = {
   SYNCHRONIZED: "Sincronizada",
 };
 
+const emptyBillForm = {
+  description: "",
+  amount: "",
+  due_date: new Date().toISOString().split("T")[0],
+  status: "pending" as string,
+};
+
 export default function CompanyBills() {
   const { bills, invoices, billsSummary, invoicesSummary, isLoading } = useCompanyAsaasBills();
+  const { company } = useCompany();
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState({ ...emptyBillForm });
+  const [saving, setSaving] = useState(false);
+
+  const handleCreateBill = useCallback(async () => {
+    if (!company) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const amount = parseFloat(form.amount);
+    if (!form.description.trim() || isNaN(amount) || amount <= 0 || !form.due_date) {
+      toast.error("Preencha todos os campos corretamente");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("transactions").insert({
+      company_id: company.id,
+      user_id: user.id,
+      description: form.description.trim(),
+      amount,
+      date: form.due_date,
+      type: "expense",
+      status: form.status,
+      source: "manual",
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Erro ao criar conta a pagar");
+    } else {
+      toast.success("Conta a pagar criada!");
+      setFormOpen(false);
+      setForm({ ...emptyBillForm });
+    }
+  }, [company, form]);
 
   const groupedBills = useMemo(() => {
     const groups: Record<string, typeof bills> = {};
@@ -41,11 +90,16 @@ export default function CompanyBills() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Contas a Pagar</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Boletos, contas e notas fiscais da empresa
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Contas a Pagar</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Boletos, contas e notas fiscais da empresa
+            </p>
+          </div>
+          <Button className="gap-2" variant="accent" onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4" /> Nova Conta
+          </Button>
         </div>
 
         <Tabs defaultValue="bills">
@@ -113,6 +167,40 @@ export default function CompanyBills() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* New Bill Dialog */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nova Conta a Pagar</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Descrição</Label>
+              <Input className="mt-1" placeholder="Ex: Aluguel escritório" value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Valor (R$)</Label>
+              <Input className="mt-1" type="number" step="0.01" min="0.01" placeholder="0,00" value={form.amount} onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Vencimento</Label>
+              <Input className="mt-1" type="date" value={form.due_date} onChange={(e) => setForm(f => ({ ...f, due_date: e.target.value }))} />
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm(f => ({ ...f, status: v }))}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="confirmed">Paga</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button className="w-full" onClick={handleCreateBill} disabled={saving}>
+              {saving ? "Salvando..." : "Criar Conta a Pagar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

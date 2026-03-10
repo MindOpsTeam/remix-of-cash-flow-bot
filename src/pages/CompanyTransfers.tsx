@@ -42,9 +42,9 @@ export default function CompanyTransfers() {
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Transferências</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Movimentações Asaas</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Movimentações, assinaturas e antecipações da empresa
+            Transferências, assinaturas e antecipações via Asaas
           </p>
         </div>
 
