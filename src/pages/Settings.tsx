@@ -39,13 +39,6 @@ const sections = [
     available: true,
   },
   {
-    icon: Webhook,
-    title: "Integrações",
-    description: "Asaas, webhooks e conexões com plataformas externas",
-    to: "/settings/integrations",
-    available: true,
-  },
-  {
     icon: MessageSquare,
     title: "Agente WhatsApp",
     description: "Configurar o assistente financeiro via WhatsApp",
