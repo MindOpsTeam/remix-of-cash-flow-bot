@@ -128,6 +128,7 @@ const personalNav: NavEntry[] = [
       { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
     ],
   },
+  { to: "/personal/integrations", label: "Integrações", icon: Plug },
 ];
 
 const personalSettingsGroup: NavGroup = {
