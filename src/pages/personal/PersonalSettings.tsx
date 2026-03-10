@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Webhook, Wallet, Tag, MessageSquare, SlidersHorizontal, PiggyBank, Target } from "lucide-react";
+import { Wallet, Tag, MessageSquare, SlidersHorizontal, PiggyBank, Target } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
