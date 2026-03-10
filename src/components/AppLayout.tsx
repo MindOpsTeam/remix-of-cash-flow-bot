@@ -4,6 +4,7 @@ import { CFOChatWidget } from "./CFOChatWidget";
 import { NotificationBell } from "./NotificationBell";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { useAppMode } from "@/hooks/useAppMode";
 
 interface AppLayoutProps {
   children: ReactNode;
