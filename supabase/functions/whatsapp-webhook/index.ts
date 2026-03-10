@@ -718,7 +718,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
               }
             }
           } else {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar a previsão.");
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar a previsão.", ctx.evolutionUrl, ctx.evolutionKey);
           }
         } catch (err) { console.error("Cashflow forecast error:", err); }
       }
