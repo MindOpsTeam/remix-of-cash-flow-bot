@@ -161,11 +161,40 @@ export default function Dashboard() {
             <FinancialScore revenue={revenue} expense={expense} prevRevenue={prevRevenue} prevExpense={prevExpense} />
           </div>
 
+          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Link to="/cfo-digital" className="group">
+              <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 transition-all duration-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Brain className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">CFO Digital</h3>
+                    <p className="text-xs text-muted-foreground">Análise inteligente com IA</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Receba insights, relatórios automáticos e recomendações estratégicas baseadas nos seus dados reais.</p>
+              </div>
+            </Link>
+            <Link to="/whatsapp" className="group">
+              <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 transition-all duration-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Agente WhatsApp</h3>
+                    <p className="text-xs text-muted-foreground">Lançamentos por mensagem</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Envie notas fiscais, recibos e comandos de voz pelo WhatsApp. A IA classifica e registra automaticamente.</p>
+              </div>
+            </Link>
+          </div>
+
           <div className="mb-6">
             <ConsolidatedPatrimony />
           </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <div className="xl:col-span-2 bg-card border border-border rounded-lg p-5 animate-slide-up" style={{ animationDelay: "400ms", animationFillMode: "backwards" }}>
               <h2 className="text-sm font-semibold text-foreground mb-4">Receitas vs Despesas</h2>
               <ResponsiveContainer width="100%" height={300}>
