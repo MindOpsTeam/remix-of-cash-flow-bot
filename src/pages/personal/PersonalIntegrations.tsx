@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Shield, ChevronRight, Landmark } from "lucide-react";
+import { Shield, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const integrations = [
