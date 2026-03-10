@@ -1,63 +1,47 @@
 
 
-# Separação PF × PJ: Eliminar Confusão Patrimonial
+# Corrigir Integração Evolution API — Campos Necessários
 
-## Problema
+## Problema Atual
 
-O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
+A tabela `whatsapp_configs` só armazena `instance_name`, `company_id` e `active`. Porém, a Evolution API precisa de **3 dados** para funcionar:
 
-1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
-2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
-3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
-4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
+1. **URL do servidor Evolution** (ex: `https://evolution.suaempresa.com`)
+2. **API Key global** do servidor Evolution
+3. **Nome da instância** (já existe)
 
-Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
+Hoje esses valores estão hardcoded como secrets globais (`EVOLUTION_API_URL`, `EVOLUTION_API_KEY`), significando que **todas as empresas compartilham o mesmo servidor Evolution**. Se uma empresa usa um servidor diferente, não funciona. Além disso, o formulário de configuração no frontend só pede o nome da instância — o usuário não tem como informar URL e chave.
 
-## Solução
+## Plano
 
-Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
+### 1. Adicionar colunas à tabela `whatsapp_configs`
 
-### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
+Migração SQL para adicionar:
+- `evolution_api_url` (text, nullable) — URL do servidor Evolution
+- `evolution_api_key` (text, nullable) — API Key do servidor
 
-Remover do hook:
-- Query `asaas_config_exists`
-- Query `asaas_balance` (edge function)
-- Query `asaas_payments_fallback_balance`
-- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
-- Remoção do Asaas do cálculo de `totalBalance` e `summary`
+Quando preenchidos, esses campos têm **prioridade** sobre os secrets globais (fallback).
 
-O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
+### 2. Atualizar formulário no frontend (`WhatsAppAgent.tsx`)
 
-### 2. Limpar `usePersonalKPIs` — remover adições Asaas
+O dialog "Conectar Instância" passa a ter 3 campos:
+- **URL do Servidor Evolution** (obrigatório) — placeholder: `https://evolution.suaempresa.com`
+- **API Key** (obrigatório) — campo password
+- **Nome da Instância** (obrigatório) — como já existe
 
-Remover:
-- Query `asaas_payments_kpis`
-- `asaasKpiAdditions` e sua soma nos KPIs
-- Realtime listener de `asaas_payments`
+Adicionar também um botão "Testar Conexão" que faz um fetch à `/instance/fetchInstances` da Evolution para validar URL + key + instância.
 
-KPIs pessoais passam a refletir **apenas** `personal_transactions`.
+### 3. Atualizar Edge Function (`whatsapp-webhook/index.ts`)
 
-### 3. Limpar `PersonalAccounts` page — remover card Asaas
+Nas funções `sendWhatsAppMessage`, `sendWhatsAppImage` e `getMediaBase64`:
+- Receber `evolutionUrl` e `evolutionKey` como parâmetros (vindos do `whatsappConfig` do banco)
+- Fallback para `Deno.env.get("EVOLUTION_API_URL")` e `EVOLUTION_API_KEY` se não existirem no registro
 
-Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
+Isso requer propagar os valores do config ao longo de todo o fluxo da edge function.
 
-### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
+### Arquivos Afetados
 
-O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
-- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
-- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
-- Somar ao `pjBalance`
-
-Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
-
-## Arquivos alterados
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
-| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
-| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
-| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
-
-Nenhuma migration SQL necessária.
+- **Migração SQL**: adicionar `evolution_api_url` e `evolution_api_key` à `whatsapp_configs`
+- **`src/pages/WhatsAppAgent.tsx`**: formulário expandido com 3 campos + teste de conexão
+- **`supabase/functions/whatsapp-webhook/index.ts`**: usar URL/key do registro do banco com fallback para env vars
 
