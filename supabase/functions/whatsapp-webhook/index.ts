@@ -367,12 +367,14 @@ interface AgentContext {
   messageId: string;
   configId: string;
   supabase: any;
+  evolutionUrl: string | undefined;
+  evolutionKey: string | undefined;
 }
 
 async function runFinancialAgent(ctx: AgentContext) {
   const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!lovableApiKey) {
-    await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "❌ Configuração de IA não encontrada.");
+    await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "❌ Configuração de IA não encontrada.", ctx.evolutionUrl, ctx.evolutionKey);
     return;
   }
 
