@@ -28,6 +28,7 @@ import {
   Target,
   CreditCard,
   ChevronDown,
+  Plug,
   type LucideIcon,
 } from "lucide-react";
 
