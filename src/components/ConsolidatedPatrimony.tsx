@@ -122,9 +122,11 @@ export function ConsolidatedPatrimony() {
   return (
     <Card className="border-primary/20">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
+      <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Scale className="h-4 w-4 text-primary" />
           Patrimônio Consolidado
+        </CardTitle>
+        <p className="text-[11px] text-muted-foreground">PJ = resultado acumulado + Asaas</p>
         </CardTitle>
         <Link to="/owner-transactions">
           <Button variant="ghost" size="sm" className="gap-1 text-xs">
