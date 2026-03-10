@@ -66,8 +66,12 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
+    // ── Extrair credenciais Evolution do config ──────────────────────────────
+    const evolutionUrl = whatsappConfig.evolution_api_url || Deno.env.get("EVOLUTION_API_URL");
+    const evolutionKey = whatsappConfig.evolution_api_key || Deno.env.get("EVOLUTION_API_KEY");
+
     if (!member) {
-      await sendWhatsAppMessage(instanceName, remoteJid, "❌ Nenhum admin encontrado na empresa.");
+      await sendWhatsAppMessage(instanceName, remoteJid, "❌ Nenhum admin encontrado na empresa.", evolutionUrl, evolutionKey);
       return new Response(JSON.stringify({ ok: true, error: "no-admin" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -96,17 +100,17 @@ Deno.serve(async (req) => {
       textContent = message.extendedTextMessage.text;
     } else if (message?.audioMessage) {
       try {
-        await sendWhatsAppMessage(instanceName, remoteJid, "🎙️ _Transcrevendo seu áudio..._");
-        const audioBase64 = await getMediaBase64(instanceName, messageId, remoteJid);
+        await sendWhatsAppMessage(instanceName, remoteJid, "🎙️ _Transcrevendo seu áudio..._", evolutionUrl, evolutionKey);
+        const audioBase64 = await getMediaBase64(instanceName, messageId, remoteJid, evolutionUrl, evolutionKey);
         if (!audioBase64) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar o áudio. Tente enviar novamente.");
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar o áudio. Tente enviar novamente.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "audio-download-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
         const transcription = await transcribeAudio(audioBase64, message.audioMessage.mimetype || "audio/ogg");
         if (!transcription) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui transcrever o áudio. Tente enviar uma mensagem de texto.");
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui transcrever o áudio. Tente enviar uma mensagem de texto.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "transcription-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -115,24 +119,24 @@ Deno.serve(async (req) => {
         console.log("Audio transcribed:", textContent.slice(0, 200));
       } catch (err) {
         console.error("Audio processing error:", err);
-        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar o áudio. Tente novamente.");
+        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar o áudio. Tente novamente.", evolutionUrl, evolutionKey);
         return new Response(JSON.stringify({ ok: true, error: "audio-error" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     } else if (message?.imageMessage) {
       try {
-        await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._");
-        const imageBase64 = await getMediaBase64(instanceName, messageId, remoteJid);
+        await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._", evolutionUrl, evolutionKey);
+        const imageBase64 = await getMediaBase64(instanceName, messageId, remoteJid, evolutionUrl, evolutionKey);
         if (!imageBase64) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.");
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "image-download-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
         const imageDescription = await analyzeDocumentImage(imageBase64, message.imageMessage.mimetype || "image/jpeg");
         if (!imageDescription) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui analisar a imagem. Tente enviar uma foto mais nítida.");
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui analisar a imagem. Tente enviar uma foto mais nítida.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "image-analysis-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -142,14 +146,15 @@ Deno.serve(async (req) => {
         console.log("Image analyzed:", textContent.slice(0, 300));
       } catch (err) {
         console.error("Image processing error:", err);
-        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar a imagem. Tente novamente.");
+        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar a imagem. Tente novamente.", evolutionUrl, evolutionKey);
         return new Response(JSON.stringify({ ok: true, error: "image-error" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     } else {
       await sendWhatsAppMessage(instanceName, remoteJid,
-        "🤖 Consigo processar *texto*, *áudio* e *imagens de documentos*! Envie uma descrição, um áudio ou foto de boleto/nota/recibo."
+        "🤖 Consigo processar *texto*, *áudio* e *imagens de documentos*! Envie uma descrição, um áudio ou foto de boleto/nota/recibo.",
+        evolutionUrl, evolutionKey
       );
       return new Response(JSON.stringify({ ok: true, skipped: "non-text" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -179,6 +184,8 @@ Deno.serve(async (req) => {
         remoteJid,
         supabase,
         today: new Date().toISOString().split("T")[0],
+        evolutionUrl,
+        evolutionKey,
       });
       return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -197,6 +204,8 @@ Deno.serve(async (req) => {
       messageId,
       configId: whatsappConfig.id,
       supabase,
+      evolutionUrl,
+      evolutionKey,
     });
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -219,7 +228,7 @@ function isConfirmationReply(text: string): boolean {
 }
 
 async function executePendingAction({
-  pending, reply, instanceName, remoteJid, supabase, today,
+  pending, reply, instanceName, remoteJid, supabase, today, evolutionUrl, evolutionKey,
 }: {
   pending: any;
   reply: string;
@@ -227,12 +236,14 @@ async function executePendingAction({
   remoteJid: string;
   supabase: any;
   today: string;
+  evolutionUrl: string | undefined;
+  evolutionKey: string | undefined;
 }) {
   // Deletar o pending independentemente do resultado
   await supabase.from("whatsapp_pending_actions").delete().eq("id", pending.id);
 
   if (["0", "cancelar", "cancel", "não", "nao"].includes(reply)) {
-    await sendWhatsAppMessage(instanceName, remoteJid, "✅ Lançamento cancelado.");
+    await sendWhatsAppMessage(instanceName, remoteJid, "✅ Lançamento cancelado.", evolutionUrl, evolutionKey);
     return;
   }
 
@@ -267,7 +278,8 @@ async function executePendingAction({
       `📝 *Descrição:* ${action.description}\n` +
       `📅 *Data:* ${action.date || today}\n` +
       `_Registrado no módulo Pessoal (PF)._` +
-      (paymentSource === "pj" ? `\n_⚠️ Retirada criada para manter separação patrimonial._` : "")
+      (paymentSource === "pj" ? `\n_⚠️ Retirada criada para manter separação patrimonial._` : ""),
+      evolutionUrl, evolutionKey
     );
   } else {
     await insertPjTransaction({ supabase, action, companyId: pending.company_id, userId: pending.user_id, today });
@@ -295,7 +307,8 @@ async function executePendingAction({
       `📝 *Descrição:* ${action.description}\n` +
       `📅 *Data:* ${action.date || today}\n` +
       `_Registrado no módulo Empresa (PJ)._` +
-      (paymentSource === "pf" ? `\n_⚠️ Aporte criado para reembolsar seus recursos pessoais._` : "")
+      (paymentSource === "pf" ? `\n_⚠️ Aporte criado para reembolsar seus recursos pessoais._` : ""),
+      evolutionUrl, evolutionKey
     );
   }
 }
@@ -354,12 +367,14 @@ interface AgentContext {
   messageId: string;
   configId: string;
   supabase: any;
+  evolutionUrl: string | undefined;
+  evolutionKey: string | undefined;
 }
 
 async function runFinancialAgent(ctx: AgentContext) {
   const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
   if (!lovableApiKey) {
-    await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "❌ Configuração de IA não encontrada.");
+    await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "❌ Configuração de IA não encontrada.", ctx.evolutionUrl, ctx.evolutionKey);
     return;
   }
 
@@ -607,7 +622,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
     // Enviar resposta limpa
     const cleanResponse = aiResponse.replace(/<ACTION>.*?<\/ACTION>/gs, "").trim();
     if (cleanResponse) {
-      await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, cleanResponse);
+      await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, cleanResponse, ctx.evolutionUrl, ctx.evolutionKey);
     }
 
     // Processar ações
@@ -619,7 +634,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
         });
         if (err) {
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-            `⚠️ Classificado mas erro ao salvar PJ: ${err.message}`
+            `⚠️ Classificado mas erro ao salvar PJ: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey
           );
         }
 
@@ -629,7 +644,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
         });
         if (err) {
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-            `⚠️ Classificado mas erro ao salvar PF: ${err.message}`
+            `⚠️ Classificado mas erro ao salvar PF: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey
           );
         }
 
@@ -650,7 +665,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
         if (ownerErr) {
           console.error("Owner transaction error:", ownerErr);
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-            `⚠️ Lançamento PF criado, mas erro ao criar a retirada: ${ownerErr.message}`
+            `⚠️ Lançamento PF criado, mas erro ao criar a retirada: ${ownerErr.message}`, ctx.evolutionUrl, ctx.evolutionKey
           );
         }
 
@@ -673,37 +688,37 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
           const chartData = { revenue, expense, balance, expenseByAccount, revenueByAccount, month: monthName };
           const imageBase64 = await generateFinancialChart(chartData, lovableApiKey);
           if (imageBase64) {
-            await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, `📊 Dashboard Financeiro — ${monthName}`);
+            await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, `📊 Dashboard Financeiro — ${monthName}`, ctx.evolutionUrl, ctx.evolutionKey);
           }
         } catch (chartErr) { console.error("Chart generation error:", chartErr); }
 
       } else if (action.action === "send_executive_summary") {
         try {
-          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📝 _Gerando seu resumo executivo... aguarde._");
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📝 _Gerando seu resumo executivo... aguarde._", ctx.evolutionUrl, ctx.evolutionKey);
           const summaryText = await generateExecutiveSummary(ctx.companyId, ctx.supabase, lovableApiKey);
           if (summaryText) {
             for (const chunk of splitMessage(summaryText, 3800)) {
-              await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, chunk);
+              await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, chunk, ctx.evolutionUrl, ctx.evolutionKey);
             }
           } else {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar o resumo executivo.");
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar o resumo executivo.", ctx.evolutionUrl, ctx.evolutionKey);
           }
         } catch (err) { console.error("Executive summary error:", err); }
 
       } else if (action.action === "send_cashflow_forecast") {
         try {
-          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📊 _Analisando dados e gerando previsão de fluxo de caixa..._");
+          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "📊 _Analisando dados e gerando previsão de fluxo de caixa..._", ctx.evolutionUrl, ctx.evolutionKey);
           const forecastResult = await generateCashFlowForecast(ctx.companyId, ctx.supabase, lovableApiKey);
           if (forecastResult) {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, forecastResult.text);
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, forecastResult.text, ctx.evolutionUrl, ctx.evolutionKey);
             if (forecastResult.chartData) {
               const imageBase64 = await generateForecastChart(forecastResult.chartData, lovableApiKey);
               if (imageBase64) {
-                await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, "📈 Previsão de Fluxo de Caixa — Próximos 3 meses");
+                await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, "📈 Previsão de Fluxo de Caixa — Próximos 3 meses", ctx.evolutionUrl, ctx.evolutionKey);
               }
             }
           } else {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar a previsão.");
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, "⚠️ Não foi possível gerar a previsão.", ctx.evolutionUrl, ctx.evolutionKey);
           }
         } catch (err) { console.error("Cashflow forecast error:", err); }
       }
@@ -725,16 +740,16 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
   } catch (err) {
     console.error("Agent error:", err);
     await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-      "❌ Ocorreu um erro inesperado. Tente novamente em instantes."
+      "❌ Ocorreu um erro inesperado. Tente novamente em instantes.", ctx.evolutionUrl, ctx.evolutionKey
     );
   }
 }
 
 // ─── AUDIO PROCESSING ─────────────────────────────────────────────────────────
 
-async function getMediaBase64(instanceName: string, messageId: string, remoteJid: string): Promise<string | null> {
-  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
-  const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
+async function getMediaBase64(instanceName: string, messageId: string, remoteJid: string, evoUrl?: string | undefined, evoKey?: string | undefined): Promise<string | null> {
+  const evolutionUrl = evoUrl || Deno.env.get("EVOLUTION_API_URL");
+  const evolutionKey = evoKey || Deno.env.get("EVOLUTION_API_KEY");
   if (!evolutionUrl || !evolutionKey) { console.error("Evolution credentials missing"); return null; }
 
   try {
@@ -810,9 +825,9 @@ Se não for um documento financeiro, descreva o que vê na imagem.` },
 
 // ─── EVOLUTION API HELPERS ────────────────────────────────────────────────────
 
-async function sendWhatsAppMessage(instanceName: string, remoteJid: string, text: string) {
-  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
-  const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
+async function sendWhatsAppMessage(instanceName: string, remoteJid: string, text: string, evoUrl?: string | undefined, evoKey?: string | undefined) {
+  const evolutionUrl = evoUrl || Deno.env.get("EVOLUTION_API_URL");
+  const evolutionKey = evoKey || Deno.env.get("EVOLUTION_API_KEY");
   if (!evolutionUrl || !evolutionKey) { console.error("Evolution credentials missing"); return; }
 
   try {
@@ -825,9 +840,9 @@ async function sendWhatsAppMessage(instanceName: string, remoteJid: string, text
   } catch (err) { console.error("Error sending WhatsApp message:", err); }
 }
 
-async function sendWhatsAppImage(instanceName: string, remoteJid: string, base64Image: string, caption: string) {
-  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
-  const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
+async function sendWhatsAppImage(instanceName: string, remoteJid: string, base64Image: string, caption: string, evoUrl?: string | undefined, evoKey?: string | undefined) {
+  const evolutionUrl = evoUrl || Deno.env.get("EVOLUTION_API_URL");
+  const evolutionKey = evoKey || Deno.env.get("EVOLUTION_API_KEY");
   if (!evolutionUrl || !evolutionKey) { console.error("Evolution credentials missing"); return; }
 
   try {

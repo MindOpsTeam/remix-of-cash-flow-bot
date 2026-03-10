@@ -2385,6 +2385,8 @@ export type Database = {
           active: boolean
           company_id: string
           created_at: string
+          evolution_api_key: string | null
+          evolution_api_url: string | null
           id: string
           instance_name: string
           updated_at: string
@@ -2393,6 +2395,8 @@ export type Database = {
           active?: boolean
           company_id: string
           created_at?: string
+          evolution_api_key?: string | null
+          evolution_api_url?: string | null
           id?: string
           instance_name: string
           updated_at?: string
@@ -2401,6 +2405,8 @@ export type Database = {
           active?: boolean
           company_id?: string
           created_at?: string
+          evolution_api_key?: string | null
+          evolution_api_url?: string | null
           id?: string
           instance_name?: string
           updated_at?: string
