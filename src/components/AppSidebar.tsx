@@ -384,8 +384,10 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppSidebar() {
   return (
-    <aside className="hidden lg:flex w-60 flex-col bg-sidebar border-r border-sidebar-border">
-      <SidebarContent />
+    <aside className="hidden lg:flex w-60 shrink-0 flex-col bg-sidebar border-r border-sidebar-border sticky top-0 h-screen overflow-hidden">
+      <div className="flex flex-col h-full overflow-hidden">
+        <SidebarContent />
+      </div>
     </aside>
   );
 }
