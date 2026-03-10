@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
         console.log("Image analyzed:", textContent.slice(0, 300));
       } catch (err) {
         console.error("Image processing error:", err);
-        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar a imagem. Tente novamente.");
+        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar a imagem. Tente novamente.", evolutionUrl, evolutionKey);
         return new Response(JSON.stringify({ ok: true, error: "image-error" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
