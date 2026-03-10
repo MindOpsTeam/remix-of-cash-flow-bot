@@ -307,7 +307,8 @@ async function executePendingAction({
       `📝 *Descrição:* ${action.description}\n` +
       `📅 *Data:* ${action.date || today}\n` +
       `_Registrado no módulo Empresa (PJ)._` +
-      (paymentSource === "pf" ? `\n_⚠️ Aporte criado para reembolsar seus recursos pessoais._` : "")
+      (paymentSource === "pf" ? `\n_⚠️ Aporte criado para reembolsar seus recursos pessoais._` : ""),
+      evolutionUrl, evolutionKey
     );
   }
 }
