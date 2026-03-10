@@ -122,10 +122,13 @@ export function ConsolidatedPatrimony() {
   return (
     <Card className="border-primary/20">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Scale className="h-4 w-4 text-primary" />
-          Patrimônio Consolidado
-        </CardTitle>
+        <div>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Scale className="h-4 w-4 text-primary" />
+            Patrimônio Consolidado
+          </CardTitle>
+          <p className="text-[11px] text-muted-foreground mt-0.5">PJ = resultado acumulado + Asaas</p>
+        </div>
         <Link to="/owner-transactions">
           <Button variant="ghost" size="sm" className="gap-1 text-xs">
             Sócio ↔ Empresa <ArrowRight className="h-3 w-3" />
@@ -150,7 +153,7 @@ export function ConsolidatedPatrimony() {
             </p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-muted-foreground mb-1">Empresa (PJ)</p>
+            <p className="text-xs text-muted-foreground mb-1">Empresa (Resultado)</p>
             <p className={`text-lg font-bold font-mono ${pjBalance >= 0 ? "text-revenue" : "text-destructive"}`}>
               {fmt(pjBalance)}
             </p>

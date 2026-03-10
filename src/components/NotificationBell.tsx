@@ -11,8 +11,6 @@ export function NotificationBell() {
   const { mode } = useAppMode();
   const { alerts, unreadCount, markAsRead, markAllRead } = usePersonalNotifications();
 
-  if (mode !== "personal") return null;
-
   return (
     <Popover>
       <PopoverTrigger asChild>

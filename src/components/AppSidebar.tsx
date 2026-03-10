@@ -125,7 +125,6 @@ const personalNav: NavEntry[] = [
       { to: "/personal/reports", label: "Relatórios", icon: PieChart },
       { to: "/personal/forecast", label: "Previsão Fluxo", icon: TrendingUp },
       { to: "/personal/summary", label: "Resumo Executivo", icon: FileText },
-      { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
     ],
   },
   { to: "/personal/integrations", label: "Integrações", icon: Plug },

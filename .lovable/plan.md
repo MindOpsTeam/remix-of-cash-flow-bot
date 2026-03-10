@@ -1,91 +1,63 @@
 
 
-# Auditoria Completa e Plano de Refatoração
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## Falhas Encontradas
+## Problema
 
-### 1. Valores que Não Batem
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-**PJ Balance no "Patrimônio Consolidado" é fictício:**
-- `ConsolidatedPatrimony.tsx` calcula saldo PJ como `SUM(revenue) - SUM(expense)` de TODAS as transações confirmadas de todos os tempos. Isso não é saldo bancário real — é apenas o "resultado acumulado". Ignora saldos iniciais das contas bancárias (`bank_accounts`) e não reflete a realidade.
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-**Personal KPIs view retorna ZERO se não houver transações no mês:**
-- `v_personal_kpis` usa `GROUP BY user_id` com filtro de mês atual. Se o usuário não tem transações no mês, a view retorna 0 linhas (não uma linha com zeros). O hook usa `maybeSingle()` e cai no fallback de zeros, mas as taxas/vencidas do Asaas que existem também desaparecem.
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-**Forecast pessoal trata TODOS os pagamentos Asaas como entradas:**
-- `usePersonalForecast.ts` linha 68: pagamentos pendentes do Asaas são somados como `dailyEntradas`, mas pagamentos Asaas são cobranças que o usuário EMITIU — são receitas a receber, não genéricas. Se o conceito mudar, os valores ficam errados.
+## Solução
 
-### 2. CFO Chat Widget Aparece no Modo Pessoal mas Não Funciona
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-- `CFOChatWidget` é renderizado em `AppLayout`, que é usado por TODAS as páginas (PF e PJ).
-- O widget usa `useCompany()`, que retorna `null` no modo pessoal.
-- Resultado: o botão flutuante aparece, o usuário clica, mas nenhuma mensagem é enviada (guard `if (!company) return`).
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-### 3. WhatsApp no Sidebar Pessoal mas É Business-Only
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-- `personalNav` inclui WhatsApp em "Análise" (linha 128 do AppSidebar).
-- A página `WhatsAppAgent.tsx` usa `useCompany()` — sem empresa, nada funciona.
-- A rota `/whatsapp` não tem guarda de modo (é "shared"), mas a funcionalidade é 100% PJ.
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-### 4. Dashboard PJ Genérico e Sem Destaque da IA
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
 
-- O dashboard principal (`Index.tsx`) é uma tela padrão de KPIs + gráfico + últimos lançamentos.
-- O CFO Digital e o sistema de mensageria (WhatsApp) — que são os diferenciais — estão enterrados em submenus.
-- Não há nenhum card ou call-to-action no dashboard que destaque essas funcionalidades.
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
 
-### 5. Notificações Só no Modo Pessoal
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
 
-- `NotificationBell` retorna `null` se `mode !== "personal"` (linha 14).
-- Empresas não recebem notificações na UI, perdendo alertas importantes.
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
 
-### 6. Mock Data Ainda em Uso
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
 
-- `KPICard.tsx` importa `formatCurrency` de `src/lib/mock-data.ts`.
-- O arquivo `mock-data.ts` contém transações hardcoded que não são mais usadas mas o utilitário `formatCurrency` sim.
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
 
-### 7. Gráfico Pessoal com Meses em Inglês
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
 
-- `usePersonalKPIs.ts` linha 127: `format(new Date(...), "MMM")` gera nomes de meses em inglês ("Jan", "Feb") em vez de português ("Jan", "Fev"), inconsistente com o resto da interface em PT-BR.
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
 
-### 8. Console Warning: forwardRef no Simulator
+## Arquivos alterados
 
-- `Simulator.tsx` passa `ReactMarkdown` como children de um componente que tenta atribuir ref, gerando warning no console.
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
 
----
-
-## Plano de Refatoração
-
-### Tarefa 1: Corrigir Cálculo de Saldo PJ no Patrimônio Consolidado
-- Usar soma dos `bank_accounts` (se existir um campo de saldo) ou deixar claro no label que é "Resultado Acumulado" e não "Saldo".
-- Adicionar o saldo Asaas separadamente como "Conta Virtual Asaas".
-
-### Tarefa 2: Esconder CFO Chat Widget no Modo Pessoal
-- Em `AppLayout.tsx`, renderizar `<CFOChatWidget />` apenas quando `isBusiness` é true.
-- Ou: criar versão pessoal do chat que não dependa de `company`.
-
-### Tarefa 3: Remover WhatsApp do Menu Pessoal
-- Retirar o item WhatsApp de `personalNav` no `AppSidebar.tsx`.
-- Adicionar guarda `BusinessRoute` na rota `/whatsapp` em `App.tsx`.
-
-### Tarefa 4: Destacar IA e Mensageria nos Dashboards
-- Adicionar card de "CFO Digital" e "WhatsApp Agent" no dashboard PJ com status (mensagens recentes, última análise).
-- No dashboard pessoal, adicionar card de acesso rápido ao resumo executivo com insight da IA mais proeminente.
-
-### Tarefa 5: Extrair `formatCurrency` do Mock Data
-- Mover `formatCurrency` para `src/lib/utils.ts`.
-- Atualizar todos os imports.
-- Remover `mock-data.ts` se nada mais o referenciar.
-
-### Tarefa 6: Corrigir Meses em Português no Gráfico Pessoal
-- Adicionar `{ locale: ptBR }` ao `format()` em `usePersonalKPIs.ts`.
-
-### Tarefa 7: Ativar Notificações para Modo Empresarial
-- Remover a condição `if (mode !== "personal") return null` do `NotificationBell`.
-- Criar hook `useBusinessNotifications` ou adaptar o existente para funcionar com alertas PJ (ex: cobranças vencidas da empresa).
-
-### Tarefa 8: Corrigir View v_personal_kpis
-- Reformular a view para usar `LEFT JOIN` ou subconsulta que sempre retorne uma linha, mesmo sem transações no mês, garantindo que taxas e vencidas do Asaas sejam exibidas.
-
-### Tarefa 9: Fix ReactMarkdown forwardRef Warning
-- Envolver `ReactMarkdown` com `React.forwardRef` ou usar wrapper em `Simulator.tsx`.
+Nenhuma migration SQL necessária.
 

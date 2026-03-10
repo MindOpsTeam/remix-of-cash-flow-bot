@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { formatCurrency } from "@/lib/mock-data";
+import { formatCurrency } from "@/lib/utils";
 import { ReactNode, useEffect, useRef, useState } from "react";
 
 interface KPICardProps {
