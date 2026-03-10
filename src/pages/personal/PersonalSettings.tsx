@@ -32,13 +32,6 @@ const sections = [
     available: true,
   },
   {
-    icon: Webhook,
-    title: "Integrações",
-    description: "Conecte com plataformas externas como Asaas",
-    to: "/personal/settings/integrations",
-    available: true,
-  },
-  {
     icon: MessageSquare,
     title: "Agente WhatsApp",
     description: "Registrar gastos e receitas pelo WhatsApp",

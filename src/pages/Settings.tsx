@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree, Webhook, MessageSquare, SlidersHorizontal, Landmark } from "lucide-react";
+import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
