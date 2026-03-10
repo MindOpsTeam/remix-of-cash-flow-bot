@@ -109,7 +109,7 @@ export default function InterIntegration() {
     queryKey: ["inter_config", company?.id],
     enabled: !!company,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("inter_config")
         .select("*")
         .eq("company_id", company!.id)
@@ -177,9 +177,9 @@ export default function InterIntegration() {
 
     let error;
     if (existingConfig) {
-      ({ error } = await supabase.from("inter_config").update(payload).eq("id", existingConfig.id));
+      ({ error } = await (supabase as any).from("inter_config").update(payload).eq("id", existingConfig.id));
     } else {
-      ({ error } = await supabase.from("inter_config").insert(payload));
+      ({ error } = await (supabase as any).from("inter_config").insert(payload));
     }
 
     setSaving(false);
