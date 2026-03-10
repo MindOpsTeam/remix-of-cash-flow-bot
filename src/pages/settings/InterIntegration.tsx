@@ -261,16 +261,20 @@ export default function InterIntegration() {
         {/* Como obter credenciais */}
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
           <p className="text-xs font-semibold text-foreground mb-2">Como obter as credenciais</p>
-          <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-            <li>Acesse o <strong>Internet Banking Inter PJ</strong> → Soluções para sua empresa → Nova Integração</li>
-            <li>Escolha os escopos: <code className="bg-muted px-1 rounded">extrato.read</code></li>
-            <li>Baixe o certificado <code className="bg-muted px-1 rounded">.pfx</code> e converta para PEM:</li>
+          <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+            <li>Acesse o <strong>Internet Banking Inter PJ</strong> → Conta Digital → Aplicações → Nova Aplicação</li>
+            <li>Escolha os escopos necessários (ex: <code className="bg-muted px-1 rounded">extrato.read</code>)</li>
+            <li>Baixe os arquivos <code className="bg-muted px-1 rounded">certificado.crt</code> e <code className="bg-muted px-1 rounded">certificado.key</code></li>
+            <li>Os arquivos já estão em formato PEM — cole-os diretamente nos campos abaixo</li>
           </ol>
-          <pre className="mt-2 text-[10px] bg-muted rounded p-2 overflow-x-auto text-muted-foreground">
-{`# Extrair certificado PEM:
-openssl pkcs12 -in certificado.pfx -clcerts -nokeys -out cert.pem
-# Extrair chave PEM (sem senha):
-openssl pkcs12 -in certificado.pfx -nocerts -nodes -out key.pem`}
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Se receber um <code className="bg-muted px-1 rounded">.pfx</code>, converta com openssl:
+          </p>
+          <pre className="mt-1.5 text-[10px] bg-muted rounded p-2 overflow-x-auto text-muted-foreground">
+{`# Extrair certificado:
+openssl pkcs12 -in cert.pfx -clcerts -nokeys -out certificado.crt
+# Extrair chave privada (sem senha):
+openssl pkcs12 -in cert.pfx -nocerts -nodes -out certificado.key`}
           </pre>
         </div>
 
