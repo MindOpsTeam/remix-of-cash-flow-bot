@@ -11,15 +11,6 @@ const integrations = [
     description: "Cobranças, transferências e notas fiscais da sua conta pessoal Asaas",
     to: "/personal/integrations/asaas",
   },
-  {
-    icon: Landmark,
-    iconBg: "bg-orange-500/10",
-    iconColor: "text-orange-500",
-    title: "Banco Inter — Pessoal",
-    description: "Sincronize extrato e saldo da sua conta pessoal Inter",
-    to: "/personal/integrations/inter",
-    comingSoon: true,
-  },
 ];
 
 export default function PersonalIntegrations() {
