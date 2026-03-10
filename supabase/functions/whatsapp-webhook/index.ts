@@ -688,7 +688,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
           const chartData = { revenue, expense, balance, expenseByAccount, revenueByAccount, month: monthName };
           const imageBase64 = await generateFinancialChart(chartData, lovableApiKey);
           if (imageBase64) {
-            await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, `📊 Dashboard Financeiro — ${monthName}`);
+            await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, `📊 Dashboard Financeiro — ${monthName}`, ctx.evolutionUrl, ctx.evolutionKey);
           }
         } catch (chartErr) { console.error("Chart generation error:", chartErr); }
 
