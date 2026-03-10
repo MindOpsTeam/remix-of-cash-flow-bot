@@ -714,7 +714,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
             if (forecastResult.chartData) {
               const imageBase64 = await generateForecastChart(forecastResult.chartData, lovableApiKey);
               if (imageBase64) {
-                await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, "📈 Previsão de Fluxo de Caixa — Próximos 3 meses");
+                await sendWhatsAppImage(ctx.instanceName, ctx.remoteJid, imageBase64, "📈 Previsão de Fluxo de Caixa — Próximos 3 meses", ctx.evolutionUrl, ctx.evolutionKey);
               }
             }
           } else {
