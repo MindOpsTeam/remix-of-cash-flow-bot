@@ -740,7 +740,7 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
   } catch (err) {
     console.error("Agent error:", err);
     await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-      "❌ Ocorreu um erro inesperado. Tente novamente em instantes."
+      "❌ Ocorreu um erro inesperado. Tente novamente em instantes.", ctx.evolutionUrl, ctx.evolutionKey
     );
   }
 }
