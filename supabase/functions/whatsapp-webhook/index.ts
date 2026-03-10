@@ -110,7 +110,7 @@ Deno.serve(async (req) => {
         }
         const transcription = await transcribeAudio(audioBase64, message.audioMessage.mimetype || "audio/ogg");
         if (!transcription) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui transcrever o áudio. Tente enviar uma mensagem de texto.");
+          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui transcrever o áudio. Tente enviar uma mensagem de texto.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "transcription-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
