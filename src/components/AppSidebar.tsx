@@ -312,7 +312,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 min-h-0 px-3 space-y-0.5 overflow-y-auto">
         {nav.map((entry) =>
           isGroup(entry) ? (
             <NavGroupSection
