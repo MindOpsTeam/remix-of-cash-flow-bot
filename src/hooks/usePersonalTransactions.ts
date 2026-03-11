@@ -24,8 +24,8 @@ export interface PersonalTransaction {
   personal_categories?: { id: string; name: string; icon: string | null; color: string | null } | null;
   personal_accounts?: { id: string; name: string } | null;
   personal_credit_cards?: { id: string; name: string } | null;
-  // Asaas-specific fields
   source?: string;
+  external_id?: string | null;
   billing_type?: string | null;
 }
 
@@ -79,6 +79,7 @@ export function usePersonalTransactions() {
     period: "this_month",
   });
 
+  // Single query — all data now lives in personal_transactions (manual, whatsapp, asaas, api, reconciled)
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ["personal_transactions", user?.id],
     queryFn: async () => {
@@ -94,49 +95,8 @@ export function usePersonalTransactions() {
     enabled: !!user?.id,
   });
 
-  // Fetch Asaas payments
-  const { data: asaasTransactions = [], isLoading: asaasLoading } = useQuery({
-    queryKey: ["asaas_payments_transactions", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from("asaas_payments")
-        .select("id, description, net_value, value, confirmed_date, payment_date, due_date, status, customer_id, billing_type")
-        .eq("user_id", user.id)
-        .in("status", ["RECEIVED", "CONFIRMED"])
-        .order("confirmed_date", { ascending: false });
-      if (error) throw error;
-      return (data || []).map((p: any): PersonalTransaction => ({
-        id: `asaas_${p.id}`,
-        date: p.confirmed_date || p.payment_date || p.due_date || "",
-        title: p.description || "Pagamento Asaas",
-        description: p.billing_type ? `${p.billing_type} • ${p.customer_id || ""}` : p.customer_id || null,
-        amount: Number(p.net_value || 0),
-        type: "receita",
-        status: p.status.toLowerCase(),
-        person: p.customer_id || null,
-        category_id: null,
-        account_id: null,
-        credit_card_id: null,
-        kakeibo_group: null,
-        is_recurring: false,
-        created_at: "",
-        source: "asaas",
-        billing_type: p.billing_type,
-      }));
-    },
-    enabled: !!user?.id,
-  });
-
-  // Merge manual + Asaas transactions
-  const allMerged = useMemo(() => {
-    return [...transactions, ...asaasTransactions].sort(
-      (a, b) => (b.date || "").localeCompare(a.date || "")
-    );
-  }, [transactions, asaasTransactions]);
-
   const filteredTransactions = useMemo(() => {
-    let result = [...allMerged];
+    let result = [...transactions];
     if (filters.types.length > 0) result = result.filter((t) => filters.types.includes(t.type));
     if (filters.sources.length > 0) result = result.filter((t) => filters.sources.includes(t.source || "manual"));
 
@@ -161,7 +121,7 @@ export function usePersonalTransactions() {
       result = result.filter((t) => t.title.toLowerCase().includes(s) || t.description?.toLowerCase().includes(s));
     }
     return result;
-  }, [allMerged, filters]);
+  }, [transactions, filters]);
 
   const summary = useMemo(() => {
     const receitas = filteredTransactions.filter((t) => t.type === "receita").reduce((s, t) => s + Number(t.amount), 0);
@@ -169,22 +129,23 @@ export function usePersonalTransactions() {
     return { receitas, despesas, saldo: receitas - despesas, count: filteredTransactions.length };
   }, [filteredTransactions]);
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
+    queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
+    queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
+    queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
+    queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
+    queryClient.invalidateQueries({ queryKey: ["personal_budgets"] });
+    queryClient.invalidateQueries({ queryKey: ["personal_spending_month"] });
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: PersonalTransactionFormData) => {
       if (!user?.id) throw new Error("Não autenticado");
       const { error } = await supabase.from("personal_transactions").insert({ ...data, user_id: user.id });
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_budgets"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_spending_month"] });
-      toast.success("Transação criada!");
-    },
+    onSuccess: () => { invalidateAll(); toast.success("Transação criada!"); },
     onError: () => toast.error("Erro ao criar transação"),
   });
 
@@ -194,23 +155,14 @@ export function usePersonalTransactions() {
       const { error } = await supabase.from("personal_transactions").delete().eq("id", id).eq("user_id", user.id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_budgets"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_spending_month"] });
-      toast.success("Transação excluída!");
-    },
+    onSuccess: () => { invalidateAll(); toast.success("Transação excluída!"); },
     onError: () => toast.error("Erro ao excluir transação"),
   });
 
   return {
     transactions: filteredTransactions,
-    allTransactions: allMerged,
-    isLoading: isLoading || asaasLoading,
+    allTransactions: transactions,
+    isLoading,
     filters,
     setFilters,
     summary,
