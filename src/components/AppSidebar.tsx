@@ -29,6 +29,7 @@ import {
   CreditCard,
   ChevronDown,
   Plug,
+  GitMerge,
   type LucideIcon,
 } from "lucide-react";
 
