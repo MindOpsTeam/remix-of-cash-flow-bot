@@ -96,6 +96,22 @@ export default function WhatsApp() {
   const getCleanUrl = () => formApiUrl.trim().replace(/\/$/, "");
   const getHeaders = () => ({ apikey: formApiKey.trim(), "Content-Type": "application/json" });
 
+  const fetchInstancePhone = async (url: string, headers: Record<string, string>, instanceName: string): Promise<string> => {
+    try {
+      const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
+      if (!infoRes.ok) return "";
+      const instances = await infoRes.json();
+      const inst = Array.isArray(instances)
+        ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
+        : instances;
+      let phone = inst?.instance?.owner || inst?.owner || "";
+      return phone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
+    } catch (e) {
+      console.warn("Could not fetch instance phone:", e);
+      return "";
+    }
+  };
+
   const fetchQrCode = async (url: string, headers: Record<string, string>, instanceName: string): Promise<string | null> => {
     const res = await fetch(`${url}/instance/connect/${instanceName}`, { headers });
     if (!res.ok) return null;
