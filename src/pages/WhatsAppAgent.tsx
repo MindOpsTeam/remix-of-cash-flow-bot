@@ -463,6 +463,9 @@ export default function WhatsApp() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="ghost" size="icon" onClick={() => handleConfigureWebhook(c)} title="Configurar webhook" aria-label="Configurar webhook">
+                    <Settings2 className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" onClick={() => viewMessages(c)} title="Ver mensagens" aria-label="Ver mensagens">
                     <Activity className="h-4 w-4" />
                   </Button>
