@@ -238,6 +238,53 @@ export default function WhatsApp() {
     }
   };
 
+  const configureWebhook = async (url: string, headers: Record<string, string>, instanceName: string) => {
+    try {
+      // Evolution API v2: POST /webhook/set/{instance}
+      const res = await fetch(`${url}/webhook/set/${instanceName}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          url: webhookUrl,
+          webhook_by_events: false,
+          events: ["MESSAGES_UPSERT"],
+          enabled: true,
+        }),
+      });
+      if (res.ok) {
+        console.log("Webhook configured for", instanceName);
+      } else {
+        // Fallback: try Evolution API v1 format
+        const res2 = await fetch(`${url}/instance/setWebhook/${instanceName}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            url: webhookUrl,
+            webhook_by_events: false,
+            events: ["MESSAGES_UPSERT"],
+            enabled: true,
+          }),
+        });
+        if (res2.ok) console.log("Webhook configured (v1) for", instanceName);
+        else console.warn("Could not configure webhook:", await res2.text());
+      }
+    } catch (err) {
+      console.warn("Webhook config error:", err);
+    }
+  };
+
+  const handleConfigureWebhook = async (c: WhatsAppConfig) => {
+    if (!c.evolution_api_url || !c.evolution_api_key) {
+      toast.error("Credenciais da Evolution API não encontradas nesta instância.");
+      return;
+    }
+    const url = c.evolution_api_url.replace(/\/$/, "");
+    const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+    toast.loading("Configurando webhook...", { id: "webhook-config" });
+    await configureWebhook(url, headers, c.instance_name);
+    toast.success("Webhook configurado! Envie uma mensagem de teste.", { id: "webhook-config" });
+  };
+
   const toggleActive = async (c: WhatsAppConfig) => {
     await supabase.from("whatsapp_configs").update({ active: !c.active }).eq("id", c.id);
     loadConfigs();
