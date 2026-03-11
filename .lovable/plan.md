@@ -1,52 +1,63 @@
 
 
-# Filtrar apenas mensagens "para si mesmo" no WhatsApp
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## Problema atual
+## Problema
 
-Após remover o filtro `fromMe`, o webhook processa **qualquer** mensagem — de outros contatos, grupos, etc. O comportamento desejado é processar **apenas** mensagens que o usuário envia para si mesmo (conversa "Você" do WhatsApp).
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-## Lógica
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-Quando o usuário envia uma mensagem para si mesmo no WhatsApp:
-- `key.fromMe = true` (ele enviou)
-- `key.remoteJid = seuNumero@s.whatsapp.net` (destino é o próprio número)
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-Quando outra pessoa manda mensagem: `fromMe = false` → ignorar.
-Quando o usuário manda para outra pessoa: `fromMe = true` mas `remoteJid` é outro número → ignorar.
+## Solução
 
-Para saber qual é o número da instância, precisamos armazená-lo. Após a conexão do QR Code (quando `connectionState === "open"`), chamamos `GET /instance/fetchInstances` na Evolution API para obter o número conectado e salvamos na tabela.
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-## Alterações
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-### 1. Migração SQL — adicionar coluna `phone_number` em `whatsapp_configs`
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-```sql
-ALTER TABLE public.whatsapp_configs ADD COLUMN IF NOT EXISTS phone_number text;
-```
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-### 2. `WhatsAppAgent.tsx` — salvar número ao conectar
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
 
-Quando o polling detecta `state === "open"`, antes de salvar no banco, chamar `GET {url}/instance/fetchInstances/{instanceName}` para obter o número conectado (campo `instance.owner` ou similar) e incluir na inserção.
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
 
-### 3. `whatsapp-webhook/index.ts` — filtro "fromMe toMe"
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
 
-Após carregar o `whatsappConfig`, adicionar:
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
 
-```typescript
-const isFromMe = key?.fromMe === true;
-const configPhone = whatsappConfig.phone_number;
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
 
-// Só processar se: fromMe=true E remoteJid = número da instância
-if (!isFromMe || !configPhone || phoneNumber !== configPhone) {
-  return skip("not-self-message");
-}
-```
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
 
-Isso garante que apenas mensagens enviadas pelo próprio usuário, para o próprio número, sejam processadas como movimentações financeiras.
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
 
-### Arquivos afetados
-- **Migração SQL**: adicionar coluna `phone_number`
-- **`src/pages/WhatsAppAgent.tsx`**: buscar e salvar o número após conexão
-- **`supabase/functions/whatsapp-webhook/index.ts`**: adicionar filtro fromMe+toMe
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
+
+## Arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
+
+Nenhuma migration SQL necessária.
 

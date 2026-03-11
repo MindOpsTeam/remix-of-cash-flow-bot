@@ -55,6 +55,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Filtro "fromMe toMe": só processar mensagens para si mesmo ───────────
+    const isFromMe = key?.fromMe === true;
+    const configPhone = whatsappConfig.phone_number
+      ? whatsappConfig.phone_number.replace(/\D/g, "")
+      : null;
+    const cleanPhone = phoneNumber.replace(/\D/g, "");
+
+    if (!isFromMe || !configPhone || cleanPhone !== configPhone) {
+      console.log(`Skipping: fromMe=${isFromMe}, configPhone=${configPhone}, msgPhone=${cleanPhone}`);
+      return new Response(JSON.stringify({ ok: true, skipped: "not-self-message" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: member } = await supabase
       .from("company_members")
       .select("user_id")

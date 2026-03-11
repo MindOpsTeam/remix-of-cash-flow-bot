@@ -108,14 +108,30 @@ export default function WhatsApp() {
 
     pollingRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${url}/instance/connectionState/${instanceName}`, { headers });
+      const res = await fetch(`${url}/instance/connectionState/${instanceName}`, { headers });
         if (!res.ok) return;
         const data = await res.json();
         const state = data?.instance?.state || data?.state;
         if (state === "open") {
           setConnectionStatus("connected");
           stopPolling();
-          await saveConfig();
+          // Fetch the connected phone number
+          let connectedPhone = "";
+          try {
+            const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
+            if (infoRes.ok) {
+              const instances = await infoRes.json();
+              const inst = Array.isArray(instances)
+                ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
+                : instances;
+              connectedPhone = inst?.instance?.owner || inst?.owner || "";
+              // Remove @s.whatsapp.net suffix if present
+              connectedPhone = connectedPhone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
+            }
+          } catch (e) {
+            console.warn("Could not fetch instance phone:", e);
+          }
+          await saveConfig(connectedPhone);
         }
       } catch { /* ignore */ }
     }, 5000);
@@ -129,13 +145,14 @@ export default function WhatsApp() {
     }, 120_000);
   };
 
-  const saveConfig = async () => {
+  const saveConfig = async (phoneNumber?: string) => {
     if (!company) return;
     const { error } = await supabase.from("whatsapp_configs").insert({
       company_id: company.id,
       instance_name: formInstance.trim(),
       evolution_api_url: getCleanUrl(),
       evolution_api_key: formApiKey.trim(),
+      phone_number: phoneNumber || null,
     } as any);
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
@@ -194,7 +211,22 @@ export default function WhatsApp() {
           if (state === "open") {
             setConnectionStatus("connected");
             setStep("qrcode");
-            await saveConfig();
+            // Fetch phone number for already-connected instance
+            let connectedPhone = "";
+            try {
+              const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
+              if (infoRes.ok) {
+                const instances = await infoRes.json();
+                const inst = Array.isArray(instances)
+                  ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
+                  : instances;
+                connectedPhone = inst?.instance?.owner || inst?.owner || "";
+                connectedPhone = connectedPhone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
+              }
+            } catch (e) {
+              console.warn("Could not fetch instance phone:", e);
+            }
+            await saveConfig(connectedPhone);
             return;
           }
         }
