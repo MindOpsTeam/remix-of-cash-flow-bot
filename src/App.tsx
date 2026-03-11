@@ -54,6 +54,7 @@ const PersonalCategories = lazy(() => import("./pages/personal/PersonalCategorie
 const PersonalBudgets = lazy(() => import("./pages/personal/PersonalBudgets"));
 const PersonalGoals = lazy(() => import("./pages/personal/PersonalGoals"));
 const PersonalCreditCards = lazy(() => import("./pages/personal/PersonalCreditCards"));
+const PersonalReconciliation = lazy(() => import("./pages/personal/PersonalReconciliation"));
 
 const queryClient = new QueryClient();
 
