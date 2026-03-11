@@ -131,6 +131,7 @@ const AppRoutes = () => (
       <Route path="/personal/budgets" element={<ProtectedRoute><PersonalRoute><PersonalBudgets /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/goals" element={<ProtectedRoute><PersonalRoute><PersonalGoals /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/credit-cards" element={<ProtectedRoute><PersonalRoute><PersonalCreditCards /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/reconciliation" element={<ProtectedRoute><PersonalRoute><PersonalReconciliation /></PersonalRoute></ProtectedRoute>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
