@@ -2429,6 +2429,7 @@ export type Database = {
           created_at: string
           direction: string
           id: string
+          message_id: string | null
           message_text: string | null
           message_type: string
           phone_number: string
@@ -2441,6 +2442,7 @@ export type Database = {
           created_at?: string
           direction?: string
           id?: string
+          message_id?: string | null
           message_text?: string | null
           message_type?: string
           phone_number: string
@@ -2453,6 +2455,7 @@ export type Database = {
           created_at?: string
           direction?: string
           id?: string
+          message_id?: string | null
           message_text?: string | null
           message_type?: string
           phone_number?: string
@@ -2471,6 +2474,44 @@ export type Database = {
             columns: ["config_id"]
             isOneToOne: false
             referencedRelation: "whatsapp_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_pending_actions: {
+        Row: {
+          company_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          pending_action: Json
+          phone_number: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          pending_action?: Json
+          phone_number: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          pending_action?: Json
+          phone_number?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_pending_actions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
