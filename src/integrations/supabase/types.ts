@@ -1228,6 +1228,57 @@ export type Database = {
           },
         ]
       }
+      company_journal_entries: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          credit_account: string
+          date: string
+          debit_account: string
+          description: string | null
+          id: string
+          transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          created_at?: string
+          credit_account: string
+          date: string
+          debit_account: string
+          description?: string | null
+          id?: string
+          transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          credit_account?: string
+          date?: string
+          debit_account?: string
+          description?: string | null
+          id?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_journal_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_journal_entries_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_members: {
         Row: {
           company_id: string
@@ -1360,6 +1411,50 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: true
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          amount: number
+          created_at: string
+          credit_account: string
+          date: string
+          debit_account: string
+          description: string | null
+          id: string
+          transaction_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          credit_account: string
+          date: string
+          debit_account: string
+          description?: string | null
+          id?: string
+          transaction_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credit_account?: string
+          date?: string
+          debit_account?: string
+          description?: string | null
+          id?: string
+          transaction_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "personal_transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -1963,6 +2058,7 @@ export type Database = {
           credit_card_id: string | null
           date: string
           description: string | null
+          external_id: string | null
           id: string
           impact: string | null
           import_session_id: string | null
@@ -1974,6 +2070,8 @@ export type Database = {
           nature: string | null
           original_import_data: Json | null
           person: string | null
+          reconciled_at: string | null
+          reconciled_with_id: string | null
           source: string
           source_id: string | null
           status: string
@@ -1992,6 +2090,7 @@ export type Database = {
           credit_card_id?: string | null
           date: string
           description?: string | null
+          external_id?: string | null
           id?: string
           impact?: string | null
           import_session_id?: string | null
@@ -2003,6 +2102,8 @@ export type Database = {
           nature?: string | null
           original_import_data?: Json | null
           person?: string | null
+          reconciled_at?: string | null
+          reconciled_with_id?: string | null
           source?: string
           source_id?: string | null
           status?: string
@@ -2021,6 +2122,7 @@ export type Database = {
           credit_card_id?: string | null
           date?: string
           description?: string | null
+          external_id?: string | null
           id?: string
           impact?: string | null
           import_session_id?: string | null
@@ -2032,6 +2134,8 @@ export type Database = {
           nature?: string | null
           original_import_data?: Json | null
           person?: string | null
+          reconciled_at?: string | null
+          reconciled_with_id?: string | null
           source?: string
           source_id?: string | null
           status?: string
@@ -2068,6 +2172,13 @@ export type Database = {
             columns: ["import_session_id"]
             isOneToOne: false
             referencedRelation: "personal_import_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_transactions_reconciled_with_id_fkey"
+            columns: ["reconciled_with_id"]
+            isOneToOne: false
+            referencedRelation: "personal_transactions"
             referencedColumns: ["id"]
           },
           {
