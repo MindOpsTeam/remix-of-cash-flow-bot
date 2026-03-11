@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -9,8 +9,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
-  MessageSquare, Plus, Trash2, Copy, CheckCircle2,
-  ArrowDownLeft, ArrowUpRight, Phone, Settings2, Activity, Loader2,
+  MessageSquare, Plus, Trash2, CheckCircle2,
+  ArrowDownLeft, ArrowUpRight, Phone, Activity, Loader2, QrCode, RefreshCw,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -35,6 +35,9 @@ interface WhatsAppMessage {
   created_at: string;
 }
 
+type ModalStep = "credentials" | "qrcode";
+type ConnectionStatus = "waiting" | "connected" | "error";
+
 export default function WhatsApp() {
   const { company } = useCompany();
   const [configs, setConfigs] = useState<WhatsAppConfig[]>([]);
@@ -42,11 +45,18 @@ export default function WhatsApp() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [messagesDialogOpen, setMessagesDialogOpen] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<WhatsAppConfig | null>(null);
+
+  // Modal state
+  const [step, setStep] = useState<ModalStep>("credentials");
   const [formInstance, setFormInstance] = useState("");
   const [formApiUrl, setFormApiUrl] = useState("");
   const [formApiKey, setFormApiKey] = useState("");
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [qrCodeBase64, setQrCodeBase64] = useState("");
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("waiting");
+  const [errorMessage, setErrorMessage] = useState("");
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
   const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
@@ -63,62 +73,166 @@ export default function WhatsApp() {
 
   useEffect(() => { loadConfigs(); }, [loadConfigs]);
 
-  const resetForm = () => {
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+  }, []);
+
+  const resetModal = useCallback(() => {
+    setStep("credentials");
     setFormInstance("");
     setFormApiUrl("");
     setFormApiKey("");
-    setTestResult(null);
+    setQrCodeBase64("");
+    setConnectionStatus("waiting");
+    setErrorMessage("");
+    setConnecting(false);
+    stopPolling();
+  }, [stopPolling]);
+
+  useEffect(() => { if (!dialogOpen) resetModal(); }, [dialogOpen, resetModal]);
+  useEffect(() => () => stopPolling(), [stopPolling]);
+
+  const getCleanUrl = () => formApiUrl.trim().replace(/\/$/, "");
+  const getHeaders = () => ({ apikey: formApiKey.trim(), "Content-Type": "application/json" });
+
+  const fetchQrCode = async (url: string, headers: Record<string, string>, instanceName: string): Promise<string | null> => {
+    const res = await fetch(`${url}/instance/connect/${instanceName}`, { headers });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.base64 || data?.qrcode?.base64 || null;
   };
 
-  const testConnection = async () => {
-    if (!formApiUrl.trim() || !formApiKey.trim() || !formInstance.trim()) {
-      toast.error("Preencha todos os campos antes de testar.");
-      return;
-    }
-    setTesting(true);
-    setTestResult(null);
-    try {
-      const url = formApiUrl.trim().replace(/\/$/, "");
-      const res = await fetch(`${url}/instance/fetchInstances`, {
-        method: "GET",
-        headers: { apikey: formApiKey.trim() },
-      });
-      if (!res.ok) {
-        setTestResult({ ok: false, message: `Erro ${res.status}: Verifique URL e API Key.` });
-        return;
+  const startPolling = (url: string, headers: Record<string, string>, instanceName: string) => {
+    stopPolling();
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`${url}/instance/connectionState/${instanceName}`, { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        const state = data?.instance?.state || data?.state;
+        if (state === "open") {
+          setConnectionStatus("connected");
+          stopPolling();
+          await saveConfig();
+        }
+      } catch { /* ignore */ }
+    }, 5000);
+
+    timeoutRef.current = setTimeout(() => {
+      if (connectionStatus !== "connected") {
+        stopPolling();
+        setConnectionStatus("error");
+        setErrorMessage("Tempo esgotado. Clique em 'Gerar novo QR' para tentar novamente.");
       }
-      const data = await res.json();
-      const instances = Array.isArray(data) ? data : data?.instances || [];
-      const found = instances.some((i: any) =>
-        (i.instance?.instanceName || i.instanceName || i.name) === formInstance.trim()
-      );
-      if (found) {
-        setTestResult({ ok: true, message: `Instância "${formInstance.trim()}" encontrada!` });
-      } else {
-        setTestResult({ ok: false, message: `Instância "${formInstance.trim()}" não encontrada no servidor. Verifique o nome.` });
-      }
-    } catch {
-      setTestResult({ ok: false, message: "Não foi possível conectar ao servidor. Verifique a URL." });
-    } finally {
-      setTesting(false);
-    }
+    }, 120_000);
   };
 
-  const createConfig = async () => {
-    if (!company || !formInstance.trim() || !formApiUrl.trim() || !formApiKey.trim()) return;
+  const saveConfig = async () => {
+    if (!company) return;
     const { error } = await supabase.from("whatsapp_configs").insert({
       company_id: company.id,
       instance_name: formInstance.trim(),
-      evolution_api_url: formApiUrl.trim().replace(/\/$/, ""),
+      evolution_api_url: getCleanUrl(),
       evolution_api_key: formApiKey.trim(),
     } as any);
     if (error) {
-      toast.error("Erro: " + error.message);
+      toast.error("Erro ao salvar: " + error.message);
     } else {
-      toast.success("Instância conectada!");
-      resetForm();
-      setDialogOpen(false);
+      toast.success("WhatsApp conectado com sucesso!");
       loadConfigs();
+      setTimeout(() => setDialogOpen(false), 1500);
+    }
+  };
+
+  const handleConnect = async () => {
+    if (!formInstance.trim() || !formApiUrl.trim() || !formApiKey.trim()) return;
+    setConnecting(true);
+    setErrorMessage("");
+    const url = getCleanUrl();
+    const headers = getHeaders();
+    const instanceName = formInstance.trim();
+
+    try {
+      // Try to create instance with QR + webhook
+      const createRes = await fetch(`${url}/instance/create`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          instanceName,
+          integration: "WHATSAPP-BAILEYS",
+          qrcode: true,
+          webhook: {
+            url: webhookUrl,
+            webhook_by_events: false,
+            events: ["MESSAGES_UPSERT"],
+          },
+        }),
+      });
+
+      let qr: string | null = null;
+
+      if (createRes.ok) {
+        const createData = await createRes.json();
+        qr = createData?.qrcode?.base64 || createData?.base64 || null;
+      }
+
+      // If instance already exists (409) or no QR from create, try connect
+      if (!qr) {
+        qr = await fetchQrCode(url, headers, instanceName);
+      }
+
+      if (!qr) {
+        // Maybe already connected — check state
+        const stateRes = await fetch(`${url}/instance/connectionState/${instanceName}`, { headers });
+        if (stateRes.ok) {
+          const stateData = await stateRes.json();
+          const state = stateData?.instance?.state || stateData?.state;
+          if (state === "open") {
+            setConnectionStatus("connected");
+            setStep("qrcode");
+            await saveConfig();
+            return;
+          }
+        }
+        setErrorMessage("Não foi possível obter o QR Code. Verifique as credenciais e o nome da instância.");
+        return;
+      }
+
+      // Ensure base64 has data URI prefix
+      const qrSrc = qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`;
+      setQrCodeBase64(qrSrc);
+      setStep("qrcode");
+      setConnectionStatus("waiting");
+      startPolling(url, headers, instanceName);
+    } catch {
+      setErrorMessage("Não foi possível conectar ao servidor Evolution. Verifique a URL.");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleRefreshQr = async () => {
+    setConnecting(true);
+    setConnectionStatus("waiting");
+    setErrorMessage("");
+    const url = getCleanUrl();
+    const headers = getHeaders();
+    const instanceName = formInstance.trim();
+    try {
+      const qr = await fetchQrCode(url, headers, instanceName);
+      if (qr) {
+        const qrSrc = qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`;
+        setQrCodeBase64(qrSrc);
+        startPolling(url, headers, instanceName);
+      } else {
+        setErrorMessage("Não foi possível gerar um novo QR Code.");
+      }
+    } catch {
+      setErrorMessage("Erro ao gerar novo QR Code.");
+    } finally {
+      setConnecting(false);
     }
   };
 
@@ -145,11 +259,6 @@ export default function WhatsApp() {
     setMessagesDialogOpen(true);
   };
 
-  const copyWebhookUrl = () => {
-    navigator.clipboard.writeText(webhookUrl);
-    toast.success("URL do webhook copiada!");
-  };
-
   const formValid = formInstance.trim() && formApiUrl.trim() && formApiKey.trim();
 
   return (
@@ -161,7 +270,7 @@ export default function WhatsApp() {
             Assistente financeiro inteligente via WhatsApp (Evolution API)
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" /> Conectar Instância
@@ -169,105 +278,109 @@ export default function WhatsApp() {
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Conectar Instância Evolution</DialogTitle>
+              <DialogTitle>
+                {step === "credentials" ? "Conectar Instância Evolution" : "Escaneie o QR Code"}
+              </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 mt-2">
-              <div>
-                <Label>URL do Servidor Evolution *</Label>
-                <Input
-                  placeholder="https://evolution.suaempresa.com"
-                  value={formApiUrl}
-                  onChange={(e) => setFormApiUrl(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Endereço completo do seu servidor Evolution API
-                </p>
-              </div>
-              <div>
-                <Label>API Key *</Label>
-                <Input
-                  type="password"
-                  placeholder="Sua chave de API global"
-                  value={formApiKey}
-                  onChange={(e) => setFormApiKey(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Chave de autenticação configurada no servidor Evolution
-                </p>
-              </div>
-              <div>
-                <Label>Nome da Instância *</Label>
-                <Input
-                  placeholder="Ex: minha-empresa"
-                  value={formInstance}
-                  onChange={(e) => setFormInstance(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  O nome da instância configurada no seu Evolution API
-                </p>
-              </div>
 
-              {/* Test connection */}
-              <Button
-                variant="outline"
-                className="w-full gap-2"
-                onClick={testConnection}
-                disabled={!formValid || testing}
-              >
-                {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />}
-                Testar Conexão
-              </Button>
-              {testResult && (
-                <div className={`text-xs px-3 py-2 rounded-lg ${testResult.ok ? "bg-revenue/10 text-revenue" : "bg-expense/10 text-expense"}`}>
-                  {testResult.ok ? <CheckCircle2 className="h-3.5 w-3.5 inline mr-1" /> : null}
-                  {testResult.message}
+            {step === "credentials" && (
+              <div className="space-y-4 mt-2">
+                <div>
+                  <Label>URL do Servidor Evolution *</Label>
+                  <Input
+                    placeholder="https://evolution.suaempresa.com"
+                    value={formApiUrl}
+                    onChange={(e) => setFormApiUrl(e.target.value)}
+                  />
                 </div>
-              )}
+                <div>
+                  <Label>API Key *</Label>
+                  <Input
+                    type="password"
+                    placeholder="Sua chave de API global"
+                    value={formApiKey}
+                    onChange={(e) => setFormApiKey(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Nome da Instância *</Label>
+                  <Input
+                    placeholder="Ex: minha-empresa"
+                    value={formInstance}
+                    onChange={(e) => setFormInstance(e.target.value)}
+                  />
+                </div>
 
-              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-foreground">Configuração do Webhook</h4>
-                <p className="text-xs text-muted-foreground">
-                  Configure esta URL como webhook na sua instância Evolution API:
-                </p>
-                <div className="flex items-center gap-2">
-                  <code className="text-[11px] text-foreground bg-muted px-2 py-1 rounded break-all flex-1">
-                    {webhookUrl}
-                  </code>
-                  <button onClick={copyWebhookUrl} className="text-muted-foreground hover:text-foreground shrink-0">
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Evento necessário: <code className="bg-muted px-1 rounded">MESSAGES_UPSERT</code>
-                </p>
+                {errorMessage && (
+                  <div className="text-xs px-3 py-2 rounded-lg bg-destructive/10 text-destructive">
+                    {errorMessage}
+                  </div>
+                )}
+
+                <Button
+                  className="w-full gap-2"
+                  onClick={handleConnect}
+                  disabled={!formValid || connecting}
+                >
+                  {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+                  Gerar QR Code
+                </Button>
               </div>
-              <Button className="w-full" onClick={createConfig} disabled={!formValid}>
-                Conectar
-              </Button>
-            </div>
+            )}
+
+            {step === "qrcode" && (
+              <div className="flex flex-col items-center gap-4 mt-2">
+                {connectionStatus === "connected" ? (
+                  <div className="flex flex-col items-center gap-3 py-8">
+                    <div className="p-3 rounded-full bg-revenue/10">
+                      <CheckCircle2 className="h-8 w-8 text-revenue" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground">WhatsApp conectado!</h3>
+                    <p className="text-xs text-muted-foreground text-center">
+                      A instância <strong>{formInstance}</strong> está pronta para uso.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Abra o WhatsApp no celular → Dispositivos conectados → Conectar dispositivo
+                    </p>
+                    {qrCodeBase64 && (
+                      <div className="bg-card border border-border rounded-xl p-4">
+                        <img
+                          src={qrCodeBase64}
+                          alt="QR Code WhatsApp"
+                          className="w-64 h-64 object-contain"
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Aguardando leitura do QR Code...
+                    </div>
+
+                    {connectionStatus === "error" && errorMessage && (
+                      <div className="text-xs px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-center">
+                        {errorMessage}
+                      </div>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={handleRefreshQr}
+                      disabled={connecting}
+                    >
+                      {connecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                      Gerar novo QR
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
-      </div>
-
-      {/* Webhook URL info card */}
-      <div className="bg-card border border-border rounded-lg p-5 mb-6">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="p-2 rounded-lg bg-primary/10">
-            <Settings2 className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">URL do Webhook</h3>
-            <p className="text-xs text-muted-foreground">Configure no painel da Evolution API</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <code className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded flex-1 truncate">
-            {webhookUrl}
-          </code>
-          <Button variant="outline" size="sm" onClick={copyWebhookUrl} className="gap-1.5 shrink-0">
-            <Copy className="h-3.5 w-3.5" /> Copiar
-          </Button>
-        </div>
       </div>
 
       {/* Connected instances */}
@@ -306,7 +419,7 @@ export default function WhatsApp() {
                   </Button>
                   <Switch checked={c.active} onCheckedChange={() => toggleActive(c)} />
                   <Button variant="ghost" size="icon" onClick={() => deleteConfig(c.id)} title="Remover" aria-label="Remover configuração">
-                    <Trash2 className="h-4 w-4 text-expense" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               </div>

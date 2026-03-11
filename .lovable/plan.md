@@ -1,58 +1,63 @@
 
 
-# Conexão WhatsApp com QR Code direto no modal
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## O que muda
+## Problema
 
-O modal atual pede URL + API Key + nome da instância e espera que o usuário configure o webhook manualmente na Evolution API. O novo fluxo faz tudo automaticamente:
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-**Fluxo em 2 etapas no modal:**
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-1. **Etapa 1 — Credenciais**: Usuário informa URL do servidor Evolution, API Key e nome da instância desejada. Clica em "Conectar".
-2. **Etapa 2 — QR Code**: O sistema chama `POST /instance/create` na Evolution API com `qrcode: true` e `webhook` já configurado automaticamente. Exibe o QR Code (base64 retornado pela API) para o usuário escanear. Polling a cada 5s em `GET /instance/connectionState/{instance}` para detectar quando o WhatsApp conectou. Quando conecta, salva no banco e fecha o modal.
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-**O webhook é configurado automaticamente** no payload do `POST /instance/create` (campo `webhook`), sem o usuário precisar copiar URL nenhuma.
+## Solução
 
-Se a instância já existir no servidor, em vez de criar, chama `GET /instance/connect/{instance}` para obter o QR code.
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-## Detalhes técnicos
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-### `WhatsAppAgent.tsx` — Reescrever o modal
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-- Estado `step`: `"credentials"` | `"qrcode"`
-- Estado `qrCodeBase64`: string com a imagem do QR
-- Estado `connectionStatus`: `"waiting"` | `"connected"` | `"error"`
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-**Etapa 1** (credenciais): campos URL, API Key, Nome da Instância + botão "Conectar"
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
 
-**Ao clicar "Conectar":**
-1. Tenta `POST {url}/instance/create` com body:
-   ```json
-   {
-     "instanceName": "nome",
-     "integration": "WHATSAPP-BAILEYS",
-     "qrcode": true,
-     "webhook": {
-       "url": "{supabaseUrl}/functions/v1/whatsapp-webhook",
-       "webhook_by_events": false,
-       "events": ["MESSAGES_UPSERT"]
-     }
-   }
-   ```
-2. Se retornar 409 (instância já existe), chama `GET {url}/instance/connect/{nome}` para obter QR
-3. Extrai `base64` do response (campo `qrcode.base64` ou `base64`)
-4. Avança para etapa 2
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
 
-**Etapa 2** (QR Code):
-- Exibe a imagem QR com `<img src={qrCodeBase64} />`
-- Inicia polling: `GET {url}/instance/connectionState/{nome}` a cada 5 segundos
-- Quando `state === "open"`: salva config no banco, mostra sucesso, fecha modal
-- Botão "Gerar novo QR" chama `GET /instance/connect/{nome}` novamente
-- Timeout de 60s com mensagem de retry
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
 
-**Remover:** card de webhook URL da página principal e seção de webhook do modal (tudo é automático agora).
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
 
-### Arquivos afetados
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
 
-- `src/pages/WhatsAppAgent.tsx` — reescrever modal + remover webhook card
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
+
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
+
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
+
+## Arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
+
+Nenhuma migration SQL necessária.
 
