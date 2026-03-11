@@ -24,11 +24,8 @@ Deno.serve(async (req) => {
     const key = data?.key;
     const message = data?.message;
 
-    if (key?.fromMe) {
-      return new Response(JSON.stringify({ ok: true, skipped: "fromMe" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+
+
 
     const remoteJid = key?.remoteJid || "";
     const instanceName = body.instance;
