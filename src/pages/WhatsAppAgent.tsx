@@ -61,6 +61,8 @@ export default function WhatsApp() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
   const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
 
+  const autoFixPhoneRef = useRef<Set<string>>(new Set());
+
   const loadConfigs = useCallback(async () => {
     if (!company) return;
     const { data } = await supabase
@@ -68,7 +70,34 @@ export default function WhatsApp() {
       .select("*")
       .eq("company_id", company.id)
       .order("created_at", { ascending: false });
-    if (data) setConfigs(data as unknown as WhatsAppConfig[]);
+    if (data) {
+      setConfigs(data as unknown as WhatsAppConfig[]);
+      // Auto-fix: fetch phone_number for configs missing it
+      for (const c of data as any[]) {
+        if (!c.phone_number && c.evolution_api_url && c.evolution_api_key && !autoFixPhoneRef.current.has(c.id)) {
+          autoFixPhoneRef.current.add(c.id);
+          const url = c.evolution_api_url.replace(/\/$/, "");
+          const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+          try {
+            const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
+            if (infoRes.ok) {
+              const instances = await infoRes.json();
+              const inst = Array.isArray(instances)
+                ? instances.find((i: any) => i.instance?.instanceName === c.instance_name || i.instanceName === c.instance_name)
+                : instances;
+              let phone = inst?.instance?.owner || inst?.owner || "";
+              phone = phone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
+              if (phone) {
+                await supabase.from("whatsapp_configs").update({ phone_number: phone } as any).eq("id", c.id);
+                console.log(`Auto-fixed phone_number for ${c.instance_name}: ${phone}`);
+              }
+            }
+          } catch (e) {
+            console.warn("Auto-fix phone failed for", c.instance_name, e);
+          }
+        }
+      }
+    }
   }, [company]);
 
   useEffect(() => { loadConfigs(); }, [loadConfigs]);
@@ -96,6 +125,22 @@ export default function WhatsApp() {
   const getCleanUrl = () => formApiUrl.trim().replace(/\/$/, "");
   const getHeaders = () => ({ apikey: formApiKey.trim(), "Content-Type": "application/json" });
 
+  const fetchInstancePhone = async (url: string, headers: Record<string, string>, instanceName: string): Promise<string> => {
+    try {
+      const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
+      if (!infoRes.ok) return "";
+      const instances = await infoRes.json();
+      const inst = Array.isArray(instances)
+        ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
+        : instances;
+      let phone = inst?.instance?.owner || inst?.owner || "";
+      return phone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
+    } catch (e) {
+      console.warn("Could not fetch instance phone:", e);
+      return "";
+    }
+  };
+
   const fetchQrCode = async (url: string, headers: Record<string, string>, instanceName: string): Promise<string | null> => {
     const res = await fetch(`${url}/instance/connect/${instanceName}`, { headers });
     if (!res.ok) return null;
@@ -115,22 +160,7 @@ export default function WhatsApp() {
         if (state === "open") {
           setConnectionStatus("connected");
           stopPolling();
-          // Fetch the connected phone number
-          let connectedPhone = "";
-          try {
-            const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
-            if (infoRes.ok) {
-              const instances = await infoRes.json();
-              const inst = Array.isArray(instances)
-                ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
-                : instances;
-              connectedPhone = inst?.instance?.owner || inst?.owner || "";
-              // Remove @s.whatsapp.net suffix if present
-              connectedPhone = connectedPhone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
-            }
-          } catch (e) {
-            console.warn("Could not fetch instance phone:", e);
-          }
+          const connectedPhone = await fetchInstancePhone(url, headers, instanceName);
           await saveConfig(connectedPhone);
         }
       } catch { /* ignore */ }
@@ -208,24 +238,10 @@ export default function WhatsApp() {
         if (stateRes.ok) {
           const stateData = await stateRes.json();
           const state = stateData?.instance?.state || stateData?.state;
-          if (state === "open") {
+           if (state === "open") {
             setConnectionStatus("connected");
             setStep("qrcode");
-            // Fetch phone number for already-connected instance
-            let connectedPhone = "";
-            try {
-              const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
-              if (infoRes.ok) {
-                const instances = await infoRes.json();
-                const inst = Array.isArray(instances)
-                  ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
-                  : instances;
-                connectedPhone = inst?.instance?.owner || inst?.owner || "";
-                connectedPhone = connectedPhone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
-              }
-            } catch (e) {
-              console.warn("Could not fetch instance phone:", e);
-            }
+            const connectedPhone = await fetchInstancePhone(url, headers, instanceName);
             await saveConfig(connectedPhone);
             return;
           }
@@ -316,6 +332,12 @@ export default function WhatsApp() {
     const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
     toast.loading("Configurando webhook...", { id: "webhook-config" });
     await configureWebhook(url, headers, c.instance_name);
+    // Also fetch and save phone number if missing
+    const phone = await fetchInstancePhone(url, headers, c.instance_name);
+    if (phone) {
+      await supabase.from("whatsapp_configs").update({ phone_number: phone } as any).eq("id", c.id);
+      loadConfigs();
+    }
     toast.success("Webhook configurado! Envie uma mensagem de teste.", { id: "webhook-config" });
   };
 
