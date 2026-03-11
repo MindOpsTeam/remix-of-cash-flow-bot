@@ -245,10 +245,12 @@ export default function WhatsApp() {
         method: "POST",
         headers,
         body: JSON.stringify({
-          url: webhookUrl,
-          webhook_by_events: false,
-          events: ["MESSAGES_UPSERT"],
-          enabled: true,
+          webhook: {
+            url: webhookUrl,
+            webhook_by_events: false,
+            events: ["MESSAGES_UPSERT"],
+            enabled: true,
+          },
         }),
       });
       if (res.ok) {
