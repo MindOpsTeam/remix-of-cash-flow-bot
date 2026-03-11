@@ -54,6 +54,7 @@ const PersonalCategories = lazy(() => import("./pages/personal/PersonalCategorie
 const PersonalBudgets = lazy(() => import("./pages/personal/PersonalBudgets"));
 const PersonalGoals = lazy(() => import("./pages/personal/PersonalGoals"));
 const PersonalCreditCards = lazy(() => import("./pages/personal/PersonalCreditCards"));
+const PersonalReconciliation = lazy(() => import("./pages/personal/PersonalReconciliation"));
 
 const queryClient = new QueryClient();
 
@@ -130,6 +131,7 @@ const AppRoutes = () => (
       <Route path="/personal/budgets" element={<ProtectedRoute><PersonalRoute><PersonalBudgets /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/goals" element={<ProtectedRoute><PersonalRoute><PersonalGoals /></PersonalRoute></ProtectedRoute>} />
       <Route path="/personal/credit-cards" element={<ProtectedRoute><PersonalRoute><PersonalCreditCards /></PersonalRoute></ProtectedRoute>} />
+      <Route path="/personal/reconciliation" element={<ProtectedRoute><PersonalRoute><PersonalReconciliation /></PersonalRoute></ProtectedRoute>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

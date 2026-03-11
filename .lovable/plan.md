@@ -1,92 +1,63 @@
 
 
-# Partidas Dobradas e Conciliação — Plano
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## Contexto atual
+## Problema
 
-A aplicação tem múltiplas fontes de dados financeiros:
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-| Fonte | Tabela PF | Tabela PJ |
-|-------|-----------|-----------|
-| Manual (plataforma) | `personal_transactions` (source=manual) | `transactions` (source=manual) |
-| WhatsApp | `personal_transactions` (source=whatsapp) | `transactions` (source=whatsapp) |
-| Asaas API | `asaas_payments` (merge client-side) | `company_asaas_payments` (merge client-side) |
-| Inter API | — | `transactions` (source=inter, external_id) |
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-**Problemas identificados:**
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-1. **Sem partidas dobradas**: Transações não geram contrapartidas contábeis. Ex: uma despesa de R$100 deveria debitar "Despesas" e creditar "Caixa/Banco", mas hoje só registra um lado.
-2. **Duplicação potencial**: Usuário registra "Aluguel R$2000" via WhatsApp, e depois o mesmo aluguel aparece na API do banco. Ficam dois lançamentos.
-3. **Asaas é mergeado client-side**: `usePersonalTransactions` faz merge em memória de `personal_transactions` + `asaas_payments`. Não há conciliação real.
-4. **Tabela `personal_reconciliation` existe** mas não está sendo usada em nenhum hook ou página.
+## Solução
 
-## Solução proposta
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-### 1. Modelo de Partidas Dobradas
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-Adicionar tabela `journal_entries` (PF) e `company_journal_entries` (PJ) para registrar os lançamentos contábeis com débito e crédito:
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-```text
-journal_entries
-├── id (uuid)
-├── user_id (uuid)
-├── transaction_id → personal_transactions.id
-├── debit_account (text)   — ex: "Despesas:Alimentação"
-├── credit_account (text)  — ex: "Ativo:Carteira"
-├── amount (numeric)
-├── date (date)
-├── description (text)
-└── created_at (timestamptz)
-```
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-A cada inserção em `personal_transactions`, um trigger ou lógica no hook cria automaticamente o journal entry correspondente:
-- **Despesa**: Débito na categoria de despesa, Crédito na conta (account_id)
-- **Receita**: Débito na conta (account_id), Crédito na categoria de receita
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
 
-### 2. Conciliação automática
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
 
-Criar Edge Function `reconcile-transactions` que:
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
 
-1. Ao receber dados da API (Inter sync, Asaas webhook), antes de inserir, busca transações manuais/whatsapp no mesmo período (±2 dias) com valor similar (±5%)
-2. Se encontrar match:
-   - Atualiza a transação manual existente com `status = "reconciled"`, `source = "reconciled"`, `external_id` do banco
-   - NÃO cria duplicata
-3. Se não encontrar match:
-   - Insere normalmente como nova transação
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
 
-**Critérios de matching:**
-- Mesmo `user_id` / `company_id`
-- Tipo compatível (receita↔credit, despesa↔debit)
-- Valor dentro de margem de 5% (taxas bancárias podem alterar ligeiramente)
-- Data dentro de janela de ±2 dias
-- Status != "reconciled" (evita re-conciliar)
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
 
-### 3. Materializar Asaas no banco
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
 
-Em vez do merge client-side atual, o webhook Asaas já deveria inserir em `personal_transactions` (source="asaas") com `external_id = asaas_id`. Isso permite conciliação uniforme e simplifica o frontend.
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
 
-### 4. UI de Conciliação
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
 
-Página/modal onde o usuário vê transações com possíveis duplicatas detectadas e pode:
-- Confirmar match (conciliar)
-- Rejeitar match (manter ambas)
-- Resolver manualmente
+## Arquivos alterados
 
-### Arquivos afetados
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
 
-- **Migração SQL**: criar `journal_entries`, `company_journal_entries`, trigger para gerar entries automáticos
-- **`supabase/functions/reconcile-transactions/index.ts`**: nova Edge Function de conciliação
-- **`supabase/functions/whatsapp-webhook/index.ts`**: chamar conciliação antes de inserir
-- **`supabase/functions/inter-banking/index.ts`**: chamar conciliação no sync
-- **`supabase/functions/asaas-webhook/index.ts`**: inserir em `personal_transactions` com source="asaas" em vez de só `asaas_payments`
-- **`src/hooks/usePersonalTransactions.ts`**: remover merge client-side de `asaas_payments` (dados já estarão em `personal_transactions`)
-- **Nova página `src/pages/personal/PersonalReconciliation.tsx`**: UI de conciliação
-
-### Ordem de implementação
-
-1. Migração SQL (tabelas + triggers de journal entries)
-2. Edge Function de conciliação
-3. Atualizar webhooks (Asaas, Inter, WhatsApp) para usar conciliação
-4. Simplificar hooks frontend
-5. UI de conciliação
+Nenhuma migration SQL necessária.
 

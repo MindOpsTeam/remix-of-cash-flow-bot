@@ -295,36 +295,46 @@ Deno.serve(async (req) => {
         return jsonResp({ synced: 0, skipped: 0, total: 0 });
       }
 
-      // Mapeia Inter → transactions locais
-      const rows = interTxs.map((tx) => ({
-        company_id,
-        user_id: user.id,
-        bank_account_id: config.bank_account_id ?? null,
-        date: tx.dataEntrada,
-        amount: tx.valor,
-        description: [tx.titulo, tx.descricao].filter(Boolean).join(" — ").trim() || "Transação Inter",
-        type: tx.tipoOperacao === "C" ? "income" : "expense",
-        payment_method: tx.tipoTransacao ?? null,
-        status: "completed",
-        source: "inter",
-        // cpmf = ID único da transação Inter
-        external_id: tx.cpmf || `${tx.dataEntrada}|${tx.valor}|${tx.tipoTransacao}|${tx.tipoOperacao}`,
-      }));
+      // Reconcile each Inter transaction via reconcile-transactions function
+      let synced = 0;
+      let reconciled = 0;
+      let skipped = 0;
 
-      // Upsert — ignora duplicatas por (company_id, source, external_id)
-      const { data: inserted, error: insertErr } = await supabase
-        .from("transactions")
-        .upsert(rows, { onConflict: "company_id,source,external_id", ignoreDuplicates: true })
-        .select("id");
+      for (const tx of interTxs) {
+        const externalId = tx.cpmf || `${tx.dataEntrada}|${tx.valor}|${tx.tipoTransacao}|${tx.tipoOperacao}`;
+        const description = [tx.titulo, tx.descricao].filter(Boolean).join(" — ").trim() || "Transação Inter";
 
-      if (insertErr) throw new Error(`Sync falhou: ${insertErr.message}`);
+        const { data: result, error: recErr } = await supabase.functions.invoke("reconcile-transactions", {
+          body: {
+            action: "reconcile_pj",
+            company_id,
+            user_id: user.id,
+            amount: tx.valor,
+            date: tx.dataEntrada,
+            type: tx.tipoOperacao === "C" ? "revenue" : "expense",
+            description,
+            source: "inter",
+            external_id: externalId,
+            bank_account_id: config.bank_account_id ?? null,
+            payment_method: tx.tipoTransacao ?? null,
+          },
+        });
+
+        if (recErr) {
+          console.error("Reconcile error:", recErr);
+          continue;
+        }
+
+        if (result?.action === "inserted") synced++;
+        else if (result?.action === "reconciled") reconciled++;
+        else if (result?.action === "skipped") skipped++;
+      }
 
       await supabase.from("inter_config")
         .update({ last_sync_at: new Date().toISOString() })
         .eq("id", config.id);
 
-      const synced = inserted?.length ?? 0;
-      return jsonResp({ synced, total: rows.length, skipped: rows.length - synced });
+      return jsonResp({ synced, reconciled, skipped, total: interTxs.length });
     }
 
     return jsonResp({ error: `Ação desconhecida: ${action}` }, 400);

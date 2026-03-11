@@ -56,6 +56,27 @@ export async function processEvent(
           refunds: p.refunds || null,
           raw_payload: p,
         }, { onConflict: conflictKey });
+
+      // Also materialize into personal_transactions for PF reconciliation
+      if (ownerKey === "user_id" && p.status === "RECEIVED" || p.status === "CONFIRMED") {
+        try {
+          await supabase.functions.invoke("reconcile-transactions", {
+            body: {
+              action: "reconcile_pf",
+              user_id: ownerId,
+              amount: (p.netValue as number) || (p.value as number) || 0,
+              date: (p.confirmedDate as string) || (p.paymentDate as string) || (p.dueDate as string) || new Date().toISOString().split("T")[0],
+              type: "receita",
+              description: (p.description as string) || "Pagamento Asaas",
+              source: "asaas",
+              external_id: `asaas_${p.id}`,
+            },
+          });
+        } catch (e) {
+          console.error("Reconcile PF payment error:", e);
+        }
+      }
+
       return { table: `${tablePrefix}payments`, processed: true };
     }
 
