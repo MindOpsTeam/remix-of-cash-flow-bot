@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   MessageSquare, Plus, Trash2, CheckCircle2,
-  ArrowDownLeft, ArrowUpRight, Phone, Activity, Loader2, QrCode, RefreshCw,
+  ArrowDownLeft, ArrowUpRight, Phone, Activity, Loader2, QrCode, RefreshCw, Settings2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -178,8 +178,10 @@ export default function WhatsApp() {
         qr = createData?.qrcode?.base64 || createData?.base64 || null;
       }
 
-      // If instance already exists (409) or no QR from create, try connect
+      // If instance already exists (409) or no QR from create, try connect + set webhook
       if (!qr) {
+        // Ensure webhook is configured on existing instance
+        await configureWebhook(url, headers, instanceName);
         qr = await fetchQrCode(url, headers, instanceName);
       }
 
@@ -234,6 +236,53 @@ export default function WhatsApp() {
     } finally {
       setConnecting(false);
     }
+  };
+
+  const configureWebhook = async (url: string, headers: Record<string, string>, instanceName: string) => {
+    try {
+      // Evolution API v2: POST /webhook/set/{instance}
+      const res = await fetch(`${url}/webhook/set/${instanceName}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          url: webhookUrl,
+          webhook_by_events: false,
+          events: ["MESSAGES_UPSERT"],
+          enabled: true,
+        }),
+      });
+      if (res.ok) {
+        console.log("Webhook configured for", instanceName);
+      } else {
+        // Fallback: try Evolution API v1 format
+        const res2 = await fetch(`${url}/instance/setWebhook/${instanceName}`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            url: webhookUrl,
+            webhook_by_events: false,
+            events: ["MESSAGES_UPSERT"],
+            enabled: true,
+          }),
+        });
+        if (res2.ok) console.log("Webhook configured (v1) for", instanceName);
+        else console.warn("Could not configure webhook:", await res2.text());
+      }
+    } catch (err) {
+      console.warn("Webhook config error:", err);
+    }
+  };
+
+  const handleConfigureWebhook = async (c: WhatsAppConfig) => {
+    if (!c.evolution_api_url || !c.evolution_api_key) {
+      toast.error("Credenciais da Evolution API não encontradas nesta instância.");
+      return;
+    }
+    const url = c.evolution_api_url.replace(/\/$/, "");
+    const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+    toast.loading("Configurando webhook...", { id: "webhook-config" });
+    await configureWebhook(url, headers, c.instance_name);
+    toast.success("Webhook configurado! Envie uma mensagem de teste.", { id: "webhook-config" });
   };
 
   const toggleActive = async (c: WhatsAppConfig) => {
@@ -414,6 +463,9 @@ export default function WhatsApp() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="ghost" size="icon" onClick={() => handleConfigureWebhook(c)} title="Configurar webhook" aria-label="Configurar webhook">
+                    <Settings2 className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" onClick={() => viewMessages(c)} title="Ver mensagens" aria-label="Ver mensagens">
                     <Activity className="h-4 w-4" />
                   </Button>
