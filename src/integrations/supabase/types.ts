@@ -2389,6 +2389,7 @@ export type Database = {
           evolution_api_url: string | null
           id: string
           instance_name: string
+          phone_number: string | null
           updated_at: string
         }
         Insert: {
@@ -2399,6 +2400,7 @@ export type Database = {
           evolution_api_url?: string | null
           id?: string
           instance_name: string
+          phone_number?: string | null
           updated_at?: string
         }
         Update: {
@@ -2409,6 +2411,7 @@ export type Database = {
           evolution_api_url?: string | null
           id?: string
           instance_name?: string
+          phone_number?: string | null
           updated_at?: string
         }
         Relationships: [
