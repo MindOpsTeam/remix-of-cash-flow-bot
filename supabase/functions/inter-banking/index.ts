@@ -329,6 +329,12 @@ Deno.serve(async (req) => {
         else if (result?.action === "reconciled") reconciled++;
         else if (result?.action === "skipped") skipped++;
       }
+
+      await supabase.from("inter_config")
+        .update({ last_sync_at: new Date().toISOString() })
+        .eq("id", config.id);
+
+      return jsonResp({ synced, reconciled, skipped, total: interTxs.length });
     }
 
     return jsonResp({ error: `Ação desconhecida: ${action}` }, 400);
