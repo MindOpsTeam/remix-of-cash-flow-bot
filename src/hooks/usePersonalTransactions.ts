@@ -53,6 +53,26 @@ export interface PersonalTransactionFilters {
 export function usePersonalTransactions() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  const realtimeConfigs = useMemo(() => {
+    if (!user?.id) return [];
+    return [{
+      table: "personal_transactions",
+      filter: `user_id=eq.${user.id}`,
+      queryKeys: [
+        ["personal_transactions"],
+        ["personal_accounts"],
+        ["personal_kpis"],
+        ["personal_month_compare"],
+        ["personal_monthly_chart"],
+        ["personal_budgets"],
+        ["personal_spending_month"],
+      ],
+    }];
+  }, [user?.id]);
+
+  useRealtimeInvalidation(`personal-tx-${user?.id}`, realtimeConfigs);
+
   const [filters, setFilters] = useState<PersonalTransactionFilters>({
     types: [],
     sources: [],

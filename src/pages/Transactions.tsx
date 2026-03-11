@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionForm } from "@/components/TransactionForm";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
@@ -18,6 +19,41 @@ export default function Transactions() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const realtimeConfigs = useMemo(() => {
+    if (!company?.id) return [];
+    return [{
+      table: "transactions",
+      filter: `company_id=eq.${company.id}`,
+      queryKeys: [] as string[][],
+    }];
+  }, [company?.id]);
+
+  // We use a custom approach: on realtime event, bump refreshKey to trigger refetch
+  useEffect(() => {
+    if (!company?.id) return;
+
+    const channel = supabase
+      .channel(`pj-transactions-${company.id}`)
+      .on(
+        "postgres_changes" as any,
+        {
+          event: "*",
+          schema: "public",
+          table: "transactions",
+          filter: `company_id=eq.${company.id}`,
+        },
+        () => {
+          setRefreshKey((k) => k + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [company?.id]);
 
   const fetchTransactions = useCallback(async () => {
     if (!company) return;
@@ -58,9 +94,8 @@ export default function Transactions() {
 
   useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
+  }, [fetchTransactions, refreshKey]);
 
-  // Reset to first page when search changes
   useEffect(() => {
     setPage(0);
   }, [search]);
