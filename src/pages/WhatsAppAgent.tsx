@@ -61,6 +61,8 @@ export default function WhatsApp() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
   const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
 
+  const autoFixPhoneRef = useRef<Set<string>>(new Set());
+
   const loadConfigs = useCallback(async () => {
     if (!company) return;
     const { data } = await supabase
@@ -68,7 +70,34 @@ export default function WhatsApp() {
       .select("*")
       .eq("company_id", company.id)
       .order("created_at", { ascending: false });
-    if (data) setConfigs(data as unknown as WhatsAppConfig[]);
+    if (data) {
+      setConfigs(data as unknown as WhatsAppConfig[]);
+      // Auto-fix: fetch phone_number for configs missing it
+      for (const c of data as any[]) {
+        if (!c.phone_number && c.evolution_api_url && c.evolution_api_key && !autoFixPhoneRef.current.has(c.id)) {
+          autoFixPhoneRef.current.add(c.id);
+          const url = c.evolution_api_url.replace(/\/$/, "");
+          const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+          try {
+            const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
+            if (infoRes.ok) {
+              const instances = await infoRes.json();
+              const inst = Array.isArray(instances)
+                ? instances.find((i: any) => i.instance?.instanceName === c.instance_name || i.instanceName === c.instance_name)
+                : instances;
+              let phone = inst?.instance?.owner || inst?.owner || "";
+              phone = phone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
+              if (phone) {
+                await supabase.from("whatsapp_configs").update({ phone_number: phone } as any).eq("id", c.id);
+                console.log(`Auto-fixed phone_number for ${c.instance_name}: ${phone}`);
+              }
+            }
+          } catch (e) {
+            console.warn("Auto-fix phone failed for", c.instance_name, e);
+          }
+        }
+      }
+    }
   }, [company]);
 
   useEffect(() => { loadConfigs(); }, [loadConfigs]);
