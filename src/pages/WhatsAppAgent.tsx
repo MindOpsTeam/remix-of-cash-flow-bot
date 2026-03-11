@@ -145,13 +145,14 @@ export default function WhatsApp() {
     }, 120_000);
   };
 
-  const saveConfig = async () => {
+  const saveConfig = async (phoneNumber?: string) => {
     if (!company) return;
     const { error } = await supabase.from("whatsapp_configs").insert({
       company_id: company.id,
       instance_name: formInstance.trim(),
       evolution_api_url: getCleanUrl(),
       evolution_api_key: formApiKey.trim(),
+      phone_number: phoneNumber || null,
     } as any);
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
