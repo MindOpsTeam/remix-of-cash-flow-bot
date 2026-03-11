@@ -178,8 +178,10 @@ export default function WhatsApp() {
         qr = createData?.qrcode?.base64 || createData?.base64 || null;
       }
 
-      // If instance already exists (409) or no QR from create, try connect
+      // If instance already exists (409) or no QR from create, try connect + set webhook
       if (!qr) {
+        // Ensure webhook is configured on existing instance
+        await configureWebhook(url, headers, instanceName);
         qr = await fetchQrCode(url, headers, instanceName);
       }
 
