@@ -211,7 +211,22 @@ export default function WhatsApp() {
           if (state === "open") {
             setConnectionStatus("connected");
             setStep("qrcode");
-            await saveConfig();
+            // Fetch phone number for already-connected instance
+            let connectedPhone = "";
+            try {
+              const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
+              if (infoRes.ok) {
+                const instances = await infoRes.json();
+                const inst = Array.isArray(instances)
+                  ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
+                  : instances;
+                connectedPhone = inst?.instance?.owner || inst?.owner || "";
+                connectedPhone = connectedPhone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
+              }
+            } catch (e) {
+              console.warn("Could not fetch instance phone:", e);
+            }
+            await saveConfig(connectedPhone);
             return;
           }
         }
