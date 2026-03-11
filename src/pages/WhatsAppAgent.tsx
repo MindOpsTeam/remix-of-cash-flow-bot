@@ -20,6 +20,7 @@ interface WhatsAppConfig {
   instance_name: string;
   evolution_api_url: string | null;
   evolution_api_key: string | null;
+  phone_number: string | null;
   active: boolean;
   created_at: string;
 }
