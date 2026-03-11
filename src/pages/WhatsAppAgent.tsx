@@ -131,22 +131,7 @@ export default function WhatsApp() {
         if (state === "open") {
           setConnectionStatus("connected");
           stopPolling();
-          // Fetch the connected phone number
-          let connectedPhone = "";
-          try {
-            const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
-            if (infoRes.ok) {
-              const instances = await infoRes.json();
-              const inst = Array.isArray(instances)
-                ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
-                : instances;
-              connectedPhone = inst?.instance?.owner || inst?.owner || "";
-              // Remove @s.whatsapp.net suffix if present
-              connectedPhone = connectedPhone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
-            }
-          } catch (e) {
-            console.warn("Could not fetch instance phone:", e);
-          }
+          const connectedPhone = await fetchInstancePhone(url, headers, instanceName);
           await saveConfig(connectedPhone);
         }
       } catch { /* ignore */ }
