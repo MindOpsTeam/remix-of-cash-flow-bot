@@ -190,6 +190,8 @@ export default function PersonalTransactions() {
             { key: "manual", icon: Pencil, label: "Manual" },
             { key: "imported", icon: Upload, label: "Importado" },
             { key: "asaas", icon: Zap, label: "Asaas" },
+            { key: "whatsapp", icon: Zap, label: "WhatsApp" },
+            { key: "reconciled", icon: Sparkles, label: "Conciliado" },
           ].map(({ key, icon: Icon, label }) => {
             const active = filters.sources.includes(key);
             return (
