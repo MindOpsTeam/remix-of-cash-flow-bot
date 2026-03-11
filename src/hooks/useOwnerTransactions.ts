@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { toast } from "sonner";
 
 export const OWNER_TX_TYPES = [
@@ -46,6 +47,23 @@ export function useOwnerTransactions() {
   const { company } = useCompany();
   const queryClient = useQueryClient();
 
+  const realtimeConfigs = useMemo(() => {
+    if (!user?.id) return [];
+    return [{
+      table: "owner_transactions",
+      filter: `user_id=eq.${user.id}`,
+      queryKeys: [
+        ["owner_transactions"],
+        ["personal_transactions"],
+        ["transactions"],
+        ["personal_accounts"],
+        ["personal_kpis"],
+      ],
+    }];
+  }, [user?.id]);
+
+  useRealtimeInvalidation(`owner-tx-${user?.id}`, realtimeConfigs);
+
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ["owner_transactions", user?.id, company?.id],
     queryFn: async () => {
@@ -73,7 +91,7 @@ export function useOwnerTransactions() {
     return {
       pjToPf,
       pfToPj,
-      netFlow: pfToPj - pjToPf, // positive = owner invested more than withdrew
+      netFlow: pfToPj - pjToPf,
       count: transactions.length,
     };
   }, [transactions]);

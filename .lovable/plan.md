@@ -1,65 +1,63 @@
 
 
-# Realtime para todas as transações, transferências e alterações
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## Situação atual
+## Problema
 
-**Tabelas com realtime habilitado:** `personal_transactions`, `personal_accounts`, `asaas_payments`, `asaas_webhook_events`, `company_asaas_payments`, `asaas_transfers`, `asaas_bills`, `asaas_subscriptions`, `asaas_invoices`, `asaas_anticipations` e equivalentes PJ.
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-**Tabelas SEM realtime:**
-- `transactions` (lançamentos PJ)
-- `personal_transfers`
-- `owner_transactions`
-- `personal_budgets`
-- `personal_credit_cards`
-- `personal_goals`
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-**Hooks/páginas SEM subscription realtime:**
-- `Transactions.tsx` (PJ) — fetch manual, sem channel
-- `usePersonalTransfers.ts` — sem channel
-- `useOwnerTransactions.ts` — sem channel
-- `useCFODashboard.ts` — sem channel
-- `PersonalTransactions.tsx` — depende do hook que não tem channel próprio (KPIs tem, mas a lista não)
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-## Plano
+## Solução
 
-### 1. Migração SQL — habilitar realtime nas tabelas faltantes
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.personal_transfers;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.owner_transactions;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.personal_budgets;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.personal_credit_cards;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.personal_goals;
-```
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-### 2. Criar hook centralizado `useRealtimeInvalidation.ts`
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-Um hook reutilizável que recebe uma lista de tabelas + filtros e invalida queries automaticamente. Isso evita duplicar channels em cada hook/página.
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-```typescript
-// Recebe config: { table, filter, queryKeys[] }[]
-// Cria um único channel com múltiplos .on() listeners
-// Invalida as queryKeys correspondentes em cada evento
-```
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
 
-### 3. Adicionar realtime subscriptions nos hooks/páginas
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
+
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
+
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
+
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
+
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
+
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
+
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
+
+## Arquivos alterados
 
 | Arquivo | Mudança |
 |---------|---------|
-| `src/pages/Transactions.tsx` | Adicionar channel para `transactions` filtrado por `company_id`, refetch ao receber evento |
-| `src/hooks/usePersonalTransfers.ts` | Adicionar channel para `personal_transfers` filtrado por `user_id`, invalidar queries |
-| `src/hooks/useOwnerTransactions.ts` | Adicionar channel para `owner_transactions` filtrado por `user_id`, invalidar queries relacionadas |
-| `src/hooks/useCFODashboard.ts` | Adicionar channel para `transactions` filtrado por `company_id`, re-fetch dados |
-| `src/hooks/usePersonalTransactions.ts` | Adicionar channel para `personal_transactions` filtrado por `user_id` (o hook já invalida via mutation, mas falta o listener para mudanças externas como WhatsApp/webhook) |
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
 
-### 4. Arquivos afetados
-
-- **Nova migração SQL** — habilitar realtime em 6 tabelas
-- `src/hooks/usePersonalTransfers.ts` — adicionar useEffect com channel
-- `src/hooks/useOwnerTransactions.ts` — adicionar useEffect com channel
-- `src/hooks/usePersonalTransactions.ts` — adicionar useEffect com channel para mudanças externas
-- `src/hooks/useCFODashboard.ts` — adicionar channel para transactions PJ
-- `src/pages/Transactions.tsx` — adicionar channel para transactions PJ
+Nenhuma migration SQL necessária.
 

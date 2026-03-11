@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { toast } from "sonner";
 
 export interface PersonalTransfer {
@@ -28,6 +30,20 @@ export interface PersonalTransferFormData {
 export function usePersonalTransfers() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  const realtimeConfigs = useMemo(() => {
+    if (!user?.id) return [];
+    return [{
+      table: "personal_transfers",
+      filter: `user_id=eq.${user.id}`,
+      queryKeys: [
+        ["personal_transfers"],
+        ["personal_accounts"],
+      ],
+    }];
+  }, [user?.id]);
+
+  useRealtimeInvalidation(`personal-transfers-${user?.id}`, realtimeConfigs);
 
   const { data: transfers = [], isLoading } = useQuery({
     queryKey: ["personal_transfers", user?.id],

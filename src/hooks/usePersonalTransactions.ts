@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { toast } from "sonner";
 import { startOfMonth, endOfMonth, subMonths, parseISO, isWithinInterval } from "date-fns";
 
@@ -52,6 +53,26 @@ export interface PersonalTransactionFilters {
 export function usePersonalTransactions() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  const realtimeConfigs = useMemo(() => {
+    if (!user?.id) return [];
+    return [{
+      table: "personal_transactions",
+      filter: `user_id=eq.${user.id}`,
+      queryKeys: [
+        ["personal_transactions"],
+        ["personal_accounts"],
+        ["personal_kpis"],
+        ["personal_month_compare"],
+        ["personal_monthly_chart"],
+        ["personal_budgets"],
+        ["personal_spending_month"],
+      ],
+    }];
+  }, [user?.id]);
+
+  useRealtimeInvalidation(`personal-tx-${user?.id}`, realtimeConfigs);
+
   const [filters, setFilters] = useState<PersonalTransactionFilters>({
     types: [],
     sources: [],
