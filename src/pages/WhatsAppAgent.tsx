@@ -20,6 +20,7 @@ interface WhatsAppConfig {
   instance_name: string;
   evolution_api_url: string | null;
   evolution_api_key: string | null;
+  phone_number: string | null;
   active: boolean;
   created_at: string;
 }
@@ -550,6 +551,15 @@ export default function WhatsApp() {
                         {c.active ? "Ativo" : "Inativo"}
                       </Badge>
                     </div>
+                    {c.phone_number ? (
+                      <p className="text-xs text-revenue font-medium mt-0.5">
+                        📱 Envie mensagens para: {c.phone_number}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground mt-0.5 italic">
+                        Clique em ⚙️ para detectar o número
+                      </p>
+                    )}
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                       {c.evolution_api_url || "Servidor global"} · {new Date(c.created_at).toLocaleDateString("pt-BR")}
                     </p>
