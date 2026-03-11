@@ -2429,6 +2429,7 @@ export type Database = {
           created_at: string
           direction: string
           id: string
+          message_id: string | null
           message_text: string | null
           message_type: string
           phone_number: string
@@ -2441,6 +2442,7 @@ export type Database = {
           created_at?: string
           direction?: string
           id?: string
+          message_id?: string | null
           message_text?: string | null
           message_type?: string
           phone_number: string
@@ -2453,6 +2455,7 @@ export type Database = {
           created_at?: string
           direction?: string
           id?: string
+          message_id?: string | null
           message_text?: string | null
           message_type?: string
           phone_number?: string
