@@ -209,24 +209,10 @@ export default function WhatsApp() {
         if (stateRes.ok) {
           const stateData = await stateRes.json();
           const state = stateData?.instance?.state || stateData?.state;
-          if (state === "open") {
+           if (state === "open") {
             setConnectionStatus("connected");
             setStep("qrcode");
-            // Fetch phone number for already-connected instance
-            let connectedPhone = "";
-            try {
-              const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
-              if (infoRes.ok) {
-                const instances = await infoRes.json();
-                const inst = Array.isArray(instances)
-                  ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
-                  : instances;
-                connectedPhone = inst?.instance?.owner || inst?.owner || "";
-                connectedPhone = connectedPhone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
-              }
-            } catch (e) {
-              console.warn("Could not fetch instance phone:", e);
-            }
+            const connectedPhone = await fetchInstancePhone(url, headers, instanceName);
             await saveConfig(connectedPhone);
             return;
           }
