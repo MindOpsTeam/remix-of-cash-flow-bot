@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { toast } from "sonner";
 import { startOfMonth, endOfMonth, subMonths, parseISO, isWithinInterval } from "date-fns";
 
