@@ -286,6 +286,30 @@ export default function WhatsApp() {
     }
   };
 
+  const configureInstanceSettings = async (url: string, headers: Record<string, string>, instanceName: string) => {
+    try {
+      const res = await fetch(`${url}/settings/set/${instanceName}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          rejectCall: false,
+          groupsIgnore: true,
+          alwaysOnline: false,
+          readMessages: false,
+          readStatus: false,
+          syncFullHistory: false,
+        }),
+      });
+      if (res.ok) {
+        console.log("Instance settings configured (fromMe enabled) for", instanceName);
+      } else {
+        console.warn("Could not configure instance settings:", await res.text());
+      }
+    } catch (err) {
+      console.warn("Instance settings error:", err);
+    }
+  };
+
   const configureWebhook = async (url: string, headers: Record<string, string>, instanceName: string) => {
     try {
       // Evolution API v2: POST /webhook/set/{instance}
@@ -298,6 +322,7 @@ export default function WhatsApp() {
             webhook_by_events: false,
             events: ["MESSAGES_UPSERT"],
             enabled: true,
+            webhook_base64: true,
           },
         }),
       });
@@ -313,11 +338,14 @@ export default function WhatsApp() {
             webhook_by_events: false,
             events: ["MESSAGES_UPSERT"],
             enabled: true,
+            webhook_base64: true,
           }),
         });
         if (res2.ok) console.log("Webhook configured (v1) for", instanceName);
         else console.warn("Could not configure webhook:", await res2.text());
       }
+      // Always configure instance settings to receive fromMe messages
+      await configureInstanceSettings(url, headers, instanceName);
     } catch (err) {
       console.warn("Webhook config error:", err);
     }
