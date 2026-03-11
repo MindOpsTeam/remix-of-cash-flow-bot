@@ -214,6 +214,15 @@ export default function WhatsApp() {
             url: webhookUrl,
             webhook_by_events: false,
             events: ["MESSAGES_UPSERT"],
+            webhook_base64: true,
+          },
+          settings: {
+            rejectCall: false,
+            groupsIgnore: true,
+            alwaysOnline: false,
+            readMessages: false,
+            readStatus: false,
+            syncFullHistory: false,
           },
         }),
       });
