@@ -2478,6 +2478,44 @@ export type Database = {
           },
         ]
       }
+      whatsapp_pending_actions: {
+        Row: {
+          company_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          pending_action: Json
+          phone_number: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          pending_action?: Json
+          phone_number: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          pending_action?: Json
+          phone_number?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_pending_actions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_personal_kpis: {
