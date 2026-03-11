@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   MessageSquare, Plus, Trash2, CheckCircle2,
-  ArrowDownLeft, ArrowUpRight, Phone, Activity, Loader2, QrCode, RefreshCw,
+  ArrowDownLeft, ArrowUpRight, Phone, Activity, Loader2, QrCode, RefreshCw, Settings2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
