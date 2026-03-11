@@ -111,7 +111,7 @@ const AppRoutes = () => (
       {/* Shared routes (accessible from both modes) */}
       <Route path="/documents" element={<ProtectedRoute><DocumentScanner /></ProtectedRoute>} />
       <Route path="/owner-transactions" element={<ProtectedRoute><OwnerTransactions /></ProtectedRoute>} />
-      <Route path="/whatsapp" element={<ProtectedRoute><BusinessRoute><WhatsApp /></BusinessRoute></ProtectedRoute>} />
+      <Route path="/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
 
       {/* Personal routes — guarded by PersonalRoute */}
       <Route path="/personal" element={<ProtectedRoute><PersonalRoute><PersonalDashboard /></PersonalRoute></ProtectedRoute>} />
