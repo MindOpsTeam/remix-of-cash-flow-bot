@@ -112,7 +112,7 @@ const personalNav: NavEntry[] = [
       { to: "/personal/transfers", label: "Transferências", icon: ArrowUpDown },
       { to: "/personal/bills", label: "Contas a Pagar", icon: Receipt },
       { to: "/personal/credit-cards", label: "Cartões", icon: CreditCard },
-      { to: "/personal/reconciliation", label: "Conciliação", icon: ArrowLeftRight },
+      { to: "/personal/reconciliation", label: "Conciliação", icon: GitMerge },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
     ],
   },
