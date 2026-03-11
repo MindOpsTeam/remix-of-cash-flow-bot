@@ -303,6 +303,12 @@ export default function WhatsApp() {
     const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
     toast.loading("Configurando webhook...", { id: "webhook-config" });
     await configureWebhook(url, headers, c.instance_name);
+    // Also fetch and save phone number if missing
+    const phone = await fetchInstancePhone(url, headers, c.instance_name);
+    if (phone) {
+      await supabase.from("whatsapp_configs").update({ phone_number: phone } as any).eq("id", c.id);
+      loadConfigs();
+    }
     toast.success("Webhook configurado! Envie uma mensagem de teste.", { id: "webhook-config" });
   };
 
