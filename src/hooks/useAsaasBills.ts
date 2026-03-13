@@ -21,7 +21,7 @@ export interface AsaasBill {
   failure_reason: string | null;
   created_at: string;
   // Unified fields
-  _source: "asaas" | "manual";
+  _source?: "asaas" | "manual";
 }
 
 export interface AsaasInvoice {
