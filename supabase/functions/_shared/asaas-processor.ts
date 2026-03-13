@@ -104,6 +104,27 @@ export async function processEvent(
           external_reference: t.externalReference as string || null,
           raw_payload: t,
         }, { onConflict: conflictKey });
+
+      // Materialize transfers into personal_transactions for PF
+      if (ownerKey === "user_id" && (t.status === "DONE" || t.status === "BANK_PROCESSING")) {
+        try {
+          await supabase.functions.invoke("reconcile-transactions", {
+            body: {
+              action: "reconcile_pf",
+              user_id: ownerId,
+              amount: (t.value as number) || 0,
+              date: (t.scheduleDate as string) || (t.scheduledDate as string) || new Date().toISOString().split("T")[0],
+              type: "despesa",
+              description: (t.description as string) || "Transferência Asaas",
+              source: "asaas",
+              external_id: `asaas_transfer_${t.id}`,
+            },
+          });
+        } catch (e) {
+          console.error("Reconcile PF transfer error:", e);
+        }
+      }
+
       return { table: `${tablePrefix}transfers`, processed: true };
     }
 
