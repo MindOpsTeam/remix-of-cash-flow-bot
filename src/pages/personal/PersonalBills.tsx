@@ -43,7 +43,7 @@ const emptyBillForm = {
 };
 
 export default function PersonalBills() {
-  const { bills, invoices, billsSummary, invoicesSummary, isLoading } = useAsaasBills();
+  const { bills, invoices, billsSummary, invoicesSummary, isLoading, markBillAsPaid } = useAsaasBills();
   const { user } = useAuth();
   const { accounts } = usePersonalAccounts();
   const [formOpen, setFormOpen] = useState(false);
