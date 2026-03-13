@@ -1018,7 +1018,7 @@ Após registrar, confirme com: ✅ valor, categoria/conta (NOME, nunca ID), data
         message_type: "text",
         processed: true,
         message_id: ctx.messageId || null,
-        classification: { actions, aiModel: "gemini-2.5-flash", toolCalls: toolCalls.length },
+        classification: { actions, aiModel: "gemini-3-flash-preview", toolCalls: toolCalls.length },
       }),
       cleanResponse ? ctx.supabase.from("whatsapp_messages").insert({
         company_id: ctx.companyId,
