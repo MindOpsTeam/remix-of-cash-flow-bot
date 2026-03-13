@@ -409,7 +409,7 @@ export default function WhatsApp() {
       return;
     }
     setGroupDialogConfig(c);
-    setGroupDialogOpen(true);
+    setGroupDialogOpen(false);
     setLoadingGroups(true);
     setAvailableGroups([]);
     const url = c.evolution_api_url.replace(/\/$/, "");
