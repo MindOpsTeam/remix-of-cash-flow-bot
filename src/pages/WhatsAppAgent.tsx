@@ -58,10 +58,16 @@ export default function WhatsApp() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [messagesDialogOpen, setMessagesDialogOpen] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<WhatsAppConfig | null>(null);
-  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupDialogConfig, setGroupDialogConfig] = useState<WhatsAppConfig | null>(null);
   const [availableGroups, setAvailableGroups] = useState<WhatsAppGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [fetchingPictures, setFetchingPictures] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [groupSearch, setGroupSearch] = useState("");
+  const [addingManual, setAddingManual] = useState(false);
+  const [manualGroupName, setManualGroupName] = useState("");
+  const [manualGroupJid, setManualGroupJid] = useState("");
+  const hasFetchedPictures = useRef(false);
 
   // Modal state
   const [step, setStep] = useState<ModalStep>("credentials");
