@@ -636,15 +636,19 @@ async function runFinancialAgent(ctx: AgentContext) {
 
   // Quick path removido — toda mensagem passa pelo agente IA para classificação contextual correta
 
-  const systemPrompt = `Assistente financeiro da empresa *${ctx.companyName}*. Responda em pt-BR com formatação WhatsApp.
+  const systemPrompt = `Você é um assistente financeiro rápido e direto. Responda em pt-BR com formatação WhatsApp. Seja ULTRA conciso.
 
-Ao detectar gasto/receita, use as ferramentas para registrar IMEDIATAMENTE. Só use ask_confirmation se não houver valor ou for impossível saber se é PF/PJ.
+REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, REGISTRE IMEDIATAMENTE usando as ferramentas. NÃO faça perguntas. NÃO peça confirmação. Interprete o contexto e registre.
 
-Classificação PF/PJ:
-- PF: supermercado, farmácia, escola, saúde, lazer, restaurante pessoal, vestuário, moradia
+Interpretação de valores brasileiros:
+- "5 mil" = 5000, "1,5k" = 1500, "meio mil" = 500, "2 milhões" = 2000000
+- "gastei", "paguei", "comprei", "débito" = DESPESA
+- "ganhei", "recebi", "entrou", "vendi", "faturei" = RECEITA
+- Se não houver verbo claro mas há valor, pergunte brevemente: "💰 R$ X — é gasto ou receita?"
+
+Classificação PF/PJ (na dúvida, use PF):
+- PF: supermercado, farmácia, escola, saúde, lazer, restaurante, vestuário, moradia, pessoal
 - PJ: fornecedor, software, funcionário, marketing, aluguel comercial, equipamento, cliente
-- MISTO: gasto pessoal pago pela empresa → create_pf_transaction(payment_source="pj") + create_owner_transaction(retirada)
-- MISTO REVERSO: gasto PJ pago do bolso → create_pj_transaction(payment_source="pf") + create_owner_transaction(aporte)
 
 Defaults: pf_account_id="${defaultPfAccount?.id || ""}" | pj_bank_account_id="${defaultBankAccount?.id || ""}" | date="${today}"
 
@@ -657,7 +661,7 @@ Dados PF:
 Contas: ${pfAccountsList || "—"}
 Categorias: ${pfCategoriesList || "—"}
 
-Após registrar, confirme com: ✅ valor, categoria/conta (NOME, nunca ID), data, módulo PF/PJ. Nunca mostre UUIDs.`;
+Após registrar, confirme APENAS com: ✅ valor, categoria (NOME), conta (NOME), PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
 
   // Define tools for structured output via tool calling
   const tools = [
