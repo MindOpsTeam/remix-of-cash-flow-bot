@@ -398,7 +398,7 @@ function normalizePjType(type: unknown): "revenue" | "expense" {
 async function insertPfTransaction({ supabase, action, userId, today }: {
   supabase: any; action: any; userId: string; today: string;
 }) {
-  const { error } = await supabase.from("personal_transactions").insert({
+  const insertData: any = {
     user_id: userId,
     title: action.description || "Lançamento via WhatsApp",
     amount: Math.abs(action.amount),
@@ -406,10 +406,16 @@ async function insertPfTransaction({ supabase, action, userId, today }: {
     date: action.date || today,
     description: action.description,
     category_id: action.pf_category_id || null,
-    account_id: action.pf_account_id || null,
     source: "whatsapp",
     status: action.status || "confirmed",
-  });
+  };
+  // Se tem cartão de crédito, usa credit_card_id; senão usa account_id
+  if (action.pf_credit_card_id) {
+    insertData.credit_card_id = action.pf_credit_card_id;
+  } else {
+    insertData.account_id = action.pf_account_id || null;
+  }
+  const { error } = await supabase.from("personal_transactions").insert(insertData);
   if (error) console.error("PF transaction insert error:", error);
   return error;
 }
@@ -593,7 +599,7 @@ async function runFinancialAgent(ctx: AgentContext) {
   const bankAccounts = bankAccountsRes.data || [];
 
   // ── Carregar contexto PF ──────────────────────────────────────────────────
-  const [pfCategoriesRes, pfAccountsRes, pfRecentTxRes] = await Promise.all([
+  const [pfCategoriesRes, pfAccountsRes, pfRecentTxRes, pfCreditCardsRes] = await Promise.all([
     ctx.supabase.from("personal_categories")
       .select("id, name, type")
       .or(`user_id.eq.${ctx.userId},user_id.is.null`)
@@ -607,11 +613,16 @@ async function runFinancialAgent(ctx: AgentContext) {
       .eq("user_id", ctx.userId)
       .order("date", { ascending: false })
       .limit(20),
+    ctx.supabase.from("personal_credit_cards")
+      .select("id, name, brand, closing_day, due_day")
+      .eq("user_id", ctx.userId)
+      .eq("is_active", true),
   ]);
 
   const pfCategories = pfCategoriesRes.data || [];
   const pfAccounts = pfAccountsRes.data || [];
   const pfRecentTx = pfRecentTxRes.data || [];
+  const pfCreditCards = pfCreditCardsRes.data || [];
   const defaultPfAccount = pfAccounts.find((a: any) => a.name === "Carteira") || pfAccounts[0];
   const defaultBankAccount = bankAccounts[0];
 
@@ -643,6 +654,7 @@ async function runFinancialAgent(ctx: AgentContext) {
   // ── Resumo PF ─────────────────────────────────────────────────────────────
   const pfCategoriesList = pfCategories.map((c: any) => `${c.name} (${c.type}) [id:${c.id}]`).join("\n");
   const pfAccountsList = pfAccounts.map((a: any) => `${a.name} - Saldo: ${fmt(Number(a.current_balance))} [id:${a.id}]`).join("\n");
+  const pfCreditCardsList = pfCreditCards.map((c: any) => `${c.name}${c.brand ? ` (${c.brand})` : ""} - Fecha dia ${c.closing_day}, vence dia ${c.due_day} [id:${c.id}]`).join("\n");
   const pfRecentTxList = pfRecentTx.slice(0, 10).map((t: any) =>
     `${t.date} | ${t.type === "receita" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.title} | ${(t.personal_categories as any)?.name || "-"}`
   ).join("\n");
@@ -651,7 +663,11 @@ async function runFinancialAgent(ctx: AgentContext) {
 
   const systemPrompt = `Você é um assistente financeiro rápido e direto. Responda em pt-BR com formatação WhatsApp. Seja ULTRA conciso.
 
-REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, REGISTRE IMEDIATAMENTE usando as ferramentas. NÃO faça perguntas. NÃO peça confirmação. Interprete o contexto e registre.
+REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, REGISTRE IMEDIATAMENTE usando as ferramentas — MAS antes de registrar uma DESPESA PF, pergunte ao usuário:
+"💳 Foi no cartão de crédito? Se sim, qual?" (liste os cartões disponíveis com numeração)
+Se o usuário responder "não", "débito", "pix", "dinheiro", ou similar → registre sem cartão.
+Se responder com o nome/número do cartão → registre com credit_card_id correspondente.
+Se for RECEITA, CONTA A PAGAR ou PJ → registre direto, sem perguntar sobre cartão.
 
 Interpretação de valores brasileiros:
 - "5 mil" = 5000, "1,5k" = 1500, "meio mil" = 500, "2 milhões" = 2000000
@@ -679,8 +695,9 @@ Bancos PJ: ${bankAccountsList || "—"}
 Dados PF:
 Contas: ${pfAccountsList || "—"}
 Categorias: ${pfCategoriesList || "—"}
+Cartões de crédito: ${pfCreditCardsList || "Nenhum cadastrado"}
 
-Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a Pagar/Conta a Receber), categoria (NOME), conta (NOME), data, PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
+Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a Pagar/Conta a Receber), categoria (NOME), conta ou cartão (NOME), data, PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
 
   // Define tools for structured output via tool calling
   const tools = [
@@ -696,7 +713,8 @@ Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a P
             amount: { type: "number", description: "Valor absoluto da transação" },
             description: { type: "string", description: "Descrição do lançamento" },
             pf_category_id: { type: "string", description: "ID da categoria pessoal" },
-            pf_account_id: { type: "string", description: "ID da conta pessoal" },
+            pf_account_id: { type: "string", description: "ID da conta pessoal. Não preencher se for cartão de crédito." },
+            pf_credit_card_id: { type: "string", description: "ID do cartão de crédito. Usar quando o gasto foi no cartão." },
             date: { type: "string", description: "Data no formato YYYY-MM-DD. Para contas a pagar, use a data de vencimento." },
             payment_source: { type: "string", enum: ["pf", "pj"], description: "Quem pagou: pf=conta pessoal, pj=conta da empresa" },
             status: { type: "string", enum: ["confirmed", "pending"], description: "confirmed=já pago/recebido. pending=conta a pagar ou a receber (vencimento futuro, boleto, fatura)." },
