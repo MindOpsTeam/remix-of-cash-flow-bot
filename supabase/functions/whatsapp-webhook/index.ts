@@ -634,109 +634,21 @@ async function runFinancialAgent(ctx: AgentContext) {
     `${t.date} | ${t.type === "receita" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.title} | ${(t.personal_categories as any)?.name || "-"}`
   ).join("\n");
 
-  // ── Fast path: registra direto sem conversa para transações simples ───────
-  const defaultPjExpenseAccount = accounts.find((a: any) => a.type === "expense")?.id;
-  const defaultPjRevenueAccount = accounts.find((a: any) => a.type === "revenue")?.id;
-  const defaultPjCostCenter = centers[0]?.id;
+  // Quick path removido — toda mensagem passa pelo agente IA para classificação contextual correta
 
-  const quickAction = detectQuickTransaction({
-    text: ctx.text,
-    pfCategories,
-    defaultPfAccountId: defaultPfAccount?.id,
-    defaultPjAccountId: defaultPjExpenseAccount || defaultPjRevenueAccount,
-    defaultPjCostCenterId: defaultPjCostCenter,
-    defaultPjBankAccountId: defaultBankAccount?.id,
-    today,
-  });
+  const systemPrompt = `Você é um assistente financeiro rápido e direto. Responda em pt-BR com formatação WhatsApp. Seja ULTRA conciso.
 
-  if (quickAction) {
-    console.log("Quick action detected:", quickAction.action, quickAction.amount);
+REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, REGISTRE IMEDIATAMENTE usando as ferramentas. NÃO faça perguntas. NÃO peça confirmação. Interprete o contexto e registre.
 
-    let outboundText = "";
+Interpretação de valores brasileiros:
+- "5 mil" = 5000, "1,5k" = 1500, "meio mil" = 500, "2 milhões" = 2000000
+- "gastei", "paguei", "comprei", "débito" = DESPESA
+- "ganhei", "recebi", "entrou", "vendi", "faturei" = RECEITA
+- Se não houver verbo claro mas há valor, pergunte brevemente: "💰 R$ X — é gasto ou receita?"
 
-    if (quickAction.action === "create_pf_transaction") {
-      const err = await insertPfTransaction({ supabase: ctx.supabase, action: quickAction, userId: ctx.userId, today });
-      if (err) {
-        await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, `⚠️ Erro ao registrar PF: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey);
-        return;
-      }
-
-      const categoryName = pfCategories.find((c: any) => c.id === quickAction.pf_category_id)?.name || "Sem categoria";
-      const accountName = pfAccounts.find((a: any) => a.id === quickAction.pf_account_id)?.name || "Conta pessoal";
-
-      let currentBalance: number | null = null;
-      if (quickAction.pf_account_id) {
-        const { data: accAfter } = await ctx.supabase
-          .from("personal_accounts")
-          .select("current_balance")
-          .eq("id", quickAction.pf_account_id)
-          .maybeSingle();
-        currentBalance = accAfter?.current_balance != null ? Number(accAfter.current_balance) : null;
-      }
-
-      outboundText =
-        `✅ Registrado: ${fmt(quickAction.amount)} (${quickAction.type === "receita" ? "Receita" : "Despesa"})\n` +
-        `📂 ${categoryName} | 🏦 ${accountName}${currentBalance != null ? ` (${fmt(currentBalance)})` : ""} | 📍 PF`;
-    } else {
-      const err = await insertPjTransaction({
-        supabase: ctx.supabase,
-        action: quickAction,
-        companyId: ctx.companyId,
-        userId: ctx.userId,
-        today,
-      });
-      if (err) {
-        await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, `⚠️ Erro ao registrar PJ: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey);
-        return;
-      }
-
-      const chartName = accounts.find((a: any) => a.id === quickAction.pj_account_id)?.name || "Sem classificação";
-      const costCenterName = centers.find((c: any) => c.id === quickAction.pj_cost_center_id)?.name || "—";
-      const bankName = bankAccounts.find((b: any) => b.id === quickAction.pj_bank_account_id)?.name || "—";
-
-      outboundText =
-        `✅ Registrado: ${fmt(quickAction.amount)} (${quickAction.type === "revenue" ? "Receita" : "Despesa"})\n` +
-        `📂 ${chartName} | 🏢 ${costCenterName} | 🏦 ${bankName} | 📍 PJ`;
-    }
-
-    await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, outboundText, ctx.evolutionUrl, ctx.evolutionKey);
-
-    await Promise.all([
-      ctx.supabase.from("whatsapp_messages").insert({
-        company_id: ctx.companyId,
-        config_id: ctx.configId,
-        phone_number: ctx.phoneNumber,
-        direction: "inbound",
-        message_text: ctx.text,
-        message_type: "text",
-        processed: true,
-        message_id: ctx.messageId || null,
-        classification: { quickPath: true, actions: [quickAction], aiModel: null },
-      }),
-      ctx.supabase.from("whatsapp_messages").insert({
-        company_id: ctx.companyId,
-        config_id: ctx.configId,
-        phone_number: "bot",
-        direction: "outbound",
-        message_text: outboundText,
-        message_type: "text",
-        processed: true,
-        classification: { quickPath: true, actions: [quickAction.action] },
-      }),
-    ]);
-
-    return;
-  }
-
-  const systemPrompt = `Assistente financeiro da empresa *${ctx.companyName}*. Responda em pt-BR com formatação WhatsApp.
-
-Ao detectar gasto/receita, use as ferramentas para registrar IMEDIATAMENTE. Só use ask_confirmation se não houver valor ou for impossível saber se é PF/PJ.
-
-Classificação PF/PJ:
-- PF: supermercado, farmácia, escola, saúde, lazer, restaurante pessoal, vestuário, moradia
+Classificação PF/PJ (na dúvida, use PF):
+- PF: supermercado, farmácia, escola, saúde, lazer, restaurante, vestuário, moradia, pessoal
 - PJ: fornecedor, software, funcionário, marketing, aluguel comercial, equipamento, cliente
-- MISTO: gasto pessoal pago pela empresa → create_pf_transaction(payment_source="pj") + create_owner_transaction(retirada)
-- MISTO REVERSO: gasto PJ pago do bolso → create_pj_transaction(payment_source="pf") + create_owner_transaction(aporte)
 
 Defaults: pf_account_id="${defaultPfAccount?.id || ""}" | pj_bank_account_id="${defaultBankAccount?.id || ""}" | date="${today}"
 
@@ -749,7 +661,7 @@ Dados PF:
 Contas: ${pfAccountsList || "—"}
 Categorias: ${pfCategoriesList || "—"}
 
-Após registrar, confirme com: ✅ valor, categoria/conta (NOME, nunca ID), data, módulo PF/PJ. Nunca mostre UUIDs.`;
+Após registrar, confirme APENAS com: ✅ valor, categoria (NOME), conta (NOME), PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
 
   // Define tools for structured output via tool calling
   const tools = [
