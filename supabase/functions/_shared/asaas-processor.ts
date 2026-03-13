@@ -55,10 +55,10 @@ export async function processEvent(
           chargeback: p.chargeback || null,
           refunds: p.refunds || null,
           raw_payload: p,
-        }, { onConflict: conflictKey });
+      }, { onConflict: conflictKey });
 
       // Also materialize into personal_transactions for PF reconciliation
-      if (ownerKey === "user_id" && p.status === "RECEIVED" || p.status === "CONFIRMED") {
+      if (ownerKey === "user_id" && (p.status === "RECEIVED" || p.status === "CONFIRMED")) {
         try {
           await supabase.functions.invoke("reconcile-transactions", {
             body: {
@@ -69,7 +69,8 @@ export async function processEvent(
               type: "receita",
               description: (p.description as string) || "Pagamento Asaas",
               source: "asaas",
-              external_id: `asaas_${p.id}`,
+              external_id: `asaas_payment_${p.id}`,
+              billing_type: (p.billingType as string) || null,
             },
           });
         } catch (e) {
@@ -103,6 +104,27 @@ export async function processEvent(
           external_reference: t.externalReference as string || null,
           raw_payload: t,
         }, { onConflict: conflictKey });
+
+      // Materialize transfers into personal_transactions for PF
+      if (ownerKey === "user_id" && (t.status === "DONE" || t.status === "BANK_PROCESSING")) {
+        try {
+          await supabase.functions.invoke("reconcile-transactions", {
+            body: {
+              action: "reconcile_pf",
+              user_id: ownerId,
+              amount: (t.value as number) || 0,
+              date: (t.scheduleDate as string) || (t.scheduledDate as string) || new Date().toISOString().split("T")[0],
+              type: "despesa",
+              description: (t.description as string) || "Transferência Asaas",
+              source: "asaas",
+              external_id: `asaas_transfer_${t.id}`,
+            },
+          });
+        } catch (e) {
+          console.error("Reconcile PF transfer error:", e);
+        }
+      }
+
       return { table: `${tablePrefix}transfers`, processed: true };
     }
 
@@ -128,6 +150,27 @@ export async function processEvent(
           failure_reason: b.failureReason as string || null,
           raw_payload: b,
         }, { onConflict: conflictKey });
+
+      // Materialize bills into personal_transactions for PF
+      if (ownerKey === "user_id" && (b.status === "PAID" || b.status === "BANK_PROCESSING")) {
+        try {
+          await supabase.functions.invoke("reconcile-transactions", {
+            body: {
+              action: "reconcile_pf",
+              user_id: ownerId,
+              amount: (b.value as number) || 0,
+              date: (b.paymentDate as string) || (b.dueDate as string) || new Date().toISOString().split("T")[0],
+              type: "despesa",
+              description: (b.description as string) || (b.companyName as string) || "Pagamento de boleto Asaas",
+              source: "asaas",
+              external_id: `asaas_bill_${b.id}`,
+            },
+          });
+        } catch (e) {
+          console.error("Reconcile PF bill error:", e);
+        }
+      }
+
       return { table: `${tablePrefix}bills`, processed: true };
     }
 

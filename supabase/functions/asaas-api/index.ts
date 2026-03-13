@@ -255,6 +255,28 @@ Deno.serve(async (req) => {
                 refunds: p.refunds || null,
                 raw_payload: p,
               }, { onConflict: "user_id,asaas_id" });
+
+            // Reconcile confirmed/received payments into personal_transactions
+            if (p.status === "RECEIVED" || p.status === "CONFIRMED") {
+              try {
+                await serviceClient.functions.invoke("reconcile-transactions", {
+                  body: {
+                    action: "reconcile_pf",
+                    user_id: userId,
+                    amount: (p.netValue as number) || (p.value as number) || 0,
+                    date: (p.confirmedDate as string) || (p.paymentDate as string) || (p.dueDate as string) || new Date().toISOString().split("T")[0],
+                    type: "receita",
+                    description: (p.description as string) || "Pagamento Asaas",
+                    source: "asaas",
+                    external_id: `asaas_payment_${p.id}`,
+                    billing_type: (p.billingType as string) || null,
+                  },
+                });
+              } catch (e) {
+                console.error("Reconcile sync payment error:", e);
+              }
+            }
+
             totalSynced++;
           }
 
@@ -276,6 +298,27 @@ Deno.serve(async (req) => {
           if (!data.data || data.data.length === 0) break;
           for (const t of data.data) {
             await serviceClient.from("asaas_transfers").upsert(mapTransferData("user_id", userId, t), { onConflict: "user_id,asaas_id" });
+
+            // Reconcile completed transfers into personal_transactions
+            if (t.status === "DONE" || t.status === "BANK_PROCESSING") {
+              try {
+                await serviceClient.functions.invoke("reconcile-transactions", {
+                  body: {
+                    action: "reconcile_pf",
+                    user_id: userId,
+                    amount: (t.value as number) || 0,
+                    date: (t.scheduleDate as string) || (t.scheduledDate as string) || new Date().toISOString().split("T")[0],
+                    type: "despesa",
+                    description: (t.description as string) || "Transferência Asaas",
+                    source: "asaas",
+                    external_id: `asaas_transfer_${t.id}`,
+                  },
+                });
+              } catch (e) {
+                console.error("Reconcile sync transfer error:", e);
+              }
+            }
+
             totalSynced++;
           }
           if (!data.totalCount || offset + limit >= data.totalCount) break;
@@ -295,6 +338,27 @@ Deno.serve(async (req) => {
           if (!data.data || data.data.length === 0) break;
           for (const b of data.data) {
             await serviceClient.from("asaas_bills").upsert(mapBillData("user_id", userId, b), { onConflict: "user_id,asaas_id" });
+
+            // Reconcile paid bills into personal_transactions
+            if (b.status === "PAID" || b.status === "BANK_PROCESSING") {
+              try {
+                await serviceClient.functions.invoke("reconcile-transactions", {
+                  body: {
+                    action: "reconcile_pf",
+                    user_id: userId,
+                    amount: (b.value as number) || 0,
+                    date: (b.paymentDate as string) || (b.dueDate as string) || new Date().toISOString().split("T")[0],
+                    type: "despesa",
+                    description: (b.description as string) || (b.companyName as string) || "Pagamento de boleto Asaas",
+                    source: "asaas",
+                    external_id: `asaas_bill_${b.id}`,
+                  },
+                });
+              } catch (e) {
+                console.error("Reconcile sync bill error:", e);
+              }
+            }
+
             totalSynced++;
           }
           if (!data.totalCount || offset + limit >= data.totalCount) break;
