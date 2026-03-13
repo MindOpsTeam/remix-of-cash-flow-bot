@@ -593,7 +593,7 @@ async function runFinancialAgent(ctx: AgentContext) {
   const bankAccounts = bankAccountsRes.data || [];
 
   // ── Carregar contexto PF ──────────────────────────────────────────────────
-  const [pfCategoriesRes, pfAccountsRes, pfRecentTxRes] = await Promise.all([
+  const [pfCategoriesRes, pfAccountsRes, pfRecentTxRes, pfCreditCardsRes] = await Promise.all([
     ctx.supabase.from("personal_categories")
       .select("id, name, type")
       .or(`user_id.eq.${ctx.userId},user_id.is.null`)
@@ -607,11 +607,16 @@ async function runFinancialAgent(ctx: AgentContext) {
       .eq("user_id", ctx.userId)
       .order("date", { ascending: false })
       .limit(20),
+    ctx.supabase.from("personal_credit_cards")
+      .select("id, name, brand, closing_day, due_day")
+      .eq("user_id", ctx.userId)
+      .eq("is_active", true),
   ]);
 
   const pfCategories = pfCategoriesRes.data || [];
   const pfAccounts = pfAccountsRes.data || [];
   const pfRecentTx = pfRecentTxRes.data || [];
+  const pfCreditCards = pfCreditCardsRes.data || [];
   const defaultPfAccount = pfAccounts.find((a: any) => a.name === "Carteira") || pfAccounts[0];
   const defaultBankAccount = bankAccounts[0];
 
