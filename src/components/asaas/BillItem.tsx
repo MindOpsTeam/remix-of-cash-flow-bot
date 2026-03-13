@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
-import { Receipt } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Receipt, Check } from "lucide-react";
 import type { AsaasBill } from "@/hooks/useAsaasBills";
 
 function fmt(v: number) {
@@ -27,11 +28,13 @@ const statusLabels: Record<string, string> = {
 
 interface BillItemProps {
   bill: AsaasBill;
+  onMarkPaid?: (id: string) => void;
 }
 
-export function BillItem({ bill: b }: BillItemProps) {
+export function BillItem({ bill: b, onMarkPaid }: BillItemProps) {
   const today = new Date().toISOString().split("T")[0];
   const isOverdue = b.due_date && b.due_date < today && b.status === "PENDING";
+  const isManual = b._source === "manual";
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors ${isOverdue ? "border-l-2 border-l-destructive" : ""}`}>
@@ -59,6 +62,11 @@ export function BillItem({ bill: b }: BillItemProps) {
               {b.type}
             </Badge>
           )}
+          {isManual && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-blue-600 border-blue-600/30">
+              Manual
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-1 flex-wrap">
@@ -81,10 +89,20 @@ export function BillItem({ bill: b }: BillItemProps) {
         </div>
       </div>
 
-      <div className="flex-shrink-0">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <span className="text-sm font-semibold font-mono text-destructive">
           -{fmt(Number(b.value || 0))}
         </span>
+        {isManual && b.status === "PENDING" && onMarkPaid && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs gap-1 text-revenue hover:text-revenue"
+            onClick={() => onMarkPaid(b.id)}
+          >
+            <Check className="h-3 w-3" /> Pagar
+          </Button>
+        )}
       </div>
     </div>
   );
