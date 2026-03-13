@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
 
 function isConfirmationReply(text: string): boolean {
   const t = text.trim().toLowerCase();
-  return ["0", "1", "2", "sim", "não", "nao", "pessoal", "empresa", "confirmar", "cancelar", "ok", "cancel"].includes(t);
+  return ["0", "1", "2", "3", "sim", "não", "nao", "pessoal", "empresa", "confirmar", "cancelar", "ok", "cancel"].includes(t);
 }
 
 async function executePendingAction({
