@@ -55,10 +55,10 @@ export async function processEvent(
           chargeback: p.chargeback || null,
           refunds: p.refunds || null,
           raw_payload: p,
-        }, { onConflict: conflictKey });
+      }, { onConflict: conflictKey });
 
       // Also materialize into personal_transactions for PF reconciliation
-      if (ownerKey === "user_id" && p.status === "RECEIVED" || p.status === "CONFIRMED") {
+      if (ownerKey === "user_id" && (p.status === "RECEIVED" || p.status === "CONFIRMED")) {
         try {
           await supabase.functions.invoke("reconcile-transactions", {
             body: {
@@ -69,7 +69,8 @@ export async function processEvent(
               type: "receita",
               description: (p.description as string) || "Pagamento Asaas",
               source: "asaas",
-              external_id: `asaas_${p.id}`,
+              external_id: `asaas_payment_${p.id}`,
+              billing_type: (p.billingType as string) || null,
             },
           });
         } catch (e) {
