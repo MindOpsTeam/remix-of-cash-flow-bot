@@ -421,6 +421,95 @@ async function insertPjTransaction({ supabase, action, companyId, userId, today 
   return error;
 }
 
+// ─── QUICK PARSER (SEM CONVERSA) ─────────────────────────────────────────────
+
+function parseBrazilianAmount(text: string): number | null {
+  const match = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
+  if (!match) return null;
+
+  let raw = match[1].replace(/\s/g, "");
+  if (raw.includes(".") && raw.includes(",")) raw = raw.replace(/\./g, "").replace(",", ".");
+  else if (raw.includes(",")) raw = raw.replace(",", ".");
+
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+function detectQuickTransaction({
+  text,
+  pfCategories,
+  defaultPfAccountId,
+  defaultPjAccountId,
+  defaultPjCostCenterId,
+  defaultPjBankAccountId,
+  today,
+}: {
+  text: string;
+  pfCategories: any[];
+  defaultPfAccountId?: string;
+  defaultPjAccountId?: string;
+  defaultPjCostCenterId?: string;
+  defaultPjBankAccountId?: string;
+  today: string;
+}): any | null {
+  const normalized = text.toLowerCase().trim();
+  const amount = parseBrazilianAmount(normalized);
+  if (!amount) return null;
+
+  const expenseSignals = ["gastei", "paguei", "comprei", "despesa", "custo", "debito", "débito", "pix enviado"];
+  const revenueSignals = ["recebi", "entrou", "ganhei", "vendi", "faturei", "receita", "pix recebido"];
+
+  const hasExpense = expenseSignals.some((s) => normalized.includes(s));
+  const hasRevenue = revenueSignals.some((s) => normalized.includes(s));
+  const onlyValue = /^(r\$\s*)?\d+[\d.,]*$/.test(normalized);
+
+  let nature: "expense" | "revenue" | null = null;
+  if (hasExpense && !hasRevenue) nature = "expense";
+  else if (hasRevenue && !hasExpense) nature = "revenue";
+  else if (onlyValue) nature = "expense";
+  else return null;
+
+  const isPj = /\b(pj|empresa|empresarial|fornecedor|cliente|cnpj|nota fiscal)\b/.test(normalized);
+
+  const cleanedDescription = text
+    .replace(/(?:r\$\s*)?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const description = cleanedDescription || (nature === "expense" ? "Despesa via WhatsApp" : "Receita via WhatsApp");
+
+  if (isPj) {
+    return {
+      action: "create_pj_transaction",
+      type: nature,
+      amount,
+      description,
+      pj_account_id: defaultPjAccountId || null,
+      pj_cost_center_id: defaultPjCostCenterId || null,
+      pj_bank_account_id: defaultPjBankAccountId || null,
+      date: today,
+      payment_source: "pj",
+      _quick_side: "pj",
+    };
+  }
+
+  const wantedTypes = nature === "expense" ? ["expense", "despesa"] : ["income", "receita"];
+  const fallbackCategory = pfCategories.find((c: any) => wantedTypes.includes((c.type || "").toLowerCase()));
+
+  return {
+    action: "create_pf_transaction",
+    type: nature === "expense" ? "despesa" : "receita",
+    amount,
+    description,
+    pf_category_id: fallbackCategory?.id || null,
+    pf_account_id: defaultPfAccountId || null,
+    date: today,
+    payment_source: "pf",
+    _quick_side: "pf",
+  };
+}
+
 // ─── AI AGENT ────────────────────────────────────────────────────────────────
 
 interface AgentContext {
