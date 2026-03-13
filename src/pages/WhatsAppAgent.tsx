@@ -733,69 +733,179 @@ export default function WhatsApp() {
                 </ol>
               </div>
 
-              {configs.map((c) => (
-                <div key={c.id} className="bg-card border border-border rounded-lg p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <Phone className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground">{c.instance_name}</h3>
-                        {c.group_jid ? (
-                          <p className="text-xs text-revenue font-medium mt-0.5">
-                            ✅ Grupo ativo: {c.group_jid.split("@")[0]}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground mt-0.5">Nenhum grupo selecionado</p>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => handleSelectGroup(c)}
-                      disabled={loadingGroups && groupDialogConfig?.id === c.id}
-                    >
-                      {loadingGroups && groupDialogConfig?.id === c.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Users className="h-3.5 w-3.5" />
-                      )}
-                      Buscar Grupos
-                    </Button>
-                  </div>
+              {configs.map((c) => {
+                const isSelected = groupDialogConfig?.id === c.id;
+                const filteredGroups = availableGroups.filter(g =>
+                  g.subject.toLowerCase().includes(groupSearch.toLowerCase()) ||
+                  g.id.toLowerCase().includes(groupSearch.toLowerCase())
+                );
 
-                  {/* Inline group list when this config is selected */}
-                  {groupDialogConfig?.id === c.id && !groupDialogOpen && availableGroups.length > 0 && (
-                    <div className="border-t border-border pt-4 space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">
-                        Selecione o grupo ({availableGroups.length} encontrados):
-                      </p>
-                      {availableGroups.map((g) => (
-                        <button
-                          key={g.id}
-                          onClick={() => handleSaveGroup(g.id, g.subject)}
-                          className={`w-full text-left border rounded-lg p-3 transition-colors hover:bg-accent/50 ${
-                            c.group_jid === g.id ? "border-primary bg-primary/5" : "border-border"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-foreground">{g.subject}</p>
-                              <p className="text-[11px] text-muted-foreground">{g.size} participantes</p>
-                            </div>
-                            {c.group_jid === g.id && (
-                              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                return (
+                  <div key={c.id} className="bg-card border border-border rounded-lg p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Phone className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground">{c.instance_name}</h3>
+                          {c.group_jid ? (
+                            <p className="text-xs text-revenue font-medium mt-0.5">
+                              ✅ Grupo ativo: {c.group_name || c.group_jid.split("@")[0]}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground mt-0.5">Nenhum grupo selecionado</p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => handleSelectGroup(c)}
+                        disabled={loadingGroups && isSelected}
+                      >
+                        {loadingGroups && isSelected ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Users className="h-3.5 w-3.5" />
+                        )}
+                        Buscar Grupos
+                      </Button>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* Inline group selection area */}
+                    {isSelected && (
+                      <div className="border-t border-border pt-4 space-y-3">
+                        {/* Search + Refresh */}
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              value={groupSearch}
+                              onChange={(e) => setGroupSearch(e.target.value)}
+                              placeholder="Buscar grupo..."
+                              className="pl-9"
+                            />
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleSelectGroup(c)}
+                            disabled={loadingGroups}
+                          >
+                            <RefreshCw className={`h-4 w-4 ${loadingGroups ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
+
+                        {/* Error state */}
+                        {fetchError && (
+                          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                            <div className="flex items-start gap-3">
+                              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-sm text-foreground font-medium mb-1">Não foi possível buscar grupos</p>
+                                <p className="text-xs text-muted-foreground">{fetchError}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Loading state */}
+                        {loadingGroups && availableGroups.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-10 gap-3">
+                            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                            <p className="text-sm text-muted-foreground">Buscando grupos da instância...</p>
+                          </div>
+                        ) : filteredGroups.length > 0 ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-muted-foreground">{filteredGroups.length} grupo(s) encontrados</p>
+                              {fetchingPictures && <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />}
+                            </div>
+                            {filteredGroups.map((g) => {
+                              const isCurrentGroup = c.group_jid === g.id;
+                              const initials = g.subject.slice(0, 2).toUpperCase();
+                              return (
+                                <button
+                                  key={g.id}
+                                  onClick={() => handleSaveGroup(g.id, g.subject)}
+                                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors text-left ${
+                                    isCurrentGroup
+                                      ? 'border-primary/30 bg-primary/5'
+                                      : 'border-border hover:bg-accent/50'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <Avatar className="h-9 w-9 shrink-0">
+                                      {g.pictureUrl && <AvatarImage src={g.pictureUrl} alt={g.subject} />}
+                                      <AvatarFallback className={`text-xs font-medium ${isCurrentGroup ? 'bg-primary/10 text-primary' : ''}`}>
+                                        {initials}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">{g.subject}</p>
+                                      <p className="text-xs text-muted-foreground">{g.size} participantes</p>
+                                    </div>
+                                  </div>
+                                  {isCurrentGroup && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 shrink-0">
+                                      <Check className="h-3 w-3" /> Selecionado
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : !loadingGroups && !fetchError && availableGroups.length === 0 && (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">Nenhum grupo encontrado na instância</p>
+                            <p className="text-xs mt-1">Verifique se a instância está conectada e participa de grupos</p>
+                          </div>
+                        )}
+
+                        {/* Manual add fallback */}
+                        <div className="border-t border-border pt-4 mt-2">
+                          {!addingManual ? (
+                            <Button onClick={() => setAddingManual(true)} variant="ghost" className="gap-2 text-muted-foreground">
+                              <Plus className="h-4 w-4" /> Adicionar manualmente
+                            </Button>
+                          ) : (
+                            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                              <h4 className="text-sm font-semibold text-foreground">Adicionar Manualmente</h4>
+                              <div>
+                                <Label className="text-xs">Nome do Grupo</Label>
+                                <Input
+                                  value={manualGroupName}
+                                  onChange={(e) => setManualGroupName(e.target.value)}
+                                  placeholder="Ex: Financeiro IA"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">ID do Grupo (JID)</Label>
+                                <Input
+                                  value={manualGroupJid}
+                                  onChange={(e) => setManualGroupJid(e.target.value)}
+                                  placeholder="Ex: 120363001234567890@g.us"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={handleManualGroupAdd} size="sm" className="gap-1" disabled={!manualGroupJid.trim()}>
+                                  <Check className="h-3.5 w-3.5" /> Salvar
+                                </Button>
+                                <Button onClick={() => setAddingManual(false)} size="sm" variant="outline">
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </TabsContent>
