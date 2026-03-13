@@ -150,6 +150,27 @@ export async function processEvent(
           failure_reason: b.failureReason as string || null,
           raw_payload: b,
         }, { onConflict: conflictKey });
+
+      // Materialize bills into personal_transactions for PF
+      if (ownerKey === "user_id" && (b.status === "PAID" || b.status === "BANK_PROCESSING")) {
+        try {
+          await supabase.functions.invoke("reconcile-transactions", {
+            body: {
+              action: "reconcile_pf",
+              user_id: ownerId,
+              amount: (b.value as number) || 0,
+              date: (b.paymentDate as string) || (b.dueDate as string) || new Date().toISOString().split("T")[0],
+              type: "despesa",
+              description: (b.description as string) || (b.companyName as string) || "Pagamento de boleto Asaas",
+              source: "asaas",
+              external_id: `asaas_bill_${b.id}`,
+            },
+          });
+        } catch (e) {
+          console.error("Reconcile PF bill error:", e);
+        }
+      }
+
       return { table: `${tablePrefix}bills`, processed: true };
     }
 
