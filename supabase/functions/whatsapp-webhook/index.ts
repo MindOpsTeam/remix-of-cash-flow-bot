@@ -408,7 +408,7 @@ async function insertPfTransaction({ supabase, action, userId, today }: {
     category_id: action.pf_category_id || null,
     account_id: action.pf_account_id || null,
     source: "whatsapp",
-    status: "confirmed",
+    status: action.status || "confirmed",
   });
   if (error) console.error("PF transaction insert error:", error);
   return error;
