@@ -425,7 +425,7 @@ async function insertPjTransaction({ supabase, action, companyId, userId, today 
     type: normalizePjType(action.type),
     date: action.date || today,
     source: "whatsapp",
-    status: "confirmed",
+    status: action.status || "confirmed",
     account_id: action.pj_account_id || null,
     cost_center_id: action.pj_cost_center_id || null,
     bank_account_id: action.pj_bank_account_id || null,
