@@ -31,16 +31,7 @@ Deno.serve(async (req) => {
     const instanceName = body.instance;
     const messageId = key?.id || "";
 
-    // ── Ignorar mensagens de grupos ───────────────────────────────────────────
-    if (remoteJid.endsWith("@g.us")) {
-      return new Response(JSON.stringify({ ok: true, skipped: "group" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const phoneNumber = remoteJid.replace("@s.whatsapp.net", "");
-
-    // ── Lookup da instância e empresa ANTES de processar mídia ────────────────
+    // ── Lookup da instância e empresa ANTES de filtrar ────────────────────────
     const { data: whatsappConfig } = await supabase
       .from("whatsapp_configs")
       .select("*, companies(name)")
@@ -55,19 +46,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Filtro "fromMe toMe": só processar mensagens para si mesmo ───────────
-    const isFromMe = key?.fromMe === true;
-    const configPhone = whatsappConfig.phone_number
-      ? whatsappConfig.phone_number.replace(/\D/g, "")
-      : null;
-    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    // ── Filtro de grupo dedicado ─────────────────────────────────────────────
+    const isGroup = remoteJid.endsWith("@g.us");
+    const configuredGroupJid = whatsappConfig.group_jid;
 
-    if (!isFromMe || !configPhone || cleanPhone !== configPhone) {
-      console.log(`Skipping: fromMe=${isFromMe}, configPhone=${configPhone}, msgPhone=${cleanPhone}`);
-      return new Response(JSON.stringify({ ok: true, skipped: "not-self-message" }), {
+    if (!configuredGroupJid) {
+      console.log("No group_jid configured, skipping all messages");
+      return new Response(JSON.stringify({ ok: true, skipped: "no-group-configured" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Ignorar mensagens privadas (DMs) — só processar grupo
+    if (!isGroup) {
+      return new Response(JSON.stringify({ ok: true, skipped: "not-group" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Ignorar mensagens de outros grupos
+    if (remoteJid !== configuredGroupJid) {
+      return new Response(JSON.stringify({ ok: true, skipped: "wrong-group" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Ignorar mensagens enviadas pelo próprio bot
+    if (key?.fromMe === true) {
+      return new Response(JSON.stringify({ ok: true, skipped: "from-bot" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Em grupos, o remetente real vem em key.participant
+    const phoneNumber = (key?.participant || "").replace("@s.whatsapp.net", "").replace(/\D/g, "");
+    // Respostas vão para o grupo
+    const replyJid = configuredGroupJid;
 
     const { data: member } = await supabase
       .from("company_members")
