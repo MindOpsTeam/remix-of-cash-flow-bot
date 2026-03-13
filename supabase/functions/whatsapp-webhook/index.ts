@@ -408,7 +408,7 @@ async function insertPfTransaction({ supabase, action, userId, today }: {
     category_id: action.pf_category_id || null,
     account_id: action.pf_account_id || null,
     source: "whatsapp",
-    status: "confirmed",
+    status: action.status || "confirmed",
   });
   if (error) console.error("PF transaction insert error:", error);
   return error;
@@ -425,7 +425,7 @@ async function insertPjTransaction({ supabase, action, companyId, userId, today 
     type: normalizePjType(action.type),
     date: action.date || today,
     source: "whatsapp",
-    status: "confirmed",
+    status: action.status || "confirmed",
     account_id: action.pj_account_id || null,
     cost_center_id: action.pj_cost_center_id || null,
     bank_account_id: action.pj_bank_account_id || null,
@@ -655,12 +655,18 @@ REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, REGISTRE IME
 
 Interpretação de valores brasileiros:
 - "5 mil" = 5000, "1,5k" = 1500, "meio mil" = 500, "2 milhões" = 2000000
-- "gastei", "paguei", "comprei", "débito" = DESPESA
-- "ganhei", "recebi", "entrou", "vendi", "faturei" = RECEITA
+- "gastei", "paguei", "comprei", "débito" = DESPESA (status=confirmed)
+- "ganhei", "recebi", "entrou", "vendi", "faturei" = RECEITA (status=confirmed)
 - Se não houver verbo claro mas há valor, pergunte brevemente: "💰 R$ X — é gasto ou receita?"
 
+CONTAS A PAGAR / A RECEBER:
+- "conta de luz", "boleto", "fatura", "vencimento", "vence dia X", "pagar até" = CONTA A PAGAR → status="pending", date=data de vencimento
+- "vai receber", "cliente vai pagar", "fatura para cobrar" = CONTA A RECEBER → status="pending", type=receita/revenue
+- Quando o usuário menciona VENCIMENTO ou DATA FUTURA, use status="pending" e a data mencionada como date
+- Mês atual: ${monthName}. Hoje: ${today}. Se disser "dia 30" sem mês, use o dia 30 do mês atual (ou próximo mês se dia 30 já passou).
+
 Classificação PF/PJ (na dúvida, use PF):
-- PF: supermercado, farmácia, escola, saúde, lazer, restaurante, vestuário, moradia, pessoal
+- PF: conta de luz, água, internet residencial, supermercado, farmácia, escola, saúde, lazer, restaurante, vestuário, moradia, pessoal
 - PJ: fornecedor, software, funcionário, marketing, aluguel comercial, equipamento, cliente
 
 Defaults: pf_account_id="${defaultPfAccount?.id || ""}" | pj_bank_account_id="${defaultBankAccount?.id || ""}" | date="${today}"
@@ -674,7 +680,7 @@ Dados PF:
 Contas: ${pfAccountsList || "—"}
 Categorias: ${pfCategoriesList || "—"}
 
-Após registrar, confirme APENAS com: ✅ valor, categoria (NOME), conta (NOME), PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
+Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a Pagar/Conta a Receber), categoria (NOME), conta (NOME), data, PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
 
   // Define tools for structured output via tool calling
   const tools = [
@@ -682,7 +688,7 @@ Após registrar, confirme APENAS com: ✅ valor, categoria (NOME), conta (NOME),
       type: "function",
       function: {
         name: "create_pf_transaction",
-        description: "Cria uma transação pessoal (PF). Use para gastos pessoais como supermercado, farmácia, restaurante, lazer, saúde.",
+        description: "Cria uma transação pessoal (PF). Use para gastos pessoais como supermercado, farmácia, restaurante, lazer, saúde, contas de consumo (luz, água, internet).",
         parameters: {
           type: "object",
           properties: {
@@ -691,10 +697,11 @@ Após registrar, confirme APENAS com: ✅ valor, categoria (NOME), conta (NOME),
             description: { type: "string", description: "Descrição do lançamento" },
             pf_category_id: { type: "string", description: "ID da categoria pessoal" },
             pf_account_id: { type: "string", description: "ID da conta pessoal" },
-            date: { type: "string", description: "Data no formato YYYY-MM-DD" },
+            date: { type: "string", description: "Data no formato YYYY-MM-DD. Para contas a pagar, use a data de vencimento." },
             payment_source: { type: "string", enum: ["pf", "pj"], description: "Quem pagou: pf=conta pessoal, pj=conta da empresa" },
+            status: { type: "string", enum: ["confirmed", "pending"], description: "confirmed=já pago/recebido. pending=conta a pagar ou a receber (vencimento futuro, boleto, fatura)." },
           },
-          required: ["type", "amount", "description", "date", "payment_source"],
+          required: ["type", "amount", "description", "date", "payment_source", "status"],
           additionalProperties: false,
         },
       },
@@ -713,10 +720,11 @@ Após registrar, confirme APENAS com: ✅ valor, categoria (NOME), conta (NOME),
             pj_account_id: { type: "string", description: "ID da conta contábil" },
             pj_cost_center_id: { type: "string", description: "ID do centro de custo" },
             pj_bank_account_id: { type: "string", description: "ID da conta bancária" },
-            date: { type: "string", description: "Data no formato YYYY-MM-DD" },
+            date: { type: "string", description: "Data no formato YYYY-MM-DD. Para contas a pagar, use a data de vencimento." },
             payment_source: { type: "string", enum: ["pf", "pj"], description: "Quem pagou: pf=pessoal, pj=empresa" },
+            status: { type: "string", enum: ["confirmed", "pending"], description: "confirmed=já pago/recebido. pending=conta a pagar ou a receber." },
           },
-          required: ["type", "amount", "description", "date", "payment_source"],
+          required: ["type", "amount", "description", "date", "payment_source", "status"],
           additionalProperties: false,
         },
       },
