@@ -939,7 +939,7 @@ Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a P
       type: "function",
       function: {
         name: "ask_confirmation",
-        description: "Pede confirmação ao usuário quando não consegue determinar se é PF ou PJ.",
+        description: "SEMPRE use esta tool para qualquer transação financeira. Ela pergunta ao usuário se é PF ou PJ antes de registrar. É a ÚNICA forma de criar transações.",
         parameters: {
           type: "object",
           properties: {
