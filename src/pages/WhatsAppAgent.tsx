@@ -53,6 +53,10 @@ export default function WhatsApp() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [messagesDialogOpen, setMessagesDialogOpen] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<WhatsAppConfig | null>(null);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [groupDialogConfig, setGroupDialogConfig] = useState<WhatsAppConfig | null>(null);
+  const [availableGroups, setAvailableGroups] = useState<WhatsAppGroup[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
 
   // Modal state
   const [step, setStep] = useState<ModalStep>("credentials");
