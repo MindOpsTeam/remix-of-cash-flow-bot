@@ -421,6 +421,95 @@ async function insertPjTransaction({ supabase, action, companyId, userId, today 
   return error;
 }
 
+// ─── QUICK PARSER (SEM CONVERSA) ─────────────────────────────────────────────
+
+function parseBrazilianAmount(text: string): number | null {
+  const match = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
+  if (!match) return null;
+
+  let raw = match[1].replace(/\s/g, "");
+  if (raw.includes(".") && raw.includes(",")) raw = raw.replace(/\./g, "").replace(",", ".");
+  else if (raw.includes(",")) raw = raw.replace(",", ".");
+
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+function detectQuickTransaction({
+  text,
+  pfCategories,
+  defaultPfAccountId,
+  defaultPjAccountId,
+  defaultPjCostCenterId,
+  defaultPjBankAccountId,
+  today,
+}: {
+  text: string;
+  pfCategories: any[];
+  defaultPfAccountId?: string;
+  defaultPjAccountId?: string;
+  defaultPjCostCenterId?: string;
+  defaultPjBankAccountId?: string;
+  today: string;
+}): any | null {
+  const normalized = text.toLowerCase().trim();
+  const amount = parseBrazilianAmount(normalized);
+  if (!amount) return null;
+
+  const expenseSignals = ["gastei", "paguei", "comprei", "despesa", "custo", "debito", "débito", "pix enviado"];
+  const revenueSignals = ["recebi", "entrou", "ganhei", "vendi", "faturei", "receita", "pix recebido"];
+
+  const hasExpense = expenseSignals.some((s) => normalized.includes(s));
+  const hasRevenue = revenueSignals.some((s) => normalized.includes(s));
+  const onlyValue = /^(r\$\s*)?\d+[\d.,]*$/.test(normalized);
+
+  let nature: "expense" | "revenue" | null = null;
+  if (hasExpense && !hasRevenue) nature = "expense";
+  else if (hasRevenue && !hasExpense) nature = "revenue";
+  else if (onlyValue) nature = "expense";
+  else return null;
+
+  const isPj = /\b(pj|empresa|empresarial|fornecedor|cliente|cnpj|nota fiscal)\b/.test(normalized);
+
+  const cleanedDescription = text
+    .replace(/(?:r\$\s*)?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const description = cleanedDescription || (nature === "expense" ? "Despesa via WhatsApp" : "Receita via WhatsApp");
+
+  if (isPj) {
+    return {
+      action: "create_pj_transaction",
+      type: nature,
+      amount,
+      description,
+      pj_account_id: defaultPjAccountId || null,
+      pj_cost_center_id: defaultPjCostCenterId || null,
+      pj_bank_account_id: defaultPjBankAccountId || null,
+      date: today,
+      payment_source: "pj",
+      _quick_side: "pj",
+    };
+  }
+
+  const wantedTypes = nature === "expense" ? ["expense", "despesa"] : ["income", "receita"];
+  const fallbackCategory = pfCategories.find((c: any) => wantedTypes.includes((c.type || "").toLowerCase()));
+
+  return {
+    action: "create_pf_transaction",
+    type: nature === "expense" ? "despesa" : "receita",
+    amount,
+    description,
+    pf_category_id: fallbackCategory?.id || null,
+    pf_account_id: defaultPfAccountId || null,
+    date: today,
+    payment_source: "pf",
+    _quick_side: "pf",
+  };
+}
+
 // ─── AI AGENT ────────────────────────────────────────────────────────────────
 
 interface AgentContext {
@@ -522,6 +611,100 @@ async function runFinancialAgent(ctx: AgentContext) {
   const pfRecentTxList = pfRecentTx.slice(0, 10).map((t: any) =>
     `${t.date} | ${t.type === "receita" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.title} | ${(t.personal_categories as any)?.name || "-"}`
   ).join("\n");
+
+  // ── Fast path: registra direto sem conversa para transações simples ───────
+  const defaultPjExpenseAccount = accounts.find((a: any) => a.type === "expense")?.id;
+  const defaultPjRevenueAccount = accounts.find((a: any) => a.type === "revenue")?.id;
+  const defaultPjCostCenter = centers[0]?.id;
+
+  const quickAction = detectQuickTransaction({
+    text: ctx.text,
+    pfCategories,
+    defaultPfAccountId: defaultPfAccount?.id,
+    defaultPjAccountId: defaultPjExpenseAccount || defaultPjRevenueAccount,
+    defaultPjCostCenterId: defaultPjCostCenter,
+    defaultPjBankAccountId: defaultBankAccount?.id,
+    today,
+  });
+
+  if (quickAction) {
+    console.log("Quick action detected:", quickAction.action, quickAction.amount);
+
+    let outboundText = "";
+
+    if (quickAction.action === "create_pf_transaction") {
+      const err = await insertPfTransaction({ supabase: ctx.supabase, action: quickAction, userId: ctx.userId, today });
+      if (err) {
+        await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, `⚠️ Erro ao registrar PF: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey);
+        return;
+      }
+
+      const categoryName = pfCategories.find((c: any) => c.id === quickAction.pf_category_id)?.name || "Sem categoria";
+      const accountName = pfAccounts.find((a: any) => a.id === quickAction.pf_account_id)?.name || "Conta pessoal";
+
+      let currentBalance: number | null = null;
+      if (quickAction.pf_account_id) {
+        const { data: accAfter } = await ctx.supabase
+          .from("personal_accounts")
+          .select("current_balance")
+          .eq("id", quickAction.pf_account_id)
+          .maybeSingle();
+        currentBalance = accAfter?.current_balance != null ? Number(accAfter.current_balance) : null;
+      }
+
+      outboundText =
+        `✅ Registrado: ${fmt(quickAction.amount)} (${quickAction.type === "receita" ? "Receita" : "Despesa"})\n` +
+        `📂 ${categoryName} | 🏦 ${accountName}${currentBalance != null ? ` (${fmt(currentBalance)})` : ""} | 📍 PF`;
+    } else {
+      const err = await insertPjTransaction({
+        supabase: ctx.supabase,
+        action: quickAction,
+        companyId: ctx.companyId,
+        userId: ctx.userId,
+        today,
+      });
+      if (err) {
+        await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, `⚠️ Erro ao registrar PJ: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey);
+        return;
+      }
+
+      const chartName = accounts.find((a: any) => a.id === quickAction.pj_account_id)?.name || "Sem classificação";
+      const costCenterName = centers.find((c: any) => c.id === quickAction.pj_cost_center_id)?.name || "—";
+      const bankName = bankAccounts.find((b: any) => b.id === quickAction.pj_bank_account_id)?.name || "—";
+
+      outboundText =
+        `✅ Registrado: ${fmt(quickAction.amount)} (${quickAction.type === "revenue" ? "Receita" : "Despesa"})\n` +
+        `📂 ${chartName} | 🏢 ${costCenterName} | 🏦 ${bankName} | 📍 PJ`;
+    }
+
+    await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, outboundText, ctx.evolutionUrl, ctx.evolutionKey);
+
+    await Promise.all([
+      ctx.supabase.from("whatsapp_messages").insert({
+        company_id: ctx.companyId,
+        config_id: ctx.configId,
+        phone_number: ctx.phoneNumber,
+        direction: "inbound",
+        message_text: ctx.text,
+        message_type: "text",
+        processed: true,
+        message_id: ctx.messageId || null,
+        classification: { quickPath: true, actions: [quickAction], aiModel: null },
+      }),
+      ctx.supabase.from("whatsapp_messages").insert({
+        company_id: ctx.companyId,
+        config_id: ctx.configId,
+        phone_number: "bot",
+        direction: "outbound",
+        message_text: outboundText,
+        message_type: "text",
+        processed: true,
+        classification: { quickPath: true, actions: [quickAction.action] },
+      }),
+    ]);
+
+    return;
+  }
 
   const systemPrompt = `Assistente financeiro da empresa *${ctx.companyName}*. Responda em pt-BR com formatação WhatsApp.
 
@@ -670,7 +853,7 @@ Após registrar, confirme com: ✅ valor, categoria/conta (NOME, nunca ID), data
         Authorization: `Bearer ${lovableApiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: ctx.text },
@@ -835,7 +1018,7 @@ Após registrar, confirme com: ✅ valor, categoria/conta (NOME, nunca ID), data
         message_type: "text",
         processed: true,
         message_id: ctx.messageId || null,
-        classification: { actions, aiModel: "gemini-2.5-flash", toolCalls: toolCalls.length },
+        classification: { actions, aiModel: "gemini-3-flash-preview", toolCalls: toolCalls.length },
       }),
       cleanResponse ? ctx.supabase.from("whatsapp_messages").insert({
         company_id: ctx.companyId,
