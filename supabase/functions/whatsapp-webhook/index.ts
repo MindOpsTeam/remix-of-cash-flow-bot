@@ -947,6 +947,7 @@ Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a P
     if (cleanResponse) {
       await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, cleanResponse, ctx.evolutionUrl, ctx.evolutionKey);
     }
+    const shouldSendActionFallback = !cleanResponse;
 
     // Processar ações
     for (const action of actions) {
@@ -959,6 +960,11 @@ Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a P
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
             `⚠️ Classificado mas erro ao salvar PJ: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey
           );
+        } else if (shouldSendActionFallback) {
+          const fallback = buildActionFallbackMessage(action);
+          if (fallback) {
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, fallback, ctx.evolutionUrl, ctx.evolutionKey);
+          }
         }
 
       } else if (action.action === "create_pf_transaction") {
@@ -969,6 +975,11 @@ Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a P
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
             `⚠️ Classificado mas erro ao salvar PF: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey
           );
+        } else if (shouldSendActionFallback) {
+          const fallback = buildActionFallbackMessage(action);
+          if (fallback) {
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, fallback, ctx.evolutionUrl, ctx.evolutionKey);
+          }
         }
 
       } else if (action.action === "create_owner_transaction") {
@@ -990,6 +1001,11 @@ Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a P
           await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
             `⚠️ Lançamento PF criado, mas erro ao criar a retirada: ${ownerErr.message}`, ctx.evolutionUrl, ctx.evolutionKey
           );
+        } else if (shouldSendActionFallback) {
+          const fallback = buildActionFallbackMessage(action);
+          if (fallback) {
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, fallback, ctx.evolutionUrl, ctx.evolutionKey);
+          }
         }
 
       } else if (action.action === "ask_confirmation") {
@@ -1005,6 +1021,13 @@ Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a P
           instance_name: ctx.instanceName,
           pending_action: action,
         });
+
+        if (shouldSendActionFallback) {
+          const fallback = buildActionFallbackMessage(action);
+          if (fallback) {
+            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, fallback, ctx.evolutionUrl, ctx.evolutionKey);
+          }
+        }
 
       } else if (action.action === "send_chart") {
         try {
