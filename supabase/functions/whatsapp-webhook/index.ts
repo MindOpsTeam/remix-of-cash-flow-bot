@@ -424,7 +424,29 @@ async function insertPjTransaction({ supabase, action, companyId, userId, today 
 // ─── QUICK PARSER (SEM CONVERSA) ─────────────────────────────────────────────
 
 function parseBrazilianAmount(text: string): number | null {
-  const match = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
+  const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
+
+  // 1) Textual multipliers: "5 mil", "1,5k", "meio mil", "2 milhões", "3 conto"
+  const multipliers: Record<string, number> = {
+    mil: 1000, k: 1000, conto: 1000, contos: 1000,
+    milhão: 1_000_000, milhao: 1_000_000, mi: 1_000_000, milhões: 1_000_000, milhoes: 1_000_000,
+  };
+  const mKeys = Object.keys(multipliers).join("|");
+
+  // "meio mil" → 500
+  const halfMatch = normalized.match(new RegExp(`meio\\s+(${mKeys})`, "i"));
+  if (halfMatch) return multipliers[halfMatch[1].toLowerCase()] / 2;
+
+  // "5 mil", "1,5k", "2.5 milhão"
+  const multMatch = normalized.match(new RegExp(`(\\d+[.,]?\\d*)\\s*(${mKeys})`, "i"));
+  if (multMatch) {
+    const val = parseFloat(multMatch[1].replace(",", "."));
+    const factor = multipliers[multMatch[2].toLowerCase()];
+    if (Number.isFinite(val) && val > 0) return val * factor;
+  }
+
+  // 2) Standard numeric: "R$ 1.500,00", "150", "49,90"
+  const match = normalized.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
   if (!match) return null;
 
   let raw = match[1].replace(/\s/g, "");
