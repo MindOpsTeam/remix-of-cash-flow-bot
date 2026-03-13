@@ -68,32 +68,37 @@ export function useAsaasBills() {
     queryKey: ["personal_bills_pending", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
+      const today = new Date().toISOString().split("T")[0];
       const { data, error } = await supabase
         .from("personal_transactions")
-        .select("id, title, description, amount, date, status, created_at, account_id, credit_card_id, personal_accounts(name), personal_credit_cards(name)")
+        .select("id, title, description, amount, date, status, source, created_at, account_id, credit_card_id, personal_accounts(name), personal_credit_cards(name)")
         .eq("user_id", user.id)
         .eq("type", "despesa")
-        .eq("status", "pending")
+        .in("status", ["pending", "reconciled"])
+        .in("source", ["manual", "whatsapp", "reconciled"])
         .order("date", { ascending: true });
       if (error) throw error;
-      return (data || []).map((t: any) => ({
-        id: t.id,
-        asaas_id: "",
-        status: "PENDING",
-        value: Number(t.amount),
-        fee: null,
-        description: t.title || t.description,
-        company_name: null,
-        identification_field: null,
-        type: t.credit_card_id ? "Cartão" : (t.personal_accounts as any)?.name || null,
-        due_date: t.date,
-        schedule_date: null,
-        payment_date: null,
-        can_be_cancelled: null,
-        failure_reason: null,
-        created_at: t.created_at,
-        _source: "manual" as const,
-      })) as AsaasBill[];
+
+      return (data || [])
+        .filter((t: any) => t.status === "pending" || (t.status === "reconciled" && t.date >= today))
+        .map((t: any) => ({
+          id: t.id,
+          asaas_id: "",
+          status: "PENDING",
+          value: Number(t.amount),
+          fee: null,
+          description: t.title || t.description,
+          company_name: null,
+          identification_field: null,
+          type: t.credit_card_id ? "Cartão" : (t.personal_accounts as any)?.name || null,
+          due_date: t.date,
+          schedule_date: null,
+          payment_date: null,
+          can_be_cancelled: null,
+          failure_reason: null,
+          created_at: t.created_at,
+          _source: "manual" as const,
+        })) as AsaasBill[];
     },
     enabled: !!user?.id,
   });
