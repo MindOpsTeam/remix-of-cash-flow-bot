@@ -657,7 +657,11 @@ async function runFinancialAgent(ctx: AgentContext) {
 
   const systemPrompt = `Você é um assistente financeiro rápido e direto. Responda em pt-BR com formatação WhatsApp. Seja ULTRA conciso.
 
-REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, REGISTRE IMEDIATAMENTE usando as ferramentas. NÃO faça perguntas. NÃO peça confirmação. Interprete o contexto e registre.
+REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, REGISTRE IMEDIATAMENTE usando as ferramentas — MAS antes de registrar uma DESPESA PF, pergunte ao usuário:
+"💳 Foi no cartão de crédito? Se sim, qual?" (liste os cartões disponíveis com numeração)
+Se o usuário responder "não", "débito", "pix", "dinheiro", ou similar → registre sem cartão.
+Se responder com o nome/número do cartão → registre com credit_card_id correspondente.
+Se for RECEITA, CONTA A PAGAR ou PJ → registre direto, sem perguntar sobre cartão.
 
 Interpretação de valores brasileiros:
 - "5 mil" = 5000, "1,5k" = 1500, "meio mil" = 500, "2 milhões" = 2000000
@@ -685,8 +689,9 @@ Bancos PJ: ${bankAccountsList || "—"}
 Dados PF:
 Contas: ${pfAccountsList || "—"}
 Categorias: ${pfCategoriesList || "—"}
+Cartões de crédito: ${pfCreditCardsList || "Nenhum cadastrado"}
 
-Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a Pagar/Conta a Receber), categoria (NOME), conta (NOME), data, PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
+Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a Pagar/Conta a Receber), categoria (NOME), conta ou cartão (NOME), data, PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
 
   // Define tools for structured output via tool calling
   const tools = [
