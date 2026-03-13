@@ -43,7 +43,7 @@ const emptyBillForm = {
 };
 
 export default function PersonalBills() {
-  const { bills, invoices, billsSummary, invoicesSummary, isLoading } = useAsaasBills();
+  const { bills, invoices, billsSummary, invoicesSummary, isLoading, markBillAsPaid } = useAsaasBills();
   const { user } = useAuth();
   const { accounts } = usePersonalAccounts();
   const [formOpen, setFormOpen] = useState(false);
@@ -139,7 +139,7 @@ export default function PersonalBills() {
                       </span>
                     </div>
                     <div className="bg-card border border-border rounded-lg divide-y divide-border">
-                      {items.map((b) => <BillItem key={b.id} bill={b} />)}
+                      {items.map((b) => <BillItem key={b.id} bill={b} onMarkPaid={b._source === "manual" ? markBillAsPaid : undefined} />)}
                     </div>
                   </div>
                 ))
