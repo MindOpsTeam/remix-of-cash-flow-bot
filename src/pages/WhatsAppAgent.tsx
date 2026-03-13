@@ -811,56 +811,6 @@ export default function WhatsApp() {
         </DialogContent>
       </Dialog>
 
-      {/* Group selection dialog */}
-      <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Selecionar Grupo — {groupDialogConfig?.instance_name}</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs text-muted-foreground">
-            Crie um grupo no WhatsApp com o número da instância e selecione-o abaixo. A IA responderá apenas nesse grupo.
-          </p>
-          {loadingGroups ? (
-            <div className="flex items-center justify-center py-8 gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm text-muted-foreground">Buscando grupos...</span>
-            </div>
-          ) : availableGroups.length === 0 ? (
-            <div className="text-center py-8">
-              <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Nenhum grupo encontrado.</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Crie um grupo no WhatsApp adicionando o número da instância e tente novamente.
-              </p>
-              <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={() => groupDialogConfig && handleSelectGroup(groupDialogConfig)}>
-                <RefreshCw className="h-3.5 w-3.5" /> Atualizar
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2 mt-2">
-              {availableGroups.map((g) => (
-                <button
-                  key={g.id}
-                  onClick={() => handleSaveGroup(g.id, g.subject)}
-                  className={`w-full text-left border rounded-lg p-3 transition-colors hover:bg-accent/50 ${
-                    groupDialogConfig?.group_jid === g.id ? "border-primary bg-primary/5" : "border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{g.subject}</p>
-                      <p className="text-[11px] text-muted-foreground">{g.size} participantes</p>
-                    </div>
-                    {groupDialogConfig?.group_jid === g.id && (
-                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </AppLayout>
   );
 }
