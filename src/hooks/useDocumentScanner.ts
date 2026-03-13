@@ -23,6 +23,20 @@ export interface ScanResult {
   classification_confidence: string | null;
 }
 
+export interface CreateOverrides {
+  amount?: number;
+  date?: string;
+  description?: string;
+  type?: string;
+  status?: "confirmed" | "pending";
+  account_id?: string;
+  cost_center_id?: string;
+  // PF fields
+  pf_category_id?: string;
+  pf_account_id?: string;
+  pf_credit_card_id?: string;
+}
+
 export function useDocumentScanner() {
   const { company } = useCompany();
   const { user } = useAuth();
@@ -73,14 +87,7 @@ export function useDocumentScanner() {
 
   const createTransactionFromScan = async (
     scanData: ScanResult,
-    overrides?: Partial<{
-      account_id: string;
-      cost_center_id: string;
-      description: string;
-      amount: number;
-      date: string;
-      type: string;
-    }>,
+    overrides?: CreateOverrides,
   ) => {
     if (!user) return false;
     setCreating(true);
@@ -89,38 +96,53 @@ export function useDocumentScanner() {
       const date = overrides?.date ?? scanData.date ?? new Date().toISOString().split("T")[0];
       const txType = overrides?.type ?? scanData.transaction_type ?? "expense";
       const description = overrides?.description ?? scanData.description ?? "Documento escaneado";
+      const status = overrides?.status ?? "confirmed";
 
       if (isPersonal) {
-        const { error } = await supabase.from("personal_transactions").insert({
+        const pfType = txType === "revenue" || txType === "receita" ? "receita" : "despesa";
+        const insertData: any = {
           user_id: user.id,
           title: description,
           amount,
           date,
-          type: txType,
+          type: pfType,
           source: "scanner",
-          status: "confirmed",
-        });
+          status,
+          category_id: overrides?.pf_category_id || null,
+        };
+        // Credit card or account
+        if (overrides?.pf_credit_card_id) {
+          insertData.credit_card_id = overrides.pf_credit_card_id;
+        } else if (overrides?.pf_account_id) {
+          insertData.account_id = overrides.pf_account_id;
+        }
+        const { error } = await supabase.from("personal_transactions").insert(insertData);
         if (error) throw error;
       } else {
         if (!company) throw new Error("Empresa não selecionada");
+        const pjType = txType === "receita" || txType === "revenue" ? "revenue" : "expense";
         const { error } = await supabase.from("transactions").insert({
           company_id: company.id,
           user_id: user.id,
           description,
           amount,
           date,
-          type: txType,
+          type: pjType,
           source: "scanner",
-          status: "confirmed",
+          status,
           account_id: overrides?.account_id ?? scanData.suggested_account_id ?? null,
           cost_center_id: overrides?.cost_center_id ?? scanData.suggested_cost_center_id ?? null,
         });
         if (error) throw error;
       }
 
-      toast.success("Lançamento criado com sucesso!");
+      toast.success(status === "pending" ? "Conta a pagar criada!" : "Lançamento criado com sucesso!");
       queryClient.invalidateQueries({ queryKey: isPersonal ? ["personal_transactions"] : ["transactions"] });
       queryClient.invalidateQueries({ queryKey: isPersonal ? ["recent_scans_personal"] : ["recent_scans_company"] });
+      if (status === "pending") {
+        queryClient.invalidateQueries({ queryKey: ["personal_bills"] });
+        queryClient.invalidateQueries({ queryKey: ["asaas_bills"] });
+      }
       setResult(null);
       return true;
     } catch (e: any) {
@@ -141,7 +163,7 @@ export function useDocumentScanner() {
         if (!user?.id) return [];
         const { data } = await supabase
           .from("personal_transactions")
-          .select("id, title, amount, date, type, created_at")
+          .select("id, title, amount, date, type, status, created_at")
           .eq("user_id", user.id)
           .eq("source", "scanner")
           .order("created_at", { ascending: false })
@@ -152,13 +174,14 @@ export function useDocumentScanner() {
           amount: t.amount,
           date: t.date,
           type: t.type,
+          status: t.status,
           created_at: t.created_at,
         }));
       }
       if (!company?.id) return [];
       const { data } = await supabase
         .from("transactions")
-        .select("id, description, amount, date, type, created_at")
+        .select("id, description, amount, date, type, status, created_at")
         .eq("company_id", company.id)
         .eq("source", "scanner")
         .order("created_at", { ascending: false })
@@ -186,7 +209,6 @@ function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
-      // Strip the data:*;base64, prefix
       const base64 = dataUrl.split(",")[1];
       resolve(base64);
     };
