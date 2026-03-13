@@ -1,18 +1,26 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, Info } from "lucide-react";
 import { usePersonalForecast } from "@/hooks/usePersonalForecast";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
+  BarChart, Bar, Legend,
 } from "recharts";
 
 function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
+const monthLabels: Record<string, string> = {
+  "01": "Jan", "02": "Fev", "03": "Mar", "04": "Abr", "05": "Mai", "06": "Jun",
+  "07": "Jul", "08": "Ago", "09": "Set", "10": "Out", "11": "Nov", "12": "Dez",
+};
+
 export default function PersonalForecast() {
-  const { forecastData, totals, isLoading } = usePersonalForecast();
+  const { forecastData, monthlyHistory, totals, isLoading } = usePersonalForecast();
+
+  const hasData = totals.entradas > 0 || totals.saidas > 0;
 
   if (isLoading) {
     return (
@@ -28,12 +36,23 @@ export default function PersonalForecast() {
     );
   }
 
+  const historyChartData = monthlyHistory.map((m) => {
+    const [y, mo] = m.month.split("-");
+    return {
+      label: `${monthLabels[mo]}/${y.slice(2)}`,
+      Receita: m.receita,
+      Despesa: m.despesa,
+    };
+  });
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Previsão de Fluxo</h1>
-          <p className="text-sm text-muted-foreground mt-1">Projeção dos próximos 30 dias</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Projeção dos próximos 30 dias baseada em lançamentos, cobranças e recorrências
+          </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
@@ -70,6 +89,17 @@ export default function PersonalForecast() {
           </Card>
         </div>
 
+        {!hasData && (
+          <Card className="border-dashed">
+            <CardContent className="flex items-center gap-3 py-6">
+              <Info className="h-5 w-5 text-muted-foreground shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                Nenhum lançamento futuro encontrado. Adicione transações, contas a pagar ou configure recorrências para ver sua projeção.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Projeção 30 dias</CardTitle>
@@ -102,6 +132,30 @@ export default function PersonalForecast() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+
+        {historyChartData.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Histórico (últimos 3 meses)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={historyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} className="text-muted-foreground" />
+                  <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                    formatter={(v: number) => [fmt(v)]}
+                  />
+                  <Legend />
+                  <Bar dataKey="Receita" fill="hsl(var(--revenue))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Despesa" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </AppLayout>
   );
