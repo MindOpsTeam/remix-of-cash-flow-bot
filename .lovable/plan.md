@@ -1,42 +1,63 @@
 
 
-# Reconhecimento proativo de transações e confirmação detalhada
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## Problema atual
-O agente já detecta transações, mas o prompt atual pede confirmação em muitos casos (confiança média/baixa). O usuário quer que o agente seja mais agressivo: detectar qualquer atividade financeira imediatamente e finalizar a interação dizendo exatamente **para onde** (conta, categoria, módulo PF/PJ) e **como** a transação foi registrada.
+## Problema
 
-## Mudanças
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-### 1. Ajustar o system prompt em `runFinancialAgent` (`whatsapp-webhook/index.ts`)
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-- **Baixar o limiar de auto-registro**: instruir a IA a registrar automaticamente sempre que detectar um valor + descrição, mesmo com confiança média. Só pedir confirmação quando realmente ambíguo (sem valor, sem contexto nenhum).
-- **Finalização obrigatória**: após cada registro, a IA DEVE enviar uma mensagem de fechamento com:
-  - Módulo destino (Pessoal ou Empresa)
-  - Nome da conta (ex: "Carteira", "Conta Inter")
-  - Nome da categoria (ex: "Alimentação", "Fornecedores")
-  - Valor e data
-  - Novo saldo estimado da conta (se PF e disponível)
-- **Detectar transações em mensagens informais**: "gastei 50 no mercado", "recebi 200 do João", "paguei a conta de luz 180" — tudo deve gerar registro imediato.
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-### 2. Melhorar as mensagens de confirmação pós-ação
+## Solução
 
-Atualmente, após `insertPfTransaction` e `insertPjTransaction` (ações HIGH), a confirmação vem do próprio texto da IA. Mas após `executePendingAction` (confirmações), a mensagem é genérica com IDs. Vamos:
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-- No `executePendingAction`: buscar o **nome** da conta e categoria no banco antes de montar a mensagem de confirmação, em vez de mostrar apenas "Registrado no módulo Pessoal (PF)".
-- Formato da mensagem final:
-  ```
-  ✅ Transação registrada!
-  💰 R$ 50,00 — Despesa
-  📂 Categoria: Alimentação
-  🏦 Conta: Carteira (saldo atual: R$ 950,00)
-  📅 11/03/2026
-  📍 Módulo: Pessoal (PF)
-  ```
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-### 3. Incluir nomes de contas/categorias no contexto da IA
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-O prompt já inclui IDs e nomes. Reforçar que a IA deve usar os **nomes** na resposta e não os IDs. Adicionar instrução: "Sempre mencione o nome da conta e da categoria na confirmação, nunca o ID."
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-## Arquivos afetados
-- **`supabase/functions/whatsapp-webhook/index.ts`**: prompt do agente, `executePendingAction`, mensagens de confirmação
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
+
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
+
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
+
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
+
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
+
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
+
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
+
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
+
+## Arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
+
+Nenhuma migration SQL necessária.
 

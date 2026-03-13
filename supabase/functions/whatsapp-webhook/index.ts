@@ -277,8 +277,31 @@ async function executePendingAction({
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const paymentSource = action.payment_source as "pf" | "pj" | "unknown" | undefined;
 
+  // ── Buscar nomes de contas e categorias para confirmação rica ──────────
+  let accountName = "—";
+  let categoryName = "—";
+  let currentBalance: number | null = null;
+
   if (forceSide === "pf") {
+    const [catRes, accRes] = await Promise.all([
+      action.pf_category_id
+        ? supabase.from("personal_categories").select("name").eq("id", action.pf_category_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      action.pf_account_id
+        ? supabase.from("personal_accounts").select("name, current_balance").eq("id", action.pf_account_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    categoryName = catRes.data?.name || "Sem categoria";
+    accountName = accRes.data?.name || "Carteira";
+    currentBalance = accRes.data?.current_balance != null ? Number(accRes.data.current_balance) : null;
+
     await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
+
+    // Recalcular saldo após inserção
+    if (action.pf_account_id) {
+      const { data: updatedAcc } = await supabase.from("personal_accounts").select("current_balance").eq("id", action.pf_account_id).maybeSingle();
+      if (updatedAcc) currentBalance = Number(updatedAcc.current_balance);
+    }
 
     // MISTO normal: usuário confirmou PF mas pagou com conta da empresa → criar retirada
     if (paymentSource === "pj") {
@@ -297,16 +320,33 @@ async function executePendingAction({
       if (ownerErr) console.error("Owner transaction (retirada) error:", ownerErr);
     }
 
+    const balanceStr = currentBalance != null ? ` (saldo atual: ${fmt(currentBalance)})` : "";
     await sendWhatsAppMessage(instanceName, remoteJid,
-      `✅ *Lançamento Pessoal registrado!*\n\n` +
-      `💰 *Valor:* ${fmt(action.amount)}\n` +
-      `📝 *Descrição:* ${action.description}\n` +
+      `✅ *Transação registrada!*\n\n` +
+      `💰 ${fmt(action.amount)} — *${action.type === "revenue" ? "Receita" : "Despesa"}*\n` +
+      `📂 *Categoria:* ${categoryName}\n` +
+      `🏦 *Conta:* ${accountName}${balanceStr}\n` +
       `📅 *Data:* ${action.date || today}\n` +
-      `_Registrado no módulo Pessoal (PF)._` +
-      (paymentSource === "pj" ? `\n_⚠️ Retirada criada para manter separação patrimonial._` : ""),
+      `📍 *Módulo:* Pessoal (PF)` +
+      (paymentSource === "pj" ? `\n\n_⚠️ Retirada criada automaticamente para manter a separação patrimonial._` : ""),
       evolutionUrl, evolutionKey
     );
   } else {
+    const [accRes, ccRes, bankRes] = await Promise.all([
+      action.pj_account_id
+        ? supabase.from("chart_of_accounts").select("name").eq("id", action.pj_account_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      action.pj_cost_center_id
+        ? supabase.from("cost_centers").select("name").eq("id", action.pj_cost_center_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      action.pj_bank_account_id
+        ? supabase.from("bank_accounts").select("name").eq("id", action.pj_bank_account_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    const chartAccountName = accRes.data?.name || "Sem classificação";
+    const costCenterName = ccRes.data?.name || "—";
+    const bankName = bankRes.data?.name || "—";
+
     await insertPjTransaction({ supabase, action, companyId: pending.company_id, userId: pending.user_id, today });
 
     // MISTO reverso: usuário confirmou PJ mas pagou do próprio bolso → criar aporte
@@ -327,12 +367,14 @@ async function executePendingAction({
     }
 
     await sendWhatsAppMessage(instanceName, remoteJid,
-      `✅ *Lançamento Empresarial registrado!*\n\n` +
-      `💰 *Valor:* ${fmt(action.amount)}\n` +
-      `📝 *Descrição:* ${action.description}\n` +
+      `✅ *Transação registrada!*\n\n` +
+      `💰 ${fmt(action.amount)} — *${action.type === "revenue" ? "Receita" : "Despesa"}*\n` +
+      `📂 *Conta contábil:* ${chartAccountName}\n` +
+      `🏢 *Centro de custo:* ${costCenterName}\n` +
+      `🏦 *Conta bancária:* ${bankName}\n` +
       `📅 *Data:* ${action.date || today}\n` +
-      `_Registrado no módulo Empresa (PJ)._` +
-      (paymentSource === "pf" ? `\n_⚠️ Aporte criado para reembolsar seus recursos pessoais._` : ""),
+      `📍 *Módulo:* Empresa (PJ)` +
+      (paymentSource === "pf" ? `\n\n_⚠️ Aporte criado automaticamente para reembolsar seus recursos pessoais._` : ""),
       evolutionUrl, evolutionKey
     );
   }
@@ -539,46 +581,62 @@ ${pfRecentTxList || "Nenhum lançamento pessoal"}
 
 ## Como Responder:
 
-### Para lançamentos com ALTA confiança (high):
-Classifique e registre automaticamente. Confirme com detalhes.
-IMPORTANTE: sempre inclua "payment_source":"pf" ou "payment_source":"pj" nos actions, indicando de qual conta o pagamento foi feito.
+### REGRA PRINCIPAL — REGISTRO IMEDIATO:
+Sempre que detectar QUALQUER menção a gasto, receita, pagamento ou atividade financeira, REGISTRE IMEDIATAMENTE.
+Mensagens informais como "gastei 50 no mercado", "recebi 200 do João", "paguei a conta de luz 180", "almocei 35 reais" devem gerar registro automático SEM pedir confirmação.
+Só peça confirmação quando for REALMENTE impossível determinar o valor OU a natureza PF/PJ.
 
-Para PJ (pago com conta da empresa):
-"✅ *Lançamento Empresarial registrado!*
-💰 *Valor:* R$ X
-📝 *Descrição:* ...
-📂 *Conta:* ... | *Centro:* ...
-📅 *Data:* ...
-_Registrado como gasto da empresa._"
-<ACTION>{"action":"create_pj_transaction","type":"expense","amount":X,"description":"...","pj_account_id":"...","pj_cost_center_id":"...","date":"YYYY-MM-DD","payment_source":"pj"}</ACTION>
+### REGRA DE CONFIRMAÇÃO OBRIGATÓRIA:
+Após CADA registro, você DEVE finalizar com uma mensagem de fechamento contendo TODOS estes dados:
+- ✅ Emoji de confirmação
+- 💰 Valor e tipo (Receita/Despesa)
+- 📂 Nome da categoria ou conta contábil (NUNCA o ID)
+- 🏦 Nome da conta + saldo atual se PF (NUNCA o ID)
+- 📅 Data do lançamento
+- 📍 Módulo: Pessoal (PF) ou Empresa (PJ)
+Sempre use os NOMES das contas e categorias na resposta, NUNCA mostre IDs (UUIDs).
+
+### Para lançamentos (alta e MÉDIA confiança — registrar automaticamente):
+Classifique e registre automaticamente. Confirme com detalhes no formato acima.
+IMPORTANTE: sempre inclua "payment_source":"pf" ou "payment_source":"pj" nos actions.
 
 Para PF (pago com conta pessoal):
-"✅ *Lançamento Pessoal registrado!*
-💰 *Valor:* R$ X
-📝 *Descrição:* ...
-📂 *Categoria:* ...
-📅 *Data:* ...
-_Registrado no módulo Pessoal._"
 <ACTION>{"action":"create_pf_transaction","type":"despesa","amount":X,"description":"...","pf_category_id":"...","pf_account_id":"[id da conta pessoal mencionada ou ${defaultPfAccount?.id || ""}]","date":"YYYY-MM-DD","payment_source":"pf"}</ACTION>
+Mensagem:
+"✅ *Transação registrada!*
+💰 R$ X,XX — *Despesa*
+📂 *Categoria:* Alimentação
+🏦 *Conta:* Carteira (saldo atual: R$ X,XX)
+📅 13/03/2026
+📍 *Módulo:* Pessoal (PF)"
 
-Para MISTO (pago com conta PJ mas gasto é PF — ex: "paguei mercado no cartão da empresa"):
+Para PJ (pago com conta da empresa):
+<ACTION>{"action":"create_pj_transaction","type":"expense","amount":X,"description":"...","pj_account_id":"...","pj_cost_center_id":"...","date":"YYYY-MM-DD","payment_source":"pj"}</ACTION>
+Mensagem:
+"✅ *Transação registrada!*
+💰 R$ X,XX — *Despesa*
+📂 *Conta contábil:* Marketing
+🏢 *Centro de custo:* Comercial
+🏦 *Conta bancária:* Banco Inter
+📅 13/03/2026
+📍 *Módulo:* Empresa (PJ)"
+
+Para MISTO (pago com conta PJ mas gasto é PF):
 "⚠️ *Atenção patrimonial!*
 Detectei que este gasto é *pessoal* mas foi pago com a conta da empresa.
-Vou registrar como despesa pessoal e criar uma retirada para manter a separação patrimonial.
-💰 *Valor:* R$ X | 📝 *Descrição:* ..."
+Vou registrar como despesa pessoal e criar uma retirada para manter a separação patrimonial."
 <ACTION>{"action":"create_pf_transaction","type":"despesa","amount":X,"description":"...","pf_category_id":"...","pf_account_id":"${defaultPfAccount?.id || ""}","date":"YYYY-MM-DD","payment_source":"pj"}</ACTION>
 <ACTION>{"action":"create_owner_transaction","transaction_type":"retirada","amount":X,"description":"Retirada — gasto pessoal pago pela empresa: ...","pf_account_id":"${defaultPfAccount?.id || ""}","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD"}</ACTION>
 
-Para MISTO REVERSO (pago com conta PF mas gasto é PJ — ex: "paguei o fornecedor do meu próprio bolso", "usei meu Pix pessoal para pagar despesa da empresa"):
+Para MISTO REVERSO (pago com conta PF mas gasto é PJ):
 "⚠️ *Atenção patrimonial!*
 Detectei que este gasto é *empresarial* mas foi pago com recursos pessoais.
-Vou registrar como despesa da empresa e criar um aporte para que a empresa reembolse você.
-💰 *Valor:* R$ X | 📝 *Descrição:* ..."
+Vou registrar como despesa da empresa e criar um aporte para reembolsar você."
 <ACTION>{"action":"create_pj_transaction","type":"expense","amount":X,"description":"...","pj_account_id":"...","pj_cost_center_id":"...","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD","payment_source":"pf"}</ACTION>
 <ACTION>{"action":"create_owner_transaction","transaction_type":"aporte","amount":X,"description":"Aporte — despesa empresarial paga com recursos pessoais: ...","pf_account_id":"${defaultPfAccount?.id || ""}","pj_bank_account_id":"${defaultBankAccount?.id || ""}","date":"YYYY-MM-DD"}</ACTION>
 
-### Para lançamentos com confiança MÉDIA ou BAIXA:
-Pergunte antes de lançar. Inclua sempre "payment_source" na action com o que você inferiu.
+### Para confiança BAIXA (somente quando não há valor OU contexto algum):
+Pergunte antes de lançar.
 "❓ *Preciso de uma confirmação:*
 💰 *Valor:* R$ X
 📝 *Descrição:* ...
@@ -606,7 +664,10 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
 - SEMPRE use formatação WhatsApp
 - SEMPRE classifique PF ou PJ em lançamentos
 - SEMPRE inclua payment_source nos actions de transação
+- SEMPRE use NOMES de contas e categorias, NUNCA IDs
+- SEMPRE finalize com a mensagem de confirmação detalhada após registrar
 - NÃO misture patrimônio pessoal com empresarial
+- NÃO peça confirmação para confiança MÉDIA — registre automaticamente
 - Se a mensagem não for financeira, responda educadamente e ofereça ajuda`;
 
   try {
