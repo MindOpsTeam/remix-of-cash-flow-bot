@@ -1,49 +1,63 @@
 
 
-# Corrigir registro de transações via WhatsApp (actions sempre vazio)
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## Diagnóstico
+## Problema
 
-Analisei os dados e identifiquei **dois problemas**:
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-1. **A IA não está gerando as tags `<ACTION>`**: Todas as mensagens no banco (`whatsapp_messages`) mostram `"actions": []`. Isso significa que o modelo `gemini-2.5-flash` está respondendo com texto natural mas sem incluir as tags `<ACTION>...</ACTION>` no formato esperado. O prompt é muito longo e o modelo perde a instrução de formato.
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-2. **Falta de logging**: Não há nenhum log do que a IA respondeu, tornando impossível debugar. Precisamos logar a resposta da IA para entender exatamente o que ela retorna.
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-## Mudanças
+## Solução
 
-### 1. Adicionar logging da resposta da IA
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-No `runFinancialAgent`, logo após `const aiResponse = ...`, adicionar:
-```typescript
-console.log("AI response (first 1000 chars):", aiResponse.slice(0, 1000));
-console.log("Actions found:", actions.length);
-```
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-### 2. Reforçar o formato `<ACTION>` no prompt
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-O problema principal é que o modelo Gemini 2.5 Flash não segue o formato `<ACTION>` de forma confiável com prompts longos. Soluções:
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-- **Mover as instruções de formato para o FINAL do system prompt** (recency bias — modelos seguem melhor instruções no final)
-- **Adicionar exemplos explícitos** mais curtos e diretos
-- **Adicionar uma instrução "reminder" no user message**: concatenar ao texto do usuário uma linha como `\n\n[SYSTEM: Lembre-se: SEMPRE inclua tags <ACTION> para qualquer transação detectada]`
-- **Simplificar o formato de ação**: em vez de JSON complexo dentro de `<ACTION>`, usar um formato mais robusto
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
 
-### 3. Fallback: tentar extrair ação mesmo sem tags
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
 
-Se `actions.length === 0` e a resposta da IA menciona um registro, tentar fazer um segundo parse via regex para valores como "R$ X" e tipos "Despesa/Receita", ou fazer uma segunda chamada curta à IA pedindo especificamente a classificação estruturada.
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
 
-### 4. Trocar para modelo mais capaz
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
 
-Considerar usar `google/gemini-2.5-pro` ou `openai/gpt-5-mini` que seguem instruções de formato com mais fidelidade, especialmente com prompts longos.
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
 
-## Plano de implementação
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
 
-Arquivo: `supabase/functions/whatsapp-webhook/index.ts`
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
 
-1. **Adicionar console.log** da resposta da IA e quantidade de ações
-2. **Reestruturar o system prompt**: mover as regras de formato `<ACTION>` para o final absoluto do prompt com repetição enfática
-3. **Adicionar reminder no user message**: `ctx.text + "\n\n[Instrução: se houver transação, inclua obrigatoriamente a tag <ACTION>{...}</ACTION>]"`
-4. **Implementar fallback de extração**: se actions=0 e a resposta contém indicadores de transação (R$, registr, despesa, receita), fazer segunda chamada curta com `google/gemini-2.5-flash` pedindo apenas o JSON estruturado
-5. **Logar resposta outbound** na tabela `whatsapp_messages` para debug futuro
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
+
+## Arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
+
+Nenhuma migration SQL necessária.
 
