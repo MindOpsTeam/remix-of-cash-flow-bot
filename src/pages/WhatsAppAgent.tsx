@@ -442,7 +442,7 @@ export default function WhatsApp() {
       toast.error("Erro ao salvar grupo: " + error.message);
     } else {
       toast.success(`Grupo "${groupName}" configurado com sucesso!`);
-      setGroupDialogOpen(false);
+      setAvailableGroups([]);
       loadConfigs();
     }
   };
