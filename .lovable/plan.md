@@ -1,54 +1,63 @@
 
 
-# Trocar lógica "mensagem para si mesmo" por grupo dedicado
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## Resumo
+## Problema
 
-Atualmente o WhatsApp funciona com o modelo "fromMe toMe" — o usuário envia mensagens para si mesmo. Vamos trocar para um modelo onde o usuário cria um **grupo** com a instância do FinanceAI, e a IA responde apenas nesse grupo específico.
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-## Mudanças necessárias
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-### 1. Migration: adicionar `group_jid` na tabela `whatsapp_configs`
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-```sql
-ALTER TABLE public.whatsapp_configs ADD COLUMN group_jid text;
-```
+## Solução
 
-Armazena o JID do grupo (ex: `120363xxx@g.us`) onde a IA deve operar.
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-### 2. Webhook (`supabase/functions/whatsapp-webhook/index.ts`)
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-- **Inverter o filtro de grupo**: em vez de ignorar `@g.us`, agora **só processar** mensagens de grupo que correspondam ao `group_jid` configurado. Mensagens privadas e de outros grupos são ignoradas.
-- **Remover o filtro "fromMe toMe"**: qualquer mensagem no grupo configurado é processada (já que o grupo é privado entre o usuário e o bot).
-- **Ajustar `remoteJid` nas respostas**: as respostas da IA vão para o `group_jid` em vez do número pessoal.
-- O `phoneNumber` do remetente será extraído do `key.participant` (em grupos, quem enviou vem nesse campo, não no `remoteJid`).
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-### 3. Frontend (`src/pages/WhatsAppAgent.tsx`)
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-- **Remover `groupsIgnore: true`** do `configureInstanceSettings` e do `handleConnect` → trocar para `groupsIgnore: false` para que o webhook receba eventos de grupos.
-- **Adicionar fluxo de detecção/configuração de grupo**:
-  - Novo botão "Configurar Grupo" no card da instância.
-  - Ao clicar, busca os grupos da instância via `GET /group/fetchAllGroups/{instanceName}` na Evolution API.
-  - Exibe lista de grupos para o usuário selecionar.
-  - Salva o `group_jid` selecionado em `whatsapp_configs`.
-- **Atualizar UI do card**: em vez de "Envie mensagens para: +55...", mostrar "Grupo configurado: Nome do Grupo" ou "Clique para configurar o grupo".
-- **Instruções no card**: orientar o usuário a criar um grupo com o número da instância e depois selecionar aqui.
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
 
-### 4. Ajuste no webhook config
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
 
-No `configureWebhook`, adicionar o evento `"GROUP_UPSERT"` ou garantir que `"MESSAGES_UPSERT"` inclua mensagens de grupo (já inclui por padrão quando `groupsIgnore` é `false`).
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
 
-## Fluxo do usuário
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
 
-1. Conecta a instância (como hoje, via QR Code)
-2. Cria um grupo no WhatsApp adicionando o número da instância
-3. No FinanceAI, clica em "Configurar Grupo" → seleciona o grupo da lista
-4. A partir daí, todas as mensagens enviadas naquele grupo são processadas pela IA
-5. A IA responde no próprio grupo
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
 
-## Arquivos afetados
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
 
-- **Migration SQL** — adicionar coluna `group_jid`
-- **`supabase/functions/whatsapp-webhook/index.ts`** — inverter filtro de grupo, remover filtro fromMe, usar group_jid como destino das respostas
-- **`src/pages/WhatsAppAgent.tsx`** — `groupsIgnore: false`, UI de seleção de grupo, atualizar card
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
+
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
+
+## Arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
+
+Nenhuma migration SQL necessária.
 

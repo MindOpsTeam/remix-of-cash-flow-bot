@@ -21,8 +21,15 @@ interface WhatsAppConfig {
   evolution_api_url: string | null;
   evolution_api_key: string | null;
   phone_number: string | null;
+  group_jid: string | null;
   active: boolean;
   created_at: string;
+}
+
+interface WhatsAppGroup {
+  id: string;
+  subject: string;
+  size: number;
 }
 
 interface WhatsAppMessage {
@@ -46,6 +53,10 @@ export default function WhatsApp() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [messagesDialogOpen, setMessagesDialogOpen] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<WhatsAppConfig | null>(null);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [groupDialogConfig, setGroupDialogConfig] = useState<WhatsAppConfig | null>(null);
+  const [availableGroups, setAvailableGroups] = useState<WhatsAppGroup[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
 
   // Modal state
   const [step, setStep] = useState<ModalStep>("credentials");
@@ -219,7 +230,7 @@ export default function WhatsApp() {
           },
           settings: {
             rejectCall: false,
-            groupsIgnore: true,
+            groupsIgnore: false,
             alwaysOnline: false,
             readMessages: false,
             readStatus: false,
@@ -303,7 +314,7 @@ export default function WhatsApp() {
         headers,
         body: JSON.stringify({
           rejectCall: false,
-          groupsIgnore: true,
+          groupsIgnore: false,
           alwaysOnline: false,
           readMessages: false,
           readStatus: false,
@@ -388,6 +399,50 @@ export default function WhatsApp() {
     await supabase.from("whatsapp_configs").delete().eq("id", id);
     toast.success("Instância removida");
     loadConfigs();
+  };
+
+  const handleSelectGroup = async (c: WhatsAppConfig) => {
+    if (!c.evolution_api_url || !c.evolution_api_key) {
+      toast.error("Credenciais da Evolution API não encontradas.");
+      return;
+    }
+    setGroupDialogConfig(c);
+    setGroupDialogOpen(true);
+    setLoadingGroups(true);
+    setAvailableGroups([]);
+    const url = c.evolution_api_url.replace(/\/$/, "");
+    const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+    try {
+      const res = await fetch(`${url}/group/fetchAllGroups/${c.instance_name}`, { method: "GET", headers });
+      if (!res.ok) throw new Error("Falha ao buscar grupos");
+      const groups = await res.json();
+      const mapped: WhatsAppGroup[] = (Array.isArray(groups) ? groups : []).map((g: any) => ({
+        id: g.id || g.jid || g.groupJid,
+        subject: g.subject || g.name || "Sem nome",
+        size: g.size || g.participants?.length || 0,
+      }));
+      setAvailableGroups(mapped);
+    } catch (err) {
+      console.error("Fetch groups error:", err);
+      toast.error("Não foi possível buscar os grupos. Verifique se a instância está conectada.");
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  const handleSaveGroup = async (groupJid: string, groupName: string) => {
+    if (!groupDialogConfig) return;
+    const { error } = await supabase
+      .from("whatsapp_configs")
+      .update({ group_jid: groupJid } as any)
+      .eq("id", groupDialogConfig.id);
+    if (error) {
+      toast.error("Erro ao salvar grupo: " + error.message);
+    } else {
+      toast.success(`Grupo "${groupName}" configurado com sucesso!`);
+      setGroupDialogOpen(false);
+      loadConfigs();
+    }
   };
 
   const viewMessages = async (c: WhatsAppConfig) => {
@@ -551,13 +606,13 @@ export default function WhatsApp() {
                         {c.active ? "Ativo" : "Inativo"}
                       </Badge>
                     </div>
-                    {c.phone_number ? (
+                    {c.group_jid ? (
                       <p className="text-xs text-revenue font-medium mt-0.5">
-                        📱 Envie mensagens para: {c.phone_number}
+                        👥 Grupo configurado: {c.group_jid.split("@")[0]}
                       </p>
                     ) : (
-                      <p className="text-[11px] text-muted-foreground mt-0.5 italic">
-                        Clique em ⚙️ para detectar o número
+                      <p className="text-[11px] text-warning font-medium mt-0.5">
+                        ⚠️ Nenhum grupo configurado — clique em 👥 para selecionar
                       </p>
                     )}
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
@@ -566,6 +621,9 @@ export default function WhatsApp() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="ghost" size="icon" onClick={() => handleSelectGroup(c)} title="Configurar grupo" aria-label="Configurar grupo">
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" onClick={() => handleConfigureWebhook(c)} title="Configurar webhook" aria-label="Configurar webhook">
                     <Settings2 className="h-4 w-4" />
                   </Button>
@@ -646,6 +704,57 @@ export default function WhatsApp() {
                     </details>
                   )}
                 </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Group selection dialog */}
+      <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Selecionar Grupo — {groupDialogConfig?.instance_name}</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Crie um grupo no WhatsApp com o número da instância e selecione-o abaixo. A IA responderá apenas nesse grupo.
+          </p>
+          {loadingGroups ? (
+            <div className="flex items-center justify-center py-8 gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm text-muted-foreground">Buscando grupos...</span>
+            </div>
+          ) : availableGroups.length === 0 ? (
+            <div className="text-center py-8">
+              <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Nenhum grupo encontrado.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Crie um grupo no WhatsApp adicionando o número da instância e tente novamente.
+              </p>
+              <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={() => groupDialogConfig && handleSelectGroup(groupDialogConfig)}>
+                <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2 mt-2">
+              {availableGroups.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => handleSaveGroup(g.id, g.subject)}
+                  className={`w-full text-left border rounded-lg p-3 transition-colors hover:bg-accent/50 ${
+                    groupDialogConfig?.group_jid === g.id ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{g.subject}</p>
+                      <p className="text-[11px] text-muted-foreground">{g.size} participantes</p>
+                    </div>
+                    {groupDialogConfig?.group_jid === g.id && (
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                    )}
+                  </div>
+                </button>
               ))}
             </div>
           )}

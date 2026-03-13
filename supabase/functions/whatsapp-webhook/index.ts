@@ -31,16 +31,7 @@ Deno.serve(async (req) => {
     const instanceName = body.instance;
     const messageId = key?.id || "";
 
-    // ── Ignorar mensagens de grupos ───────────────────────────────────────────
-    if (remoteJid.endsWith("@g.us")) {
-      return new Response(JSON.stringify({ ok: true, skipped: "group" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const phoneNumber = remoteJid.replace("@s.whatsapp.net", "");
-
-    // ── Lookup da instância e empresa ANTES de processar mídia ────────────────
+    // ── Lookup da instância e empresa ANTES de filtrar ────────────────────────
     const { data: whatsappConfig } = await supabase
       .from("whatsapp_configs")
       .select("*, companies(name)")
@@ -55,19 +46,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Filtro "fromMe toMe": só processar mensagens para si mesmo ───────────
-    const isFromMe = key?.fromMe === true;
-    const configPhone = whatsappConfig.phone_number
-      ? whatsappConfig.phone_number.replace(/\D/g, "")
-      : null;
-    const cleanPhone = phoneNumber.replace(/\D/g, "");
+    // ── Filtro de grupo dedicado ─────────────────────────────────────────────
+    const isGroup = remoteJid.endsWith("@g.us");
+    const configuredGroupJid = whatsappConfig.group_jid;
 
-    if (!isFromMe || !configPhone || cleanPhone !== configPhone) {
-      console.log(`Skipping: fromMe=${isFromMe}, configPhone=${configPhone}, msgPhone=${cleanPhone}`);
-      return new Response(JSON.stringify({ ok: true, skipped: "not-self-message" }), {
+    if (!configuredGroupJid) {
+      console.log("No group_jid configured, skipping all messages");
+      return new Response(JSON.stringify({ ok: true, skipped: "no-group-configured" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Ignorar mensagens privadas (DMs) — só processar grupo
+    if (!isGroup) {
+      return new Response(JSON.stringify({ ok: true, skipped: "not-group" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Ignorar mensagens de outros grupos
+    if (remoteJid !== configuredGroupJid) {
+      return new Response(JSON.stringify({ ok: true, skipped: "wrong-group" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Ignorar mensagens enviadas pelo próprio bot
+    if (key?.fromMe === true) {
+      return new Response(JSON.stringify({ ok: true, skipped: "from-bot" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Em grupos, o remetente real vem em key.participant
+    const phoneNumber = (key?.participant || "").replace("@s.whatsapp.net", "").replace(/\D/g, "");
+    // Respostas vão para o grupo
+    const replyJid = configuredGroupJid;
 
     const { data: member } = await supabase
       .from("company_members")
@@ -82,7 +96,7 @@ Deno.serve(async (req) => {
     const evolutionKey = whatsappConfig.evolution_api_key || Deno.env.get("EVOLUTION_API_KEY");
 
     if (!member) {
-      await sendWhatsAppMessage(instanceName, remoteJid, "❌ Nenhum admin encontrado na empresa.", evolutionUrl, evolutionKey);
+      await sendWhatsAppMessage(instanceName, replyJid, "❌ Nenhum admin encontrado na empresa.", evolutionUrl, evolutionKey);
       return new Response(JSON.stringify({ ok: true, error: "no-admin" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -111,17 +125,17 @@ Deno.serve(async (req) => {
       textContent = message.extendedTextMessage.text;
     } else if (message?.audioMessage) {
       try {
-        await sendWhatsAppMessage(instanceName, remoteJid, "🎙️ _Transcrevendo seu áudio..._", evolutionUrl, evolutionKey);
-        const audioBase64 = await getMediaBase64(instanceName, messageId, remoteJid, evolutionUrl, evolutionKey);
+        await sendWhatsAppMessage(instanceName, replyJid, "🎙️ _Transcrevendo seu áudio..._", evolutionUrl, evolutionKey);
+        const audioBase64 = await getMediaBase64(instanceName, messageId, replyJid, evolutionUrl, evolutionKey);
         if (!audioBase64) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar o áudio. Tente enviar novamente.", evolutionUrl, evolutionKey);
+          await sendWhatsAppMessage(instanceName, replyJid, "❌ Não consegui baixar o áudio. Tente enviar novamente.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "audio-download-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
         const transcription = await transcribeAudio(audioBase64, message.audioMessage.mimetype || "audio/ogg");
         if (!transcription) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui transcrever o áudio. Tente enviar uma mensagem de texto.", evolutionUrl, evolutionKey);
+          await sendWhatsAppMessage(instanceName, replyJid, "❌ Não consegui transcrever o áudio. Tente enviar uma mensagem de texto.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "transcription-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -130,24 +144,24 @@ Deno.serve(async (req) => {
         console.log("Audio transcribed:", textContent.slice(0, 200));
       } catch (err) {
         console.error("Audio processing error:", err);
-        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar o áudio. Tente novamente.", evolutionUrl, evolutionKey);
+        await sendWhatsAppMessage(instanceName, replyJid, "❌ Erro ao processar o áudio. Tente novamente.", evolutionUrl, evolutionKey);
         return new Response(JSON.stringify({ ok: true, error: "audio-error" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     } else if (message?.imageMessage) {
       try {
-        await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._", evolutionUrl, evolutionKey);
-        const imageBase64 = await getMediaBase64(instanceName, messageId, remoteJid, evolutionUrl, evolutionKey);
+        await sendWhatsAppMessage(instanceName, replyJid, "📸 _Analisando sua imagem..._", evolutionUrl, evolutionKey);
+        const imageBase64 = await getMediaBase64(instanceName, messageId, replyJid, evolutionUrl, evolutionKey);
         if (!imageBase64) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.", evolutionUrl, evolutionKey);
+          await sendWhatsAppMessage(instanceName, replyJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "image-download-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
         const imageDescription = await analyzeDocumentImage(imageBase64, message.imageMessage.mimetype || "image/jpeg");
         if (!imageDescription) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui analisar a imagem. Tente enviar uma foto mais nítida.", evolutionUrl, evolutionKey);
+          await sendWhatsAppMessage(instanceName, replyJid, "❌ Não consegui analisar a imagem. Tente enviar uma foto mais nítida.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "image-analysis-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -157,13 +171,13 @@ Deno.serve(async (req) => {
         console.log("Image analyzed:", textContent.slice(0, 300));
       } catch (err) {
         console.error("Image processing error:", err);
-        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar a imagem. Tente novamente.", evolutionUrl, evolutionKey);
+        await sendWhatsAppMessage(instanceName, replyJid, "❌ Erro ao processar a imagem. Tente novamente.", evolutionUrl, evolutionKey);
         return new Response(JSON.stringify({ ok: true, error: "image-error" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     } else {
-      await sendWhatsAppMessage(instanceName, remoteJid,
+      await sendWhatsAppMessage(instanceName, replyJid,
         "🤖 Consigo processar *texto*, *áudio* e *imagens de documentos*! Envie uma descrição, um áudio ou foto de boleto/nota/recibo.",
         evolutionUrl, evolutionKey
       );
@@ -192,7 +206,7 @@ Deno.serve(async (req) => {
         pending: pendingRecord,
         reply: textContent.trim().toLowerCase(),
         instanceName,
-        remoteJid,
+        remoteJid: replyJid,
         supabase,
         today: new Date().toISOString().split("T")[0],
         evolutionUrl,
@@ -210,7 +224,7 @@ Deno.serve(async (req) => {
       companyName,
       userId,
       instanceName,
-      remoteJid,
+      remoteJid: replyJid,
       phoneNumber,
       messageId,
       configId: whatsappConfig.id,
