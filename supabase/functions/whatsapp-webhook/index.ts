@@ -648,6 +648,7 @@ async function runFinancialAgent(ctx: AgentContext) {
   // ── Resumo PF ─────────────────────────────────────────────────────────────
   const pfCategoriesList = pfCategories.map((c: any) => `${c.name} (${c.type}) [id:${c.id}]`).join("\n");
   const pfAccountsList = pfAccounts.map((a: any) => `${a.name} - Saldo: ${fmt(Number(a.current_balance))} [id:${a.id}]`).join("\n");
+  const pfCreditCardsList = pfCreditCards.map((c: any) => `${c.name}${c.brand ? ` (${c.brand})` : ""} - Fecha dia ${c.closing_day}, vence dia ${c.due_day} [id:${c.id}]`).join("\n");
   const pfRecentTxList = pfRecentTx.slice(0, 10).map((t: any) =>
     `${t.date} | ${t.type === "receita" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.title} | ${(t.personal_categories as any)?.name || "-"}`
   ).join("\n");
