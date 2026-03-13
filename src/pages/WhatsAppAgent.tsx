@@ -655,7 +655,7 @@ export default function WhatsApp() {
                         </div>
                         {c.group_jid ? (
                           <p className="text-xs text-revenue font-medium mt-0.5">
-                            👥 Grupo: {c.group_jid.split("@")[0]}
+                            👥 Grupo: {c.group_name || c.group_jid.split("@")[0]}
                           </p>
                         ) : (
                           <p className="text-[11px] text-destructive font-medium mt-0.5">
