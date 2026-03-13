@@ -139,7 +139,7 @@ export default function PersonalBills() {
                       </span>
                     </div>
                     <div className="bg-card border border-border rounded-lg divide-y divide-border">
-                      {items.map((b) => <BillItem key={b.id} bill={b} />)}
+                      {items.map((b) => <BillItem key={b.id} bill={b} onMarkPaid={b._source === "manual" ? markBillAsPaid : undefined} />)}
                     </div>
                   </div>
                 ))
