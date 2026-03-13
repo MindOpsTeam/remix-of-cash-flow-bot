@@ -338,6 +338,27 @@ Deno.serve(async (req) => {
           if (!data.data || data.data.length === 0) break;
           for (const b of data.data) {
             await serviceClient.from("asaas_bills").upsert(mapBillData("user_id", userId, b), { onConflict: "user_id,asaas_id" });
+
+            // Reconcile paid bills into personal_transactions
+            if (b.status === "PAID" || b.status === "BANK_PROCESSING") {
+              try {
+                await serviceClient.functions.invoke("reconcile-transactions", {
+                  body: {
+                    action: "reconcile_pf",
+                    user_id: userId,
+                    amount: (b.value as number) || 0,
+                    date: (b.paymentDate as string) || (b.dueDate as string) || new Date().toISOString().split("T")[0],
+                    type: "despesa",
+                    description: (b.description as string) || (b.companyName as string) || "Pagamento de boleto Asaas",
+                    source: "asaas",
+                    external_id: `asaas_bill_${b.id}`,
+                  },
+                });
+              } catch (e) {
+                console.error("Reconcile sync bill error:", e);
+              }
+            }
+
             totalSynced++;
           }
           if (!data.totalCount || offset + limit >= data.totalCount) break;
