@@ -932,74 +932,9 @@ Cartões de crédito: ${pfCreditCardsList || "Nenhum cadastrado"}
 
 Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a Pagar/Conta a Receber), categoria (NOME), conta ou cartão (NOME), data, PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
 
-  // Define tools for structured output via tool calling
+  // Define tools — ONLY ask_confirmation + reports. No direct creation tools.
+  // This forces the AI to always use ask_confirmation, preventing bypass.
   const tools = [
-    {
-      type: "function",
-      function: {
-        name: "create_pf_transaction",
-        description: "Cria uma transação pessoal (PF). Use para gastos pessoais como supermercado, farmácia, restaurante, lazer, saúde, contas de consumo (luz, água, internet).",
-        parameters: {
-          type: "object",
-          properties: {
-            type: { type: "string", enum: ["receita", "despesa"], description: "Tipo da transação" },
-            amount: { type: "number", description: "Valor absoluto da transação" },
-            description: { type: "string", description: "Descrição do lançamento" },
-            pf_category_id: { type: "string", description: "ID da categoria pessoal" },
-            pf_account_id: { type: "string", description: "ID da conta pessoal. Não preencher se for cartão de crédito." },
-            pf_credit_card_id: { type: "string", description: "ID do cartão de crédito. Usar quando o gasto foi no cartão." },
-            date: { type: "string", description: "Data no formato YYYY-MM-DD. Para contas a pagar, use a data de vencimento." },
-            payment_source: { type: "string", enum: ["pf", "pj"], description: "Quem pagou: pf=conta pessoal, pj=conta da empresa" },
-            status: { type: "string", enum: ["confirmed", "pending"], description: "confirmed=já pago/recebido. pending=conta a pagar ou a receber (vencimento futuro, boleto, fatura)." },
-          },
-          required: ["type", "amount", "description", "date", "payment_source", "status"],
-          additionalProperties: false,
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "create_pj_transaction",
-        description: "Cria uma transação empresarial (PJ). Use para despesas operacionais, fornecedores, funcionários, marketing.",
-        parameters: {
-          type: "object",
-          properties: {
-            type: { type: "string", enum: ["revenue", "expense"], description: "Tipo da transação" },
-            amount: { type: "number", description: "Valor absoluto da transação" },
-            description: { type: "string", description: "Descrição do lançamento" },
-            pj_account_id: { type: "string", description: "ID da conta contábil" },
-            pj_cost_center_id: { type: "string", description: "ID do centro de custo" },
-            pj_bank_account_id: { type: "string", description: "ID da conta bancária" },
-            date: { type: "string", description: "Data no formato YYYY-MM-DD. Para contas a pagar, use a data de vencimento." },
-            payment_source: { type: "string", enum: ["pf", "pj"], description: "Quem pagou: pf=pessoal, pj=empresa" },
-            status: { type: "string", enum: ["confirmed", "pending"], description: "confirmed=já pago/recebido. pending=conta a pagar ou a receber." },
-          },
-          required: ["type", "amount", "description", "date", "payment_source", "status"],
-          additionalProperties: false,
-        },
-      },
-    },
-    {
-      type: "function",
-      function: {
-        name: "create_owner_transaction",
-        description: "Cria uma transação sócio (retirada ou aporte) para manter separação patrimonial PF/PJ.",
-        parameters: {
-          type: "object",
-          properties: {
-            transaction_type: { type: "string", enum: ["retirada", "aporte"], description: "Tipo: retirada (empresa→pessoal) ou aporte (pessoal→empresa)" },
-            amount: { type: "number", description: "Valor" },
-            description: { type: "string", description: "Descrição" },
-            pf_account_id: { type: "string", description: "ID da conta pessoal" },
-            pj_bank_account_id: { type: "string", description: "ID da conta bancária PJ" },
-            date: { type: "string", description: "Data YYYY-MM-DD" },
-          },
-          required: ["transaction_type", "amount", "description", "date"],
-          additionalProperties: false,
-        },
-      },
-    },
     {
       type: "function",
       function: {
