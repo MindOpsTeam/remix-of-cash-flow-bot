@@ -216,23 +216,25 @@ Deno.serve(async (req) => {
       return jsonResp({ ok: true, action: "inserted", id: inserted.id }, 200, corsHeaders);
     }
 
-    // ── list_pending: Find potential duplicates for user review ──
+    // ── list_pending: Find potential duplicates AND orphan (single-entry) transactions ──
     if (action === "list_pending") {
       const { user_id, company_id } = body;
 
       if (user_id) {
-        // PF: find transactions from API sources that might have manual counterparts
+        // PF: find transactions from API sources
         const { data: apiTxs } = await supabase
           .from("personal_transactions")
-          .select("id, title, amount, date, type, source, external_id")
+          .select("id, title, amount, date, type, source, external_id, status")
           .eq("user_id", user_id)
           .in("source", ["asaas", "api", "inter"])
+          .neq("status", "reconciled")
           .order("date", { ascending: false })
-          .limit(100);
+          .limit(200);
 
+        // PF: find transactions from manual/whatsapp sources
         const { data: manualTxs } = await supabase
           .from("personal_transactions")
-          .select("id, title, amount, date, type, source")
+          .select("id, title, amount, date, type, source, status")
           .eq("user_id", user_id)
           .in("source", ["manual", "whatsapp"])
           .neq("status", "reconciled")
@@ -240,6 +242,10 @@ Deno.serve(async (req) => {
           .limit(200);
 
         const candidates: ReconcileCandidate[] = [];
+        const matchedApiIds = new Set<string>();
+        const matchedManualIds = new Set<string>();
+
+        // Find potential duplicates (double-entry matches)
         for (const api of (apiTxs || [])) {
           for (const manual of (manualTxs || [])) {
             if (api.type !== manual.type) continue;
@@ -258,13 +264,60 @@ Deno.serve(async (req) => {
               match_amount: manual.amount,
               match_source: manual.source,
             });
+            matchedApiIds.add(api.id);
+            matchedManualIds.add(manual.id);
           }
         }
 
-        return jsonResp({ candidates: candidates.sort((a, b) => b.match_score - a.match_score) }, 200, corsHeaders);
+        // Orphans: transactions with no counterpart (single-entry)
+        interface OrphanTx {
+          id: string;
+          title: string;
+          amount: number;
+          date: string;
+          type: string;
+          source: string;
+          status: string;
+        }
+        const orphans: OrphanTx[] = [];
+
+        // API-only transactions (no matching manual/whatsapp entry)
+        for (const api of (apiTxs || [])) {
+          if (!matchedApiIds.has(api.id)) {
+            orphans.push({
+              id: api.id,
+              title: api.title || "Transação via API",
+              amount: api.amount,
+              date: api.date,
+              type: api.type,
+              source: api.source,
+              status: api.status,
+            });
+          }
+        }
+
+        // WhatsApp/manual-only transactions (no matching API entry)
+        for (const manual of (manualTxs || [])) {
+          if (!matchedManualIds.has(manual.id)) {
+            orphans.push({
+              id: manual.id,
+              title: manual.title || "Lançamento manual",
+              amount: manual.amount,
+              date: manual.date,
+              type: manual.type,
+              source: manual.source,
+              status: manual.status,
+            });
+          }
+        }
+
+        return jsonResp({
+          candidates: candidates.sort((a, b) => b.match_score - a.match_score),
+          orphans: orphans.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+        }, 200, corsHeaders);
       }
 
-      return jsonResp({ candidates: [] }, 200, corsHeaders);
+      return jsonResp({ candidates: [], orphans: [] }, 200, corsHeaders);
     }
 
     // ── resolve: Manual reconciliation decision ──
