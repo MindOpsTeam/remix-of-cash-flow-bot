@@ -655,12 +655,18 @@ REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, REGISTRE IME
 
 Interpretação de valores brasileiros:
 - "5 mil" = 5000, "1,5k" = 1500, "meio mil" = 500, "2 milhões" = 2000000
-- "gastei", "paguei", "comprei", "débito" = DESPESA
-- "ganhei", "recebi", "entrou", "vendi", "faturei" = RECEITA
+- "gastei", "paguei", "comprei", "débito" = DESPESA (status=confirmed)
+- "ganhei", "recebi", "entrou", "vendi", "faturei" = RECEITA (status=confirmed)
 - Se não houver verbo claro mas há valor, pergunte brevemente: "💰 R$ X — é gasto ou receita?"
 
+CONTAS A PAGAR / A RECEBER:
+- "conta de luz", "boleto", "fatura", "vencimento", "vence dia X", "pagar até" = CONTA A PAGAR → status="pending", date=data de vencimento
+- "vai receber", "cliente vai pagar", "fatura para cobrar" = CONTA A RECEBER → status="pending", type=receita/revenue
+- Quando o usuário menciona VENCIMENTO ou DATA FUTURA, use status="pending" e a data mencionada como date
+- Mês atual: ${monthName}. Hoje: ${today}. Se disser "dia 30" sem mês, use o dia 30 do mês atual (ou próximo mês se dia 30 já passou).
+
 Classificação PF/PJ (na dúvida, use PF):
-- PF: supermercado, farmácia, escola, saúde, lazer, restaurante, vestuário, moradia, pessoal
+- PF: conta de luz, água, internet residencial, supermercado, farmácia, escola, saúde, lazer, restaurante, vestuário, moradia, pessoal
 - PJ: fornecedor, software, funcionário, marketing, aluguel comercial, equipamento, cliente
 
 Defaults: pf_account_id="${defaultPfAccount?.id || ""}" | pj_bank_account_id="${defaultBankAccount?.id || ""}" | date="${today}"
@@ -674,7 +680,7 @@ Dados PF:
 Contas: ${pfAccountsList || "—"}
 Categorias: ${pfCategoriesList || "—"}
 
-Após registrar, confirme APENAS com: ✅ valor, categoria (NOME), conta (NOME), PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
+Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a Pagar/Conta a Receber), categoria (NOME), conta (NOME), data, PF ou PJ. Uma linha só. Nunca mostre UUIDs.`;
 
   // Define tools for structured output via tool calling
   const tools = [
