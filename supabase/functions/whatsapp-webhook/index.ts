@@ -908,18 +908,30 @@ Responda com dados reais. Use send_executive_summary, send_cashflow_forecast, se
       }
     }
 
-    // Log da interação
-    await ctx.supabase.from("whatsapp_messages").insert({
-      company_id: ctx.companyId,
-      config_id: ctx.configId,
-      phone_number: ctx.phoneNumber,
-      direction: "inbound",
-      message_text: ctx.text,
-      message_type: "text",
-      processed: true,
-      message_id: ctx.messageId || null,
-      classification: { actions, aiModel: "gemini-2.5-flash" },
-    });
+    // Log da interação (inbound + outbound)
+    await Promise.all([
+      ctx.supabase.from("whatsapp_messages").insert({
+        company_id: ctx.companyId,
+        config_id: ctx.configId,
+        phone_number: ctx.phoneNumber,
+        direction: "inbound",
+        message_text: ctx.text,
+        message_type: "text",
+        processed: true,
+        message_id: ctx.messageId || null,
+        classification: { actions, aiModel: "gemini-2.5-flash", toolCalls: toolCalls.length },
+      }),
+      cleanResponse ? ctx.supabase.from("whatsapp_messages").insert({
+        company_id: ctx.companyId,
+        config_id: ctx.configId,
+        phone_number: "bot",
+        direction: "outbound",
+        message_text: cleanResponse.slice(0, 2000),
+        message_type: "text",
+        processed: true,
+        classification: { actions: actions.map((a: any) => a.action) },
+      }) : Promise.resolve(),
+    ]);
 
   } catch (err) {
     console.error("Agent error:", err);
