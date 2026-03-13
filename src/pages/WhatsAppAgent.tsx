@@ -13,6 +13,8 @@ import {
   ArrowDownLeft, ArrowUpRight, Phone, Activity, Loader2, QrCode, RefreshCw, Settings2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Users } from "lucide-react";
 
 interface WhatsAppConfig {
   id: string;
@@ -407,7 +409,7 @@ export default function WhatsApp() {
       return;
     }
     setGroupDialogConfig(c);
-    setGroupDialogOpen(true);
+    setGroupDialogOpen(false);
     setLoadingGroups(true);
     setAvailableGroups([]);
     const url = c.evolution_api_url.replace(/\/$/, "");
@@ -440,7 +442,7 @@ export default function WhatsApp() {
       toast.error("Erro ao salvar grupo: " + error.message);
     } else {
       toast.success(`Grupo "${groupName}" configurado com sucesso!`);
-      setGroupDialogOpen(false);
+      setAvailableGroups([]);
       loadConfigs();
     }
   };
@@ -581,90 +583,189 @@ export default function WhatsApp() {
         </Dialog>
       </div>
 
-      {/* Connected instances */}
-      {configs.length === 0 ? (
-        <div className="bg-card border border-border rounded-lg p-12 text-center">
-          <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-sm font-semibold text-foreground mb-1">Nenhuma instância conectada</h3>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Conecte sua instância do Evolution API para começar a receber e processar mensagens do WhatsApp automaticamente.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {configs.map((c) => (
-            <div key={c.id} className="bg-card border border-border rounded-lg p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2 rounded-lg bg-revenue/10">
-                    <Phone className="h-4 w-4 text-revenue" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{c.instance_name}</h3>
-                      <Badge variant={c.active ? "default" : "secondary"} className="text-[10px]">
-                        {c.active ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </div>
-                    {c.group_jid ? (
-                      <p className="text-xs text-revenue font-medium mt-0.5">
-                        👥 Grupo configurado: {c.group_jid.split("@")[0]}
-                      </p>
-                    ) : (
-                      <p className="text-[11px] text-warning font-medium mt-0.5">
-                        ⚠️ Nenhum grupo configurado — clique em 👥 para selecionar
-                      </p>
-                    )}
-                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      {c.evolution_api_url || "Servidor global"} · {new Date(c.created_at).toLocaleDateString("pt-BR")}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button variant="ghost" size="icon" onClick={() => handleSelectGroup(c)} title="Configurar grupo" aria-label="Configurar grupo">
-                    <MessageSquare className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleConfigureWebhook(c)} title="Configurar webhook" aria-label="Configurar webhook">
-                    <Settings2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => viewMessages(c)} title="Ver mensagens" aria-label="Ver mensagens">
-                    <Activity className="h-4 w-4" />
-                  </Button>
-                  <Switch checked={c.active} onCheckedChange={() => toggleActive(c)} />
-                  <Button variant="ghost" size="icon" onClick={() => deleteConfig(c.id)} title="Remover" aria-label="Remover configuração">
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <Tabs defaultValue="instances" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="instances" className="gap-1.5">
+            <Phone className="h-3.5 w-3.5" /> Instâncias
+          </TabsTrigger>
+          <TabsTrigger value="groups" className="gap-1.5">
+            <Users className="h-3.5 w-3.5" /> Grupo
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Feature cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
-        <div className="bg-card border border-border rounded-lg p-5">
-          <ArrowDownLeft className="h-5 w-5 text-revenue mb-3" />
-          <h3 className="text-sm font-semibold text-foreground mb-1">Lançamento Automático</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Envie "Despesa R$ 150 Almoço" e o sistema cria o lançamento automaticamente.
-          </p>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-5">
-          <ArrowUpRight className="h-5 w-5 text-primary mb-3" />
-          <h3 className="text-sm font-semibold text-foreground mb-1">Consultas Instantâneas</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Pergunte "Qual meu saldo?" e receba um resumo financeiro no WhatsApp.
-          </p>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-5">
-          <MessageSquare className="h-5 w-5 text-accent-foreground mb-3" />
-          <h3 className="text-sm font-semibold text-foreground mb-1">IA Classificadora</h3>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Inteligência artificial classifica automaticamente conta contábil e centro de custo.
-          </p>
-        </div>
-      </div>
+        {/* ── Tab: Instâncias ─────────────────────────────── */}
+        <TabsContent value="instances">
+          {configs.length === 0 ? (
+            <div className="bg-card border border-border rounded-lg p-12 text-center">
+              <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-sm font-semibold text-foreground mb-1">Nenhuma instância conectada</h3>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                Conecte sua instância do Evolution API para começar a receber e processar mensagens do WhatsApp automaticamente.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {configs.map((c) => (
+                <div key={c.id} className="bg-card border border-border rounded-lg p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 rounded-lg bg-revenue/10">
+                        <Phone className="h-4 w-4 text-revenue" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-semibold text-foreground">{c.instance_name}</h3>
+                          <Badge variant={c.active ? "default" : "secondary"} className="text-[10px]">
+                            {c.active ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </div>
+                        {c.group_jid ? (
+                          <p className="text-xs text-revenue font-medium mt-0.5">
+                            👥 Grupo: {c.group_jid.split("@")[0]}
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-destructive font-medium mt-0.5">
+                            ⚠️ Sem grupo — vá na aba "Grupo" para configurar
+                          </p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                          {c.evolution_api_url || "Servidor global"} · {new Date(c.created_at).toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => handleConfigureWebhook(c)} title="Configurar webhook" aria-label="Configurar webhook">
+                        <Settings2 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => viewMessages(c)} title="Ver mensagens" aria-label="Ver mensagens">
+                        <Activity className="h-4 w-4" />
+                      </Button>
+                      <Switch checked={c.active} onCheckedChange={() => toggleActive(c)} />
+                      <Button variant="ghost" size="icon" onClick={() => deleteConfig(c.id)} title="Remover" aria-label="Remover configuração">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Feature cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+            <div className="bg-card border border-border rounded-lg p-5">
+              <ArrowDownLeft className="h-5 w-5 text-revenue mb-3" />
+              <h3 className="text-sm font-semibold text-foreground mb-1">Lançamento Automático</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Envie "Despesa R$ 150 Almoço" no grupo e o sistema cria o lançamento automaticamente.
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-5">
+              <ArrowUpRight className="h-5 w-5 text-primary mb-3" />
+              <h3 className="text-sm font-semibold text-foreground mb-1">Consultas Instantâneas</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Pergunte "Qual meu saldo?" e receba um resumo financeiro no grupo.
+              </p>
+            </div>
+            <div className="bg-card border border-border rounded-lg p-5">
+              <MessageSquare className="h-5 w-5 text-accent-foreground mb-3" />
+              <h3 className="text-sm font-semibold text-foreground mb-1">IA Classificadora</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Inteligência artificial classifica automaticamente conta contábil e centro de custo.
+              </p>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ── Tab: Grupo ──────────────────────────────────── */}
+        <TabsContent value="groups">
+          {configs.length === 0 ? (
+            <div className="bg-card border border-border rounded-lg p-12 text-center">
+              <Users className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-sm font-semibold text-foreground mb-1">Conecte uma instância primeiro</h3>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                Vá na aba "Instâncias" e conecte sua instância Evolution API antes de configurar o grupo.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="bg-card border border-border rounded-lg p-5">
+                <h3 className="text-sm font-semibold text-foreground mb-2">Como funciona</h3>
+                <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                  <li>Crie um grupo no WhatsApp e adicione o número da instância conectada</li>
+                  <li>Selecione a instância abaixo e clique em "Buscar Grupos"</li>
+                  <li>Escolha o grupo onde a IA deve operar</li>
+                  <li>Pronto! A IA responderá apenas nesse grupo</li>
+                </ol>
+              </div>
+
+              {configs.map((c) => (
+                <div key={c.id} className="bg-card border border-border rounded-lg p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Phone className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-foreground">{c.instance_name}</h3>
+                        {c.group_jid ? (
+                          <p className="text-xs text-revenue font-medium mt-0.5">
+                            ✅ Grupo ativo: {c.group_jid.split("@")[0]}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground mt-0.5">Nenhum grupo selecionado</p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => handleSelectGroup(c)}
+                      disabled={loadingGroups && groupDialogConfig?.id === c.id}
+                    >
+                      {loadingGroups && groupDialogConfig?.id === c.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Users className="h-3.5 w-3.5" />
+                      )}
+                      Buscar Grupos
+                    </Button>
+                  </div>
+
+                  {/* Inline group list when this config is selected */}
+                  {groupDialogConfig?.id === c.id && !groupDialogOpen && availableGroups.length > 0 && (
+                    <div className="border-t border-border pt-4 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">
+                        Selecione o grupo ({availableGroups.length} encontrados):
+                      </p>
+                      {availableGroups.map((g) => (
+                        <button
+                          key={g.id}
+                          onClick={() => handleSaveGroup(g.id, g.subject)}
+                          className={`w-full text-left border rounded-lg p-3 transition-colors hover:bg-accent/50 ${
+                            c.group_jid === g.id ? "border-primary bg-primary/5" : "border-border"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{g.subject}</p>
+                              <p className="text-[11px] text-muted-foreground">{g.size} participantes</p>
+                            </div>
+                            {c.group_jid === g.id && (
+                              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Messages dialog */}
       <Dialog open={messagesDialogOpen} onOpenChange={setMessagesDialogOpen}>
@@ -710,56 +811,6 @@ export default function WhatsApp() {
         </DialogContent>
       </Dialog>
 
-      {/* Group selection dialog */}
-      <Dialog open={groupDialogOpen} onOpenChange={setGroupDialogOpen}>
-        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Selecionar Grupo — {groupDialogConfig?.instance_name}</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs text-muted-foreground">
-            Crie um grupo no WhatsApp com o número da instância e selecione-o abaixo. A IA responderá apenas nesse grupo.
-          </p>
-          {loadingGroups ? (
-            <div className="flex items-center justify-center py-8 gap-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm text-muted-foreground">Buscando grupos...</span>
-            </div>
-          ) : availableGroups.length === 0 ? (
-            <div className="text-center py-8">
-              <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Nenhum grupo encontrado.</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Crie um grupo no WhatsApp adicionando o número da instância e tente novamente.
-              </p>
-              <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={() => groupDialogConfig && handleSelectGroup(groupDialogConfig)}>
-                <RefreshCw className="h-3.5 w-3.5" /> Atualizar
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2 mt-2">
-              {availableGroups.map((g) => (
-                <button
-                  key={g.id}
-                  onClick={() => handleSaveGroup(g.id, g.subject)}
-                  className={`w-full text-left border rounded-lg p-3 transition-colors hover:bg-accent/50 ${
-                    groupDialogConfig?.group_jid === g.id ? "border-primary bg-primary/5" : "border-border"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{g.subject}</p>
-                      <p className="text-[11px] text-muted-foreground">{g.size} participantes</p>
-                    </div>
-                    {groupDialogConfig?.group_jid === g.id && (
-                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </AppLayout>
   );
 }
