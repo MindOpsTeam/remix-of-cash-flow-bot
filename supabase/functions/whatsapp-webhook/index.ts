@@ -670,6 +670,122 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
 - NÃO peça confirmação para confiança MÉDIA — registre automaticamente
 - Se a mensagem não for financeira, responda educadamente e ofereça ajuda`;
 
+  // Define tools for structured output via tool calling
+  const tools = [
+    {
+      type: "function",
+      function: {
+        name: "create_pf_transaction",
+        description: "Cria uma transação pessoal (PF). Use para gastos pessoais como supermercado, farmácia, restaurante, lazer, saúde.",
+        parameters: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["receita", "despesa"], description: "Tipo da transação" },
+            amount: { type: "number", description: "Valor absoluto da transação" },
+            description: { type: "string", description: "Descrição do lançamento" },
+            pf_category_id: { type: "string", description: "ID da categoria pessoal" },
+            pf_account_id: { type: "string", description: "ID da conta pessoal" },
+            date: { type: "string", description: "Data no formato YYYY-MM-DD" },
+            payment_source: { type: "string", enum: ["pf", "pj"], description: "Quem pagou: pf=conta pessoal, pj=conta da empresa" },
+          },
+          required: ["type", "amount", "description", "date", "payment_source"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "create_pj_transaction",
+        description: "Cria uma transação empresarial (PJ). Use para despesas operacionais, fornecedores, funcionários, marketing.",
+        parameters: {
+          type: "object",
+          properties: {
+            type: { type: "string", enum: ["revenue", "expense"], description: "Tipo da transação" },
+            amount: { type: "number", description: "Valor absoluto da transação" },
+            description: { type: "string", description: "Descrição do lançamento" },
+            pj_account_id: { type: "string", description: "ID da conta contábil" },
+            pj_cost_center_id: { type: "string", description: "ID do centro de custo" },
+            pj_bank_account_id: { type: "string", description: "ID da conta bancária" },
+            date: { type: "string", description: "Data no formato YYYY-MM-DD" },
+            payment_source: { type: "string", enum: ["pf", "pj"], description: "Quem pagou: pf=pessoal, pj=empresa" },
+          },
+          required: ["type", "amount", "description", "date", "payment_source"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "create_owner_transaction",
+        description: "Cria uma transação sócio (retirada ou aporte) para manter separação patrimonial PF/PJ.",
+        parameters: {
+          type: "object",
+          properties: {
+            transaction_type: { type: "string", enum: ["retirada", "aporte"], description: "Tipo: retirada (empresa→pessoal) ou aporte (pessoal→empresa)" },
+            amount: { type: "number", description: "Valor" },
+            description: { type: "string", description: "Descrição" },
+            pf_account_id: { type: "string", description: "ID da conta pessoal" },
+            pj_bank_account_id: { type: "string", description: "ID da conta bancária PJ" },
+            date: { type: "string", description: "Data YYYY-MM-DD" },
+          },
+          required: ["transaction_type", "amount", "description", "date"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "ask_confirmation",
+        description: "Pede confirmação ao usuário quando não consegue determinar se é PF ou PJ.",
+        parameters: {
+          type: "object",
+          properties: {
+            amount: { type: "number" },
+            description: { type: "string" },
+            type: { type: "string", enum: ["revenue", "expense", "receita", "despesa"] },
+            pf_category_id: { type: "string" },
+            pf_account_id: { type: "string" },
+            pj_account_id: { type: "string" },
+            pj_cost_center_id: { type: "string" },
+            pj_bank_account_id: { type: "string" },
+            date: { type: "string" },
+            reason: { type: "string", description: "Motivo da dúvida" },
+            payment_source: { type: "string", enum: ["pf", "pj", "unknown"] },
+          },
+          required: ["amount", "description", "type", "date", "reason"],
+          additionalProperties: false,
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "send_executive_summary",
+        description: "Gera e envia resumo executivo da empresa.",
+        parameters: { type: "object", properties: {}, additionalProperties: false },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "send_cashflow_forecast",
+        description: "Gera e envia previsão de fluxo de caixa.",
+        parameters: { type: "object", properties: {}, additionalProperties: false },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "send_chart",
+        description: "Gera e envia gráfico DRE.",
+        parameters: { type: "object", properties: {}, additionalProperties: false },
+      },
+    },
+  ];
+
   try {
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -683,12 +799,14 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
           { role: "system", content: systemPrompt },
           { role: "user", content: ctx.text },
         ],
+        tools,
         temperature: 0.3,
       }),
     });
 
     if (!response.ok) {
-      console.error("AI Agent error:", response.status, await response.text());
+      const errText = await response.text();
+      console.error("AI Agent error:", response.status, errText);
       await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
         "❌ Desculpe, tive um problema técnico. Tente novamente em instantes."
       );
@@ -696,16 +814,36 @@ Monte a DRE e inclua <ACTION>{"action":"send_chart"}</ACTION>
     }
 
     const result = await response.json();
-    const aiResponse = result.choices?.[0]?.message?.content || "";
+    const choice = result.choices?.[0];
+    const aiResponse = choice?.message?.content || "";
+    const toolCalls = choice?.message?.tool_calls || [];
 
-    // Extrair ações
-    const actionMatches = aiResponse.matchAll(/<ACTION>(.*?)<\/ACTION>/gs);
+    console.log("AI response (first 500 chars):", aiResponse.slice(0, 500));
+    console.log("Tool calls count:", toolCalls.length);
+
+    // Extract actions from tool calls
     const actions: any[] = [];
-    for (const match of actionMatches) {
-      try { actions.push(JSON.parse(match[1])); } catch { /* skip */ }
+    for (const tc of toolCalls) {
+      try {
+        const args = typeof tc.function.arguments === "string" ? JSON.parse(tc.function.arguments) : tc.function.arguments;
+        actions.push({ action: tc.function.name, ...args });
+      } catch (e) {
+        console.error("Failed to parse tool call:", tc, e);
+      }
     }
 
-    // Enviar resposta limpa
+    // Fallback: also try <ACTION> tags in case model uses them
+    if (actions.length === 0 && aiResponse) {
+      const actionMatches = aiResponse.matchAll(/<ACTION>(.*?)<\/ACTION>/gs);
+      for (const match of actionMatches) {
+        try { actions.push(JSON.parse(match[1])); } catch { /* skip */ }
+      }
+      if (actions.length > 0) console.log("Fallback: extracted", actions.length, "actions from <ACTION> tags");
+    }
+
+    console.log("Total actions:", actions.length, actions.map((a: any) => a.action));
+
+    // Send clean text response
     const cleanResponse = aiResponse.replace(/<ACTION>.*?<\/ACTION>/gs, "").trim();
     if (cleanResponse) {
       await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, cleanResponse, ctx.evolutionUrl, ctx.evolutionKey);
