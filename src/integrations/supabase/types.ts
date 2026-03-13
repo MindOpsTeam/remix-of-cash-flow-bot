@@ -2498,6 +2498,7 @@ export type Database = {
           created_at: string
           evolution_api_key: string | null
           evolution_api_url: string | null
+          group_jid: string | null
           id: string
           instance_name: string
           phone_number: string | null
@@ -2509,6 +2510,7 @@ export type Database = {
           created_at?: string
           evolution_api_key?: string | null
           evolution_api_url?: string | null
+          group_jid?: string | null
           id?: string
           instance_name: string
           phone_number?: string | null
@@ -2520,6 +2522,7 @@ export type Database = {
           created_at?: string
           evolution_api_key?: string | null
           evolution_api_url?: string | null
+          group_jid?: string | null
           id?: string
           instance_name?: string
           phone_number?: string | null
