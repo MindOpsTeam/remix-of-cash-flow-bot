@@ -612,6 +612,100 @@ async function runFinancialAgent(ctx: AgentContext) {
     `${t.date} | ${t.type === "receita" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.title} | ${(t.personal_categories as any)?.name || "-"}`
   ).join("\n");
 
+  // ── Fast path: registra direto sem conversa para transações simples ───────
+  const defaultPjExpenseAccount = accounts.find((a: any) => a.type === "expense")?.id;
+  const defaultPjRevenueAccount = accounts.find((a: any) => a.type === "revenue")?.id;
+  const defaultPjCostCenter = centers[0]?.id;
+
+  const quickAction = detectQuickTransaction({
+    text: ctx.text,
+    pfCategories,
+    defaultPfAccountId: defaultPfAccount?.id,
+    defaultPjAccountId: defaultPjExpenseAccount || defaultPjRevenueAccount,
+    defaultPjCostCenterId: defaultPjCostCenter,
+    defaultPjBankAccountId: defaultBankAccount?.id,
+    today,
+  });
+
+  if (quickAction) {
+    console.log("Quick action detected:", quickAction.action, quickAction.amount);
+
+    let outboundText = "";
+
+    if (quickAction.action === "create_pf_transaction") {
+      const err = await insertPfTransaction({ supabase: ctx.supabase, action: quickAction, userId: ctx.userId, today });
+      if (err) {
+        await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, `⚠️ Erro ao registrar PF: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey);
+        return;
+      }
+
+      const categoryName = pfCategories.find((c: any) => c.id === quickAction.pf_category_id)?.name || "Sem categoria";
+      const accountName = pfAccounts.find((a: any) => a.id === quickAction.pf_account_id)?.name || "Conta pessoal";
+
+      let currentBalance: number | null = null;
+      if (quickAction.pf_account_id) {
+        const { data: accAfter } = await ctx.supabase
+          .from("personal_accounts")
+          .select("current_balance")
+          .eq("id", quickAction.pf_account_id)
+          .maybeSingle();
+        currentBalance = accAfter?.current_balance != null ? Number(accAfter.current_balance) : null;
+      }
+
+      outboundText =
+        `✅ Registrado: ${fmt(quickAction.amount)} (${quickAction.type === "receita" ? "Receita" : "Despesa"})\n` +
+        `📂 ${categoryName} | 🏦 ${accountName}${currentBalance != null ? ` (${fmt(currentBalance)})` : ""} | 📍 PF`;
+    } else {
+      const err = await insertPjTransaction({
+        supabase: ctx.supabase,
+        action: quickAction,
+        companyId: ctx.companyId,
+        userId: ctx.userId,
+        today,
+      });
+      if (err) {
+        await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, `⚠️ Erro ao registrar PJ: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey);
+        return;
+      }
+
+      const chartName = accounts.find((a: any) => a.id === quickAction.pj_account_id)?.name || "Sem classificação";
+      const costCenterName = centers.find((c: any) => c.id === quickAction.pj_cost_center_id)?.name || "—";
+      const bankName = bankAccounts.find((b: any) => b.id === quickAction.pj_bank_account_id)?.name || "—";
+
+      outboundText =
+        `✅ Registrado: ${fmt(quickAction.amount)} (${quickAction.type === "revenue" ? "Receita" : "Despesa"})\n` +
+        `📂 ${chartName} | 🏢 ${costCenterName} | 🏦 ${bankName} | 📍 PJ`;
+    }
+
+    await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, outboundText, ctx.evolutionUrl, ctx.evolutionKey);
+
+    await Promise.all([
+      ctx.supabase.from("whatsapp_messages").insert({
+        company_id: ctx.companyId,
+        config_id: ctx.configId,
+        phone_number: ctx.phoneNumber,
+        direction: "inbound",
+        message_text: ctx.text,
+        message_type: "text",
+        processed: true,
+        message_id: ctx.messageId || null,
+        classification: { quickPath: true, actions: [quickAction], aiModel: null },
+      }),
+      ctx.supabase.from("whatsapp_messages").insert({
+        company_id: ctx.companyId,
+        config_id: ctx.configId,
+        phone_number: "bot",
+        direction: "outbound",
+        message_text: outboundText,
+        message_type: "text",
+        processed: true,
+        classification: { quickPath: true, actions: [quickAction.action] },
+      }),
+    ]);
+
+    return;
+  }
+
   const systemPrompt = `Assistente financeiro da empresa *${ctx.companyName}*. Responda em pt-BR com formatação WhatsApp.
 
 Ao detectar gasto/receita, use as ferramentas para registrar IMEDIATAMENTE. Só use ask_confirmation se não houver valor ou for impossível saber se é PF/PJ.
