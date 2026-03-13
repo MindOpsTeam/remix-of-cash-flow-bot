@@ -401,7 +401,50 @@ export default function WhatsApp() {
     loadConfigs();
   };
 
-  const viewMessages = async (c: WhatsAppConfig) => {
+  const handleSelectGroup = async (c: WhatsAppConfig) => {
+    if (!c.evolution_api_url || !c.evolution_api_key) {
+      toast.error("Credenciais da Evolution API não encontradas.");
+      return;
+    }
+    setGroupDialogConfig(c);
+    setGroupDialogOpen(true);
+    setLoadingGroups(true);
+    setAvailableGroups([]);
+    const url = c.evolution_api_url.replace(/\/$/, "");
+    const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+    try {
+      const res = await fetch(`${url}/group/fetchAllGroups/${c.instance_name}`, { method: "GET", headers });
+      if (!res.ok) throw new Error("Falha ao buscar grupos");
+      const groups = await res.json();
+      const mapped: WhatsAppGroup[] = (Array.isArray(groups) ? groups : []).map((g: any) => ({
+        id: g.id || g.jid || g.groupJid,
+        subject: g.subject || g.name || "Sem nome",
+        size: g.size || g.participants?.length || 0,
+      }));
+      setAvailableGroups(mapped);
+    } catch (err) {
+      console.error("Fetch groups error:", err);
+      toast.error("Não foi possível buscar os grupos. Verifique se a instância está conectada.");
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  const handleSaveGroup = async (groupJid: string, groupName: string) => {
+    if (!groupDialogConfig) return;
+    const { error } = await supabase
+      .from("whatsapp_configs")
+      .update({ group_jid: groupJid } as any)
+      .eq("id", groupDialogConfig.id);
+    if (error) {
+      toast.error("Erro ao salvar grupo: " + error.message);
+    } else {
+      toast.success(`Grupo "${groupName}" configurado com sucesso!`);
+      setGroupDialogOpen(false);
+      loadConfigs();
+    }
+  };
+
     setSelectedConfig(c);
     const { data } = await supabase
       .from("whatsapp_messages")
