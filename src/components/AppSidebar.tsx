@@ -60,13 +60,13 @@ const businessNav: NavEntry[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   {
     key: "ops",
-    label: "Operações",
+    label: "Financeiro",
     icon: ArrowLeftRight,
     items: [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
       { to: "/bills", label: "Contas a Pagar", icon: Receipt },
+      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
-      { to: "/documents", label: "Documentos", icon: ScanLine },
     ],
   },
   {
