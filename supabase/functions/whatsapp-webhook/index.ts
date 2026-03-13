@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     const evolutionKey = whatsappConfig.evolution_api_key || Deno.env.get("EVOLUTION_API_KEY");
 
     if (!member) {
-      await sendWhatsAppMessage(instanceName, remoteJid, "❌ Nenhum admin encontrado na empresa.", evolutionUrl, evolutionKey);
+      await sendWhatsAppMessage(instanceName, replyJid, "❌ Nenhum admin encontrado na empresa.", evolutionUrl, evolutionKey);
       return new Response(JSON.stringify({ ok: true, error: "no-admin" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -125,17 +125,17 @@ Deno.serve(async (req) => {
       textContent = message.extendedTextMessage.text;
     } else if (message?.audioMessage) {
       try {
-        await sendWhatsAppMessage(instanceName, remoteJid, "🎙️ _Transcrevendo seu áudio..._", evolutionUrl, evolutionKey);
-        const audioBase64 = await getMediaBase64(instanceName, messageId, remoteJid, evolutionUrl, evolutionKey);
+        await sendWhatsAppMessage(instanceName, replyJid, "🎙️ _Transcrevendo seu áudio..._", evolutionUrl, evolutionKey);
+        const audioBase64 = await getMediaBase64(instanceName, messageId, replyJid, evolutionUrl, evolutionKey);
         if (!audioBase64) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar o áudio. Tente enviar novamente.", evolutionUrl, evolutionKey);
+          await sendWhatsAppMessage(instanceName, replyJid, "❌ Não consegui baixar o áudio. Tente enviar novamente.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "audio-download-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
         const transcription = await transcribeAudio(audioBase64, message.audioMessage.mimetype || "audio/ogg");
         if (!transcription) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui transcrever o áudio. Tente enviar uma mensagem de texto.", evolutionUrl, evolutionKey);
+          await sendWhatsAppMessage(instanceName, replyJid, "❌ Não consegui transcrever o áudio. Tente enviar uma mensagem de texto.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "transcription-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -144,24 +144,24 @@ Deno.serve(async (req) => {
         console.log("Audio transcribed:", textContent.slice(0, 200));
       } catch (err) {
         console.error("Audio processing error:", err);
-        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar o áudio. Tente novamente.", evolutionUrl, evolutionKey);
+        await sendWhatsAppMessage(instanceName, replyJid, "❌ Erro ao processar o áudio. Tente novamente.", evolutionUrl, evolutionKey);
         return new Response(JSON.stringify({ ok: true, error: "audio-error" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     } else if (message?.imageMessage) {
       try {
-        await sendWhatsAppMessage(instanceName, remoteJid, "📸 _Analisando sua imagem..._", evolutionUrl, evolutionKey);
-        const imageBase64 = await getMediaBase64(instanceName, messageId, remoteJid, evolutionUrl, evolutionKey);
+        await sendWhatsAppMessage(instanceName, replyJid, "📸 _Analisando sua imagem..._", evolutionUrl, evolutionKey);
+        const imageBase64 = await getMediaBase64(instanceName, messageId, replyJid, evolutionUrl, evolutionKey);
         if (!imageBase64) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.", evolutionUrl, evolutionKey);
+          await sendWhatsAppMessage(instanceName, replyJid, "❌ Não consegui baixar a imagem. Tente enviar novamente.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "image-download-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
         const imageDescription = await analyzeDocumentImage(imageBase64, message.imageMessage.mimetype || "image/jpeg");
         if (!imageDescription) {
-          await sendWhatsAppMessage(instanceName, remoteJid, "❌ Não consegui analisar a imagem. Tente enviar uma foto mais nítida.", evolutionUrl, evolutionKey);
+          await sendWhatsAppMessage(instanceName, replyJid, "❌ Não consegui analisar a imagem. Tente enviar uma foto mais nítida.", evolutionUrl, evolutionKey);
           return new Response(JSON.stringify({ ok: true, error: "image-analysis-failed" }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -171,13 +171,13 @@ Deno.serve(async (req) => {
         console.log("Image analyzed:", textContent.slice(0, 300));
       } catch (err) {
         console.error("Image processing error:", err);
-        await sendWhatsAppMessage(instanceName, remoteJid, "❌ Erro ao processar a imagem. Tente novamente.", evolutionUrl, evolutionKey);
+        await sendWhatsAppMessage(instanceName, replyJid, "❌ Erro ao processar a imagem. Tente novamente.", evolutionUrl, evolutionKey);
         return new Response(JSON.stringify({ ok: true, error: "image-error" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     } else {
-      await sendWhatsAppMessage(instanceName, remoteJid,
+      await sendWhatsAppMessage(instanceName, replyJid,
         "🤖 Consigo processar *texto*, *áudio* e *imagens de documentos*! Envie uma descrição, um áudio ou foto de boleto/nota/recibo.",
         evolutionUrl, evolutionKey
       );
@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
         pending: pendingRecord,
         reply: textContent.trim().toLowerCase(),
         instanceName,
-        remoteJid,
+        remoteJid: replyJid,
         supabase,
         today: new Date().toISOString().split("T")[0],
         evolutionUrl,
@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
       companyName,
       userId,
       instanceName,
-      remoteJid,
+      remoteJid: replyJid,
       phoneNumber,
       messageId,
       configId: whatsappConfig.id,
