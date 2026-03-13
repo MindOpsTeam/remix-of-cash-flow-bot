@@ -418,26 +418,42 @@ export default function WhatsApp() {
       return;
     }
     setGroupDialogConfig(c);
-    setGroupDialogOpen(false);
     setLoadingGroups(true);
     setAvailableGroups([]);
-    const url = c.evolution_api_url.replace(/\/$/, "");
-    const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+    setFetchError(null);
+    setGroupSearch("");
+    hasFetchedPictures.current = false;
     try {
-      const res = await fetch(`${url}/group/fetchAllGroups/${c.instance_name}`, { method: "GET", headers });
-      if (!res.ok) throw new Error("Falha ao buscar grupos");
-      const groups = await res.json();
-      const mapped: WhatsAppGroup[] = (Array.isArray(groups) ? groups : []).map((g: any) => ({
-        id: g.id || g.jid || g.groupJid,
-        subject: g.subject || g.name || "Sem nome",
-        size: g.size || g.participants?.length || 0,
-      }));
-      setAvailableGroups(mapped);
-    } catch (err) {
+      const { data, error } = await supabase.functions.invoke('list-whatsapp-groups', {
+        body: { config_id: c.id },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
+      setAvailableGroups(data.groups || []);
+      // Fetch pictures in background
+      fetchGroupPictures(c.id);
+    } catch (err: any) {
       console.error("Fetch groups error:", err);
-      toast.error("Não foi possível buscar os grupos. Verifique se a instância está conectada.");
+      setFetchError(err.message || "Não foi possível buscar os grupos.");
     } finally {
       setLoadingGroups(false);
+    }
+  };
+
+  const fetchGroupPictures = async (configId: string) => {
+    if (hasFetchedPictures.current) return;
+    hasFetchedPictures.current = true;
+    setFetchingPictures(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('list-whatsapp-groups', {
+        body: { config_id: configId, include_pictures: true },
+      });
+      if (error || !data?.success) return;
+      setAvailableGroups(data.groups || []);
+    } catch {
+      // silently fail for pictures
+    } finally {
+      setFetchingPictures(false);
     }
   };
 
@@ -445,15 +461,24 @@ export default function WhatsApp() {
     if (!groupDialogConfig) return;
     const { error } = await supabase
       .from("whatsapp_configs")
-      .update({ group_jid: groupJid } as any)
+      .update({ group_jid: groupJid, group_name: groupName } as any)
       .eq("id", groupDialogConfig.id);
     if (error) {
       toast.error("Erro ao salvar grupo: " + error.message);
     } else {
       toast.success(`Grupo "${groupName}" configurado com sucesso!`);
       setAvailableGroups([]);
+      setGroupDialogConfig(null);
       loadConfigs();
     }
+  };
+
+  const handleManualGroupAdd = async () => {
+    if (!groupDialogConfig || !manualGroupJid.trim()) return;
+    await handleSaveGroup(manualGroupJid.trim(), manualGroupName.trim() || manualGroupJid.trim());
+    setManualGroupJid("");
+    setManualGroupName("");
+    setAddingManual(false);
   };
 
   const viewMessages = async (c: WhatsAppConfig) => {
