@@ -445,6 +445,7 @@ export default function WhatsApp() {
     }
   };
 
+  const viewMessages = async (c: WhatsAppConfig) => {
     setSelectedConfig(c);
     const { data } = await supabase
       .from("whatsapp_messages")
