@@ -323,7 +323,7 @@ async function executePendingAction({
     const balanceStr = currentBalance != null ? ` (saldo atual: ${fmt(currentBalance)})` : "";
     await sendWhatsAppMessage(instanceName, remoteJid,
       `✅ *Transação registrada!*\n\n` +
-      `💰 ${fmt(action.amount)} — *${action.type === "revenue" ? "Receita" : "Despesa"}*\n` +
+      `💰 ${fmt(action.amount)} — *${isRevenueIntent(action.type) ? "Receita" : "Despesa"}*\n` +
       `📂 *Categoria:* ${categoryName}\n` +
       `🏦 *Conta:* ${accountName}${balanceStr}\n` +
       `📅 *Data:* ${action.date || today}\n` +
@@ -368,7 +368,7 @@ async function executePendingAction({
 
     await sendWhatsAppMessage(instanceName, remoteJid,
       `✅ *Transação registrada!*\n\n` +
-      `💰 ${fmt(action.amount)} — *${action.type === "revenue" ? "Receita" : "Despesa"}*\n` +
+      `💰 ${fmt(action.amount)} — *${isRevenueIntent(action.type) ? "Receita" : "Despesa"}*\n` +
       `📂 *Conta contábil:* ${chartAccountName}\n` +
       `🏢 *Centro de custo:* ${costCenterName}\n` +
       `🏦 *Conta bancária:* ${bankName}\n` +
@@ -382,6 +382,19 @@ async function executePendingAction({
 
 // ─── INSERT HELPERS ───────────────────────────────────────────────────────────
 
+function isRevenueIntent(type: unknown): boolean {
+  const normalized = String(type ?? "").toLowerCase().trim();
+  return ["revenue", "receita", "income", "entrada", "ganho", "ganhei", "recebi", "faturei"].includes(normalized);
+}
+
+function normalizePfType(type: unknown): "receita" | "despesa" {
+  return isRevenueIntent(type) ? "receita" : "despesa";
+}
+
+function normalizePjType(type: unknown): "revenue" | "expense" {
+  return isRevenueIntent(type) ? "revenue" : "expense";
+}
+
 async function insertPfTransaction({ supabase, action, userId, today }: {
   supabase: any; action: any; userId: string; today: string;
 }) {
@@ -389,7 +402,7 @@ async function insertPfTransaction({ supabase, action, userId, today }: {
     user_id: userId,
     title: action.description || "Lançamento via WhatsApp",
     amount: Math.abs(action.amount),
-    type: action.type === "revenue" ? "receita" : "despesa",
+    type: normalizePfType(action.type),
     date: action.date || today,
     description: action.description,
     category_id: action.pf_category_id || null,
@@ -409,7 +422,7 @@ async function insertPjTransaction({ supabase, action, companyId, userId, today 
     user_id: userId,
     description: action.description || "Lançamento via WhatsApp",
     amount: Math.abs(action.amount),
-    type: action.type,
+    type: normalizePjType(action.type),
     date: action.date || today,
     source: "whatsapp",
     status: "confirmed",
