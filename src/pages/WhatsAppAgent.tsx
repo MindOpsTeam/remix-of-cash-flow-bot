@@ -226,7 +226,7 @@ export default function WhatsApp() {
           },
           settings: {
             rejectCall: false,
-            groupsIgnore: true,
+            groupsIgnore: false,
             alwaysOnline: false,
             readMessages: false,
             readStatus: false,
