@@ -94,7 +94,7 @@ export default function PersonalReconciliation() {
     mutationFn: async ({ id, action: act }: { id: string; action: "mark_reconciled" }) => {
       const { error } = await supabase
         .from("personal_transactions")
-        .update({ status: "reconciled", source: "reconciled" })
+        .update({ source: "reconciled", reconciled_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
     },
