@@ -659,6 +659,53 @@ async function runFinancialAgent(ctx: AgentContext) {
     `${t.date} | ${t.type === "receita" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.title} | ${(t.personal_categories as any)?.name || "-"}`
   ).join("\n");
 
+  const pfCategoryMap = new Map((pfCategories || []).map((c: any) => [c.id, c.name]));
+  const pfAccountMap = new Map((pfAccounts || []).map((a: any) => [a.id, a.name]));
+  const pfCreditCardMap = new Map((pfCreditCards || []).map((c: any) => [c.id, c.name]));
+  const pjAccountMap = new Map((accounts || []).map((a: any) => [a.id, a.name]));
+  const pjCostCenterMap = new Map((centers || []).map((c: any) => [c.id, c.name]));
+  const pjBankAccountMap = new Map((bankAccounts || []).map((b: any) => [b.id, b.name]));
+
+  const buildActionFallbackMessage = (action: any): string | null => {
+    const amount = Number(action?.amount || 0);
+    const formattedAmount = Number.isFinite(amount) ? fmt(Math.abs(amount)) : "—";
+    const actionDate = action?.date || today;
+    const isPending = action?.status === "pending";
+    const isRevenue = isRevenueIntent(action?.type);
+
+    if (action?.action === "create_pf_transaction") {
+      const kind = isPending ? (isRevenue ? "Conta a Receber" : "Conta a Pagar") : (isRevenue ? "Receita" : "Despesa");
+      const categoryName = action?.pf_category_id ? (pfCategoryMap.get(action.pf_category_id) || "Sem categoria") : "Sem categoria";
+      const paymentName = action?.pf_credit_card_id
+        ? `Cartão: ${pfCreditCardMap.get(action.pf_credit_card_id) || "Não identificado"}`
+        : action?.pf_account_id
+          ? `Conta: ${pfAccountMap.get(action.pf_account_id) || "Não identificada"}`
+          : "Forma: Dinheiro/Não informado";
+
+      return `✅ ${formattedAmount} • ${kind} • ${categoryName} • ${paymentName} • ${actionDate} • PF`;
+    }
+
+    if (action?.action === "create_pj_transaction") {
+      const kind = isPending ? (isRevenue ? "Conta a Receber" : "Conta a Pagar") : (isRevenue ? "Receita" : "Despesa");
+      const accountName = action?.pj_account_id ? (pjAccountMap.get(action.pj_account_id) || "Sem classificação") : "Sem classificação";
+      const costCenterName = action?.pj_cost_center_id ? (pjCostCenterMap.get(action.pj_cost_center_id) || "Sem centro") : "Sem centro";
+      const bankName = action?.pj_bank_account_id ? (pjBankAccountMap.get(action.pj_bank_account_id) || "Sem conta") : "Sem conta";
+
+      return `✅ ${formattedAmount} • ${kind} • ${accountName} • ${costCenterName} • ${bankName} • ${actionDate} • PJ`;
+    }
+
+    if (action?.action === "create_owner_transaction") {
+      const ownerType = action?.transaction_type === "aporte" ? "Aporte" : "Retirada";
+      return `✅ ${formattedAmount} • ${ownerType} • ${actionDate} • Sócio PF↔PJ`;
+    }
+
+    if (action?.action === "ask_confirmation") {
+      return `💰 Identifiquei ${formattedAmount}. Você quer lançar em qual módulo?\n1️⃣ Pessoal (PF)\n2️⃣ Empresa (PJ)\n0️⃣ Cancelar`;
+    }
+
+    return null;
+  };
+
   // Quick path removido — toda mensagem passa pelo agente IA para classificação contextual correta
 
   const systemPrompt = `Você é um assistente financeiro rápido e direto. Responda em pt-BR com formatação WhatsApp. Seja ULTRA conciso.
