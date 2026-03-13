@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.reconcile-transactions]
 verify_jwt = false
+
+[functions.list-whatsapp-groups]
+verify_jwt = false
