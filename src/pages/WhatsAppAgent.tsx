@@ -606,13 +606,13 @@ export default function WhatsApp() {
                         {c.active ? "Ativo" : "Inativo"}
                       </Badge>
                     </div>
-                    {c.phone_number ? (
+                    {c.group_jid ? (
                       <p className="text-xs text-revenue font-medium mt-0.5">
-                        📱 Envie mensagens para: {c.phone_number}
+                        👥 Grupo configurado: {c.group_jid.split("@")[0]}
                       </p>
                     ) : (
-                      <p className="text-[11px] text-muted-foreground mt-0.5 italic">
-                        Clique em ⚙️ para detectar o número
+                      <p className="text-[11px] text-warning font-medium mt-0.5">
+                        ⚠️ Nenhum grupo configurado — clique em 👥 para selecionar
                       </p>
                     )}
                     <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
@@ -621,6 +621,9 @@ export default function WhatsApp() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="ghost" size="icon" onClick={() => handleSelectGroup(c)} title="Configurar grupo" aria-label="Configurar grupo">
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
                   <Button variant="ghost" size="icon" onClick={() => handleConfigureWebhook(c)} title="Configurar webhook" aria-label="Configurar webhook">
                     <Settings2 className="h-4 w-4" />
                   </Button>
