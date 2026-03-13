@@ -112,6 +112,7 @@ const personalNav: NavEntry[] = [
       { to: "/personal/transfers", label: "Transferências", icon: ArrowUpDown },
       { to: "/personal/bills", label: "Contas a Pagar", icon: Receipt },
       { to: "/personal/credit-cards", label: "Cartões", icon: CreditCard },
+      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
       { to: "/personal/reconciliation", label: "Conciliação", icon: GitMerge },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
     ],
@@ -123,7 +124,6 @@ const personalNav: NavEntry[] = [
     items: [
       { to: "/personal/budgets", label: "Orçamentos", icon: PiggyBank },
       { to: "/personal/goals", label: "Metas", icon: Target },
-      { to: "/documents", label: "Documentos", icon: ScanLine },
     ],
   },
   {
