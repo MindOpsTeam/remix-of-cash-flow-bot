@@ -398,7 +398,7 @@ function normalizePjType(type: unknown): "revenue" | "expense" {
 async function insertPfTransaction({ supabase, action, userId, today }: {
   supabase: any; action: any; userId: string; today: string;
 }) {
-  const { error } = await supabase.from("personal_transactions").insert({
+  const insertData: any = {
     user_id: userId,
     title: action.description || "Lançamento via WhatsApp",
     amount: Math.abs(action.amount),
@@ -406,10 +406,16 @@ async function insertPfTransaction({ supabase, action, userId, today }: {
     date: action.date || today,
     description: action.description,
     category_id: action.pf_category_id || null,
-    account_id: action.pf_account_id || null,
     source: "whatsapp",
     status: action.status || "confirmed",
-  });
+  };
+  // Se tem cartão de crédito, usa credit_card_id; senão usa account_id
+  if (action.pf_credit_card_id) {
+    insertData.credit_card_id = action.pf_credit_card_id;
+  } else {
+    insertData.account_id = action.pf_account_id || null;
+  }
+  const { error } = await supabase.from("personal_transactions").insert(insertData);
   if (error) console.error("PF transaction insert error:", error);
   return error;
 }
