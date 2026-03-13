@@ -25,6 +25,7 @@ interface WhatsAppConfig {
   evolution_api_key: string | null;
   phone_number: string | null;
   group_jid: string | null;
+  group_name: string | null;
   active: boolean;
   created_at: string;
 }
@@ -33,6 +34,7 @@ interface WhatsAppGroup {
   id: string;
   subject: string;
   size: number;
+  pictureUrl?: string | null;
 }
 
 interface WhatsAppMessage {
