@@ -310,7 +310,7 @@ export default function WhatsApp() {
         headers,
         body: JSON.stringify({
           rejectCall: false,
-          groupsIgnore: true,
+          groupsIgnore: false,
           alwaysOnline: false,
           readMessages: false,
           readStatus: false,
