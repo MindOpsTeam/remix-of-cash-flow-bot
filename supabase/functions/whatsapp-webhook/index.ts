@@ -1052,66 +1052,9 @@ Após registrar, confirme APENAS com: ✅ valor, tipo (Despesa/Receita/Conta a P
     }
     const shouldSendActionFallback = !cleanResponse;
 
-    // Processar ações
+    // Processar ações — only ask_confirmation and report tools are expected
     for (const action of actions) {
-      if (action.action === "create_pj_transaction") {
-        const err = await insertPjTransaction({
-          supabase: ctx.supabase, action,
-          companyId: ctx.companyId, userId: ctx.userId, today,
-        });
-        if (err) {
-          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-            `⚠️ Classificado mas erro ao salvar PJ: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey
-          );
-        } else if (shouldSendActionFallback) {
-          const fallback = buildActionFallbackMessage(action);
-          if (fallback) {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, fallback, ctx.evolutionUrl, ctx.evolutionKey);
-          }
-        }
-
-      } else if (action.action === "create_pf_transaction") {
-        const err = await insertPfTransaction({
-          supabase: ctx.supabase, action, userId: ctx.userId, today,
-        });
-        if (err) {
-          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-            `⚠️ Classificado mas erro ao salvar PF: ${err.message}`, ctx.evolutionUrl, ctx.evolutionKey
-          );
-        } else if (shouldSendActionFallback) {
-          const fallback = buildActionFallbackMessage(action);
-          if (fallback) {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, fallback, ctx.evolutionUrl, ctx.evolutionKey);
-          }
-        }
-
-      } else if (action.action === "create_owner_transaction") {
-        // Chama a edge function owner-transactions para operação atômica PF↔PJ
-        const { error: ownerErr } = await ctx.supabase.functions.invoke("owner-transactions", {
-          body: {
-            transaction_type: action.transaction_type || "retirada",
-            amount: Math.abs(action.amount),
-            date: action.date || today,
-            description: action.description,
-            pf_account_id: action.pf_account_id || null,
-            pj_bank_account_id: action.pj_bank_account_id || null,
-            user_id: ctx.userId,
-            company_id: ctx.companyId,
-          },
-        });
-        if (ownerErr) {
-          console.error("Owner transaction error:", ownerErr);
-          await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid,
-            `⚠️ Lançamento PF criado, mas erro ao criar a retirada: ${ownerErr.message}`, ctx.evolutionUrl, ctx.evolutionKey
-          );
-        } else if (shouldSendActionFallback) {
-          const fallback = buildActionFallbackMessage(action);
-          if (fallback) {
-            await sendWhatsAppMessage(ctx.instanceName, ctx.remoteJid, fallback, ctx.evolutionUrl, ctx.evolutionKey);
-          }
-        }
-
-      } else if (action.action === "ask_confirmation") {
+      if (action.action === "ask_confirmation") {
         // Salvar pending action e enviar pergunta
         await ctx.supabase.from("whatsapp_pending_actions").delete()
           .eq("phone_number", ctx.phoneNumber)
