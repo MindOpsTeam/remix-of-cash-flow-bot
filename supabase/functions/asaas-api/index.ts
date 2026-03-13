@@ -298,6 +298,27 @@ Deno.serve(async (req) => {
           if (!data.data || data.data.length === 0) break;
           for (const t of data.data) {
             await serviceClient.from("asaas_transfers").upsert(mapTransferData("user_id", userId, t), { onConflict: "user_id,asaas_id" });
+
+            // Reconcile completed transfers into personal_transactions
+            if (t.status === "DONE" || t.status === "BANK_PROCESSING") {
+              try {
+                await serviceClient.functions.invoke("reconcile-transactions", {
+                  body: {
+                    action: "reconcile_pf",
+                    user_id: userId,
+                    amount: (t.value as number) || 0,
+                    date: (t.scheduleDate as string) || (t.scheduledDate as string) || new Date().toISOString().split("T")[0],
+                    type: "despesa",
+                    description: (t.description as string) || "Transferência Asaas",
+                    source: "asaas",
+                    external_id: `asaas_transfer_${t.id}`,
+                  },
+                });
+              } catch (e) {
+                console.error("Reconcile sync transfer error:", e);
+              }
+            }
+
             totalSynced++;
           }
           if (!data.totalCount || offset + limit >= data.totalCount) break;
