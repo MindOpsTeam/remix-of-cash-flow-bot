@@ -1,7 +1,8 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 export interface AsaasBill {
   id: string;
@@ -19,6 +20,8 @@ export interface AsaasBill {
   can_be_cancelled: boolean | null;
   failure_reason: string | null;
   created_at: string;
+  // Unified fields
+  _source: "asaas" | "manual";
 }
 
 export interface AsaasInvoice {
@@ -42,8 +45,10 @@ export interface AsaasInvoice {
 
 export function useAsaasBills() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const { data: bills = [], isLoading: billsLoading } = useQuery({
+  // Asaas bills
+  const { data: asaasBills = [], isLoading: billsLoading } = useQuery({
     queryKey: ["asaas_bills", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
@@ -53,10 +58,54 @@ export function useAsaasBills() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as AsaasBill[];
+      return (data as any[]).map((b) => ({ ...b, _source: "asaas" as const })) as AsaasBill[];
     },
     enabled: !!user?.id,
   });
+
+  // Manual pending bills from personal_transactions
+  const { data: manualBills = [], isLoading: manualLoading } = useQuery({
+    queryKey: ["personal_bills_pending", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from("personal_transactions")
+        .select("id, title, description, amount, date, status, created_at, account_id, credit_card_id, personal_accounts(name), personal_credit_cards(name)")
+        .eq("user_id", user.id)
+        .eq("type", "despesa")
+        .eq("status", "pending")
+        .order("date", { ascending: true });
+      if (error) throw error;
+      return (data || []).map((t: any) => ({
+        id: t.id,
+        asaas_id: "",
+        status: "PENDING",
+        value: Number(t.amount),
+        fee: null,
+        description: t.title || t.description,
+        company_name: null,
+        identification_field: null,
+        type: t.credit_card_id ? "Cartão" : (t.personal_accounts as any)?.name || null,
+        due_date: t.date,
+        schedule_date: null,
+        payment_date: null,
+        can_be_cancelled: null,
+        failure_reason: null,
+        created_at: t.created_at,
+        _source: "manual" as const,
+      })) as AsaasBill[];
+    },
+    enabled: !!user?.id,
+  });
+
+  // Combine both sources
+  const bills = useMemo(() => {
+    return [...asaasBills, ...manualBills].sort((a, b) => {
+      const dateA = a.due_date || a.created_at;
+      const dateB = b.due_date || b.created_at;
+      return dateB.localeCompare(dateA);
+    });
+  }, [asaasBills, manualBills]);
 
   const { data: invoices = [], isLoading: invoicesLoading } = useQuery({
     queryKey: ["asaas_invoices", user?.id],
@@ -71,6 +120,25 @@ export function useAsaasBills() {
       return data as AsaasInvoice[];
     },
     enabled: !!user?.id,
+  });
+
+  // Mark manual bill as paid
+  const markPaidMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!user?.id) throw new Error("Not authenticated");
+      const { error } = await supabase
+        .from("personal_transactions")
+        .update({ status: "confirmed" })
+        .eq("id", id)
+        .eq("user_id", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["personal_bills_pending"] });
+      queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
+      toast.success("Conta marcada como paga!");
+    },
+    onError: () => toast.error("Erro ao atualizar conta"),
   });
 
   const billsSummary = useMemo(() => {
@@ -98,6 +166,7 @@ export function useAsaasBills() {
     invoices,
     billsSummary,
     invoicesSummary,
-    isLoading: billsLoading || invoicesLoading,
+    isLoading: billsLoading || invoicesLoading || manualLoading,
+    markBillAsPaid: markPaidMutation.mutate,
   };
 }
