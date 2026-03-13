@@ -1,50 +1,63 @@
 
 
-## Plano: WhatsApp sempre pergunta PF ou PJ antes de registrar
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-### Problema
-Atualmente, o agente WhatsApp tenta classificar automaticamente se uma transação é PF ou PJ com base em palavras-chave (ex: "supermercado" → PF, "fornecedor" → PJ). O usuário quer que **sempre** pergunte em qual módulo registrar.
+## Problema
 
-### Alterações
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-#### 1. Atualizar o System Prompt do agente (`whatsapp-webhook/index.ts`)
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-Modificar a regra de classificação PF/PJ:
-- **Remover** a classificação automática baseada em palavras-chave (linhas 749-751)
-- **Adicionar regra obrigatória**: Antes de qualquer registro, sempre perguntar:
-  ```
-  "📍 Lançar em qual módulo?
-   1️⃣ Pessoal (PF)
-   2️⃣ Empresa (PJ)"
-  ```
-- Usar a tool `ask_confirmation` com `side` indefinido para forçar a pergunta
-- Exceção: se o usuário já disser explicitamente "PF", "pessoal", "PJ" ou "empresa" na mensagem, pular a pergunta
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-#### 2. Ajustar o fluxo de `ask_confirmation`
+## Solução
 
-Atualmente `ask_confirmation` é usado quando há dúvida. Precisamos garantir que:
-- O `pending_action` salvo contenha todos os dados necessários para ambos PF e PJ (já está assim)
-- A resposta "1" (PF) ou "2" (PJ) no `executePendingAction` já funciona corretamente (já está implementado nas linhas 276-380)
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-#### 3. Ajustar prompt para contas a pagar (pending)
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-Mesmo para contas a pagar (status=pending), perguntar PF ou PJ antes de registrar. A regra atual diz "registre IMEDIATAMENTE" — alterar para "registre IMEDIATAMENTE **após confirmar o módulo**".
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-### Resumo técnico
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-Arquivo único a editar: `supabase/functions/whatsapp-webhook/index.ts`
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
 
-Mudanças no `systemPrompt`:
-- Substituir bloco de classificação PF/PJ (linhas 749-751) por regra obrigatória de perguntar
-- Adicionar instrução: "SEMPRE use ask_confirmation para perguntar PF ou PJ, exceto se o usuário já especificou na mensagem"
-- Remover "na dúvida, use PF"
-- Manter todo o fluxo conversacional existente (forma de pagamento para PF confirmed, etc.)
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
 
-O fluxo ficará:
-1. Usuário envia mensagem com valor
-2. IA detecta valor, tipo (despesa/receita), status (confirmed/pending)
-3. **Sempre pergunta**: PF ou PJ?
-4. Usuário responde "1" ou "2"
-5. Se PF + confirmed → pergunta forma de pagamento
-6. Se PJ ou pending → registra direto
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
+
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
+
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
+
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
+
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
+
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
+
+## Arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
+
+Nenhuma migration SQL necessária.
 

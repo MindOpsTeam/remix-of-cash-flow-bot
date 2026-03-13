@@ -712,14 +712,23 @@ async function runFinancialAgent(ctx: AgentContext) {
 
 REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, determine primeiro se é um GASTO JÁ REALIZADO (confirmed) ou uma CONTA A PAGAR/RECEBER futura (pending).
 
+REGRA OBRIGATÓRIA — MÓDULO PF ou PJ:
+Antes de registrar QUALQUER transação (confirmed ou pending), você DEVE identificar o módulo:
+- Se o usuário já disse explicitamente "PF", "pessoal", "PJ", "empresa" ou "empresarial" na mensagem → use o módulo indicado sem perguntar.
+- Caso contrário, SEMPRE use a tool ask_confirmation para perguntar:
+  "📍 Lançar em qual módulo?
+   1️⃣ Pessoal (PF)
+   2️⃣ Empresa (PJ)"
+- NUNCA classifique automaticamente com base em palavras-chave. SEMPRE pergunte quando não for explícito.
+
 CONTAS A PAGAR / A RECEBER (status=pending):
 - "conta de luz", "boleto", "fatura", "vencimento", "vence dia X", "pagar até", "parcela" = CONTA A PAGAR → status="pending", type=despesa, date=data de vencimento
 - "vai receber", "cliente vai pagar", "fatura para cobrar" = CONTA A RECEBER → status="pending", type=receita/revenue
 - Quando o usuário menciona VENCIMENTO ou DATA FUTURA sem indicar que já pagou, SEMPRE use status="pending"
-- Para contas a pagar/receber (pending), registre IMEDIATAMENTE sem perguntar forma de pagamento. A forma será definida quando for efetivamente pago.
+- Para contas a pagar/receber (pending), registre IMEDIATAMENTE após confirmar o módulo, sem perguntar forma de pagamento. A forma será definida quando for efetivamente pago.
 
 GASTOS/RECEITAS JÁ REALIZADOS (status=confirmed) — apenas para PF:
-Antes de registrar, pergunte a forma de pagamento/recebimento:
+Após confirmar que é PF, pergunte a forma de pagamento/recebimento:
 
 "💰 Qual a forma?
 1️⃣ Cartão de crédito
@@ -732,7 +741,7 @@ Fluxo conforme resposta:
 - Se "3" ou "dinheiro" ou "espécie": registre sem conta e sem cartão (pf_account_id e pf_credit_card_id ficam vazios).
 - Se o usuário já mencionar na mensagem original (ex: "paguei no cartão nubank 50 reais"), pule as perguntas e registre direto com o cartão/conta correspondente.
 
-Para PJ → registre direto, sem perguntar forma de pagamento.
+Para PJ → registre direto após confirmar o módulo, sem perguntar forma de pagamento.
 
 Interpretação de valores brasileiros:
 - "5 mil" = 5000, "1,5k" = 1500, "meio mil" = 500, "2 milhões" = 2000000
@@ -745,10 +754,6 @@ CONTAS A PAGAR / A RECEBER:
 - "vai receber", "cliente vai pagar", "fatura para cobrar" = CONTA A RECEBER → status="pending", type=receita/revenue
 - Quando o usuário menciona VENCIMENTO ou DATA FUTURA, use status="pending" e a data mencionada como date
 - Mês atual: ${monthName}. Hoje: ${today}. Se disser "dia 30" sem mês, use o dia 30 do mês atual (ou próximo mês se dia 30 já passou).
-
-Classificação PF/PJ (na dúvida, use PF):
-- PF: conta de luz, água, internet residencial, supermercado, farmácia, escola, saúde, lazer, restaurante, vestuário, moradia, pessoal
-- PJ: fornecedor, software, funcionário, marketing, aluguel comercial, equipamento, cliente
 
 Defaults: pf_account_id="${defaultPfAccount?.id || ""}" | pj_bank_account_id="${defaultBankAccount?.id || ""}" | date="${today}"
 
