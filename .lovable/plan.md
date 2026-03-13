@@ -1,50 +1,63 @@
 
 
-# Copiar UI de seleção/monitoramento de grupos do Group Lens
+# Separação PF × PJ: Eliminar Confusão Patrimonial
 
-## Contexto
+## Problema
 
-O projeto Group Lens tem uma UI polida para seleção de grupos: busca com search, avatares com fotos, refresh, fallback manual, estados de loading/erro. O FinanceAI atual tem uma versão simplificada que faz fetch client-side sem search, sem fotos, sem manual add.
+O sistema atual mistura dados do Asaas (gateway de pagamento empresarial) dentro do patrimônio pessoal:
 
-## Mudanças
+1. **`usePersonalAccounts`** cria uma "Conta Asaas" virtual dentro das contas PF, inflando o saldo pessoal com receita da empresa
+2. **`usePersonalKPIs`** soma pagamentos Asaas nos KPIs pessoais (entradas do mês, taxas)
+3. **`PersonalAccounts`** exibe o card "Conta Asaas" junto das contas pessoais
+4. **`ConsolidatedPatrimony`** puxa `totalBalance` de `usePersonalAccounts` (que já inclui Asaas), misturando PJ dentro de PF
 
-### 1. Criar edge function `list-whatsapp-groups`
+Resultado: o saldo PF aparece inflado com dinheiro da empresa. Exatamente a confusão patrimonial que a plataforma deveria prevenir.
 
-Adaptação do `list-evolution-groups` do Group Lens, mas lendo credenciais de `whatsapp_configs` em vez de `evolution_api_configs` + `whatsapp_instances`:
+## Solução
 
-- Recebe `{ config_id, include_pictures }` no body
-- Busca `evolution_api_url`, `evolution_api_key`, `instance_name` de `whatsapp_configs` pelo `config_id`
-- Chama `GET /group/fetchAllGroups/{instanceName}` na Evolution API
-- Se `include_pictures`, busca fotos em batches via `POST /chat/fetchProfilePictureUrl/{instanceName}` (mesmo padrão do Group Lens com batches de 10 e delay de 300ms)
-- Retorna `{ success: true, groups: [{ id, subject, size, pictureUrl }] }`
+Remover completamente o saldo Asaas do lado PF. O Asaas é um gateway empresarial e deve alimentar apenas o lado PJ. A comunicação PF↔PJ acontece **exclusivamente** via `owner_transactions` (retiradas, aportes, pró-labore, dividendos).
 
-### 2. Revampar a aba "Grupo" em `WhatsAppAgent.tsx`
+### 1. Limpar `usePersonalAccounts` — remover lógica Asaas
 
-Adaptar a UI do `SelectGroups.tsx` do Group Lens para dentro da tab "Grupo":
+Remover do hook:
+- Query `asaas_config_exists`
+- Query `asaas_balance` (edge function)
+- Query `asaas_payments_fallback_balance`
+- Variáveis `asaasBalance`, `hasAsaas`, `asaasAccount`
+- Remoção do Asaas do cálculo de `totalBalance` e `summary`
 
-- **Search bar** com ícone de busca + botão de refresh
-- **Avatar** para cada grupo (com `AvatarImage` + `AvatarFallback` de iniciais)
-- **Indicador visual** de grupo já selecionado (borda primary, badge "Selecionado")
-- **Loading states**: spinner ao buscar grupos, spinner secundário ao carregar fotos
-- **Error state**: card com ícone `AlertCircle` e mensagem de erro
-- **Manual add fallback**: seção expansível para adicionar grupo por JID manualmente
-- **Contador**: "X grupo(s) encontrados"
-- Substituir o fetch client-side direto por invocação da edge function `list-whatsapp-groups`
-- Fotos carregam em background (primeiro fetch sem fotos, depois com `include_pictures: true`)
+O hook passa a retornar **apenas** contas manuais de `personal_accounts`.
 
-### 3. Adicionar `group_name` ao `whatsapp_configs`
+### 2. Limpar `usePersonalKPIs` — remover adições Asaas
 
-Migration para salvar o nome do grupo junto com o JID, para exibir no card da instância sem precisar re-fetchar:
+Remover:
+- Query `asaas_payments_kpis`
+- `asaasKpiAdditions` e sua soma nos KPIs
+- Realtime listener de `asaas_payments`
 
-```sql
-ALTER TABLE public.whatsapp_configs ADD COLUMN group_name text;
-```
+KPIs pessoais passam a refletir **apenas** `personal_transactions`.
 
-Atualizar `handleSaveGroup` para salvar `group_name` junto com `group_jid`.
-Atualizar a UI do card na aba Instâncias para mostrar o nome do grupo em vez do JID.
+### 3. Limpar `PersonalAccounts` page — remover card Asaas
 
-### Arquivos afetados
-- **Novo**: `supabase/functions/list-whatsapp-groups/index.ts`
-- **Editar**: `src/pages/WhatsAppAgent.tsx` — revampar tab Grupo
-- **Migration SQL**: adicionar `group_name` a `whatsapp_configs`
+Remover o bloco que renderiza o card virtual "Conta Asaas" na listagem de contas.
+
+### 4. Alimentar PJ com saldo Asaas no `ConsolidatedPatrimony`
+
+O saldo PJ no `ConsolidatedPatrimony` já calcula a partir de `transactions` (tabela empresarial). Para incluir o saldo Asaas no lado PJ:
+- Adicionar query para `company_asaas_config` (verificar se empresa tem Asaas configurado)
+- Se sim, buscar saldo via `company-asaas-api` edge function ou fallback via `company_asaas_payments`
+- Somar ao `pjBalance`
+
+Se o Asaas estiver configurado apenas no nível pessoal (`asaas_config`), ele **não aparece em lugar nenhum do patrimônio** até ser migrado para `company_asaas_config`. Isso é intencional — dinheiro do gateway precisa estar vinculado à empresa.
+
+## Arquivos alterados
+
+| Arquivo | Mudança |
+|---------|---------|
+| `src/hooks/usePersonalAccounts.ts` | Remover toda lógica Asaas (queries, variáveis, retorno) |
+| `src/hooks/usePersonalKPIs.ts` | Remover query e cálculo de Asaas nos KPIs |
+| `src/pages/personal/PersonalAccounts.tsx` | Remover card "Conta Asaas" |
+| `src/components/ConsolidatedPatrimony.tsx` | Adicionar saldo Asaas PJ via `company_asaas_payments` |
+
+Nenhuma migration SQL necessária.
 

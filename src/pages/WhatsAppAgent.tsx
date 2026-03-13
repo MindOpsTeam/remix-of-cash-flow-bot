@@ -7,14 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import {
   MessageSquare, Plus, Trash2, CheckCircle2,
   ArrowDownLeft, ArrowUpRight, Phone, Activity, Loader2, QrCode, RefreshCw, Settings2,
+  Search, AlertCircle, Check, Users,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users } from "lucide-react";
 
 interface WhatsAppConfig {
   id: string;
@@ -24,6 +25,7 @@ interface WhatsAppConfig {
   evolution_api_key: string | null;
   phone_number: string | null;
   group_jid: string | null;
+  group_name: string | null;
   active: boolean;
   created_at: string;
 }
@@ -32,6 +34,7 @@ interface WhatsAppGroup {
   id: string;
   subject: string;
   size: number;
+  pictureUrl?: string | null;
 }
 
 interface WhatsAppMessage {
@@ -55,10 +58,16 @@ export default function WhatsApp() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [messagesDialogOpen, setMessagesDialogOpen] = useState(false);
   const [selectedConfig, setSelectedConfig] = useState<WhatsAppConfig | null>(null);
-  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupDialogConfig, setGroupDialogConfig] = useState<WhatsAppConfig | null>(null);
   const [availableGroups, setAvailableGroups] = useState<WhatsAppGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [fetchingPictures, setFetchingPictures] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [groupSearch, setGroupSearch] = useState("");
+  const [addingManual, setAddingManual] = useState(false);
+  const [manualGroupName, setManualGroupName] = useState("");
+  const [manualGroupJid, setManualGroupJid] = useState("");
+  const hasFetchedPictures = useRef(false);
 
   // Modal state
   const [step, setStep] = useState<ModalStep>("credentials");
@@ -409,26 +418,42 @@ export default function WhatsApp() {
       return;
     }
     setGroupDialogConfig(c);
-    setGroupDialogOpen(false);
     setLoadingGroups(true);
     setAvailableGroups([]);
-    const url = c.evolution_api_url.replace(/\/$/, "");
-    const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+    setFetchError(null);
+    setGroupSearch("");
+    hasFetchedPictures.current = false;
     try {
-      const res = await fetch(`${url}/group/fetchAllGroups/${c.instance_name}`, { method: "GET", headers });
-      if (!res.ok) throw new Error("Falha ao buscar grupos");
-      const groups = await res.json();
-      const mapped: WhatsAppGroup[] = (Array.isArray(groups) ? groups : []).map((g: any) => ({
-        id: g.id || g.jid || g.groupJid,
-        subject: g.subject || g.name || "Sem nome",
-        size: g.size || g.participants?.length || 0,
-      }));
-      setAvailableGroups(mapped);
-    } catch (err) {
+      const { data, error } = await supabase.functions.invoke('list-whatsapp-groups', {
+        body: { config_id: c.id },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro desconhecido');
+      setAvailableGroups(data.groups || []);
+      // Fetch pictures in background
+      fetchGroupPictures(c.id);
+    } catch (err: any) {
       console.error("Fetch groups error:", err);
-      toast.error("Não foi possível buscar os grupos. Verifique se a instância está conectada.");
+      setFetchError(err.message || "Não foi possível buscar os grupos.");
     } finally {
       setLoadingGroups(false);
+    }
+  };
+
+  const fetchGroupPictures = async (configId: string) => {
+    if (hasFetchedPictures.current) return;
+    hasFetchedPictures.current = true;
+    setFetchingPictures(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('list-whatsapp-groups', {
+        body: { config_id: configId, include_pictures: true },
+      });
+      if (error || !data?.success) return;
+      setAvailableGroups(data.groups || []);
+    } catch {
+      // silently fail for pictures
+    } finally {
+      setFetchingPictures(false);
     }
   };
 
@@ -436,15 +461,24 @@ export default function WhatsApp() {
     if (!groupDialogConfig) return;
     const { error } = await supabase
       .from("whatsapp_configs")
-      .update({ group_jid: groupJid } as any)
+      .update({ group_jid: groupJid, group_name: groupName } as any)
       .eq("id", groupDialogConfig.id);
     if (error) {
       toast.error("Erro ao salvar grupo: " + error.message);
     } else {
       toast.success(`Grupo "${groupName}" configurado com sucesso!`);
       setAvailableGroups([]);
+      setGroupDialogConfig(null);
       loadConfigs();
     }
+  };
+
+  const handleManualGroupAdd = async () => {
+    if (!groupDialogConfig || !manualGroupJid.trim()) return;
+    await handleSaveGroup(manualGroupJid.trim(), manualGroupName.trim() || manualGroupJid.trim());
+    setManualGroupJid("");
+    setManualGroupName("");
+    setAddingManual(false);
   };
 
   const viewMessages = async (c: WhatsAppConfig) => {
@@ -621,7 +655,7 @@ export default function WhatsApp() {
                         </div>
                         {c.group_jid ? (
                           <p className="text-xs text-revenue font-medium mt-0.5">
-                            👥 Grupo: {c.group_jid.split("@")[0]}
+                            👥 Grupo: {c.group_name || c.group_jid.split("@")[0]}
                           </p>
                         ) : (
                           <p className="text-[11px] text-destructive font-medium mt-0.5">
@@ -699,69 +733,179 @@ export default function WhatsApp() {
                 </ol>
               </div>
 
-              {configs.map((c) => (
-                <div key={c.id} className="bg-card border border-border rounded-lg p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <Phone className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground">{c.instance_name}</h3>
-                        {c.group_jid ? (
-                          <p className="text-xs text-revenue font-medium mt-0.5">
-                            ✅ Grupo ativo: {c.group_jid.split("@")[0]}
-                          </p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground mt-0.5">Nenhum grupo selecionado</p>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5"
-                      onClick={() => handleSelectGroup(c)}
-                      disabled={loadingGroups && groupDialogConfig?.id === c.id}
-                    >
-                      {loadingGroups && groupDialogConfig?.id === c.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Users className="h-3.5 w-3.5" />
-                      )}
-                      Buscar Grupos
-                    </Button>
-                  </div>
+              {configs.map((c) => {
+                const isSelected = groupDialogConfig?.id === c.id;
+                const filteredGroups = availableGroups.filter(g =>
+                  g.subject.toLowerCase().includes(groupSearch.toLowerCase()) ||
+                  g.id.toLowerCase().includes(groupSearch.toLowerCase())
+                );
 
-                  {/* Inline group list when this config is selected */}
-                  {groupDialogConfig?.id === c.id && !groupDialogOpen && availableGroups.length > 0 && (
-                    <div className="border-t border-border pt-4 space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">
-                        Selecione o grupo ({availableGroups.length} encontrados):
-                      </p>
-                      {availableGroups.map((g) => (
-                        <button
-                          key={g.id}
-                          onClick={() => handleSaveGroup(g.id, g.subject)}
-                          className={`w-full text-left border rounded-lg p-3 transition-colors hover:bg-accent/50 ${
-                            c.group_jid === g.id ? "border-primary bg-primary/5" : "border-border"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-medium text-foreground">{g.subject}</p>
-                              <p className="text-[11px] text-muted-foreground">{g.size} participantes</p>
-                            </div>
-                            {c.group_jid === g.id && (
-                              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                return (
+                  <div key={c.id} className="bg-card border border-border rounded-lg p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Phone className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-semibold text-foreground">{c.instance_name}</h3>
+                          {c.group_jid ? (
+                            <p className="text-xs text-revenue font-medium mt-0.5">
+                              ✅ Grupo ativo: {c.group_name || c.group_jid.split("@")[0]}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground mt-0.5">Nenhum grupo selecionado</p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => handleSelectGroup(c)}
+                        disabled={loadingGroups && isSelected}
+                      >
+                        {loadingGroups && isSelected ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Users className="h-3.5 w-3.5" />
+                        )}
+                        Buscar Grupos
+                      </Button>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* Inline group selection area */}
+                    {isSelected && (
+                      <div className="border-t border-border pt-4 space-y-3">
+                        {/* Search + Refresh */}
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              value={groupSearch}
+                              onChange={(e) => setGroupSearch(e.target.value)}
+                              placeholder="Buscar grupo..."
+                              className="pl-9"
+                            />
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleSelectGroup(c)}
+                            disabled={loadingGroups}
+                          >
+                            <RefreshCw className={`h-4 w-4 ${loadingGroups ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
+
+                        {/* Error state */}
+                        {fetchError && (
+                          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                            <div className="flex items-start gap-3">
+                              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-sm text-foreground font-medium mb-1">Não foi possível buscar grupos</p>
+                                <p className="text-xs text-muted-foreground">{fetchError}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Loading state */}
+                        {loadingGroups && availableGroups.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-10 gap-3">
+                            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                            <p className="text-sm text-muted-foreground">Buscando grupos da instância...</p>
+                          </div>
+                        ) : filteredGroups.length > 0 ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-muted-foreground">{filteredGroups.length} grupo(s) encontrados</p>
+                              {fetchingPictures && <Loader2 className="h-3 w-3 text-muted-foreground animate-spin" />}
+                            </div>
+                            {filteredGroups.map((g) => {
+                              const isCurrentGroup = c.group_jid === g.id;
+                              const initials = g.subject.slice(0, 2).toUpperCase();
+                              return (
+                                <button
+                                  key={g.id}
+                                  onClick={() => handleSaveGroup(g.id, g.subject)}
+                                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors text-left ${
+                                    isCurrentGroup
+                                      ? 'border-primary/30 bg-primary/5'
+                                      : 'border-border hover:bg-accent/50'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <Avatar className="h-9 w-9 shrink-0">
+                                      {g.pictureUrl && <AvatarImage src={g.pictureUrl} alt={g.subject} />}
+                                      <AvatarFallback className={`text-xs font-medium ${isCurrentGroup ? 'bg-primary/10 text-primary' : ''}`}>
+                                        {initials}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">{g.subject}</p>
+                                      <p className="text-xs text-muted-foreground">{g.size} participantes</p>
+                                    </div>
+                                  </div>
+                                  {isCurrentGroup && (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 shrink-0">
+                                      <Check className="h-3 w-3" /> Selecionado
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : !loadingGroups && !fetchError && availableGroups.length === 0 && (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">Nenhum grupo encontrado na instância</p>
+                            <p className="text-xs mt-1">Verifique se a instância está conectada e participa de grupos</p>
+                          </div>
+                        )}
+
+                        {/* Manual add fallback */}
+                        <div className="border-t border-border pt-4 mt-2">
+                          {!addingManual ? (
+                            <Button onClick={() => setAddingManual(true)} variant="ghost" className="gap-2 text-muted-foreground">
+                              <Plus className="h-4 w-4" /> Adicionar manualmente
+                            </Button>
+                          ) : (
+                            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                              <h4 className="text-sm font-semibold text-foreground">Adicionar Manualmente</h4>
+                              <div>
+                                <Label className="text-xs">Nome do Grupo</Label>
+                                <Input
+                                  value={manualGroupName}
+                                  onChange={(e) => setManualGroupName(e.target.value)}
+                                  placeholder="Ex: Financeiro IA"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">ID do Grupo (JID)</Label>
+                                <Input
+                                  value={manualGroupJid}
+                                  onChange={(e) => setManualGroupJid(e.target.value)}
+                                  placeholder="Ex: 120363001234567890@g.us"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button onClick={handleManualGroupAdd} size="sm" className="gap-1" disabled={!manualGroupJid.trim()}>
+                                  <Check className="h-3.5 w-3.5" /> Salvar
+                                </Button>
+                                <Button onClick={() => setAddingManual(false)} size="sm" variant="outline">
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </TabsContent>
