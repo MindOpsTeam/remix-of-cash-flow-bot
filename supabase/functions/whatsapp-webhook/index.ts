@@ -277,8 +277,31 @@ async function executePendingAction({
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const paymentSource = action.payment_source as "pf" | "pj" | "unknown" | undefined;
 
+  // ── Buscar nomes de contas e categorias para confirmação rica ──────────
+  let accountName = "—";
+  let categoryName = "—";
+  let currentBalance: number | null = null;
+
   if (forceSide === "pf") {
+    const [catRes, accRes] = await Promise.all([
+      action.pf_category_id
+        ? supabase.from("personal_categories").select("name").eq("id", action.pf_category_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      action.pf_account_id
+        ? supabase.from("personal_accounts").select("name, current_balance").eq("id", action.pf_account_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    categoryName = catRes.data?.name || "Sem categoria";
+    accountName = accRes.data?.name || "Carteira";
+    currentBalance = accRes.data?.current_balance != null ? Number(accRes.data.current_balance) : null;
+
     await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
+
+    // Recalcular saldo após inserção
+    if (action.pf_account_id) {
+      const { data: updatedAcc } = await supabase.from("personal_accounts").select("current_balance").eq("id", action.pf_account_id).maybeSingle();
+      if (updatedAcc) currentBalance = Number(updatedAcc.current_balance);
+    }
 
     // MISTO normal: usuário confirmou PF mas pagou com conta da empresa → criar retirada
     if (paymentSource === "pj") {
@@ -297,16 +320,33 @@ async function executePendingAction({
       if (ownerErr) console.error("Owner transaction (retirada) error:", ownerErr);
     }
 
+    const balanceStr = currentBalance != null ? ` (saldo atual: ${fmt(currentBalance)})` : "";
     await sendWhatsAppMessage(instanceName, remoteJid,
-      `✅ *Lançamento Pessoal registrado!*\n\n` +
-      `💰 *Valor:* ${fmt(action.amount)}\n` +
-      `📝 *Descrição:* ${action.description}\n` +
+      `✅ *Transação registrada!*\n\n` +
+      `💰 ${fmt(action.amount)} — *${action.type === "revenue" ? "Receita" : "Despesa"}*\n` +
+      `📂 *Categoria:* ${categoryName}\n` +
+      `🏦 *Conta:* ${accountName}${balanceStr}\n` +
       `📅 *Data:* ${action.date || today}\n` +
-      `_Registrado no módulo Pessoal (PF)._` +
-      (paymentSource === "pj" ? `\n_⚠️ Retirada criada para manter separação patrimonial._` : ""),
+      `📍 *Módulo:* Pessoal (PF)` +
+      (paymentSource === "pj" ? `\n\n_⚠️ Retirada criada automaticamente para manter a separação patrimonial._` : ""),
       evolutionUrl, evolutionKey
     );
   } else {
+    const [accRes, ccRes, bankRes] = await Promise.all([
+      action.pj_account_id
+        ? supabase.from("chart_of_accounts").select("name").eq("id", action.pj_account_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      action.pj_cost_center_id
+        ? supabase.from("cost_centers").select("name").eq("id", action.pj_cost_center_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      action.pj_bank_account_id
+        ? supabase.from("bank_accounts").select("name").eq("id", action.pj_bank_account_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    const chartAccountName = accRes.data?.name || "Sem classificação";
+    const costCenterName = ccRes.data?.name || "—";
+    const bankName = bankRes.data?.name || "—";
+
     await insertPjTransaction({ supabase, action, companyId: pending.company_id, userId: pending.user_id, today });
 
     // MISTO reverso: usuário confirmou PJ mas pagou do próprio bolso → criar aporte
@@ -327,12 +367,14 @@ async function executePendingAction({
     }
 
     await sendWhatsAppMessage(instanceName, remoteJid,
-      `✅ *Lançamento Empresarial registrado!*\n\n` +
-      `💰 *Valor:* ${fmt(action.amount)}\n` +
-      `📝 *Descrição:* ${action.description}\n` +
+      `✅ *Transação registrada!*\n\n` +
+      `💰 ${fmt(action.amount)} — *${action.type === "revenue" ? "Receita" : "Despesa"}*\n` +
+      `📂 *Conta contábil:* ${chartAccountName}\n` +
+      `🏢 *Centro de custo:* ${costCenterName}\n` +
+      `🏦 *Conta bancária:* ${bankName}\n` +
       `📅 *Data:* ${action.date || today}\n` +
-      `_Registrado no módulo Empresa (PJ)._` +
-      (paymentSource === "pf" ? `\n_⚠️ Aporte criado para reembolsar seus recursos pessoais._` : ""),
+      `📍 *Módulo:* Empresa (PJ)` +
+      (paymentSource === "pf" ? `\n\n_⚠️ Aporte criado automaticamente para reembolsar seus recursos pessoais._` : ""),
       evolutionUrl, evolutionKey
     );
   }
