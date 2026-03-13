@@ -217,6 +217,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Serialização: bloquear se já existe pending para este telefone ────────
+    if (pendingRecord) {
+      await sendWhatsAppMessage(instanceName, replyJid,
+        "⏳ Responda a pergunta anterior primeiro (1, 2 ou 0 para cancelar).",
+        evolutionUrl, evolutionKey
+      );
+      return new Response(JSON.stringify({ ok: true, skipped: "pending-exists" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Rodar o agente financeiro ─────────────────────────────────────────────
     await runFinancialAgent({
       text: textContent,
