@@ -1630,6 +1630,77 @@ export type Database = {
           },
         ]
       }
+      nfse_config: {
+        Row: {
+          active: boolean
+          ambiente: string
+          cert_cnpj: string | null
+          cert_expires_at: string | null
+          cert_password: string
+          cert_pfx_base64: string
+          cert_razao_social: string | null
+          codigo_municipio: string | null
+          company_id: string
+          created_at: string
+          id: string
+          inscricao_municipal: string | null
+          last_emission_at: string | null
+          last_test_at: string | null
+          last_test_status: string | null
+          proximo_numero_dps: number
+          serie_dps: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          ambiente?: string
+          cert_cnpj?: string | null
+          cert_expires_at?: string | null
+          cert_password?: string
+          cert_pfx_base64?: string
+          cert_razao_social?: string | null
+          codigo_municipio?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          inscricao_municipal?: string | null
+          last_emission_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          proximo_numero_dps?: number
+          serie_dps?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          ambiente?: string
+          cert_cnpj?: string | null
+          cert_expires_at?: string | null
+          cert_password?: string
+          cert_pfx_base64?: string
+          cert_razao_social?: string | null
+          codigo_municipio?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          inscricao_municipal?: string | null
+          last_emission_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          proximo_numero_dps?: number
+          serie_dps?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nfse_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       owner_transactions: {
         Row: {
           amount: number
