@@ -32,6 +32,7 @@ const CompanySettingsPage = lazy(() => import("./pages/settings/CompanySettings"
 const UsersPage = lazy(() => import("./pages/settings/Users"));
 const BankAccountsPage = lazy(() => import("./pages/settings/BankAccounts"));
 const InterIntegrationPage = lazy(() => import("./pages/settings/InterIntegration"));
+const NfseIntegrationPage = lazy(() => import("./pages/settings/NfseIntegration"));
 const CompanyTransfers = lazy(() => import("./pages/CompanyTransfers"));
 const CompanyBills = lazy(() => import("./pages/CompanyBills"));
 const DocumentScanner = lazy(() => import("./pages/DocumentScanner"));
@@ -127,6 +128,7 @@ const AppRoutes = () => (
       <Route path="/settings/integrations" element={<P><IntegrationsPage /></P>} />
       <Route path="/settings/integrations/asaas" element={<P><AsaasIntegrationPJ /></P>} />
       <Route path="/settings/integrations/inter" element={<P><InterIntegrationPage /></P>} />
+      <Route path="/settings/integrations/nfse" element={<P><NfseIntegrationPage /></P>} />
       <Route path="/settings/preferences" element={<P><PreferencesPage /></P>} />
 
       <Route path="*" element={<NotFound />} />

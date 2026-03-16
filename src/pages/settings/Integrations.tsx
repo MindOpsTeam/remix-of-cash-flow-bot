@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +29,14 @@ const integrationCards = [
     title: "Banco Inter — Empresa",
     description: "Sincronize extrato e saldo via API oficial (OAuth2 + mTLS)",
     to: "/settings/integrations/inter",
+  },
+  {
+    icon: FileText,
+    iconBg: "bg-emerald-500/10",
+    iconColor: "text-emerald-500",
+    title: "NFS-e Nacional",
+    description: "Emissao de NFS-e via API ADN da Receita Federal (certificado A1)",
+    to: "/settings/integrations/nfse",
   },
 ];
 
