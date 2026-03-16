@@ -82,9 +82,8 @@ export default function FiscalPage() {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Notas fiscais emitidas e recebidas</p>
           </div>
-          <Button disabled>
+          <Button>
             <Plus className="h-4 w-4 mr-1.5" /> Emitir NF-e
-            <Badge variant="secondary" className="ml-2 text-[10px]">Em breve</Badge>
           </Button>
         </div>
 
