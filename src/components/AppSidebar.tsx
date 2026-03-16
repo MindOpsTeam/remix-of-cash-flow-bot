@@ -2,7 +2,6 @@ import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
-import { useAppMode } from "@/hooks/useAppMode";
 import logo from "@/assets/logo.png";
 import {
   LayoutDashboard,
@@ -16,20 +15,18 @@ import {
   TrendingUp,
   FileText,
   FlaskConical,
-  Wallet,
-  User,
-  Building2,
   ArrowUpDown,
   Receipt,
   ScanLine,
   Scale,
-  Tag,
-  PiggyBank,
-  Target,
-  CreditCard,
   ChevronDown,
   Plug,
-  GitMerge,
+  Users,
+  Package,
+  ShoppingCart,
+  ShoppingBag,
+  Warehouse,
+  FileCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -56,17 +53,45 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 
 // ---------- Navigation structure ----------
 
-const businessNav: NavEntry[] = [
+const mainNav: NavEntry[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   {
-    key: "ops",
+    key: "finance",
     label: "Financeiro",
     icon: ArrowLeftRight,
     items: [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
       { to: "/bills", label: "Contas a Pagar", icon: Receipt },
+      { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },
       { to: "/documents", label: "Scanner OCR", icon: ScanLine },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
+    ],
+  },
+  {
+    key: "cadastros",
+    label: "Cadastros",
+    icon: Users,
+    items: [
+      { to: "/contacts", label: "Clientes / Fornecedores", icon: Users },
+      { to: "/products", label: "Produtos / Serviços", icon: Package },
+    ],
+  },
+  {
+    key: "sales",
+    label: "Vendas",
+    icon: ShoppingCart,
+    items: [
+      { to: "/sales", label: "Pedidos / Orçamentos", icon: ShoppingCart },
+      { to: "/fiscal", label: "Notas Fiscais", icon: FileCheck },
+    ],
+  },
+  {
+    key: "purchases",
+    label: "Compras",
+    icon: ShoppingBag,
+    items: [
+      { to: "/purchases", label: "Pedidos de Compra", icon: ShoppingBag },
+      { to: "/stock", label: "Estoque", icon: Warehouse },
     ],
   },
   {
@@ -96,71 +121,17 @@ const businessNav: NavEntry[] = [
     icon: Plug,
     items: [
       { to: "/settings/integrations", label: "Configurar", icon: Plug },
-      { to: "/transfers", label: "Movimentações Asaas", icon: ArrowUpDown },
     ],
   },
 ];
-
-const personalNav: NavEntry[] = [
-  { to: "/personal", label: "Dashboard", icon: LayoutDashboard },
-  {
-    key: "finance",
-    label: "Financeiro",
-    icon: ArrowLeftRight,
-    items: [
-      { to: "/personal/transactions", label: "Transações", icon: ArrowLeftRight },
-      { to: "/personal/transfers", label: "Transferências", icon: ArrowUpDown },
-      { to: "/personal/bills", label: "Contas a Pagar", icon: Receipt },
-      { to: "/personal/credit-cards", label: "Cartões", icon: CreditCard },
-      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
-      { to: "/personal/reconciliation", label: "Conciliação", icon: GitMerge },
-      { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
-    ],
-  },
-  {
-    key: "plan",
-    label: "Planejamento",
-    icon: Target,
-    items: [
-      { to: "/personal/budgets", label: "Orçamentos", icon: PiggyBank },
-      { to: "/personal/goals", label: "Metas", icon: Target },
-    ],
-  },
-  {
-    key: "analysis",
-    label: "Análise",
-    icon: PieChart,
-    items: [
-      { to: "/personal/reports", label: "Relatórios", icon: PieChart },
-      { to: "/personal/forecast", label: "Previsão Fluxo", icon: TrendingUp },
-      { to: "/personal/summary", label: "Resumo Executivo", icon: FileText },
-    ],
-  },
-  { to: "/personal/integrations", label: "Integrações", icon: Plug },
-  { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
-];
-
-const personalSettingsGroup: NavGroup = {
-  key: "config",
-  label: "Configurações",
-  icon: Settings,
-  items: [
-    { to: "/personal/accounts", label: "Contas", icon: Wallet },
-    { to: "/personal/categories", label: "Categorias", icon: Tag },
-    { to: "/personal/settings", label: "Geral", icon: Settings },
-  ],
-};
 
 // ---------- Helpers ----------
 
-function getActiveGroup(nav: NavEntry[], pathname: string, extra?: NavGroup): string | null {
+function getActiveGroup(nav: NavEntry[], pathname: string): string | null {
   for (const entry of nav) {
-    if (isGroup(entry) && entry.items.some((i) => pathname === i.to)) {
+    if (isGroup(entry) && entry.items.some((i) => pathname === i.to || pathname.startsWith(i.to + "/"))) {
       return entry.key;
     }
-  }
-  if (extra && extra.items.some((i) => pathname === i.to)) {
-    return extra.key;
   }
   return null;
 }
@@ -208,7 +179,7 @@ function NavGroupSection({
   onToggle: () => void;
   onNavigate?: () => void;
 }) {
-  const hasActive = group.items.some((i) => pathname === i.to);
+  const hasActive = group.items.some((i) => pathname === i.to || pathname.startsWith(i.to + "/"));
 
   return (
     <div>
@@ -237,7 +208,7 @@ function NavGroupSection({
             <NavLink
               key={item.to}
               item={item}
-              isActive={pathname === item.to}
+              isActive={pathname === item.to || pathname.startsWith(item.to + "/")}
               onClick={onNavigate}
             />
           ))}
@@ -253,25 +224,20 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const { signOut } = useAuth();
   const { company } = useCompany();
-  const { setMode, isPersonal } = useAppMode();
-
-  const nav = isPersonal ? personalNav : businessNav;
-
-  const extraGroup = isPersonal ? personalSettingsGroup : undefined;
 
   // Track which groups are open
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
-    const active = getActiveGroup(nav, location.pathname, extraGroup);
+    const active = getActiveGroup(mainNav, location.pathname);
     return new Set(active ? [active] : []);
   });
 
   // Auto-open group when route changes
   useEffect(() => {
-    const active = getActiveGroup(nav, location.pathname, extraGroup);
+    const active = getActiveGroup(mainNav, location.pathname);
     if (active && !openGroups.has(active)) {
       setOpenGroups((prev) => new Set([...prev, active]));
     }
-  }, [location.pathname, nav]);
+  }, [location.pathname]);
 
   const toggleGroup = (key: string) => {
     setOpenGroups((prev) => {
@@ -295,37 +261,9 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      {/* Mode Switcher */}
-      <div className="px-3 mb-3">
-        <div className="flex rounded-md bg-sidebar-accent p-0.5">
-          <button
-            onClick={() => setMode("personal")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
-              isPersonal
-                ? "bg-sidebar-border text-sidebar-foreground"
-                : "text-sidebar-muted hover:text-sidebar-foreground"
-            }`}
-          >
-            <User className="h-3.5 w-3.5" />
-            Pessoal
-          </button>
-          <button
-            onClick={() => setMode("business")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
-              !isPersonal
-                ? "bg-sidebar-border text-sidebar-foreground"
-                : "text-sidebar-muted hover:text-sidebar-foreground"
-            }`}
-          >
-            <Building2 className="h-3.5 w-3.5" />
-            Empresa
-          </button>
-        </div>
-      </div>
-
       {/* Navigation */}
       <nav className="flex-1 min-h-0 px-3 space-y-0.5 overflow-y-auto">
-        {nav.map((entry) =>
+        {mainNav.map((entry) =>
           isGroup(entry) ? (
             <NavGroupSection
               key={entry.key}
@@ -349,21 +287,11 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Settings — fixed at bottom */}
       <div className="mx-4 mt-2 h-px bg-sidebar-border" />
       <div className="px-3 py-2">
-        {isPersonal ? (
-          <NavGroupSection
-            group={personalSettingsGroup}
-            pathname={location.pathname}
-            isOpen={openGroups.has("config")}
-            onToggle={() => toggleGroup("config")}
-            onNavigate={onNavigate}
-          />
-        ) : (
-          <NavLink
-            item={{ to: "/settings", label: "Configurações", icon: Settings }}
-            isActive={location.pathname.startsWith("/settings")}
-            onClick={onNavigate}
-          />
-        )}
+        <NavLink
+          item={{ to: "/settings", label: "Configurações", icon: Settings }}
+          isActive={location.pathname.startsWith("/settings")}
+          onClick={onNavigate}
+        />
       </div>
 
       {/* Separator */}
@@ -381,7 +309,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* Active Company */}
-      {!isPersonal && company && (
+      {company && (
         <div className="p-3 mx-3 mb-4 rounded-md bg-sidebar-accent">
           <p className="text-[11px] text-sidebar-muted mb-0.5">Empresa ativa</p>
           <p className="text-[13px] font-medium text-sidebar-foreground">{company.name}</p>

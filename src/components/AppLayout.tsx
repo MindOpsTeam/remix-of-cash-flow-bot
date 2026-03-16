@@ -4,7 +4,6 @@ import { CFOChatWidget } from "./CFOChatWidget";
 import { NotificationBell } from "./NotificationBell";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
-import { useAppMode } from "@/hooks/useAppMode";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -12,7 +11,6 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { isBusiness } = useAppMode();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -45,7 +43,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </div>
       </main>
-      {isBusiness && <CFOChatWidget />}
+      <CFOChatWidget />
     </div>
   );
 }

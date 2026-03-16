@@ -54,10 +54,7 @@ export function useOwnerTransactions() {
       filter: `user_id=eq.${user.id}`,
       queryKeys: [
         ["owner_transactions"],
-        ["personal_transactions"],
         ["transactions"],
-        ["personal_accounts"],
-        ["personal_kpis"],
       ],
     }];
   }, [user?.id]);
@@ -112,12 +109,7 @@ export function useOwnerTransactions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["owner_transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_transactions"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_kpis"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_month_compare"] });
-      queryClient.invalidateQueries({ queryKey: ["personal_monthly_chart"] });
       toast.success("Transferência sócio ↔ empresa registrada!");
     },
     onError: (err) => {

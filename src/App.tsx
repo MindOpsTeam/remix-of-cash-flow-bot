@@ -5,10 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CompanyProvider } from "@/hooks/useCompany";
-import { AppModeProvider } from "@/hooks/useAppMode";
 import { lazy, Suspense, ReactNode } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { BusinessRoute, PersonalRoute } from "@/components/ModeRoute";
 
 // Eagerly loaded (used on first render / small)
 import Auth from "./pages/Auth";
@@ -34,27 +32,22 @@ const CompanySettingsPage = lazy(() => import("./pages/settings/CompanySettings"
 const UsersPage = lazy(() => import("./pages/settings/Users"));
 const BankAccountsPage = lazy(() => import("./pages/settings/BankAccounts"));
 const InterIntegrationPage = lazy(() => import("./pages/settings/InterIntegration"));
-const PersonalPreferences = lazy(() => import("./pages/personal/PersonalPreferences"));
-const AsaasIntegrationPF = lazy(() => import("./pages/personal/AsaasIntegrationPF"));
-const PersonalDashboard = lazy(() => import("./pages/personal/PersonalDashboard"));
-const PersonalTransactions = lazy(() => import("./pages/personal/PersonalTransactions"));
-const PersonalAccounts = lazy(() => import("./pages/personal/PersonalAccounts"));
-const PersonalForecast = lazy(() => import("./pages/personal/PersonalForecast"));
-const PersonalSummary = lazy(() => import("./pages/personal/PersonalSummary"));
-const PersonalSettings = lazy(() => import("./pages/personal/PersonalSettings"));
-const PersonalIntegrations = lazy(() => import("./pages/personal/PersonalIntegrations"));
-const PersonalTransfers = lazy(() => import("./pages/personal/PersonalTransfers"));
-const PersonalBills = lazy(() => import("./pages/personal/PersonalBills"));
 const CompanyTransfers = lazy(() => import("./pages/CompanyTransfers"));
 const CompanyBills = lazy(() => import("./pages/CompanyBills"));
 const DocumentScanner = lazy(() => import("./pages/DocumentScanner"));
 const OwnerTransactions = lazy(() => import("./pages/OwnerTransactions"));
-const PersonalReports = lazy(() => import("./pages/personal/PersonalReports"));
-const PersonalCategories = lazy(() => import("./pages/personal/PersonalCategories"));
-const PersonalBudgets = lazy(() => import("./pages/personal/PersonalBudgets"));
-const PersonalGoals = lazy(() => import("./pages/personal/PersonalGoals"));
-const PersonalCreditCards = lazy(() => import("./pages/personal/PersonalCreditCards"));
-const PersonalReconciliation = lazy(() => import("./pages/personal/PersonalReconciliation"));
+
+// Cadastros (ERP)
+const ContactsPage = lazy(() => import("./pages/Contacts"));
+const ProductsPage = lazy(() => import("./pages/Products"));
+
+// Vendas & Compras
+const SalesOrdersPage = lazy(() => import("./pages/SalesOrders"));
+const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
+
+// Estoque & Fiscal
+const StockPage = lazy(() => import("./pages/Stock"));
+const FiscalPage = lazy(() => import("./pages/Fiscal"));
 
 const queryClient = new QueryClient();
 
@@ -82,56 +75,59 @@ function PublicRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+const P = ({ children }: { children: ReactNode }) => (
+  <ProtectedRoute>{children}</ProtectedRoute>
+);
+
 const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route path="/" element={<PublicRoute><Auth /></PublicRoute>} />
 
-      {/* Business routes — guarded by BusinessRoute */}
-      <Route path="/dashboard" element={<ProtectedRoute><BusinessRoute><Index /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/transactions" element={<ProtectedRoute><BusinessRoute><Transactions /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/transfers" element={<ProtectedRoute><BusinessRoute><CompanyTransfers /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/bills" element={<ProtectedRoute><BusinessRoute><CompanyBills /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/dre" element={<ProtectedRoute><BusinessRoute><DRE /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/reports" element={<ProtectedRoute><BusinessRoute><Reports /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/cfo-digital" element={<ProtectedRoute><BusinessRoute><CFODigital /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/forecast" element={<ProtectedRoute><BusinessRoute><CashFlowForecast /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/summary" element={<ProtectedRoute><BusinessRoute><ExecutiveSummary /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/simulator" element={<ProtectedRoute><BusinessRoute><Simulator /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><BusinessRoute><SettingsPage /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings/chart-of-accounts" element={<ProtectedRoute><BusinessRoute><ChartOfAccountsPage /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings/cost-centers" element={<ProtectedRoute><BusinessRoute><CostCentersPage /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings/integrations" element={<ProtectedRoute><BusinessRoute><IntegrationsPage /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings/integrations/asaas" element={<ProtectedRoute><BusinessRoute><AsaasIntegrationPJ /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings/integrations/inter" element={<ProtectedRoute><BusinessRoute><InterIntegrationPage /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings/preferences" element={<ProtectedRoute><BusinessRoute><PreferencesPage /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings/company" element={<ProtectedRoute><BusinessRoute><CompanySettingsPage /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings/users" element={<ProtectedRoute><BusinessRoute><UsersPage /></BusinessRoute></ProtectedRoute>} />
-      <Route path="/settings/bank-accounts" element={<ProtectedRoute><BusinessRoute><BankAccountsPage /></BusinessRoute></ProtectedRoute>} />
+      {/* Dashboard */}
+      <Route path="/dashboard" element={<P><Index /></P>} />
 
-      {/* Shared routes (accessible from both modes) */}
-      <Route path="/documents" element={<ProtectedRoute><DocumentScanner /></ProtectedRoute>} />
-      <Route path="/owner-transactions" element={<ProtectedRoute><OwnerTransactions /></ProtectedRoute>} />
-      <Route path="/whatsapp" element={<ProtectedRoute><WhatsApp /></ProtectedRoute>} />
+      {/* Financeiro */}
+      <Route path="/transactions" element={<P><Transactions /></P>} />
+      <Route path="/transfers" element={<P><CompanyTransfers /></P>} />
+      <Route path="/bills" element={<P><CompanyBills /></P>} />
+      <Route path="/documents" element={<P><DocumentScanner /></P>} />
+      <Route path="/owner-transactions" element={<P><OwnerTransactions /></P>} />
 
-      {/* Personal routes — guarded by PersonalRoute */}
-      <Route path="/personal" element={<ProtectedRoute><PersonalRoute><PersonalDashboard /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/transactions" element={<ProtectedRoute><PersonalRoute><PersonalTransactions /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/transfers" element={<ProtectedRoute><PersonalRoute><PersonalTransfers /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/bills" element={<ProtectedRoute><PersonalRoute><PersonalBills /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/accounts" element={<ProtectedRoute><PersonalRoute><PersonalAccounts /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/forecast" element={<ProtectedRoute><PersonalRoute><PersonalForecast /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/summary" element={<ProtectedRoute><PersonalRoute><PersonalSummary /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/reports" element={<ProtectedRoute><PersonalRoute><PersonalReports /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/categories" element={<ProtectedRoute><PersonalRoute><PersonalCategories /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/settings" element={<ProtectedRoute><PersonalRoute><PersonalSettings /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/integrations" element={<ProtectedRoute><PersonalRoute><PersonalIntegrations /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/integrations/asaas" element={<ProtectedRoute><PersonalRoute><AsaasIntegrationPF /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/settings/preferences" element={<ProtectedRoute><PersonalRoute><PersonalPreferences /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/budgets" element={<ProtectedRoute><PersonalRoute><PersonalBudgets /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/goals" element={<ProtectedRoute><PersonalRoute><PersonalGoals /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/credit-cards" element={<ProtectedRoute><PersonalRoute><PersonalCreditCards /></PersonalRoute></ProtectedRoute>} />
-      <Route path="/personal/reconciliation" element={<ProtectedRoute><PersonalRoute><PersonalReconciliation /></PersonalRoute></ProtectedRoute>} />
+      {/* Cadastros */}
+      <Route path="/contacts" element={<P><ContactsPage /></P>} />
+      <Route path="/products" element={<P><ProductsPage /></P>} />
+
+      {/* Vendas & Compras */}
+      <Route path="/sales" element={<P><SalesOrdersPage /></P>} />
+      <Route path="/purchases" element={<P><PurchaseOrdersPage /></P>} />
+
+      {/* Estoque & Fiscal */}
+      <Route path="/stock" element={<P><StockPage /></P>} />
+      <Route path="/fiscal" element={<P><FiscalPage /></P>} />
+
+      {/* Análise */}
+      <Route path="/dre" element={<P><DRE /></P>} />
+      <Route path="/reports" element={<P><Reports /></P>} />
+      <Route path="/forecast" element={<P><CashFlowForecast /></P>} />
+      <Route path="/summary" element={<P><ExecutiveSummary /></P>} />
+
+      {/* Inteligência */}
+      <Route path="/cfo-digital" element={<P><CFODigital /></P>} />
+      <Route path="/simulator" element={<P><Simulator /></P>} />
+      <Route path="/whatsapp" element={<P><WhatsApp /></P>} />
+
+      {/* Configurações */}
+      <Route path="/settings" element={<P><SettingsPage /></P>} />
+      <Route path="/settings/company" element={<P><CompanySettingsPage /></P>} />
+      <Route path="/settings/users" element={<P><UsersPage /></P>} />
+      <Route path="/settings/bank-accounts" element={<P><BankAccountsPage /></P>} />
+      <Route path="/settings/chart-of-accounts" element={<P><ChartOfAccountsPage /></P>} />
+      <Route path="/settings/cost-centers" element={<P><CostCentersPage /></P>} />
+      <Route path="/settings/integrations" element={<P><IntegrationsPage /></P>} />
+      <Route path="/settings/integrations/asaas" element={<P><AsaasIntegrationPJ /></P>} />
+      <Route path="/settings/integrations/inter" element={<P><InterIntegrationPage /></P>} />
+      <Route path="/settings/preferences" element={<P><PreferencesPage /></P>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -147,9 +143,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <CompanyProvider>
-              <AppModeProvider>
-                <AppRoutes />
-              </AppModeProvider>
+              <AppRoutes />
             </CompanyProvider>
           </AuthProvider>
         </BrowserRouter>

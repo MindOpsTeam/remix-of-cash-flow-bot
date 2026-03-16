@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeftRight, Plus, TrendingUp, TrendingDown, Scale } from "lucide-react";
 import { useOwnerTransactions, OWNER_TX_TYPES, OwnerTransactionFormData, OwnerTxType } from "@/hooks/useOwnerTransactions";
-import { usePersonalAccounts } from "@/hooks/usePersonalAccounts";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -45,7 +44,7 @@ const emptyForm: OwnerTransactionFormData = {
 
 export default function OwnerTransactions() {
   const { transactions, isLoading, summary, createTransaction, isCreating } = useOwnerTransactions();
-  const { accounts: pfAccounts } = usePersonalAccounts();
+  const pfAccounts: { id: string; name: string }[] = []; // PF accounts removed — PJ-only ERP
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<OwnerTransactionFormData>({ ...emptyForm });
 

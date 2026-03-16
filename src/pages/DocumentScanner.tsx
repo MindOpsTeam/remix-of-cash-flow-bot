@@ -16,7 +16,6 @@ import { DocumentUploader } from "@/components/DocumentUploader";
 import { useDocumentScanner, ScanResult } from "@/hooks/useDocumentScanner";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
-import { useAppMode } from "@/hooks/useAppMode";
 import { supabase } from "@/integrations/supabase/client";
 
 function fmt(v: number) {
@@ -49,7 +48,6 @@ export default function DocumentScanner() {
   const { scanning, result, creating, recentScans, scanDocument, createTransactionFromScan, clearResult } = useDocumentScanner();
   const { company } = useCompany();
   const { user } = useAuth();
-  const { isPersonal } = useAppMode();
 
   // Editable overrides
   const [editAmount, setEditAmount] = useState("");
@@ -60,22 +58,13 @@ export default function DocumentScanner() {
   const [editAccountId, setEditAccountId] = useState("");
   const [editCostCenterId, setEditCostCenterId] = useState("");
 
-  // PF fields
-  const [editPfCategoryId, setEditPfCategoryId] = useState("");
-  const [editPfAccountId, setEditPfAccountId] = useState("");
-  const [editPfCreditCardId, setEditPfCreditCardId] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"account" | "credit_card" | "none">("account");
-
   // Options for selects
   const [accounts, setAccounts] = useState<{ id: string; name: string; code: string | null; type: string }[]>([]);
   const [costCenters, setCostCenters] = useState<{ id: string; name: string }[]>([]);
-  const [pfCategories, setPfCategories] = useState<{ id: string; name: string; type: string }[]>([]);
-  const [pfAccounts, setPfAccounts] = useState<{ id: string; name: string; current_balance: number }[]>([]);
-  const [pfCreditCards, setPfCreditCards] = useState<{ id: string; name: string; brand: string | null }[]>([]);
 
   // Load PJ options
   useEffect(() => {
-    if (isPersonal || !company) return;
+    if (!company) return;
     const load = async () => {
       const [accts, ccs] = await Promise.all([
         supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company.id).order("code"),
@@ -85,23 +74,7 @@ export default function DocumentScanner() {
       if (ccs.data) setCostCenters(ccs.data as any);
     };
     load();
-  }, [company, isPersonal]);
-
-  // Load PF options
-  useEffect(() => {
-    if (!isPersonal || !user) return;
-    const load = async () => {
-      const [cats, accs, cards] = await Promise.all([
-        supabase.from("personal_categories").select("id, name, type").or(`user_id.eq.${user.id},user_id.is.null`).order("name"),
-        supabase.from("personal_accounts").select("id, name, current_balance").eq("user_id", user.id).eq("is_active", true).order("name"),
-        supabase.from("personal_credit_cards").select("id, name, brand").eq("user_id", user.id).eq("is_active", true).order("name"),
-      ]);
-      if (cats.data) setPfCategories(cats.data);
-      if (accs.data) setPfAccounts(accs.data);
-      if (cards.data) setPfCreditCards(cards.data);
-    };
-    load();
-  }, [user, isPersonal]);
+  }, [company]);
 
   // Populate editable fields when result arrives
   useEffect(() => {
@@ -112,10 +85,6 @@ export default function DocumentScanner() {
     setEditType(result.transaction_type || "expense");
     setEditAccountId(result.suggested_account_id || "");
     setEditCostCenterId(result.suggested_cost_center_id || "");
-    setEditPfCategoryId("");
-    setEditPfAccountId("");
-    setEditPfCreditCardId("");
-    setPaymentMethod("account");
 
     // Auto-detect pending: boleto or future date
     const today = new Date().toISOString().split("T")[0];
@@ -127,12 +96,6 @@ export default function DocumentScanner() {
   const filteredAccounts = accounts.filter((a) =>
     editType === "revenue" ? a.type === "revenue" : a.type === "expense"
   );
-
-  const filteredPfCategories = pfCategories.filter((c) => {
-    const wantType = editType === "revenue" ? "income" : "expense";
-    const pfType = editType === "revenue" ? "receita" : "despesa";
-    return c.type === wantType || c.type === pfType;
-  });
 
   const handleCreate = async () => {
     if (!result) return;
@@ -147,9 +110,6 @@ export default function DocumentScanner() {
       status: editStatus,
       account_id: editAccountId || undefined,
       cost_center_id: editCostCenterId || undefined,
-      pf_category_id: editPfCategoryId || undefined,
-      pf_account_id: paymentMethod === "account" ? editPfAccountId || undefined : undefined,
-      pf_credit_card_id: paymentMethod === "credit_card" ? editPfCreditCardId || undefined : undefined,
     });
   };
 
@@ -229,7 +189,7 @@ export default function DocumentScanner() {
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">Tipo</Label>
-                    <Select value={editType} onValueChange={(v) => { setEditType(v as any); setEditAccountId(""); setEditPfCategoryId(""); }}>
+                    <Select value={editType} onValueChange={(v) => { setEditType(v as any); setEditAccountId(""); }}>
                       <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="expense">Despesa</SelectItem>
@@ -263,97 +223,30 @@ export default function DocumentScanner() {
                     <Label className="text-xs">Valor (R$)</Label>
                     <Input value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="mt-1 h-9 font-mono" />
                   </div>
-
-                  {/* PF: Category */}
-                  {isPersonal && (
-                    <div>
-                      <Label className="text-xs">Categoria</Label>
-                      <Select value={editPfCategoryId} onValueChange={setEditPfCategoryId}>
-                        <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent>
-                          {filteredPfCategories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {/* PJ: Account */}
-                  {!isPersonal && (
-                    <div>
-                      <Label className="text-xs">Conta Contábil</Label>
-                      <Select value={editAccountId} onValueChange={setEditAccountId}>
-                        <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                        <SelectContent>
-                          {filteredAccounts.map((a) => (
-                            <SelectItem key={a.id} value={a.id}>{a.code ? `${a.code} ` : ""}{a.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-
-                {/* PF: Payment method (only when confirmed) */}
-                {isPersonal && editStatus === "confirmed" && (
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs">Forma de pagamento</Label>
-                      <Select value={paymentMethod} onValueChange={(v) => { setPaymentMethod(v as any); setEditPfAccountId(""); setEditPfCreditCardId(""); }}>
-                        <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="account">PIX / Débito / Conta</SelectItem>
-                          <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
-                          <SelectItem value="none">Dinheiro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {paymentMethod === "account" && pfAccounts.length > 0 && (
-                      <div>
-                        <Label className="text-xs">Conta</Label>
-                        <Select value={editPfAccountId} onValueChange={setEditPfAccountId}>
-                          <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                          <SelectContent>
-                            {pfAccounts.map((a) => (
-                              <SelectItem key={a.id} value={a.id}>{a.name} ({fmt(a.current_balance)})</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    {paymentMethod === "credit_card" && pfCreditCards.length > 0 && (
-                      <div>
-                        <Label className="text-xs">Cartão</Label>
-                        <Select value={editPfCreditCardId} onValueChange={setEditPfCreditCardId}>
-                          <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                          <SelectContent>
-                            {pfCreditCards.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>{c.name}{c.brand ? ` (${c.brand})` : ""}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* PJ: Cost center */}
-                {!isPersonal && (
                   <div>
-                    <Label className="text-xs">Centro de Custo</Label>
-                    <Select value={editCostCenterId} onValueChange={setEditCostCenterId}>
+                    <Label className="text-xs">Conta Contábil</Label>
+                    <Select value={editAccountId} onValueChange={setEditAccountId}>
                       <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                       <SelectContent>
-                        {costCenters.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        {filteredAccounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>{a.code ? `${a.code} ` : ""}{a.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+                </div>
+
+                <div>
+                  <Label className="text-xs">Centro de Custo</Label>
+                  <Select value={editCostCenterId} onValueChange={setEditCostCenterId}>
+                    <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {costCenters.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Actions */}
@@ -380,7 +273,7 @@ export default function DocumentScanner() {
               {recentScans.map((scan) => (
                 <div key={scan.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
                   <div className={`flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center ${
-                    scan.type === "revenue" || scan.type === "receita" ? "bg-revenue/10 text-revenue" : "bg-expense/10 text-expense"
+                    scan.type === "revenue" ? "bg-revenue/10 text-revenue" : "bg-expense/10 text-expense"
                   }`}>
                     {scan.status === "pending" ? <Clock className="h-4 w-4" /> : <ScanLine className="h-4 w-4" />}
                   </div>
@@ -398,9 +291,9 @@ export default function DocumentScanner() {
                     </div>
                   </div>
                   <span className={`text-sm font-semibold font-mono ${
-                    scan.type === "revenue" || scan.type === "receita" ? "text-revenue" : "text-expense"
+                    scan.type === "revenue" ? "text-revenue" : "text-expense"
                   }`}>
-                    {scan.type === "expense" || scan.type === "despesa" ? "-" : "+"}{fmt(Number(scan.amount))}
+                    {scan.type === "expense" ? "-" : "+"}{fmt(Number(scan.amount))}
                   </span>
                 </div>
               ))}

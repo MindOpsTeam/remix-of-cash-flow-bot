@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { KPICard } from "@/components/KPICard";
 import { TransactionRow } from "@/components/TransactionRow";
 import { formatCurrency } from "@/lib/utils";
-import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2, ArrowRight, Brain, MessageSquare } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2, ArrowRight, Brain, MessageSquare, Users, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -177,6 +177,32 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">Agente WhatsApp</p>
                   <p className="text-xs text-muted-foreground truncate">Lançamentos por mensagem</p>
+                </div>
+              </div>
+            </Link>
+          </div>
+
+          {/* Quick access: Cadastros */}
+          <div className="flex gap-3 mb-6">
+            <Link to="/contacts" className="flex-1 group">
+              <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
+                <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                  <Users className="h-4 w-4 text-blue-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">Clientes & Fornecedores</p>
+                  <p className="text-xs text-muted-foreground truncate">Cadastro unificado</p>
+                </div>
+              </div>
+            </Link>
+            <Link to="/products" className="flex-1 group">
+              <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                  <Package className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">Produtos & Serviços</p>
+                  <p className="text-xs text-muted-foreground truncate">Catálogo e preços</p>
                 </div>
               </div>
             </Link>
