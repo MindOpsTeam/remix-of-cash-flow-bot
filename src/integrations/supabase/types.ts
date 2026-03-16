@@ -1311,6 +1311,98 @@ export type Database = {
           },
         ]
       }
+      contacts: {
+        Row: {
+          active: boolean
+          city: string | null
+          company_id: string
+          complement: string | null
+          created_at: string
+          credit_limit: number | null
+          default_payment_terms: number | null
+          document: string | null
+          email: string | null
+          id: string
+          name: string
+          neighborhood: string | null
+          notes: string | null
+          number: string | null
+          person_type: string
+          phone: string | null
+          state: string | null
+          state_registration: string | null
+          street: string | null
+          trade_name: string | null
+          type: string
+          updated_at: string
+          website: string | null
+          whatsapp: string | null
+          zip_code: string | null
+        }
+        Insert: {
+          active?: boolean
+          city?: string | null
+          company_id: string
+          complement?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          default_payment_terms?: number | null
+          document?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          neighborhood?: string | null
+          notes?: string | null
+          number?: string | null
+          person_type?: string
+          phone?: string | null
+          state?: string | null
+          state_registration?: string | null
+          street?: string | null
+          trade_name?: string | null
+          type?: string
+          updated_at?: string
+          website?: string | null
+          whatsapp?: string | null
+          zip_code?: string | null
+        }
+        Update: {
+          active?: boolean
+          city?: string | null
+          company_id?: string
+          complement?: string | null
+          created_at?: string
+          credit_limit?: number | null
+          default_payment_terms?: number | null
+          document?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          neighborhood?: string | null
+          notes?: string | null
+          number?: string | null
+          person_type?: string
+          phone?: string | null
+          state?: string | null
+          state_registration?: string | null
+          street?: string | null
+          trade_name?: string | null
+          type?: string
+          updated_at?: string
+          website?: string | null
+          whatsapp?: string | null
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_centers: {
         Row: {
           active: boolean
@@ -2240,6 +2332,93 @@ export type Database = {
             columns: ["to_account_id"]
             isOneToOne: false
             referencedRelation: "personal_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          account_id: string | null
+          active: boolean
+          barcode: string | null
+          category: string | null
+          cfop: string | null
+          company_id: string
+          cost_price: number | null
+          created_at: string
+          current_stock: number | null
+          description: string | null
+          id: string
+          min_stock: number | null
+          name: string
+          ncm: string | null
+          sell_price: number
+          sku: string | null
+          tax_origin: string | null
+          track_stock: boolean
+          type: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          active?: boolean
+          barcode?: string | null
+          category?: string | null
+          cfop?: string | null
+          company_id: string
+          cost_price?: number | null
+          created_at?: string
+          current_stock?: number | null
+          description?: string | null
+          id?: string
+          min_stock?: number | null
+          name: string
+          ncm?: string | null
+          sell_price?: number
+          sku?: string | null
+          tax_origin?: string | null
+          track_stock?: boolean
+          type?: string
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          active?: boolean
+          barcode?: string | null
+          category?: string | null
+          cfop?: string | null
+          company_id?: string
+          cost_price?: number | null
+          created_at?: string
+          current_stock?: number | null
+          description?: string | null
+          id?: string
+          min_stock?: number | null
+          name?: string
+          ncm?: string | null
+          sell_price?: number
+          sku?: string | null
+          tax_origin?: string | null
+          track_stock?: boolean
+          type?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
