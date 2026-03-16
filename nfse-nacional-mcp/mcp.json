@@ -1,0 +1,28 @@
+{
+  "name": "nfse-nacional",
+  "version": "1.0.0",
+  "description": "MCP para integração com a API NFS-e Nacional (ADN - Receita Federal)",
+  "transport": "stdio",
+  "env": {
+    "NFSE_AMBIENTE": { "required": true, "enum": ["producao", "homologacao"], "default": "homologacao" },
+    "NFSE_CERT_PATH": { "required": true, "description": "Caminho para o .pfx do certificado A1" },
+    "NFSE_CERT_PASSWORD": { "required": true, "secret": true },
+    "NFSE_CERT_STORAGE": { "default": "file", "enum": ["file", "vault", "supabase"] }
+  },
+  "tools": [
+    "nfse_emitir",
+    "nfse_emitir_lote",
+    "nfse_cancelar",
+    "nfse_substituir",
+    "nfse_consultar_chave",
+    "nfse_consultar_dfe",
+    "nfse_consultar_lote",
+    "nfse_gerar_danfse",
+    "nfse_parametros_municipio",
+    "nfse_parametros_contribuinte",
+    "nfse_cnc_consultar",
+    "nfse_codigos_servico",
+    "nfse_validar_dps",
+    "nfse_status_ambiente"
+  ]
+}
