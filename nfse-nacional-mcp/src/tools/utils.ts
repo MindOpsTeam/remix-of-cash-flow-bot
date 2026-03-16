@@ -39,7 +39,12 @@ export function nfseValidarDps(
   if (!params.serieDps) {
     erros.push({ campo: "serieDps", mensagem: "Série é obrigatória" });
   } else if (!/^\d+$/.test(params.serieDps)) {
-    erros.push({ campo: "serieDps", mensagem: "Série deve ser numérica (obrigatório a partir de jan/2026)" });
+    // Condicional: >= 2026-01 é erro, antes é aviso
+    if (params.competencia && params.competencia >= "2026-01") {
+      erros.push({ campo: "serieDps", mensagem: `Série "${params.serieDps}" é alfanumérica. A partir de jan/2026, a série deve ser exclusivamente numérica (Resolução CGNFS-e nº 3/2025).` });
+    } else {
+      avisos.push({ campo: "serieDps", mensagem: "Série alfanumérica — será obrigatoriamente numérica a partir de jan/2026" });
+    }
   }
 
   if (!params.numeroDps) {
