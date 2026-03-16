@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { KPICard } from "@/components/KPICard";
 import { TransactionRow } from "@/components/TransactionRow";
 import { formatCurrency } from "@/lib/utils";
-import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2, ArrowRight, Brain, MessageSquare, Users, Package } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, PiggyBank, Loader2, ArrowRight, Brain, MessageSquare, Users, Package, ShoppingCart, AlertTriangle, Warehouse } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -50,6 +50,7 @@ export default function Dashboard() {
   const [prevExpense, setPrevExpense] = useState(0);
   const [chartData, setChartData] = useState<MonthData[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [erpMetrics, setErpMetrics] = useState({ contacts: 0, pendingSales: 0, pendingSalesTotal: 0, lowStock: 0, pendingPurchases: 0 });
 
   const loadData = useCallback(async () => {
     if (!company) return;
@@ -64,11 +65,15 @@ export default function Dashboard() {
     const prevEnd = new Date(curYear, curMonth, 0).toISOString().split("T")[0];
     const sixMonthsAgo = new Date(curYear, curMonth - 5, 1).toISOString().split("T")[0];
 
-    const [curRes, prevRes, chartRes, txRes] = await Promise.all([
+    const [curRes, prevRes, chartRes, txRes, contactsRes, salesRes, purchasesRes, stockRes] = await Promise.all([
       supabase.from("transactions").select("amount, type").eq("company_id", company.id).eq("status", "confirmed").gte("date", curStart).lte("date", curEnd),
       supabase.from("transactions").select("amount, type").eq("company_id", company.id).eq("status", "confirmed").gte("date", prevStart).lte("date", prevEnd),
       supabase.from("transactions").select("date, amount, type").eq("company_id", company.id).eq("status", "confirmed").gte("date", sixMonthsAgo).lte("date", curEnd),
       supabase.from("transactions").select("*, chart_of_accounts(name), cost_centers(name)").eq("company_id", company.id).order("created_at", { ascending: false }).limit(6),
+      supabase.from("contacts").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("active", true),
+      supabase.from("sales_orders").select("id, total").eq("company_id", company.id).in("status", ["quote", "confirmed"]),
+      supabase.from("purchase_orders").select("id").eq("company_id", company.id).in("status", ["draft", "sent"]),
+      supabase.from("products").select("id, current_stock, min_stock").eq("company_id", company.id).eq("active", true).eq("track_stock", true),
     ]);
 
     const curRevenue = (curRes.data || []).filter(t => t.type === "revenue").reduce((s, t) => s + Number(t.amount), 0);
@@ -106,6 +111,16 @@ export default function Dashboard() {
       account_name: t.chart_of_accounts?.name || "-",
       cost_center_name: t.cost_centers?.name || "-",
     })));
+
+    const salesData = salesRes.data || [];
+    const stockData = stockRes.data || [];
+    setErpMetrics({
+      contacts: contactsRes.count ?? 0,
+      pendingSales: salesData.length,
+      pendingSalesTotal: salesData.reduce((s: number, o: any) => s + Number(o.total || 0), 0),
+      pendingPurchases: (purchasesRes.data || []).length,
+      lowStock: stockData.filter((p: any) => p.min_stock && (p.current_stock ?? 0) <= p.min_stock).length,
+    });
     setLoading(false);
   }, [company]);
 
@@ -139,8 +154,8 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="mb-6 animate-fade-in">
-        <h1 className="text-[28px] font-semibold text-foreground tracking-[-0.02em]">Dashboard Financeiro</h1>
-        <p className="text-sm text-muted-foreground mt-1 capitalize">Visão geral de {monthLabel}</p>
+        <h1 className="text-[28px] font-semibold text-foreground tracking-[-0.02em]">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1 capitalize">Visão geral — {monthLabel}</p>
       </div>
 
       {loading ? (
@@ -156,7 +171,40 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* Quick access: CFO + WhatsApp (compact) */}
+          {/* ERP Metrics Strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <Link to="/contacts" className="bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
+              <div className="flex items-center gap-2 mb-1">
+                <Users className="h-3.5 w-3.5 text-blue-500" />
+                <span className="text-xs text-muted-foreground">Contatos</span>
+              </div>
+              <p className="text-lg font-bold">{erpMetrics.contacts}</p>
+            </Link>
+            <Link to="/sales" className="bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
+              <div className="flex items-center gap-2 mb-1">
+                <ShoppingCart className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-xs text-muted-foreground">Vendas Abertas</span>
+              </div>
+              <p className="text-lg font-bold">{erpMetrics.pendingSales}</p>
+              <p className="text-[10px] text-muted-foreground font-mono">{formatCurrency(erpMetrics.pendingSalesTotal)}</p>
+            </Link>
+            <Link to="/purchases" className="bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
+              <div className="flex items-center gap-2 mb-1">
+                <Package className="h-3.5 w-3.5 text-orange-500" />
+                <span className="text-xs text-muted-foreground">Compras Pendentes</span>
+              </div>
+              <p className="text-lg font-bold">{erpMetrics.pendingPurchases}</p>
+            </Link>
+            <Link to="/stock" className={`bg-card border rounded-lg px-4 py-3 hover:border-primary/40 transition-all ${erpMetrics.lowStock > 0 ? "border-amber-500/50" : "border-border"}`}>
+              <div className="flex items-center gap-2 mb-1">
+                {erpMetrics.lowStock > 0 ? <AlertTriangle className="h-3.5 w-3.5 text-amber-500" /> : <Warehouse className="h-3.5 w-3.5 text-muted-foreground" />}
+                <span className="text-xs text-muted-foreground">Estoque Baixo</span>
+              </div>
+              <p className={`text-lg font-bold ${erpMetrics.lowStock > 0 ? "text-amber-600" : ""}`}>{erpMetrics.lowStock}</p>
+            </Link>
+          </div>
+
+          {/* Quick access: AI tools */}
           <div className="flex gap-3 mb-6">
             <Link to="/cfo-digital" className="flex-1 group">
               <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
@@ -177,32 +225,6 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">Agente WhatsApp</p>
                   <p className="text-xs text-muted-foreground truncate">Lançamentos por mensagem</p>
-                </div>
-              </div>
-            </Link>
-          </div>
-
-          {/* Quick access: Cadastros */}
-          <div className="flex gap-3 mb-6">
-            <Link to="/contacts" className="flex-1 group">
-              <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
-                <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                  <Users className="h-4 w-4 text-blue-500" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">Clientes & Fornecedores</p>
-                  <p className="text-xs text-muted-foreground truncate">Cadastro unificado</p>
-                </div>
-              </div>
-            </Link>
-            <Link to="/products" className="flex-1 group">
-              <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3 hover:border-primary/40 transition-all">
-                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                  <Package className="h-4 w-4 text-emerald-500" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">Produtos & Serviços</p>
-                  <p className="text-xs text-muted-foreground truncate">Catálogo e preços</p>
                 </div>
               </div>
             </Link>

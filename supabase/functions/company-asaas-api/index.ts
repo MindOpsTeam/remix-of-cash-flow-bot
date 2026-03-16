@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
           const data = await resp.json() as { data?: Record<string, unknown>[]; totalCount?: number };
           if (!data.data || data.data.length === 0) break;
           for (const t of data.data) {
-            await serviceClient.from("company_asaas_transfers").upsert(mapTransferData("company_id", company_id as string, t), { onConflict: "company_id,asaas_id" });
+            await serviceClient.from("company_asaas_transfers").upsert(mapTransferData(company_id as string, t), { onConflict: "company_id,asaas_id" });
             totalSynced++;
           }
           if (!data.totalCount || offset + limit >= data.totalCount) break;
@@ -320,7 +320,7 @@ Deno.serve(async (req) => {
           const data = await resp.json() as { data?: Record<string, unknown>[]; totalCount?: number };
           if (!data.data || data.data.length === 0) break;
           for (const b of data.data) {
-            await serviceClient.from("company_asaas_bills").upsert(mapBillData("company_id", company_id as string, b), { onConflict: "company_id,asaas_id" });
+            await serviceClient.from("company_asaas_bills").upsert(mapBillData(company_id as string, b), { onConflict: "company_id,asaas_id" });
             totalSynced++;
           }
           if (!data.totalCount || offset + limit >= data.totalCount) break;
@@ -339,7 +339,7 @@ Deno.serve(async (req) => {
           const data = await resp.json() as { data?: Record<string, unknown>[]; totalCount?: number };
           if (!data.data || data.data.length === 0) break;
           for (const s of data.data) {
-            await serviceClient.from("company_asaas_subscriptions").upsert(mapSubscriptionData("company_id", company_id as string, s), { onConflict: "company_id,asaas_id" });
+            await serviceClient.from("company_asaas_subscriptions").upsert(mapSubscriptionData(company_id as string, s), { onConflict: "company_id,asaas_id" });
             totalSynced++;
           }
           if (!data.totalCount || offset + limit >= data.totalCount) break;

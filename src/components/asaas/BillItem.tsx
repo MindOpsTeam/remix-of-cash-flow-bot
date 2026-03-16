@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Receipt, Check } from "lucide-react";
-import type { AsaasBill } from "@/hooks/useAsaasBills";
+import type { AsaasBill } from "@/hooks/useCompanyAsaasBills";
 
 function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);

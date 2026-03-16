@@ -140,10 +140,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { pjType, pfType } = getDirection(transactionType);
+    const { pjType } = getDirection(transactionType);
     const label = TYPE_LABELS[transactionType] || transactionType;
     const pjDescription = `${label}${description !== label ? ` - ${description}` : ""}`;
-    const pfTitle = pjDescription;
 
     // 0. Idempotency: check for duplicate within 5 minutes
     const { data: existingTx } = await supabase
@@ -218,41 +217,15 @@ Deno.serve(async (req) => {
       throw pjError;
     }
 
-    // 3. Insert PF transaction
-    const { data: pfTx, error: pfError } = await supabase
-      .from("personal_transactions")
-      .insert({
-        user_id: userId,
-        date,
-        title: pfTitle,
-        amount,
-        type: pfType === "revenue" ? "receita" : "despesa",
-        status: "confirmed",
-        source: "owner_transfer",
-        account_id: pfAccountId,
-      })
-      .select("id")
-      .single();
-
-    if (pfError) {
-      // Rollback both
-      await supabase.from("transactions").delete().eq("id", pjTx.id);
-      await supabase.from("owner_transactions").delete().eq("id", ownerTx.id);
-      throw pfError;
-    }
-
-    // 4. Update owner_transaction with references
+    // 3. Update owner_transaction with PJ reference
     const { error: updateError } = await supabase
       .from("owner_transactions")
       .update({
         pj_transaction_id: pjTx.id,
-        pf_transaction_id: pfTx.id,
       })
       .eq("id", ownerTx.id);
 
     if (updateError) {
-      // Rollback all 3 records
-      await supabase.from("personal_transactions").delete().eq("id", pfTx.id);
       await supabase.from("transactions").delete().eq("id", pjTx.id);
       await supabase.from("owner_transactions").delete().eq("id", ownerTx.id);
       throw updateError;
@@ -264,7 +237,6 @@ Deno.serve(async (req) => {
         data: {
           id: ownerTx.id,
           pj_transaction_id: pjTx.id,
-          pf_transaction_id: pfTx.id,
         },
       }),
       {

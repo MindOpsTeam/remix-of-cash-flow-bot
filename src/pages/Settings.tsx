@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark } from "lucide-react";
+import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -36,6 +36,13 @@ const sections = [
     title: "Centros de Custo",
     description: "Departamentos, projetos e clientes",
     to: "/settings/cost-centers",
+    available: true,
+  },
+  {
+    icon: Plug,
+    title: "Integrações",
+    description: "Asaas, Banco Inter e outros serviços conectados",
+    to: "/settings/integrations",
     available: true,
   },
   {

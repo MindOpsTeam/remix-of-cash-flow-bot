@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
     }
 
     // Process event into structured table (payments, transfers, bills, etc.)
-    await processEvent(supabase, "company_id", config.company_id, eventCategory, body);
+    await processEvent(supabase, config.company_id, eventCategory, body);
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

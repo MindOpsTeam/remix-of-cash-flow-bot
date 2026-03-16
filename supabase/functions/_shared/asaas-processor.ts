@@ -1,6 +1,6 @@
 /**
  * Shared Asaas event processor for webhook handlers.
- * Processes events into structured tables for both PF (user_id) and PJ (company_id).
+ * Processes events into structured company_asaas_* tables.
  */
 
 // deno-lint-ignore no-explicit-any
@@ -13,13 +13,12 @@ interface ProcessResult {
 
 export async function processEvent(
   supabase: SupabaseClient,
-  ownerKey: "user_id" | "company_id",
-  ownerId: string,
+  companyId: string,
   eventCategory: string,
   body: Record<string, unknown>,
 ): Promise<ProcessResult | null> {
-  const tablePrefix = ownerKey === "company_id" ? "company_asaas_" : "asaas_";
-  const conflictKey = `${ownerKey},asaas_id`;
+  const tablePrefix = "company_asaas_";
+  const conflictKey = "company_id,asaas_id";
 
   switch (eventCategory) {
     case "PAYMENT": {
@@ -28,7 +27,7 @@ export async function processEvent(
       await supabase
         .from(`${tablePrefix}payments`)
         .upsert({
-          [ownerKey]: ownerId,
+          company_id: companyId,
           asaas_id: p.id as string,
           customer_id: p.customer as string || null,
           subscription_id: p.subscription as string || null,
@@ -57,27 +56,6 @@ export async function processEvent(
           raw_payload: p,
       }, { onConflict: conflictKey });
 
-      // Also materialize into personal_transactions for PF reconciliation
-      if (ownerKey === "user_id" && (p.status === "RECEIVED" || p.status === "CONFIRMED")) {
-        try {
-          await supabase.functions.invoke("reconcile-transactions", {
-            body: {
-              action: "reconcile_pf",
-              user_id: ownerId,
-              amount: (p.netValue as number) || (p.value as number) || 0,
-              date: (p.confirmedDate as string) || (p.paymentDate as string) || (p.dueDate as string) || new Date().toISOString().split("T")[0],
-              type: "receita",
-              description: (p.description as string) || "Pagamento Asaas",
-              source: "asaas",
-              external_id: `asaas_payment_${p.id}`,
-              billing_type: (p.billingType as string) || null,
-            },
-          });
-        } catch (e) {
-          console.error("Reconcile PF payment error:", e);
-        }
-      }
-
       return { table: `${tablePrefix}payments`, processed: true };
     }
 
@@ -87,7 +65,7 @@ export async function processEvent(
       await supabase
         .from(`${tablePrefix}transfers`)
         .upsert({
-          [ownerKey]: ownerId,
+          company_id: companyId,
           asaas_id: t.id as string,
           type: t.type as string || null,
           status: t.status as string,
@@ -105,26 +83,6 @@ export async function processEvent(
           raw_payload: t,
         }, { onConflict: conflictKey });
 
-      // Materialize transfers into personal_transactions for PF
-      if (ownerKey === "user_id" && (t.status === "DONE" || t.status === "BANK_PROCESSING")) {
-        try {
-          await supabase.functions.invoke("reconcile-transactions", {
-            body: {
-              action: "reconcile_pf",
-              user_id: ownerId,
-              amount: (t.value as number) || 0,
-              date: (t.scheduleDate as string) || (t.scheduledDate as string) || new Date().toISOString().split("T")[0],
-              type: "despesa",
-              description: (t.description as string) || "Transferência Asaas",
-              source: "asaas",
-              external_id: `asaas_transfer_${t.id}`,
-            },
-          });
-        } catch (e) {
-          console.error("Reconcile PF transfer error:", e);
-        }
-      }
-
       return { table: `${tablePrefix}transfers`, processed: true };
     }
 
@@ -134,7 +92,7 @@ export async function processEvent(
       await supabase
         .from(`${tablePrefix}bills`)
         .upsert({
-          [ownerKey]: ownerId,
+          company_id: companyId,
           asaas_id: b.id as string,
           status: b.status as string,
           value: b.value as number || null,
@@ -151,26 +109,6 @@ export async function processEvent(
           raw_payload: b,
         }, { onConflict: conflictKey });
 
-      // Materialize bills into personal_transactions for PF
-      if (ownerKey === "user_id" && (b.status === "PAID" || b.status === "BANK_PROCESSING")) {
-        try {
-          await supabase.functions.invoke("reconcile-transactions", {
-            body: {
-              action: "reconcile_pf",
-              user_id: ownerId,
-              amount: (b.value as number) || 0,
-              date: (b.paymentDate as string) || (b.dueDate as string) || new Date().toISOString().split("T")[0],
-              type: "despesa",
-              description: (b.description as string) || (b.companyName as string) || "Pagamento de boleto Asaas",
-              source: "asaas",
-              external_id: `asaas_bill_${b.id}`,
-            },
-          });
-        } catch (e) {
-          console.error("Reconcile PF bill error:", e);
-        }
-      }
-
       return { table: `${tablePrefix}bills`, processed: true };
     }
 
@@ -180,7 +118,7 @@ export async function processEvent(
       await supabase
         .from(`${tablePrefix}subscriptions`)
         .upsert({
-          [ownerKey]: ownerId,
+          company_id: companyId,
           asaas_id: s.id as string,
           customer_id: s.customer as string || null,
           billing_type: s.billingType as string || null,
@@ -208,7 +146,7 @@ export async function processEvent(
       await supabase
         .from(`${tablePrefix}invoices`)
         .upsert({
-          [ownerKey]: ownerId,
+          company_id: companyId,
           asaas_id: inv.id as string,
           payment_id: inv.payment as string || null,
           status: inv.status as string,
@@ -238,7 +176,7 @@ export async function processEvent(
       await supabase
         .from(`${tablePrefix}anticipations`)
         .upsert({
-          [ownerKey]: ownerId,
+          company_id: companyId,
           asaas_id: a.id as string,
           status: a.status as string,
           anticipated_value: a.anticipatedValue as number || null,
@@ -267,12 +205,11 @@ export async function processEvent(
  * Returns the mapped data object ready for upsert.
  */
 export function mapTransferData(
-  ownerKey: "user_id" | "company_id",
-  ownerId: string,
+  companyId: string,
   t: Record<string, unknown>,
 ): Record<string, unknown> {
   return {
-    [ownerKey]: ownerId,
+    company_id: companyId,
     asaas_id: t.id as string,
     type: t.type as string || null,
     status: t.status as string,
@@ -292,12 +229,11 @@ export function mapTransferData(
 }
 
 export function mapBillData(
-  ownerKey: "user_id" | "company_id",
-  ownerId: string,
+  companyId: string,
   b: Record<string, unknown>,
 ): Record<string, unknown> {
   return {
-    [ownerKey]: ownerId,
+    company_id: companyId,
     asaas_id: b.id as string,
     status: b.status as string,
     value: b.value as number || null,
@@ -316,12 +252,11 @@ export function mapBillData(
 }
 
 export function mapSubscriptionData(
-  ownerKey: "user_id" | "company_id",
-  ownerId: string,
+  companyId: string,
   s: Record<string, unknown>,
 ): Record<string, unknown> {
   return {
-    [ownerKey]: ownerId,
+    company_id: companyId,
     asaas_id: s.id as string,
     customer_id: s.customer as string || null,
     billing_type: s.billingType as string || null,

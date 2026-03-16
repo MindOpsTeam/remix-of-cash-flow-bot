@@ -260,7 +260,7 @@ Deno.serve(async (req) => {
 
 function isConfirmationReply(text: string): boolean {
   const t = text.trim().toLowerCase();
-  return ["0", "1", "2", "3", "sim", "não", "nao", "pessoal", "empresa", "confirmar", "cancelar", "ok", "cancel"].includes(t);
+  return ["0", "1", "2", "sim", "não", "nao", "confirmar", "cancelar", "ok", "cancel"].includes(t);
 }
 
 async function executePendingAction({
@@ -276,163 +276,21 @@ async function executePendingAction({
   evolutionKey: string | undefined;
 }) {
   const action = pending.pending_action;
-  const step = action._step || "module"; // "module" | "payment_method" | "select_card" | "select_account"
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  // ── Cancel at any step ──────────────────────────────────────────────────
-  if (["0", "cancelar", "cancel", "não", "nao"].includes(reply)) {
+  // ── Cancel ──────────────────────────────────────────────────────────────
+  if (["0", "2", "cancelar", "cancel", "não", "nao"].includes(reply)) {
     await supabase.from("whatsapp_pending_actions").delete().eq("id", pending.id);
     await sendWhatsAppMessage(instanceName, remoteJid, "✅ Lançamento cancelado.", evolutionUrl, evolutionKey);
     return;
   }
 
-  // ── Step: payment_method (PF confirmed only) ────────────────────────────
-  if (step === "payment_method") {
+  // ── Confirm → always execute as PJ ─────────────────────────────────────
+  if (["1", "sim", "confirmar", "ok"].includes(reply)) {
     await supabase.from("whatsapp_pending_actions").delete().eq("id", pending.id);
 
-    if (["1", "cartão", "cartao"].includes(reply)) {
-      // List credit cards and ask which one
-      const { data: cards } = await supabase.from("personal_credit_cards")
-        .select("id, name, brand")
-        .eq("user_id", pending.user_id)
-        .eq("is_active", true);
-      
-      if (!cards || cards.length === 0) {
-        // No cards, insert without card
-        await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
-        await sendPfConfirmation({ supabase, action, pending, instanceName, remoteJid, today, evolutionUrl, evolutionKey, fmt });
-        return;
-      }
+    const paymentSource = action.payment_source as "pf" | "pj" | "unknown" | undefined;
 
-      if (cards.length === 1) {
-        // Only one card, use it directly
-        action.pf_credit_card_id = cards[0].id;
-        action.pf_account_id = null;
-        await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
-        await sendPfConfirmation({ supabase, action, pending, instanceName, remoteJid, today, evolutionUrl, evolutionKey, fmt });
-        return;
-      }
-
-      // Multiple cards — ask which one
-      const cardList = cards.map((c: any, i: number) => `${i + 1}️⃣ ${c.name}${c.brand ? ` (${c.brand})` : ""}`).join("\n");
-      action._step = "select_card";
-      action._cards = cards.map((c: any) => c.id);
-      await supabase.from("whatsapp_pending_actions").insert({
-        company_id: pending.company_id,
-        user_id: pending.user_id,
-        phone_number: pending.phone_number,
-        instance_name: instanceName,
-        pending_action: action,
-      });
-      await sendWhatsAppMessage(instanceName, remoteJid, `💳 Em qual cartão?\n${cardList}\n0️⃣ Cancelar`, evolutionUrl, evolutionKey);
-      return;
-
-    } else if (["2", "pix", "débito", "debito"].includes(reply)) {
-      // List accounts and ask which one
-      const { data: accounts } = await supabase.from("personal_accounts")
-        .select("id, name, current_balance")
-        .eq("user_id", pending.user_id)
-        .eq("is_active", true);
-      
-      if (!accounts || accounts.length === 0) {
-        await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
-        await sendPfConfirmation({ supabase, action, pending, instanceName, remoteJid, today, evolutionUrl, evolutionKey, fmt });
-        return;
-      }
-
-      if (accounts.length === 1) {
-        action.pf_account_id = accounts[0].id;
-        action.pf_credit_card_id = null;
-        await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
-        await sendPfConfirmation({ supabase, action, pending, instanceName, remoteJid, today, evolutionUrl, evolutionKey, fmt });
-        return;
-      }
-
-      const accList = accounts.map((a: any, i: number) => `${i + 1}️⃣ ${a.name} (${fmt(Number(a.current_balance))})`).join("\n");
-      action._step = "select_account";
-      action._accounts = accounts.map((a: any) => a.id);
-      await supabase.from("whatsapp_pending_actions").insert({
-        company_id: pending.company_id,
-        user_id: pending.user_id,
-        phone_number: pending.phone_number,
-        instance_name: instanceName,
-        pending_action: action,
-      });
-      await sendWhatsAppMessage(instanceName, remoteJid, `🏦 De qual conta?\n${accList}\n0️⃣ Cancelar`, evolutionUrl, evolutionKey);
-      return;
-
-    } else {
-      // "3" or "dinheiro" — no account, no card
-      action.pf_account_id = null;
-      action.pf_credit_card_id = null;
-      await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
-      await sendPfConfirmation({ supabase, action, pending, instanceName, remoteJid, today, evolutionUrl, evolutionKey, fmt });
-      return;
-    }
-  }
-
-  // ── Step: select_card ───────────────────────────────────────────────────
-  if (step === "select_card") {
-    await supabase.from("whatsapp_pending_actions").delete().eq("id", pending.id);
-    const idx = parseInt(reply) - 1;
-    const cards = action._cards || [];
-    if (idx >= 0 && idx < cards.length) {
-      action.pf_credit_card_id = cards[idx];
-      action.pf_account_id = null;
-    }
-    await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
-    await sendPfConfirmation({ supabase, action, pending, instanceName, remoteJid, today, evolutionUrl, evolutionKey, fmt });
-    return;
-  }
-
-  // ── Step: select_account ────────────────────────────────────────────────
-  if (step === "select_account") {
-    await supabase.from("whatsapp_pending_actions").delete().eq("id", pending.id);
-    const idx = parseInt(reply) - 1;
-    const accounts = action._accounts || [];
-    if (idx >= 0 && idx < accounts.length) {
-      action.pf_account_id = accounts[idx];
-      action.pf_credit_card_id = null;
-    }
-    await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
-    await sendPfConfirmation({ supabase, action, pending, instanceName, remoteJid, today, evolutionUrl, evolutionKey, fmt });
-    return;
-  }
-
-  // ── Step: module (default — user picking PF or PJ) ─────────────────────
-  await supabase.from("whatsapp_pending_actions").delete().eq("id", pending.id);
-
-  const forceSide = ["1", "pessoal"].includes(reply) ? "pf" : ["2", "empresa"].includes(reply) ? "pj" : action.side;
-  const paymentSource = action.payment_source as "pf" | "pj" | "unknown" | undefined;
-
-  if (forceSide === "pf") {
-    const isPending = action.status === "pending";
-
-    if (!isPending) {
-      // PF confirmed → ask payment method (multi-step)
-      action._step = "payment_method";
-      action.side = "pf";
-      await supabase.from("whatsapp_pending_actions").insert({
-        company_id: pending.company_id,
-        user_id: pending.user_id,
-        phone_number: pending.phone_number,
-        instance_name: instanceName,
-        pending_action: action,
-      });
-      await sendWhatsAppMessage(instanceName, remoteJid,
-        `💰 ${fmt(Math.abs(action.amount))} — *${isRevenueIntent(action.type) ? "Receita" : "Despesa"}* PF\n\n` +
-        `Qual a forma?\n1️⃣ Cartão de crédito\n2️⃣ PIX / Débito\n3️⃣ Dinheiro\n0️⃣ Cancelar`,
-        evolutionUrl, evolutionKey
-      );
-      return;
-    }
-
-    // PF pending → insert directly (no payment method needed)
-    await insertPfTransaction({ supabase, action, userId: pending.user_id, today });
-    await sendPfConfirmation({ supabase, action, pending, instanceName, remoteJid, today, evolutionUrl, evolutionKey, fmt });
-
-  } else {
-    // PJ → insert directly
     const [accRes, ccRes, bankRes] = await Promise.all([
       action.pj_account_id
         ? supabase.from("chart_of_accounts").select("name").eq("id", action.pj_account_id).maybeSingle()
@@ -478,69 +336,8 @@ async function executePendingAction({
       (paymentSource === "pf" ? `\n\n_⚠️ Aporte criado automaticamente para reembolsar seus recursos pessoais._` : ""),
       evolutionUrl, evolutionKey
     );
+    return;
   }
-}
-
-// ─── PF CONFIRMATION HELPER ──────────────────────────────────────────────────
-
-async function sendPfConfirmation({ supabase, action, pending, instanceName, remoteJid, today, evolutionUrl, evolutionKey, fmt }: any) {
-  let categoryName = "Sem categoria";
-  let accountName = "Carteira";
-  let currentBalance: number | null = null;
-
-  const [catRes, accRes, cardRes] = await Promise.all([
-    action.pf_category_id
-      ? supabase.from("personal_categories").select("name").eq("id", action.pf_category_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    action.pf_account_id
-      ? supabase.from("personal_accounts").select("name, current_balance").eq("id", action.pf_account_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    action.pf_credit_card_id
-      ? supabase.from("personal_credit_cards").select("name").eq("id", action.pf_credit_card_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
-  categoryName = catRes.data?.name || "Sem categoria";
-  if (cardRes.data) {
-    accountName = `Cartão: ${cardRes.data.name}`;
-  } else if (accRes.data) {
-    accountName = accRes.data.name;
-    currentBalance = Number(accRes.data.current_balance);
-    // Recalcular saldo após inserção
-    const { data: updatedAcc } = await supabase.from("personal_accounts").select("current_balance").eq("id", action.pf_account_id).maybeSingle();
-    if (updatedAcc) currentBalance = Number(updatedAcc.current_balance);
-  } else {
-    accountName = "Dinheiro";
-  }
-
-  const paymentSource = action.payment_source as string | undefined;
-  // MISTO: PF mas pagou com conta da empresa → criar retirada
-  if (paymentSource === "pj") {
-    const { error: ownerErr } = await supabase.functions.invoke("owner-transactions", {
-      body: {
-        transaction_type: "retirada",
-        amount: Math.abs(action.amount),
-        date: action.date || today,
-        description: `Retirada — gasto pessoal pago pela empresa: ${action.description}`,
-        pf_account_id: action.pf_account_id || null,
-        pj_bank_account_id: action.pj_bank_account_id || null,
-        user_id: pending.user_id,
-        company_id: pending.company_id,
-      },
-    });
-    if (ownerErr) console.error("Owner transaction (retirada) error:", ownerErr);
-  }
-
-  const balanceStr = currentBalance != null ? ` (saldo atual: ${fmt(currentBalance)})` : "";
-  await sendWhatsAppMessage(instanceName, remoteJid,
-    `✅ *Transação registrada!*\n\n` +
-    `💰 ${fmt(Math.abs(action.amount))} — *${isRevenueIntent(action.type) ? "Receita" : "Despesa"}*\n` +
-    `📂 *Categoria:* ${categoryName}\n` +
-    `🏦 *${accountName}*${balanceStr}\n` +
-    `📅 *Data:* ${action.date || today}\n` +
-    `📍 *Módulo:* Pessoal (PF)` +
-    (paymentSource === "pj" ? `\n\n_⚠️ Retirada criada automaticamente para manter a separação patrimonial._` : ""),
-    evolutionUrl, evolutionKey
-  );
 }
 
 // ─── INSERT HELPERS ───────────────────────────────────────────────────────────
@@ -550,37 +347,8 @@ function isRevenueIntent(type: unknown): boolean {
   return ["revenue", "receita", "income", "entrada", "ganho", "ganhei", "recebi", "faturei"].includes(normalized);
 }
 
-function normalizePfType(type: unknown): "receita" | "despesa" {
-  return isRevenueIntent(type) ? "receita" : "despesa";
-}
-
 function normalizePjType(type: unknown): "revenue" | "expense" {
   return isRevenueIntent(type) ? "revenue" : "expense";
-}
-
-async function insertPfTransaction({ supabase, action, userId, today }: {
-  supabase: any; action: any; userId: string; today: string;
-}) {
-  const insertData: any = {
-    user_id: userId,
-    title: action.description || "Lançamento via WhatsApp",
-    amount: Math.abs(action.amount),
-    type: normalizePfType(action.type),
-    date: action.date || today,
-    description: action.description,
-    category_id: action.pf_category_id || null,
-    source: "whatsapp",
-    status: action.status || "confirmed",
-  };
-  // Se tem cartão de crédito, usa credit_card_id; senão usa account_id
-  if (action.pf_credit_card_id) {
-    insertData.credit_card_id = action.pf_credit_card_id;
-  } else {
-    insertData.account_id = action.pf_account_id || null;
-  }
-  const { error } = await supabase.from("personal_transactions").insert(insertData);
-  if (error) console.error("PF transaction insert error:", error);
-  return error;
 }
 
 async function insertPjTransaction({ supabase, action, companyId, userId, today }: {
@@ -642,16 +410,12 @@ function parseBrazilianAmount(text: string): number | null {
 
 function detectQuickTransaction({
   text,
-  pfCategories,
-  defaultPfAccountId,
   defaultPjAccountId,
   defaultPjCostCenterId,
   defaultPjBankAccountId,
   today,
 }: {
   text: string;
-  pfCategories: any[];
-  defaultPfAccountId?: string;
   defaultPjAccountId?: string;
   defaultPjCostCenterId?: string;
   defaultPjBankAccountId?: string;
@@ -674,8 +438,6 @@ function detectQuickTransaction({
   else if (onlyValue) nature = "expense";
   else return null;
 
-  const isPj = /\b(pj|empresa|empresarial|fornecedor|cliente|cnpj|nota fiscal)\b/.test(normalized);
-
   const cleanedDescription = text
     .replace(/(?:r\$\s*)?\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?/gi, "")
     .replace(/\s+/g, " ")
@@ -683,34 +445,17 @@ function detectQuickTransaction({
 
   const description = cleanedDescription || (nature === "expense" ? "Despesa via WhatsApp" : "Receita via WhatsApp");
 
-  if (isPj) {
-    return {
-      action: "create_pj_transaction",
-      type: nature,
-      amount,
-      description,
-      pj_account_id: defaultPjAccountId || null,
-      pj_cost_center_id: defaultPjCostCenterId || null,
-      pj_bank_account_id: defaultPjBankAccountId || null,
-      date: today,
-      payment_source: "pj",
-      _quick_side: "pj",
-    };
-  }
-
-  const wantedTypes = nature === "expense" ? ["expense", "despesa"] : ["income", "receita"];
-  const fallbackCategory = pfCategories.find((c: any) => wantedTypes.includes((c.type || "").toLowerCase()));
-
   return {
-    action: "create_pf_transaction",
-    type: nature === "expense" ? "despesa" : "receita",
+    action: "create_pj_transaction",
+    type: nature,
     amount,
     description,
-    pf_category_id: fallbackCategory?.id || null,
-    pf_account_id: defaultPfAccountId || null,
+    pj_account_id: defaultPjAccountId || null,
+    pj_cost_center_id: defaultPjCostCenterId || null,
+    pj_bank_account_id: defaultPjBankAccountId || null,
     date: today,
-    payment_source: "pf",
-    _quick_side: "pf",
+    payment_source: "pj",
+    _quick_side: "pj",
   };
 }
 
@@ -761,32 +506,6 @@ async function runFinancialAgent(ctx: AgentContext) {
   const recentTx = recentTxRes.data || [];
   const bankAccounts = bankAccountsRes.data || [];
 
-  // ── Carregar contexto PF ──────────────────────────────────────────────────
-  const [pfCategoriesRes, pfAccountsRes, pfRecentTxRes, pfCreditCardsRes] = await Promise.all([
-    ctx.supabase.from("personal_categories")
-      .select("id, name, type")
-      .or(`user_id.eq.${ctx.userId},user_id.is.null`)
-      .order("name"),
-    ctx.supabase.from("personal_accounts")
-      .select("id, name, type, current_balance")
-      .eq("user_id", ctx.userId)
-      .eq("is_active", true),
-    ctx.supabase.from("personal_transactions")
-      .select("type, amount, title, date, personal_categories(name)")
-      .eq("user_id", ctx.userId)
-      .order("date", { ascending: false })
-      .limit(20),
-    ctx.supabase.from("personal_credit_cards")
-      .select("id, name, brand, closing_day, due_day")
-      .eq("user_id", ctx.userId)
-      .eq("is_active", true),
-  ]);
-
-  const pfCategories = pfCategoriesRes.data || [];
-  const pfAccounts = pfAccountsRes.data || [];
-  const pfRecentTx = pfRecentTxRes.data || [];
-  const pfCreditCards = pfCreditCardsRes.data || [];
-  const defaultPfAccount = pfAccounts.find((a: any) => a.name === "Carteira") || pfAccounts[0];
   const defaultBankAccount = bankAccounts[0];
 
   // ── Resumo financeiro mensal PJ ───────────────────────────────────────────
@@ -814,17 +533,6 @@ async function runFinancialAgent(ctx: AgentContext) {
     `${t.date} | ${t.type === "revenue" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.description} | ${t.chart_of_accounts?.name || "-"} | ${t.status}`
   ).join("\n");
 
-  // ── Resumo PF ─────────────────────────────────────────────────────────────
-  const pfCategoriesList = pfCategories.map((c: any) => `${c.name} (${c.type}) [id:${c.id}]`).join("\n");
-  const pfAccountsList = pfAccounts.map((a: any) => `${a.name} - Saldo: ${fmt(Number(a.current_balance))} [id:${a.id}]`).join("\n");
-  const pfCreditCardsList = pfCreditCards.map((c: any) => `${c.name}${c.brand ? ` (${c.brand})` : ""} - Fecha dia ${c.closing_day}, vence dia ${c.due_day} [id:${c.id}]`).join("\n");
-  const pfRecentTxList = pfRecentTx.slice(0, 10).map((t: any) =>
-    `${t.date} | ${t.type === "receita" ? "📈" : "📉"} ${fmt(Number(t.amount))} | ${t.title} | ${(t.personal_categories as any)?.name || "-"}`
-  ).join("\n");
-
-  const pfCategoryMap = new Map((pfCategories || []).map((c: any) => [c.id, c.name]));
-  const pfAccountMap = new Map((pfAccounts || []).map((a: any) => [a.id, a.name]));
-  const pfCreditCardMap = new Map((pfCreditCards || []).map((c: any) => [c.id, c.name]));
   const pjAccountMap = new Map((accounts || []).map((a: any) => [a.id, a.name]));
   const pjCostCenterMap = new Map((centers || []).map((c: any) => [c.id, c.name]));
   const pjBankAccountMap = new Map((bankAccounts || []).map((b: any) => [b.id, b.name]));
@@ -835,18 +543,6 @@ async function runFinancialAgent(ctx: AgentContext) {
     const actionDate = action?.date || today;
     const isPending = action?.status === "pending";
     const isRevenue = isRevenueIntent(action?.type);
-
-    if (action?.action === "create_pf_transaction") {
-      const kind = isPending ? (isRevenue ? "Conta a Receber" : "Conta a Pagar") : (isRevenue ? "Receita" : "Despesa");
-      const categoryName = action?.pf_category_id ? (pfCategoryMap.get(action.pf_category_id) || "Sem categoria") : "Sem categoria";
-      const paymentName = action?.pf_credit_card_id
-        ? `Cartão: ${pfCreditCardMap.get(action.pf_credit_card_id) || "Não identificado"}`
-        : action?.pf_account_id
-          ? `Conta: ${pfAccountMap.get(action.pf_account_id) || "Não identificada"}`
-          : "Forma: Dinheiro/Não informado";
-
-      return `✅ ${formattedAmount} • ${kind} • ${categoryName} • ${paymentName} • ${actionDate} • PF`;
-    }
 
     if (action?.action === "create_pj_transaction") {
       const kind = isPending ? (isRevenue ? "Conta a Receber" : "Conta a Pagar") : (isRevenue ? "Receita" : "Despesa");
@@ -863,7 +559,7 @@ async function runFinancialAgent(ctx: AgentContext) {
     }
 
     if (action?.action === "ask_confirmation") {
-      return `💰 Identifiquei ${formattedAmount}. Você quer lançar em qual módulo?\n1️⃣ Pessoal (PF)\n2️⃣ Empresa (PJ)\n0️⃣ Cancelar`;
+      return `💰 Identifiquei ${formattedAmount}. Confirmar lançamento?\n1️⃣ Confirmar\n2️⃣ Cancelar`;
     }
 
     return null;
@@ -871,21 +567,20 @@ async function runFinancialAgent(ctx: AgentContext) {
 
   // Quick path removido — toda mensagem passa pelo agente IA para classificação contextual correta
 
-  const systemPrompt = `Você é um assistente financeiro rápido e direto. Responda em pt-BR com formatação WhatsApp. Seja ULTRA conciso.
+  const systemPrompt = `Você é um assistente financeiro empresarial rápido e direto. Responda em pt-BR com formatação WhatsApp. Seja ULTRA conciso.
+Todas as transações são registradas na empresa (PJ). Não existe módulo pessoal (PF).
 
 REGRA PRINCIPAL: Ao receber qualquer mensagem com valor financeiro, determine se é um GASTO JÁ REALIZADO (confirmed) ou uma CONTA A PAGAR/RECEBER futura (pending).
 
 REGRA CRÍTICA — VOCÊ SÓ TEM UMA TOOL:
 Sua ÚNICA tool disponível é "ask_confirmation". Você NÃO PODE criar transações diretamente.
-Para QUALQUER transação (PF ou PJ, confirmed ou pending), você DEVE usar ask_confirmation.
-O sistema cuidará de perguntar PF/PJ ao usuário e registrar a transação.
+Para QUALQUER transação, você DEVE usar ask_confirmation.
+O sistema pedirá confirmação ao usuário e registrará a transação na empresa.
 
 COMO USAR ask_confirmation:
 - Preencha amount, description, type, date, status com os dados extraídos da mensagem
-- Preencha pf_category_id, pf_account_id, pj_account_id, pj_cost_center_id, pj_bank_account_id com os melhores IDs disponíveis
+- Preencha pj_account_id, pj_cost_center_id, pj_bank_account_id com os melhores IDs disponíveis
 - O campo "reason" descreve o que foi identificado
-- O sistema automaticamente perguntará ao usuário: "PF ou PJ?"
-- NÃO precisa perguntar forma de pagamento — o sistema faz isso automaticamente para PF
 
 CONTAS A PAGAR / A RECEBER (status=pending):
 - "conta de luz", "boleto", "fatura", "vencimento", "vence dia X", "pagar até", "parcela" = CONTA A PAGAR → status="pending", type=despesa, date=data de vencimento
@@ -900,17 +595,12 @@ Interpretação de valores brasileiros:
 - "5 mil" = 5000, "1,5k" = 1500, "meio mil" = 500, "2 milhões" = 2000000
 - Mês atual: ${monthName}. Hoje: ${today}. Se disser "dia 30" sem mês, use o dia 30 do mês atual (ou próximo mês se dia 30 já passou).
 
-Defaults: pf_account_id="${defaultPfAccount?.id || ""}" | pj_bank_account_id="${defaultBankAccount?.id || ""}" | date="${today}"
+Defaults: pj_bank_account_id="${defaultBankAccount?.id || ""}" | date="${today}"
 
 Dados PJ (${monthName}): Receita ${fmt(revenue)} | Despesas ${fmt(expense)} | Saldo ${fmt(balance)}
 Contas PJ: ${accountsList || "—"}
 Centros: ${centersList || "—"}
 Bancos PJ: ${bankAccountsList || "—"}
-
-Dados PF:
-Contas: ${pfAccountsList || "—"}
-Categorias: ${pfCategoriesList || "—"}
-Cartões de crédito: ${pfCreditCardsList || "Nenhum cadastrado"}
 
 Quando não for transação (pergunta, resumo, etc), responda normalmente sem usar tools.
 Nunca mostre UUIDs ao usuário.`;
@@ -922,16 +612,13 @@ Nunca mostre UUIDs ao usuário.`;
       type: "function",
       function: {
         name: "ask_confirmation",
-        description: "SEMPRE use esta tool para qualquer transação financeira. Ela pergunta ao usuário se é PF ou PJ antes de registrar. É a ÚNICA forma de criar transações.",
+        description: "SEMPRE use esta tool para qualquer transação financeira. Ela pede confirmação ao usuário antes de registrar na empresa. É a ÚNICA forma de criar transações.",
         parameters: {
           type: "object",
           properties: {
             amount: { type: "number" },
             description: { type: "string" },
             type: { type: "string", enum: ["revenue", "expense", "receita", "despesa"] },
-            pf_category_id: { type: "string" },
-            pf_account_id: { type: "string" },
-            pf_credit_card_id: { type: "string" },
             pj_account_id: { type: "string" },
             pj_cost_center_id: { type: "string" },
             pj_bank_account_id: { type: "string" },

@@ -2,7 +2,44 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import type { AsaasBill, AsaasInvoice } from "@/hooks/useAsaasBills";
+
+export interface AsaasBill {
+  id: string;
+  asaas_id: string;
+  status: string;
+  value: number | null;
+  fee: number | null;
+  description: string | null;
+  company_name: string | null;
+  identification_field: string | null;
+  type: string | null;
+  due_date: string | null;
+  schedule_date: string | null;
+  payment_date: string | null;
+  can_be_cancelled: boolean | null;
+  failure_reason: string | null;
+  created_at: string;
+  _source?: "asaas" | "manual";
+}
+
+export interface AsaasInvoice {
+  id: string;
+  asaas_id: string;
+  payment_id: string | null;
+  status: string;
+  number: string | null;
+  service_description: string | null;
+  value: number | null;
+  net_value: number | null;
+  observations: string | null;
+  taxes: any;
+  customer_id: string | null;
+  effective_date: string | null;
+  pdf_url: string | null;
+  xml_url: string | null;
+  error_message: string | null;
+  created_at: string;
+}
 
 export function useCompanyAsaasBills() {
   const { company } = useCompany();
