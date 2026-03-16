@@ -82,9 +82,8 @@ export default function FiscalPage() {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Notas fiscais emitidas e recebidas</p>
           </div>
-          <Button disabled>
+          <Button>
             <Plus className="h-4 w-4 mr-1.5" /> Emitir NF-e
-            <Badge variant="secondary" className="ml-2 text-[10px]">Em breve</Badge>
           </Button>
         </div>
 
@@ -96,8 +95,7 @@ export default function FiscalPage() {
               <div>
                 <p className="text-sm font-medium text-foreground">Módulo Fiscal</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  A emissão de NF-e e NFS-e será integrada via parceiro fiscal (Focus NF-e, Tecnospeed ou similar).
-                  Por enquanto, você pode registrar notas manualmente para controle e exportar dados para o contador.
+                  Emissão de NFS-e integrada ao padrão nacional (ADN). Registre e gerencie notas fiscais, exporte dados para o contador.
                 </p>
               </div>
             </div>
