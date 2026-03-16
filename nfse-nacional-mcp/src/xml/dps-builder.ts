@@ -206,7 +206,7 @@ export function signDpsXml(xml: string, credentials: TlsCredentials): string {
 
 // ── Helpers ──
 
-function buildIdDps(input: DpsInput): string {
+export function buildIdDps(input: DpsInput): string {
   return `DPS${input.cnpjPrestador}${input.serieDps.padStart(5, "0")}${input.numeroDps.padStart(15, "0")}`;
 }
 

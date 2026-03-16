@@ -24,6 +24,12 @@ export interface AdnResponse {
   rawBuffer?: Buffer;
 }
 
+const RETRY_DELAYS = [1000, 3000, 9000]; // backoff: 1s, 3s, 9s
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class AdnHttpClient {
   private agent: https.Agent;
 
@@ -34,7 +40,7 @@ export class AdnHttpClient {
     this.agent = certManager.createHttpsAgent();
   }
 
-  async request(options: AdnRequestOptions): Promise<AdnResponse> {
+  private async requestOnce(options: AdnRequestOptions): Promise<AdnResponse> {
     const url = `${this.baseUrl}${options.path}`;
     const method = options.method || "GET";
     const contentType = options.contentType || "application/xml";
@@ -99,6 +105,49 @@ export class AdnHttpClient {
 
       req.end();
     });
+  }
+
+  /**
+   * Request with retry on 5xx errors (backoff: 1s, 3s, 9s).
+   * 4xx errors fail immediately — they are business errors, not infra.
+   */
+  async request(options: AdnRequestOptions): Promise<AdnResponse> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= RETRY_DELAYS.length; attempt++) {
+      try {
+        const response = await this.requestOnce(options);
+
+        // 4xx: fail immediately (business error)
+        if (response.status >= 400 && response.status < 500) {
+          return response;
+        }
+
+        // 5xx: retry with backoff
+        if (response.status >= 500) {
+          if (attempt < RETRY_DELAYS.length) {
+            console.error(`[nfse-mcp] ADN retornou ${response.status}, retry ${attempt + 1}/${RETRY_DELAYS.length} em ${RETRY_DELAYS[attempt]}ms`);
+            await sleep(RETRY_DELAYS[attempt]);
+            continue;
+          }
+          return response; // last attempt, return as-is
+        }
+
+        return response; // 2xx/3xx: success
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+
+        // Connection/timeout errors: retry
+        if (attempt < RETRY_DELAYS.length) {
+          console.error(`[nfse-mcp] Erro de conexão, retry ${attempt + 1}/${RETRY_DELAYS.length} em ${RETRY_DELAYS[attempt]}ms: ${lastError.message}`);
+          await sleep(RETRY_DELAYS[attempt]);
+          continue;
+        }
+        throw lastError;
+      }
+    }
+
+    throw lastError || new NfseError("RETRY_EXHAUSTED", "Todas as tentativas falharam");
   }
 
   /**

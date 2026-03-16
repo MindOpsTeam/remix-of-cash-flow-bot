@@ -4,16 +4,13 @@
 
 import type { AdnHttpClient } from "../auth/http-client.js";
 import type { CertManager } from "../auth/cert-manager.js";
-import { getApiUrl, type Ambiente, MAX_LOTE_SIZE } from "../config.js";
-import { buildDpsXml, signDpsXml, type DpsInput } from "../xml/dps-builder.js";
+import { MAX_LOTE_SIZE } from "../config.js";
+import { buildDpsXml, signDpsXml, buildIdDps, type DpsInput } from "../xml/dps-builder.js";
 import { parseNfseResponse } from "../xml/nfse-parser.js";
 import { NfseValidationError } from "../errors/nfse-errors.js";
+import { emissionCache } from "../cache/idempotency-cache.js";
 
-export async function nfseEmitir(
-  client: AdnHttpClient,
-  certManager: CertManager,
-  params: DpsInput,
-): Promise<{
+type EmitirResult = {
   chaveAcesso: string;
   numero: string;
   serie: string;
@@ -21,7 +18,38 @@ export async function nfseEmitir(
   valorServicos: number;
   valorIss: number;
   xmlAutorizado: string;
-}> {
+  idempotente?: boolean;
+};
+
+/**
+ * Valida série condicional: se competência >= 2026-01, série DEVE ser numérica.
+ * Antes de 2026-01, apenas aviso.
+ */
+function validarSerieCondicional(
+  serieDps: string,
+  competencia: string,
+  errors: Array<{ field: string; message: string }>,
+): void {
+  if (!serieDps) return;
+
+  const isNumeric = /^\d+$/.test(serieDps);
+  if (!isNumeric) {
+    // Competência >= 2026-01: erro hard
+    if (competencia >= "2026-01") {
+      errors.push({
+        field: "serieDps",
+        message: `Série "${serieDps}" é alfanumérica. A partir de jan/2026, a série da DPS deve ser exclusivamente numérica (Resolução CGNFS-e nº 3/2025).`,
+      });
+    }
+    // Antes de 2026-01: ainda aceita mas o ADN pode rejeitar
+  }
+}
+
+export async function nfseEmitir(
+  client: AdnHttpClient,
+  certManager: CertManager,
+  params: DpsInput,
+): Promise<EmitirResult> {
   // Validate required fields
   const errors: Array<{ field: string; message: string }> = [];
   if (!params.cnpjPrestador || params.cnpjPrestador.length !== 14) {
@@ -43,9 +71,9 @@ export async function nfseEmitir(
     errors.push({ field: "numeroDps", message: "Número da DPS é obrigatório" });
   }
 
-  // Validate série numérica (obrigatória a partir de jan/2026)
-  if (params.serieDps && !/^\d+$/.test(params.serieDps)) {
-    errors.push({ field: "serieDps", message: "Série deve ser numérica (a partir de jan/2026)" });
+  // Série condicional (hard error se >= 2026-01)
+  if (params.serieDps && params.competencia) {
+    validarSerieCondicional(params.serieDps, params.competencia, errors);
   }
 
   if (errors.length > 0) throw new NfseValidationError(errors);
@@ -59,6 +87,14 @@ export async function nfseEmitir(
     }]);
   }
 
+  // Idempotency check: if this idDps was already emitted, return cached result
+  const idDps = buildIdDps(params);
+  const cached = emissionCache.get(idDps);
+  if (cached) {
+    console.error(`[nfse-mcp] Idempotência: idDps ${idDps} já emitido, retornando resultado do cache`);
+    return { ...(cached as EmitirResult), idempotente: true };
+  }
+
   // Build and sign XML
   const xml = buildDpsXml(params);
   const signedXml = signDpsXml(xml, certManager.getCredentials());
@@ -67,7 +103,7 @@ export async function nfseEmitir(
   const response = await client.postXml("/sefin/v1/DPS", signedXml);
   const nfse = parseNfseResponse(response.body);
 
-  return {
+  const result: EmitirResult = {
     chaveAcesso: nfse.chaveAcesso,
     numero: nfse.numero,
     serie: nfse.serie,
@@ -76,6 +112,11 @@ export async function nfseEmitir(
     valorIss: nfse.valores.valorIss || 0,
     xmlAutorizado: response.body,
   };
+
+  // Cache successful emission
+  emissionCache.set(idDps, result);
+
+  return result;
 }
 
 export async function nfseEmitirLote(
