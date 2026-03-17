@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  ShoppingBag, Plus, Trash2, Search, FileText, Eye,
+  ShoppingBag, Plus, Trash2, Search, FileText, Pencil,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,7 +86,7 @@ export default function PurchaseOrdersPage() {
       if (!company) return [];
       const { data, error } = await supabase
         .from("purchase_orders")
-        .select("id, order_number, status, issue_date, expected_date, total, notes, contact_id, contacts(id, name)")
+        .select("id, order_number, status, issue_date, expected_date, subtotal, total, discount_value, shipping, notes, contact_id, contacts(id, name)")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -183,6 +183,24 @@ export default function PurchaseOrdersPage() {
     setNotes("");
   };
 
+  const openEdit = async (o: PurchaseOrder) => {
+    setEditingId(o.id);
+    setContactId(o.contact?.id || "");
+    setStatus(o.status);
+    setIssueDate(o.issue_date);
+    setExpectedDate(o.expected_date || "");
+    setDiscount(String((o as any).discount_value || ""));
+    setShipping(String((o as any).shipping || ""));
+    setNotes(o.notes || "");
+    const { data } = await supabase
+      .from("purchase_order_items")
+      .select("id, product_id, description, quantity, unit_price, total")
+      .eq("order_id", o.id)
+      .order("sort_order");
+    setItems(data && data.length > 0 ? (data as OrderItem[]) : [{ ...emptyItem }]);
+    setDialogOpen(true);
+  };
+
   const addItem = () => setItems((prev) => [...prev, { ...emptyItem }]);
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
 
@@ -274,8 +292,8 @@ export default function PurchaseOrdersPage() {
                   </div>
                 </div>
                 <p className="text-sm font-semibold font-mono">{fmt(Number(o.total))}</p>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Eye className="h-3.5 w-3.5" />
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(o)}>
+                  <Pencil className="h-3.5 w-3.5" />
                 </Button>
               </div>
             ))}
