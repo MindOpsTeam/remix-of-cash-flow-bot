@@ -160,36 +160,56 @@ export default function NfseIntegration() {
   };
 
   const handleTest = async () => {
+    if (!company) return;
     if (!form.cert_pfx_base64 || !form.cert_password) {
       toast({ title: "Salve o certificado e a senha antes de testar", variant: "destructive" });
+      return;
+    }
+    if (!existingConfig) {
+      toast({ title: "Salve a configuração antes de testar", variant: "destructive" });
       return;
     }
     setTesting(true);
     setTestStatus("idle");
     try {
-      // For now, validate certificate data locally
-      // In production, this would call the MCP server's nfse_status_ambiente tool
-      if (!form.cert_pfx_base64) throw new Error("Certificado não carregado");
+      const { data, error } = await supabase.functions.invoke("nfse-operations", {
+        body: { company_id: company.id, operation: "parse_cert" },
+      });
 
-      // Simulate ADN connectivity test
-      const ambiente = form.ambiente === "producao"
-        ? "https://adn.nfse.gov.br"
-        : "https://adn.producaorestrita.nfse.gov.br";
+      if (error) throw new Error(error.message);
+      if (!data?.success) throw new Error(data?.error ?? "Erro desconhecido");
+
+      const cert = data.data as {
+        cnpj: string | null;
+        razaoSocial: string | null;
+        expiresAt: string | null;
+        validDays: number | null;
+      };
+
+      const expLabel = cert.expiresAt
+        ? new Date(cert.expiresAt).toLocaleDateString("pt-BR")
+        : null;
+      const expiryNote = cert.validDays != null
+        ? cert.validDays <= 0
+          ? " — EXPIRADO"
+          : cert.validDays <= 30
+            ? ` — expira em ${cert.validDays} dia(s)`
+            : ` — válido por ${cert.validDays} dias`
+        : "";
 
       setTestStatus("ok");
       setTestMsg(
-        `Certificado carregado com sucesso. ` +
-        `Ambiente: ${form.ambiente === "producao" ? "Produção" : "Homologação"} (${ambiente}). ` +
-        `Configure o MCP server para testar a conexão mTLS com o ADN.`,
+        [
+          cert.razaoSocial && `Certificado: ${cert.razaoSocial}`,
+          cert.cnpj && `CNPJ: ${cert.cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")}`,
+          expLabel && `Validade: ${expLabel}${expiryNote}`,
+        ]
+          .filter(Boolean)
+          .join(" · ") || "Certificado lido com sucesso.",
       );
 
-      // Update test status in DB
-      if (existingConfig) {
-        await (supabase as any)
-          .from("nfse_config")
-          .update({ last_test_at: new Date().toISOString(), last_test_status: "ok" })
-          .eq("id", existingConfig.id);
-      }
+      // Refresh data to show updated status cards
+      qc.invalidateQueries({ queryKey: ["nfse_config", company.id] });
     } catch (e: unknown) {
       setTestStatus("error");
       setTestMsg(e instanceof Error ? e.message : String(e));

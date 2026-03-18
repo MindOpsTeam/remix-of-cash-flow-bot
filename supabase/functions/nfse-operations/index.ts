@@ -11,10 +11,13 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+// @deno-types="npm:@types/node-forge@1.3.11"
+import forge from "npm:node-forge@1.3.1";
 
 // Operations that this edge function supports
 const VALID_OPERATIONS = [
   "status",          // Check ambiente + cert validity
+  "parse_cert",      // Parse PFX, extract CNPJ/razão social/expiry, save to DB
   "validar_dps",     // Validate DPS locally
   "emitir",          // Emit NFS-e
   "cancelar",        // Cancel NFS-e
@@ -90,14 +93,23 @@ Deno.serve(async (req) => {
 
     const nfseConfig = config as NfseConfig;
 
-    if (!nfseConfig.active) {
-      return jsonResponse({ error: "Integração NFS-e está desativada para esta empresa." }, 400, corsHeaders);
-    }
-
     if (!nfseConfig.cert_pfx_base64 || !nfseConfig.cert_password) {
       return jsonResponse({
         error: "Certificado digital não configurado. Faça upload do .pfx em Configurações > Integrações > NFS-e.",
       }, 400, corsHeaders);
+    }
+
+    // Route to operation handler (parse_cert bypasses active/expiry checks)
+    const op = operation as Operation;
+    let result: unknown;
+
+    if (op === "parse_cert") {
+      result = await parseCertAndSave(supabase, nfseConfig);
+      return jsonResponse({ success: true, data: result }, 200, corsHeaders);
+    }
+
+    if (!nfseConfig.active) {
+      return jsonResponse({ error: "Integração NFS-e está desativada para esta empresa." }, 400, corsHeaders);
     }
 
     // Check certificate expiry
@@ -107,10 +119,6 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Certificado digital expirado. Renove o certificado A1." }, 400, corsHeaders);
       }
     }
-
-    // Route to operation handler
-    const op = operation as Operation;
-    let result: unknown;
 
     switch (op) {
       case "status":
@@ -172,6 +180,64 @@ Deno.serve(async (req) => {
 });
 
 // ── Handlers ──
+
+/**
+ * Parses the stored .pfx and extracts cert metadata for ICP-Brasil certs.
+ *
+ * Brazilian PJ certs (e-CNPJ) have the CN in format "RAZAO SOCIAL:CNPJ14DIGITS"
+ * or the CNPJ in SubjectAltName OtherName OID 2.16.76.1.3.3.
+ * We try CN parsing first (most reliable), then fall back to raw Subject.
+ */
+async function parseCertAndSave(
+  supabase: ReturnType<typeof createClient>,
+  config: NfseConfig,
+): Promise<{ cnpj: string | null; razaoSocial: string | null; expiresAt: string | null; validDays: number | null }> {
+  let certInfo: { cnpj: string | null; razaoSocial: string | null; expiresAt: string | null; validDays: number | null };
+
+  try {
+    const pfxBinary = atob(config.cert_pfx_base64);
+    const pfxAsn1 = forge.asn1.fromDer(pfxBinary);
+    const pfx = forge.pkcs12.pkcs12FromAsn1(pfxAsn1, false, config.cert_password);
+
+    const certBags = pfx.getBags({ bagType: forge.pki.oids.certBag });
+    const certBag = certBags[forge.pki.oids.certBag]?.[0];
+    const cert = certBag?.cert;
+
+    if (!cert) throw new Error("Nenhum certificado encontrado no arquivo .pfx");
+
+    const expiresAt = cert.validity.notAfter.toISOString();
+    const validDays = Math.floor((cert.validity.notAfter.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+    // Extract CNPJ + razão social from CN (ICP-Brasil PJ format: "RAZAO SOCIAL:12345678000195")
+    const cn = cert.subject.getField("CN")?.value as string | undefined ?? "";
+    const cnMatch = cn.match(/:(\d{14})$/);
+    const cnpj = cnMatch ? cnMatch[1] : null;
+    const razaoSocial = cnMatch ? cn.slice(0, cnMatch.index).trim() : cn || null;
+
+    certInfo = { cnpj, razaoSocial, expiresAt, validDays };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Distinguish wrong password from other errors
+    if (msg.includes("PKCS#12") || msg.includes("mac verify") || msg.includes("Invalid password")) {
+      throw new Error("Senha do certificado incorreta. Verifique a senha do arquivo .pfx.");
+    }
+    throw new Error(`Falha ao processar certificado: ${msg}`);
+  }
+
+  // Persist metadata
+  await supabase
+    .from("nfse_config")
+    .update({
+      cert_cnpj: certInfo.cnpj,
+      cert_razao_social: certInfo.razaoSocial,
+      cert_expires_at: certInfo.expiresAt,
+      last_test_at: new Date().toISOString(),
+      last_test_status: "ok",
+    })
+    .eq("id", config.id);
+
+  return certInfo;
+}
 
 function validarDpsLocal(
   config: NfseConfig,
