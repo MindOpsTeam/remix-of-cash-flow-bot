@@ -11,7 +11,6 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-// @deno-types="npm:@types/node-forge@1.3.11"
 import forge from "npm:node-forge@1.3.1";
 
 // Operations that this edge function supports
