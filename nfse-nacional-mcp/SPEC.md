@@ -1,20 +1,69 @@
 # NFS-e Nacional MCP Server — Especificação Técnica
 
 > Documentação viva do MCP server `nfse-nacional`.
-> Última atualização: 2026-03-15
+> Última atualização: 2026-03-18
 
 ---
 
 ## Visão Geral
 
-MCP Server para integração com a API NFS-e Nacional do governo federal
-(ADN — Ambiente de Dados Nacional da Receita Federal). Usado por agentes de IA
-para emitir, cancelar, consultar e gerenciar Notas Fiscais de Serviço eletrônicas
-no padrão nacional.
+MCP Server para integração com o ecossistema NFS-e Nacional do governo federal.
+A emissão de NFS-e vai pelo **SEFIN Nacional**, a distribuição/consulta pelo **ADN**.
 
 **Runtime:** Node.js 20+ com TypeScript strict
 **Transporte:** stdio (padrão MCP)
-**Autenticação com ADN:** mTLS com certificado digital ICP-Brasil A1 (.pfx)
+**Autenticação:** mTLS com certificado digital ICP-Brasil A1 (.pfx)
+
+---
+
+## Arquitetura de Endpoints
+
+O ecossistema NFS-e Nacional tem **dois servidores distintos**:
+
+| Servidor | Base URL (produção) | Base URL (homologação) | Função |
+|---|---|---|---|
+| **SEFIN Nacional** | `https://sefin.nfse.gov.br` | `https://sefin.producaorestrita.nfse.gov.br` | Recebe DPS para emissão de NFS-e |
+| **ADN** | `https://adn.nfse.gov.br` | `https://adn.producaorestrita.nfse.gov.br` | Distribuição de NFS-e autorizadas, DANFSE |
+
+### Endpoints validados em produção
+
+| Endpoint | Método | Content-Type | Função |
+|---|---|---|---|
+| `sefin/SefinNacional/nfse` | POST | `application/json` | Emissão de NFS-e (DPS → NFS-e) |
+| `adn/contribuintes/DFe/0` | GET | `application/xml` | Distribuição de NFS-e por NSU |
+| `adn/danfse/v1?chave=XXX` | GET | `application/pdf` | Download do DANFSE (PDF) |
+| `adn/DFe` | POST | `application/json` | Recepção de documentos (ADN interno) |
+
+### Formato de envio ao SEFIN
+
+```json
+POST https://sefin.nfse.gov.br/SefinNacional/nfse
+Content-Type: application/json
+
+{
+  "dpsXmlGZipB64": "<XML da DPS assinada, compactado com GZip, codificado em Base64>"
+}
+```
+
+### Formato de resposta do SEFIN
+
+```json
+{
+  "tipoAmbiente": 1,
+  "versaoAplicativo": "SefinNacional_1.6.0",
+  "dataHoraProcessamento": "2026-03-18T21:00:00-03:00",
+  "idDPS": "DPS421660225514036500010300001000000000000001",
+  "chaveAcesso": "42166021...",
+  "erros": [{ "Codigo": "E0084", "Descricao": "..." }],
+  "alertas": [{ "Codigo": "A001", "Descricao": "..." }]
+}
+```
+
+> **Nota:** O `POST /DFe` no ADN é apenas para recepção de documentos (municipais → ADN),
+> NÃO para emissão. A emissão é exclusivamente via SEFIN Nacional.
+
+Documentação oficial: https://www.gov.br/nfse/pt-br
+Swagger ADN: https://adn.nfse.gov.br/swagger/v1/swagger.json
 
 ---
 
@@ -26,32 +75,11 @@ no padrão nacional.
 | HTTP | `node:https` nativo | mTLS via `https.Agent` sem deps extras |
 | XML build | `fast-xml-parser` XMLBuilder | Leve, sem DOM, JSON→XML direto |
 | XML parse | `fast-xml-parser` XMLParser | Mesmo pacote, bidirecional |
-| Assinatura | `node-forge` | PKCS#12 load, RSA-SHA256, X509 |
+| Assinatura | `xml-crypto` | XML-DSig com C14N correto (enveloped) |
+| Certificado | `node-forge` | PKCS#12 load, extração de chave/cert |
 | Validação | `zod` (inline no index.ts) | Schemas das 14 tools no registro MCP |
 | Cache | Implementação própria (Map + TTL) | Zero deps, TTL 24h padrão |
 | Build | `tsc` direto | Sem bundler — ESM puro |
-
----
-
-## URLs do ADN
-
-| Ambiente | Base URL |
-|---|---|
-| Produção | `https://adn.nfse.gov.br` |
-| Homologação | `https://adn.producaorestrita.nfse.gov.br` |
-
-**APIs disponíveis no ADN:**
-
-| API | Path | Uso |
-|---|---|---|
-| SEFIN | `/sefin/v1` | Emissão DPS, eventos, consulta por chave |
-| DFe | `/DFe` | Distribuição de documentos por NSU |
-| Contribuintes | `/contribuintes` | Parâmetros fiscais do contribuinte |
-| CNC | `/cnc` | Cadastro Nacional de Contribuintes |
-| Parametrização | `/parametrizacao` | Parâmetros municipais |
-| DANFSE | `/danfse` | Geração de PDF |
-
-Documentação oficial: https://www.gov.br/nfse/pt-br
 
 ---
 
@@ -61,20 +89,22 @@ Documentação oficial: https://www.gov.br/nfse/pt-br
 nfse-nacional-mcp/
 ├── src/
 │   ├── index.ts                 ← Entry point: registra 14 tools no McpServer
-│   ├── config.ts                ← URLs, constantes (CHAVE_ACESSO_LENGTH=50, etc.)
+│   ├── config.ts                ← URLs SEFIN/ADN, constantes, loadConfig()
 │   ├── auth/
 │   │   ├── cert-manager.ts      ← Carrega .pfx (node-forge), extrai key+cert+chain
-│   │   └── http-client.ts       ← HTTPS client com mTLS (node:https nativo)
+│   │   └── http-client.ts       ← HTTPS client: postSefin(), postDfe(), getPdf()
 │   ├── tools/
-│   │   ├── emissao.ts           ← nfse_emitir + nfse_emitir_lote
-│   │   ├── eventos.ts           ← nfse_cancelar + nfse_substituir
+│   │   ├── emissao.ts           ← nfse_emitir + nfse_emitir_lote (via SEFIN)
+│   │   ├── eventos.ts           ← nfse_cancelar + nfse_substituir (via ADN /DFe)
 │   │   ├── consultas.ts         ← nfse_consultar_chave + _dfe + _lote
-│   │   ├── documentos.ts        ← nfse_gerar_danfse
+│   │   ├── documentos.ts        ← nfse_gerar_danfse (via ADN /danfse/v1)
 │   │   ├── parametros.ts        ← nfse_parametros_municipio + _contribuinte + cnc + codigos
 │   │   └── utils.ts             ← nfse_validar_dps + nfse_status_ambiente
 │   ├── xml/
-│   │   ├── dps-builder.ts       ← Monta XML da DPS + assina (enveloped RSA-SHA256)
+│   │   ├── dps-builder.ts       ← Monta XML da DPS (XSD v1.01) + assina com xml-crypto
 │   │   └── nfse-parser.ts       ← Parseia respostas XML do ADN
+│   ├── data/
+│   │   └── municipios-emissor-nacional.json ← 2.319 municípios com emissor nacional (por UF)
 │   ├── cache/
 │   │   └── parametros-cache.ts  ← Cache in-memory com TTL (Map-based)
 │   └── errors/
@@ -82,133 +112,80 @@ nfse-nacional-mcp/
 ├── dist/                        ← Output do tsc
 ├── package.json
 ├── tsconfig.json
-└── mcp.json                     ← Manifesto MCP (14 tools listadas)
+└── SPEC.md                      ← Este arquivo
 ```
 
 ---
 
-## As 14 Tools
+## XML da DPS (XSD v1.01)
 
-### Emissão
+### Formato do ID da DPS (TSIdDPS — 45 caracteres)
 
-#### `nfse_emitir`
-Emite uma NFS-e individual (síncrono). Constrói a DPS, assina com certificado
-digital e envia ao ADN via POST `/sefin/v1/DPS`.
+```
+DPS + cMun(7) + tpInscFed(1) + CNPJ(14) + serie(5) + nDPS(15)
+```
 
-**Input:** DpsInput (cnpjPrestador, codigoMunicipio, competencia, serieDps,
-numeroDps, servico, tomador?, valores, observacoes?)
+Exemplo: `DPS421660225514036500010300001000000000000001`
 
-**Output:** { chaveAcesso, numero, serie, dataEmissao, valorServicos, valorIss, xmlAutorizado }
+### Estrutura do XML (ordem obrigatória no schema)
 
-**Validações aplicadas:**
-- CNPJ 14 dígitos + dígitos verificadores
-- Competência formato YYYY-MM
-- Série numérica (obrigatório >= jan/2026)
-- CNPJ do certificado deve bater com cnpjPrestador
-- valorServicos > 0
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">
+  <infDPS Id="DPS...45chars...">
+    <tpAmb>1</tpAmb>                          <!-- 1=Produção, 2=Homologação -->
+    <dhEmi>2026-03-18T21:00:00-03:00</dhEmi>  <!-- TSDateTimeUTC com offset -->
+    <verAplic>ERP-NFSE-MCP-1.0</verAplic>
+    <serie>1</serie>                           <!-- Numérica obrigatória >= jan/2026 -->
+    <nDPS>1</nDPS>
+    <dCompet>2026-03-01</dCompet>              <!-- YYYY-MM-DD -->
+    <tpEmit>1</tpEmit>                         <!-- 1=Prestador -->
+    <cLocEmi>4216602</cLocEmi>                 <!-- Código IBGE 7 dígitos -->
+    <prest>
+      <CNPJ>55140365000103</CNPJ>
+      <regTrib>
+        <opSimpNac>1</opSimpNac>               <!-- 1=Não Optante, 3=ME/EPP -->
+        <regEspTrib>0</regEspTrib>             <!-- 0=Nenhum -->
+      </regTrib>
+    </prest>
+    <toma>
+      <CNPJ>52246066000160</CNPJ>
+      <xNome>VIVER DE IA LTDA</xNome>
+    </toma>
+    <serv>
+      <locPrest>
+        <cLocPrestacao>4216602</cLocPrestacao>
+      </locPrest>
+      <cServ>
+        <cTribNac>010601</cTribNac>            <!-- 6 dígitos sem pontos -->
+        <xDescServ>Descrição do serviço</xDescServ>
+      </cServ>
+    </serv>
+    <valores>
+      <vServPrest>
+        <vServ>1350.00</vServ>
+      </vServPrest>
+      <trib>
+        <tribMun>
+          <tribISSQN>1</tribISSQN>             <!-- 1=Tributável -->
+          <tpRetISSQN>1</tpRetISSQN>           <!-- 1=Não Retido -->
+        </tribMun>
+        <totTrib>
+          <indTotTrib>0</indTotTrib>
+        </totTrib>
+      </trib>
+    </valores>
+  </infDPS>
+  <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+    <!-- Assinatura digital RSA-SHA256 via xml-crypto -->
+  </Signature>
+</DPS>
+```
 
-#### `nfse_emitir_lote`
-Envia até 50 DPS em lote assíncrono. Retorna protocolo para consulta posterior.
+### Posição da Assinatura
 
-**Input:** { cnpjPrestador, lote: DpsInput[] }
-**Output:** { protocolo, totalEnviado, ambiente }
-
----
-
-### Eventos
-
-#### `nfse_cancelar`
-Cancela NFS-e autorizada (prazo: 35 dias). Gera evento de cancelamento
-assinado digitalmente.
-
-**Input:** { chaveAcesso (50 chars), motivo: ERRO_EMISSAO | SERVICO_NAO_PRESTADO | OUTRO, descricaoMotivo? }
-**Output:** { chaveAcesso, situacao, dataEvento, motivo }
-
-#### `nfse_substituir`
-Substitui NFS-e por outra (cancela original + emite nova em operação única).
-
-**Input:** { chaveAcessoOriginal, motivoSubstituicao?, novaDps: DpsInput }
-**Output:** { chaveAcessoOriginal, chaveAcessoNova, numero, situacao, dataEvento }
-
----
-
-### Consultas
-
-#### `nfse_consultar_chave`
-Consulta NFS-e pela chave de acesso (50 caracteres).
-
-**Input:** { chaveAcesso, formato?: "xml" | "json" }
-**Output:** Dados completos: prestador, tomador, servico, valores, status
-
-#### `nfse_consultar_dfe`
-Distribuição de DFe por NSU. Retorna NFS-e emitidas/recebidas.
-
-**Input:** { cnpj (14 dígitos), ultimoNsu (iniciar com "0"), tipo?: emitidas|recebidas|todas }
-**Output:** { ultimoNsu, maxNsu, totalDocumentos, documentos[] }
-
-#### `nfse_consultar_lote`
-Consulta resultado de lote assíncrono enviado via `nfse_emitir_lote`.
-
-**Input:** { protocolo, cnpjPrestador }
-**Output:** { protocolo, situacao, totalNotas, notas[] }
-
----
-
-### Documentos
-
-#### `nfse_gerar_danfse`
-Gera o DANFSE (PDF) de NFS-e autorizada. Pode retornar em base64 e/ou salvar em disco.
-
-**Input:** { chaveAcesso, retornarBase64?: boolean (default true), salvarPath?: string }
-**Output:** { chaveAcesso, pdfBase64?, salvoEm?, tamanhoBytes }
-
----
-
-### Parâmetros
-
-#### `nfse_parametros_municipio`
-Consulta parâmetros fiscais de um município (cache 24h).
-
-**Input:** { codigoMunicipio (IBGE 7 dígitos), cpfCnpj? }
-**Output:** { aderenteAdn, aliquotaMinima, aliquotaMaxima, regimesEspeciais[], beneficiosFiscais[] }
-
-#### `nfse_parametros_contribuinte`
-Parâmetros de um contribuinte em um município (cache 12h).
-
-**Input:** { codigoMunicipio, cpfCnpj }
-**Output:** { inscricaoMunicipal, optanteSimplesNacional, regimeEspecial, aliquotaIss }
-
-#### `nfse_cnc_consultar`
-Consulta o Cadastro Nacional de Contribuintes.
-
-**Input:** { cpfCnpj, codigoMunicipio? }
-**Output:** { razaoSocial, nomeFantasia, situacaoCadastral, inscricoesMunicipais[] }
-
-#### `nfse_codigos_servico`
-Pesquisa códigos de tributação nacional da LC 116/2003. Busca local (subset)
-com fallback para API.
-
-**Input:** { busca?: string, codigo?: string }
-**Output:** { total, codigos: { codigo, descricao, grupo }[] }
-
----
-
-### Utilitários
-
-#### `nfse_validar_dps`
-Valida DPS localmente sem enviar ao ADN. Verifica campos, formatos, CNPJ/CPF
-e certificado.
-
-**Input:** Mesmo schema do nfse_emitir
-**Output:** { valida: boolean, erros[], avisos[] }
-
-**Não depende de internet** — validação 100% local.
-
-#### `nfse_status_ambiente`
-Verifica saúde do ambiente ADN e validade do certificado.
-
-**Input:** (nenhum)
-**Output:** { ambiente, baseUrl, adnDisponivel, latenciaMs, certificado: { valido, diasRestantes, expiraEm, cnpj, avisos[] } }
+A `<Signature>` é filha de `<DPS>`, posicionada APÓS `</infDPS>`.
+O `Reference URI` aponta para o `Id` de `<infDPS>`.
 
 ---
 
@@ -216,113 +193,76 @@ Verifica saúde do ambiente ADN e validade do certificado.
 
 ### Fluxo
 1. `CertManager` carrega o `.pfx` via `node-forge` (PKCS#12)
-2. Extrai: chave privada (PEM), certificado X.509 (PEM), cadeia de CAs
-3. Parseia o CN do certificado ICP-Brasil para extrair CNPJ e razão social
-4. Cria `https.Agent` com `{ cert, key, ca }` para mTLS
-5. `AdnHttpClient` usa esse agent em todas as requisições
+2. Extrai: chave privada (PEM), certificado X.509 (PEM)
+3. Chain de CAs intermediários do .pfx é concatenada ao campo `cert` (para enviar ao servidor)
+4. `https.Agent` criado com `{ cert, key, minVersion: "TLSv1.2" }` — SEM campo `ca`
+   (confia nos CAs do sistema para verificar o certificado do servidor ADN/SEFIN)
+5. `AdnHttpClient` usa esse agent para ADN e SEFIN
 
-### Assinatura Digital
-- Algoritmo: **RSA-SHA256** (enveloped signature no nó `<infDPS>`)
-- Digest: SHA-256 do conteúdo de `<infDPS>`
-- Certificado incluído no XML como `<X509Certificate>` (DER em base64)
+### Assinatura Digital (xml-crypto)
+- Algoritmo: **RSA-SHA256** (enveloped signature)
 - Canonicalização: C14N 1.0
+- Transforms: enveloped-signature + C14N
+- Digest: SHA-256 do conteúdo canonicalizado de `<infDPS>`
+- Certificado incluído como `<X509Certificate>` (DER em base64)
+- Biblioteca: `xml-crypto` (substitui implementação manual com node-forge)
 
 ### Certificado
 - Formato: ICP-Brasil A1 (.pfx / PKCS#12)
-- Warnings automáticos: 30 dias, 15 dias, 7 dias antes de expirar
-- Verificação no startup: se expirado, loga erro mas não impede inicialização
+- Warnings automáticos: 30, 15, 7 dias antes de expirar
+- CNPJ extraído do CN do certificado (formato `RAZAO SOCIAL:CNPJ14`)
 
 ---
 
-## Multi-tenant via Supabase
+## Municípios e Emissor Nacional
 
-### Modelo atual (MCP Server)
-O MCP server lê o certificado de **arquivo local** via variável de ambiente:
-```
-NFSE_CERT_PATH=/caminho/para/certificado.pfx
-NFSE_CERT_PASSWORD=senha
-```
-Isso funciona para **single-tenant** (uma empresa por instância do MCP).
+### Requisitos para emissão via SEFIN Nacional
 
-### Modelo ERP (nfse_config no Supabase)
-Para multi-tenant, cada empresa tem sua config na tabela `nfse_config`:
+Para emitir NFS-e via API SEFIN Nacional, são necessários:
 
-```sql
-nfse_config (
-  company_id     UUID UNIQUE  -- 1 config por empresa
-  cert_pfx_base64 TEXT        -- certificado .pfx em base64
-  cert_password   TEXT        -- senha do .pfx
-  cert_cnpj       TEXT        -- CNPJ extraído do cert (preenchido no test)
-  cert_razao_social TEXT      -- razão social extraída
-  cert_expires_at TIMESTAMPTZ -- validade do certificado
-  ambiente        TEXT        -- 'producao' | 'homologacao'
-  serie_dps       TEXT        -- série da DPS (default '1')
-  proximo_numero_dps BIGINT   -- auto-incrementado a cada emissão
-  codigo_municipio TEXT       -- código IBGE (7 dígitos)
-  inscricao_municipal TEXT    -- IM no município
-  active          BOOLEAN     -- integração ativa/inativa
-  last_test_at    TIMESTAMPTZ -- último teste de conexão
-  last_emission_at TIMESTAMPTZ -- última emissão bem-sucedida
-)
-```
+1. **Município com Emissor Nacional ativo** — o município precisa ter aderido ao
+   emissor público nacional (2.319 municípios em fev/2026)
+2. **Empresa cadastrada no município** — o CNPJ do prestador deve ter estabelecimento
+   no município informado em `cLocEmi` (erro E0084)
+3. **Código de serviço administrado** — o `cTribNac` deve estar parametrizado
+   pelo município de incidência do ISSQN (erro E0312)
 
-RLS: `is_company_member(company_id)` — qualquer membro da empresa pode ler,
-qualquer membro pode alterar (mesmo padrão das tabelas ERP).
+### Arquivo de referência
 
-### Integração pendente
-Para multi-tenant funcionar end-to-end, falta criar uma **edge function**
-`nfse-operations` que:
-1. Recebe `{ company_id, operation, params }` do frontend/agent
-2. Busca `nfse_config` no Supabase pelo `company_id`
-3. Decodifica `cert_pfx_base64` → Buffer
-4. Instancia `CertManager` com o buffer + password
-5. Instancia `AdnHttpClient` com o ambiente da config
-6. Executa a operação (emitir, cancelar, etc.)
-7. Atualiza `proximo_numero_dps` e `last_emission_at`
+`src/data/municipios-emissor-nacional.json` contém a lista de municípios por UF
+que aceitam emissão via SEFIN Nacional (fonte: gov.br/nfse, atualizado 2026-02-25).
+
+### Municípios que NÃO usam SEFIN Nacional
+
+Municípios grandes como São Paulo, São José-SC e outros mantêm sistemas próprios
+(Nota Carioca, NFS-e SP, AtendeNet, etc.). Nesses casos, a emissão é feita pelo
+sistema municipal, não pelo SEFIN Nacional.
+
+---
+
+## Erros Comuns do SEFIN/ADN
+
+| Código | Significado | Ação |
+|---|---|---|
+| RNG6110 | Falha na validação do Schema XML | Verificar estrutura XML conforme XSD v1.01 |
+| E0008 | Data de emissão posterior ao processamento | Usar horário BRT (-03:00) |
+| E0039 | Município não parametrizado para emissores nacionais | Usar sistema municipal local |
+| E0084 | CNPJ não tem estabelecimento no município | Usar município onde a empresa está cadastrada |
+| E0310 | Código de tributação não existe | Verificar formato: 6 dígitos sem pontos |
+| E0312 | Código não administrado pelo município | Consultar lista de serviços do município |
+| E0714 | Erro na assinatura digital | Verificar C14N, posição da Signature, algoritmo |
+| E1242 | Tipo DF-e não tratado pelo Sistema Nacional | Formato XML incorreto ou endpoint errado |
 
 ---
 
 ## Variáveis de Ambiente
 
 ```env
-NFSE_AMBIENTE=homologacao          # "producao" ou "homologacao"
+NFSE_AMBIENTE=producao             # "producao" ou "homologacao"
 NFSE_CERT_PATH=/certs/empresa.pfx  # caminho para o .pfx (single-tenant)
 NFSE_CERT_PASSWORD=senha-do-pfx    # senha do certificado
 NFSE_CERT_STORAGE=file             # "file" | "vault" | "supabase"
 ```
-
----
-
-## Configuração para Claude Desktop
-
-```json
-{
-  "mcpServers": {
-    "nfse-nacional": {
-      "command": "node",
-      "args": ["nfse-nacional-mcp/dist/index.js"],
-      "env": {
-        "NFSE_AMBIENTE": "homologacao",
-        "NFSE_CERT_PATH": "/caminho/para/certificado.pfx",
-        "NFSE_CERT_PASSWORD": "sua-senha-aqui"
-      }
-    }
-  }
-}
-```
-
----
-
-## Erros Comuns do ADN
-
-| Código | Significado | Ação |
-|---|---|---|
-| E001 | CNPJ não encontrado no CNC | Verificar cadastro do prestador |
-| E110 | Série da DPS não numérica | Usar série numérica (obrigatório >= jan/2026) |
-| E200 | Certificado inválido/expirado | Renovar certificado A1 |
-| E300 | Município não aderido ao ADN | Verificar com a prefeitura |
-| E410 | Prazo de cancelamento expirado | Prazo máximo: 35 dias |
-| E500 | DPS duplicada (idDps já processado) | Consultar nota existente |
 
 ---
 
@@ -333,19 +273,5 @@ NFSE_CERT_STORAGE=file             # "file" | "vault" | "supabase"
 | CHAVE_ACESSO_LENGTH | 50 | Layout NFS-e Nacional |
 | PRAZO_CANCELAMENTO_DIAS | 35 | Legislação federal |
 | MAX_LOTE_SIZE | 50 | Limite do ADN |
-| DPS_VERSAO | "1.00" | Layout atual |
+| DPS_VERSAO | "1.00" | Layout v1.01 |
 | XML_NAMESPACE | `http://www.sped.fazenda.gov.br/nfse` | Spec oficial |
-
----
-
-## Gaps para Produção
-
-| Item | Status | Prioridade |
-|---|---|---|
-| Testes automatizados | Não implementado | Alta |
-| Retry com backoff (5xx) | Não implementado | Alta |
-| Idempotência (cache de idDps) | Não implementado | Alta |
-| Edge function multi-tenant | Não implementado | Média |
-| Série numérica condicional (>= 2026-01) | Não implementado | Média |
-| Logging estruturado | Apenas console.error | Baixa |
-| Métricas/observabilidade | Não implementado | Baixa |
