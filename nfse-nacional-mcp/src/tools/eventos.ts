@@ -5,9 +5,8 @@
 import type { AdnHttpClient } from "../auth/http-client.js";
 import type { CertManager } from "../auth/cert-manager.js";
 import { buildCancelamentoXml, signDpsXml, buildDpsXml, type DpsInput } from "../xml/dps-builder.js";
-import { parseEventoResponse, parseNfseResponse } from "../xml/nfse-parser.js";
-import { NfseValidationError } from "../errors/nfse-errors.js";
-import { CHAVE_ACESSO_LENGTH, PRAZO_CANCELAMENTO_DIAS } from "../config.js";
+import { NfseValidationError, NfseError } from "../errors/nfse-errors.js";
+import { CHAVE_ACESSO_LENGTH } from "../config.js";
 
 const MOTIVOS_CANCELAMENTO = ["ERRO_EMISSAO", "SERVICO_NAO_PRESTADO", "OUTRO"];
 
@@ -21,9 +20,9 @@ export async function nfseCancelar(
   },
 ): Promise<{
   chaveAcesso: string;
-  situacao: string;
-  dataEvento: string;
-  motivo: string;
+  statusProcessamento: string;
+  dataHoraProcessamento: string;
+  alertas: Array<{ codigo: string; descricao: string }>;
 }> {
   const errors: Array<{ field: string; message: string }> = [];
 
@@ -39,14 +38,24 @@ export async function nfseCancelar(
   const xml = buildCancelamentoXml(params.chaveAcesso, params.motivo, params.descricaoMotivo);
   const signedXml = signDpsXml(xml, certManager.getCredentials());
 
-  const response = await client.postXml("/sefin/v1/NFSe/eventos", signedXml);
-  const evento = parseEventoResponse(response.body);
+  // Send via POST /DFe
+  const dfeResponse = await client.postDfe([signedXml]);
+  const doc = dfeResponse.Lote?.[0];
+
+  if (!doc) {
+    throw new NfseError("ADN_EMPTY", "ADN retornou lote vazio para evento de cancelamento");
+  }
+
+  if (doc.Erros && doc.Erros.length > 0) {
+    const erroMsg = doc.Erros.map((e) => `[${e.Codigo}] ${e.Descricao}${e.Complemento ? ` — ${e.Complemento}` : ""}`).join("; ");
+    throw new NfseError("ADN_REJEICAO", `Cancelamento rejeitado: ${erroMsg}`);
+  }
 
   return {
-    chaveAcesso: evento.chaveAcesso,
-    situacao: evento.situacao,
-    dataEvento: evento.dataEvento,
-    motivo: evento.motivo || params.motivo,
+    chaveAcesso: doc.ChaveAcesso || params.chaveAcesso,
+    statusProcessamento: doc.StatusProcessamento || "",
+    dataHoraProcessamento: dfeResponse.DataHoraProcessamento,
+    alertas: (doc.Alertas || []).map((a) => ({ codigo: a.Codigo, descricao: a.Descricao })),
   };
 }
 
@@ -61,9 +70,8 @@ export async function nfseSubstituir(
 ): Promise<{
   chaveAcessoOriginal: string;
   chaveAcessoNova: string;
-  numero: string;
-  situacao: string;
-  dataEvento: string;
+  statusProcessamento: string;
+  dataHoraProcessamento: string;
 }> {
   const errors: Array<{ field: string; message: string }> = [];
 
@@ -75,7 +83,7 @@ export async function nfseSubstituir(
   }
   if (errors.length > 0) throw new NfseValidationError(errors);
 
-  // 1. Build the substitution event XML
+  // Build the substitution event XML
   const dpsXml = buildDpsXml(params.novaDps);
   const signedDps = signDpsXml(dpsXml, certManager.getCredentials());
 
@@ -89,14 +97,25 @@ export async function nfseSubstituir(
     `</pedSubstNFSe>`,
   ].join("");
 
-  const response = await client.postXml("/sefin/v1/NFSe/substituicao", substXml);
-  const nfseNova = parseNfseResponse(response.body);
+  const signedSubst = signDpsXml(substXml, certManager.getCredentials());
+
+  // Send via POST /DFe
+  const dfeResponse = await client.postDfe([signedSubst]);
+  const doc = dfeResponse.Lote?.[0];
+
+  if (!doc) {
+    throw new NfseError("ADN_EMPTY", "ADN retornou lote vazio para substituição");
+  }
+
+  if (doc.Erros && doc.Erros.length > 0) {
+    const erroMsg = doc.Erros.map((e) => `[${e.Codigo}] ${e.Descricao}${e.Complemento ? ` — ${e.Complemento}` : ""}`).join("; ");
+    throw new NfseError("ADN_REJEICAO", `Substituição rejeitada: ${erroMsg}`);
+  }
 
   return {
     chaveAcessoOriginal: params.chaveAcessoOriginal,
-    chaveAcessoNova: nfseNova.chaveAcesso,
-    numero: nfseNova.numero,
-    situacao: "substituida",
-    dataEvento: nfseNova.dataEmissao,
+    chaveAcessoNova: doc.ChaveAcesso || "",
+    statusProcessamento: doc.StatusProcessamento || "",
+    dataHoraProcessamento: dfeResponse.DataHoraProcessamento,
   };
 }

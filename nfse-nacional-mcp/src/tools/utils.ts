@@ -4,7 +4,7 @@
 
 import type { AdnHttpClient } from "../auth/http-client.js";
 import type { CertManager } from "../auth/cert-manager.js";
-import { getBaseUrl, type Ambiente } from "../config.js";
+import { getAdnUrl, getSefinUrl, type Ambiente } from "../config.js";
 import type { DpsInput } from "../xml/dps-builder.js";
 
 /**
@@ -116,7 +116,8 @@ export async function nfseStatusAmbiente(
   ambiente: Ambiente,
 ): Promise<{
   ambiente: string;
-  baseUrl: string;
+  adnUrl: string;
+  sefinUrl: string;
   adnDisponivel: boolean;
   latenciaMs?: number;
   certificado: {
@@ -128,26 +129,28 @@ export async function nfseStatusAmbiente(
     avisos: string[];
   };
 }> {
-  const baseUrl = getBaseUrl(ambiente);
+  const adnUrl = getAdnUrl(ambiente);
+  const sefinUrl = getSefinUrl(ambiente);
   const certExpiry = certManager.checkExpiry();
   const certInfo = certManager.getCertInfo();
 
   let adnDisponivel = false;
   let latenciaMs: number | undefined;
 
+  // Test ADN connectivity via distribution endpoint (confirmed working)
   try {
     const start = Date.now();
-    await client.getJson("/parametrizacao/status");
+    await client.request({ method: "GET", path: "/contribuintes/DFe/0", accept: "application/xml" });
     latenciaMs = Date.now() - start;
     adnDisponivel = true;
-  } catch {
-    // ADN offline or cert rejected
-    adnDisponivel = false;
+  } catch (err) {
+    console.error("[nfse-mcp] Falha ao conectar com ADN:", err instanceof Error ? err.message : err);
   }
 
   return {
     ambiente,
-    baseUrl,
+    adnUrl,
+    sefinUrl,
     adnDisponivel,
     latenciaMs,
     certificado: {

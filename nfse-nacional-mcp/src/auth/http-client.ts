@@ -5,8 +5,28 @@
  */
 
 import * as https from "node:https";
+import * as zlib from "node:zlib";
+import { promisify } from "node:util";
 import type { CertManager } from "./cert-manager.js";
 import { parseAdnError, NfseError } from "../errors/nfse-errors.js";
+
+const gzip = promisify(zlib.gzip);
+
+/**
+ * Resposta do ADN POST /DFe (JSON)
+ */
+export interface DfeRecepcaoResponse {
+  Lote: Array<{
+    ChaveAcesso: string | null;
+    NsuRecepcao: string | null;
+    StatusProcessamento: string | null;
+    Alertas: Array<{ Codigo: string; Descricao: string; Complemento?: string }> | null;
+    Erros: Array<{ Codigo: string; Descricao: string; Complemento?: string }> | null;
+  }>;
+  TipoAmbiente: string;
+  VersaoAplicativo: string | null;
+  DataHoraProcessamento: string;
+}
 
 export interface AdnRequestOptions {
   method?: "GET" | "POST" | "PUT" | "DELETE";
@@ -30,12 +50,28 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Resposta do SEFIN Nacional (POST /SefinNacional/nfse)
+ */
+export interface SefinResponse {
+  tipoAmbiente: number;
+  versaoAplicativo: string;
+  dataHoraProcessamento: string;
+  idDPS: string;
+  chaveAcesso?: string;
+  numero?: string;
+  serie?: string;
+  erros?: Array<{ Codigo: string; Descricao: string; Complemento?: string }>;
+  alertas?: Array<{ Codigo: string; Descricao: string; Complemento?: string }>;
+}
+
 export class AdnHttpClient {
   private agent: https.Agent;
 
   constructor(
     private baseUrl: string,
     private certManager: CertManager,
+    private sefinUrl?: string,
   ) {
     this.agent = certManager.createHttpsAgent();
   }
@@ -202,5 +238,116 @@ export class AdnHttpClient {
     }
 
     return response.rawBuffer || Buffer.from(response.body, "binary");
+  }
+
+  /**
+   * POST /SefinNacional/nfse — envia DPS assinada ao SEFIN Nacional para emissão de NFS-e.
+   * O SEFIN aceita JSON com o XML compactado em GZip+Base64.
+   */
+  async postSefin(signedXml: string): Promise<SefinResponse> {
+    if (!this.sefinUrl) {
+      throw new NfseError("CONFIG", "URL do SEFIN não configurada");
+    }
+
+    const compressed = await gzip(Buffer.from(signedXml, "utf-8"));
+    const b64 = compressed.toString("base64");
+    const jsonBody = JSON.stringify({ dpsXmlGZipB64: b64 });
+
+    // SEFIN has a different host, so we make a direct request
+    const urlObj = new URL(`${this.sefinUrl}/SefinNacional/nfse`);
+
+    const response = await new Promise<AdnResponse>((resolve, reject) => {
+      const req = https.request(
+        {
+          hostname: urlObj.hostname,
+          port: urlObj.port || 443,
+          path: urlObj.pathname,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "User-Agent": "ERP-NFSE-MCP/1.0",
+          },
+          agent: this.agent,
+          timeout: 30000,
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk: Buffer) => chunks.push(chunk));
+          res.on("end", () => {
+            const body = Buffer.concat(chunks).toString("utf-8");
+            const headers: Record<string, string> = {};
+            for (const [key, value] of Object.entries(res.headers)) {
+              if (value) headers[key] = Array.isArray(value) ? value.join(", ") : value;
+            }
+            resolve({ status: res.statusCode || 0, headers, body });
+          });
+        },
+      );
+      req.on("error", (err) => reject(new NfseError("CONNECTION", `Erro de conexão com SEFIN: ${err.message}`)));
+      req.on("timeout", () => { req.destroy(); reject(new NfseError("TIMEOUT", "Timeout ao conectar com SEFIN")); });
+      req.write(jsonBody);
+      req.end();
+    });
+
+    let parsed: SefinResponse;
+    try {
+      parsed = JSON.parse(response.body) as SefinResponse;
+    } catch {
+      throw new NfseError("PARSE_ERROR", "Resposta do SEFIN não é JSON válido", response.body);
+    }
+
+    // Check for errors in the response
+    if (parsed.erros && parsed.erros.length > 0) {
+      const erroMsg = parsed.erros.map((e) =>
+        `[${e.Codigo}] ${e.Descricao}${e.Complemento ? ` — ${e.Complemento}` : ""}`
+      ).join("; ");
+      throw new NfseError("SEFIN_REJEICAO", erroMsg, JSON.stringify(parsed));
+    }
+
+    return parsed;
+  }
+
+  /**
+   * POST /DFe — envia XMLs assinados ao ADN via formato GZip+Base64
+   *
+   * O ADN aceita um único endpoint POST /DFe com body JSON:
+   * { "LoteXmlGZipB64": ["<xml gzipado em base64>", ...] }
+   */
+  async postDfe(xmlList: string[]): Promise<DfeRecepcaoResponse> {
+    // Compress each XML with GZip and encode as Base64
+    const loteGzipB64: string[] = [];
+    for (const xml of xmlList) {
+      const compressed = await gzip(Buffer.from(xml, "utf-8"));
+      loteGzipB64.push(compressed.toString("base64"));
+    }
+
+    const jsonBody = JSON.stringify({ LoteXmlGZipB64: loteGzipB64 });
+
+    const response = await this.request({
+      method: "POST",
+      path: "/DFe",
+      body: jsonBody,
+      contentType: "application/json",
+      accept: "application/json",
+    });
+
+    if (response.status >= 400) {
+      // Try to parse ADN error from JSON response
+      try {
+        const errorBody = JSON.parse(response.body);
+        const details = errorBody.detail || errorBody.title || response.body;
+        throw new NfseError("ADN_REJEICAO", `ADN rejeitou o documento: ${details}`, response.body);
+      } catch (e) {
+        if (e instanceof NfseError) throw e;
+        throw parseAdnError(response.body);
+      }
+    }
+
+    try {
+      return JSON.parse(response.body) as DfeRecepcaoResponse;
+    } catch {
+      throw new NfseError("PARSE_ERROR", "Resposta do ADN não é JSON válido", response.body);
+    }
   }
 }

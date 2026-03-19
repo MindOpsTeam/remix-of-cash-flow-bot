@@ -15,7 +15,7 @@ import { z } from "zod";
 
 import { CertManager } from "./auth/cert-manager.js";
 import { AdnHttpClient } from "./auth/http-client.js";
-import { loadConfig, getBaseUrl, type Ambiente } from "./config.js";
+import { loadConfig, getAdnUrl, getSefinUrl, type Ambiente } from "./config.js";
 import { NfseError, NfseValidationError, NfseCertificateError } from "./errors/nfse-errors.js";
 
 // Tools
@@ -136,8 +136,8 @@ async function main() {
   );
   for (const w of expiry.warnings) console.error(`[nfse-mcp] ⚠ ${w}`);
 
-  // HTTP client with mTLS
-  const client = new AdnHttpClient(getBaseUrl(ambiente), certManager);
+  // HTTP client with mTLS (ADN for distribution/DANFSE, SEFIN for emission)
+  const client = new AdnHttpClient(getAdnUrl(ambiente), certManager, getSefinUrl(ambiente));
 
   // Create MCP server
   const server = new McpServer({

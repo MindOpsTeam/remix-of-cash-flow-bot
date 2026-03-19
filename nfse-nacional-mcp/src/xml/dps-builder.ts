@@ -7,7 +7,7 @@
  * Layout baseado no Manual de Integração NFS-e Nacional v1.00
  */
 
-import * as forge from "node-forge";
+import { SignedXml } from "xml-crypto";
 import { XMLBuilder } from "fast-xml-parser";
 import { DPS_VERSAO, XML_NAMESPACES } from "../config.js";
 import type { TlsCredentials } from "../auth/cert-manager.js";
@@ -91,41 +91,55 @@ export function buildDpsXml(input: DpsInput): string {
       infDPS: {
         "@_Id": buildIdDps(input),
         tpAmb: process.env.NFSE_AMBIENTE === "producao" ? "1" : "2",
-        dhEmi: new Date().toISOString(),
+        dhEmi: formatDateTimeBRT(new Date()),
         verAplic: "ERP-NFSE-MCP-1.0",
         serie: input.serieDps,
         nDPS: input.numeroDps,
         dCompet: `${input.competencia}-01`,
-        // Prestador
+        tpEmit: "1", // 1 = Prestador
+        cLocEmi: input.codigoMunicipio,
+        // Prestador (XSD: CNPJ/CPF, CAEPF?, IM?, xNome?, end?, fone?, email?, regTrib)
         prest: {
           CNPJ: input.cnpjPrestador,
           ...(input.inscricaoMunicipal ? { IM: input.inscricaoMunicipal } : {}),
+          regTrib: {
+            opSimpNac: input.optanteSimplesNacional ? "3" : "1", // 1=Não Optante, 3=ME/EPP
+            regEspTrib: input.regimeEspecial || "0", // 0=Nenhum
+          },
         },
         // Tomador
         ...(input.tomador ? { toma: buildTomadorXml(input.tomador) } : {}),
-        // Serviço
+        // Serviço (XSD: locPrest, cServ)
         serv: {
+          locPrest: {
+            cLocPrestacao: input.codigoMunicipio,
+          },
           cServ: {
-            cTribNac: input.servico.codigoTribNac,
-            ...(input.servico.codigoCnae ? { CNAE: input.servico.codigoCnae } : {}),
-            ...(input.servico.codigoNbs ? { cNBS: input.servico.codigoNbs } : {}),
+            cTribNac: input.servico.codigoTribNac.replace(/\./g, ""),
             xDescServ: input.servico.descricao,
+            ...(input.servico.codigoNbs ? { cNBS: input.servico.codigoNbs } : {}),
           },
         },
-        // Valores
+        // Valores (XSD: vServPrest, vDescCondIncond?, vDedRed?, trib)
         valores: {
           vServPrest: {
             vServ: formatDecimal(input.valores.valorServicos),
-            ...(input.valores.deducoes ? { vDeducao: formatDecimal(input.valores.deducoes) } : {}),
-            ...(input.valores.descontoIncondicionado ? { vDescIncworthy: formatDecimal(input.valores.descontoIncondicionado) } : {}),
-            ...(input.valores.descontoCondicionado ? { vDescCond: formatDecimal(input.valores.descontoCondicionado) } : {}),
           },
-          vCalcDR: formatDecimal(baseCalculo),
+          ...(input.valores.descontoIncondicionado || input.valores.descontoCondicionado ? {
+            vDescCondIncond: {
+              ...(input.valores.descontoIncondicionado ? { vDescIncond: formatDecimal(input.valores.descontoIncondicionado) } : {}),
+              ...(input.valores.descontoCondicionado ? { vDescCond: formatDecimal(input.valores.descontoCondicionado) } : {}),
+            },
+          } : {}),
           trib: {
-            ...(input.valores.aliquotaIss != null ? { tribMun: { pAliq: formatDecimal(input.valores.aliquotaIss, 4), vTribMun: formatDecimal(valorIss) } } : {}),
-            ...(input.valores.issRetido ? { ISSSt: "1" } : {}),
+            tribMun: {
+              tribISSQN: input.naturezaTributacao || "1", // 1=Operação tributável
+              tpRetISSQN: input.valores.issRetido ? "2" : "1", // 1=Não Retido, 2=Retido Tomador
+            },
+            totTrib: {
+              indTotTrib: "0", // Não informar valores estimados (Decreto 8.264/2014)
+            },
           },
-          ...(input.valores.outrasRetencoes ? { vRetServPrest: { vRetIR: formatDecimal(input.valores.valorIr || 0), vRetPIS: formatDecimal(input.valores.valorPis || 0), vRetCOFINS: formatDecimal(input.valores.valorCofins || 0), vRetCSLL: formatDecimal(input.valores.valorCsll || 0), vRetINSS: formatDecimal(input.valores.valorInss || 0) } } : {}),
         },
         // Info complementar
         ...(input.observacoes ? { infCompl: { xInfComp: input.observacoes } } : {}),
@@ -148,66 +162,51 @@ export function buildDpsXml(input: DpsInput): string {
  * Assina o XML da DPS usando o certificado do prestador (enveloped signature)
  */
 export function signDpsXml(xml: string, credentials: TlsCredentials): string {
-  const privateKey = forge.pki.privateKeyFromPem(credentials.key);
-  const certificate = forge.pki.certificateFromPem(credentials.cert);
+  const idDps = extractIdFromXml(xml);
 
-  // Canonicalize the infDPS element
-  const infDpsMatch = xml.match(/<infDPS[^>]*>[\s\S]*?<\/infDPS>/);
-  if (!infDpsMatch) throw new Error("Elemento <infDPS> não encontrado no XML");
-  const infDpsContent = infDpsMatch[0];
+  // Extract the first certificate PEM (skip chain certs)
+  const certPemMatch = credentials.cert.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/);
+  if (!certPemMatch) throw new Error("Certificado PEM não encontrado nas credenciais");
+  const certPem = certPemMatch[0];
 
-  // SHA-256 digest of infDPS
-  const md = forge.md.sha256.create();
-  md.update(infDpsContent, "utf8");
-  const digestBase64 = forge.util.encode64(md.digest().bytes());
+  const certDerB64 = certPem
+    .replace(/-----BEGIN CERTIFICATE-----/, "")
+    .replace(/-----END CERTIFICATE-----/, "")
+    .replace(/\s/g, "");
 
-  // Build SignedInfo (C14N)
-  const signedInfo = [
-    `<SignedInfo xmlns="${XML_NAMESPACES.ds}">`,
-    `<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>`,
-    `<SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>`,
-    `<Reference URI="#${extractIdFromXml(xml)}">`,
-    `<Transforms>`,
-    `<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>`,
-    `<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>`,
-    `</Transforms>`,
-    `<DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>`,
-    `<DigestValue>${digestBase64}</DigestValue>`,
-    `</Reference>`,
-    `</SignedInfo>`,
-  ].join("");
+  const sig = new SignedXml({
+    privateKey: credentials.key,
+    publicCert: certPem,
+    canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+    signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    getKeyInfoContent: () => `<X509Data><X509Certificate>${certDerB64}</X509Certificate></X509Data>`,
+  });
 
-  // Sign the SignedInfo
-  const signMd = forge.md.sha256.create();
-  signMd.update(signedInfo, "utf8");
-  const signature = privateKey.sign(signMd);
-  const signatureBase64 = forge.util.encode64(signature);
+  sig.addReference({
+    xpath: `//*[@Id='${idDps}']`,
+    digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    transforms: [
+      "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+      "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+    ],
+  });
 
-  // Certificate in Base64 (DER)
-  const certDer = forge.asn1.toDer(forge.pki.certificateToAsn1(certificate)).bytes();
-  const certBase64 = forge.util.encode64(certDer);
+  sig.computeSignature(xml, {
+    location: { reference: "//*[local-name()='infDPS']", action: "after" },
+  });
 
-  // Build Signature element
-  const signatureXml = [
-    `<Signature xmlns="${XML_NAMESPACES.ds}">`,
-    signedInfo,
-    `<SignatureValue>${signatureBase64}</SignatureValue>`,
-    `<KeyInfo>`,
-    `<X509Data>`,
-    `<X509Certificate>${certBase64}</X509Certificate>`,
-    `</X509Data>`,
-    `</KeyInfo>`,
-    `</Signature>`,
-  ].join("");
-
-  // Insert signature before closing </infDPS>
-  return xml.replace("</infDPS>", `${signatureXml}</infDPS>`);
+  return sig.getSignedXml();
 }
 
 // ── Helpers ──
 
+/**
+ * Monta o Id da DPS no formato TSIdDPS (45 caracteres):
+ * "DPS" (3) + cMun (7) + tpInscFed (1: "1"=CPF, "2"=CNPJ) + CNPJ/CPF (14) + série (5) + nDPS (15)
+ */
 export function buildIdDps(input: DpsInput): string {
-  return `DPS${input.cnpjPrestador}${input.serieDps.padStart(5, "0")}${input.numeroDps.padStart(15, "0")}`;
+  const tpInscFed = input.cnpjPrestador.length === 14 ? "2" : "1";
+  return `DPS${input.codigoMunicipio}${tpInscFed}${input.cnpjPrestador}${input.serieDps.padStart(5, "0")}${input.numeroDps.padStart(15, "0")}`;
 }
 
 function extractIdFromXml(xml: string): string {
@@ -247,6 +246,14 @@ function buildTomadorXml(tomador: DpsTomador): Record<string, unknown> {
 
 function formatDecimal(value: number, decimals: number = 2): string {
   return value.toFixed(decimals);
+}
+
+/** Format date as TSDateTimeUTC: YYYY-MM-DDThh:mm:ss-03:00 (Brasília time) */
+function formatDateTimeBRT(date: Date): string {
+  const offset = -3; // BRT
+  const local = new Date(date.getTime() + offset * 60 * 60 * 1000);
+  const iso = local.toISOString().replace(/\.\d{3}Z$/, "");
+  return `${iso}-03:00`;
 }
 
 /**

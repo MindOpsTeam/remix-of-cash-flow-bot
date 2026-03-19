@@ -28,7 +28,7 @@ export async function nfseGerarDanfse(
     }]);
   }
 
-  const pdfBuffer = await client.getPdf(`/danfse/${params.chaveAcesso}`);
+  const pdfBuffer = await client.getPdf(`/danfse/v1?chave=${params.chaveAcesso}`);
 
   let salvoEm: string | undefined;
   if (params.salvarPath) {

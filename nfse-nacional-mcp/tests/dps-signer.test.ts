@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildDpsXml, signDpsXml, type DpsInput } from "../src/xml/dps-builder.js";
 import type { TlsCredentials } from "../src/auth/cert-manager.js";
-import * as forge from "node-forge";
+import forge from "node-forge";
 
 // Generate a self-signed test certificate
 function generateTestCredentials(): TlsCredentials {

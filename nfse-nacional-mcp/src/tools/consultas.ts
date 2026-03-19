@@ -3,8 +3,7 @@
  */
 
 import type { AdnHttpClient } from "../auth/http-client.js";
-import { parseNfseResponse, parseDfeResponse, parseLoteResponse } from "../xml/nfse-parser.js";
-import { NfseValidationError } from "../errors/nfse-errors.js";
+import { NfseValidationError, NfseError } from "../errors/nfse-errors.js";
 import { CHAVE_ACESSO_LENGTH } from "../config.js";
 
 export async function nfseConsultarChave(
@@ -15,21 +14,8 @@ export async function nfseConsultarChave(
   },
 ): Promise<{
   chaveAcesso: string;
-  numero: string;
-  serie: string;
-  dataEmissao: string;
-  prestador: { cnpj: string; razaoSocial?: string };
-  tomador?: { cpfCnpj: string; razaoSocial?: string };
-  servico: { codigoTribNac: string; descricao: string };
-  valores: {
-    valorServicos: number;
-    baseCalculo: number;
-    aliquotaIss?: number;
-    valorIss?: number;
-    valorLiquido: number;
-    issRetido: boolean;
-  };
-  status: string;
+  disponivel: boolean;
+  detalhes: string;
 }> {
   if (!params.chaveAcesso || params.chaveAcesso.length !== CHAVE_ACESSO_LENGTH) {
     throw new NfseValidationError([{
@@ -38,26 +24,25 @@ export async function nfseConsultarChave(
     }]);
   }
 
-  const response = await client.postXml(
-    "/sefin/v1/NFSe/chave",
-    `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<consNFSe xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">` +
-    `<chNFSe>${params.chaveAcesso}</chNFSe>` +
-    `</consNFSe>`,
-  );
+  // Use DANFSE endpoint to verify if the NFS-e exists (returns PDF if valid)
+  const response = await client.request({
+    method: "GET",
+    path: `/danfse/v1?chave=${params.chaveAcesso}`,
+    accept: "application/json",
+  });
 
-  const nfse = parseNfseResponse(response.body);
+  if (response.status === 200) {
+    return {
+      chaveAcesso: params.chaveAcesso,
+      disponivel: true,
+      detalhes: "NFS-e encontrada. Use nfse_gerar_danfse para obter o PDF.",
+    };
+  }
 
   return {
-    chaveAcesso: nfse.chaveAcesso,
-    numero: nfse.numero,
-    serie: nfse.serie,
-    dataEmissao: nfse.dataEmissao,
-    prestador: nfse.prestador,
-    tomador: nfse.tomador,
-    servico: nfse.servico,
-    valores: nfse.valores,
-    status: nfse.status,
+    chaveAcesso: params.chaveAcesso,
+    disponivel: false,
+    detalhes: response.body || `Status ${response.status} — NFS-e não encontrada ou ainda em processamento`,
   };
 }
 
@@ -69,14 +54,13 @@ export async function nfseConsultarDfe(
     tipo?: "emitidas" | "recebidas" | "todas";
   },
 ): Promise<{
-  ultimoNsu: string;
-  maxNsu: string;
-  totalDocumentos: number;
-  documentos: Array<{
-    nsu: string;
-    tipo: string;
-    resumo: string;
+  resultados: Array<{
+    chaveAcesso: string;
+    nsuRecepcao: string;
+    statusProcessamento: string;
   }>;
+  totalDocumentos: number;
+  dataHoraProcessamento: string;
 }> {
   if (!params.cnpj || params.cnpj.length !== 14) {
     throw new NfseValidationError([{
@@ -84,69 +68,54 @@ export async function nfseConsultarDfe(
     }]);
   }
 
+  // DFe distribution also goes through POST /DFe but with a distribution XML
   const tipoFiltro = params.tipo || "todas";
   const tpDist = tipoFiltro === "emitidas" ? "1" : tipoFiltro === "recebidas" ? "2" : "0";
 
-  const response = await client.postXml(
-    "/DFe",
-    `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<distDFeInt xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">` +
-    `<tpDist>${tpDist}</tpDist>` +
-    `<CNPJ>${params.cnpj}</CNPJ>` +
-    `<ultNSU>${params.ultimoNsu}</ultNSU>` +
+  const distXml = [
+    `<?xml version="1.0" encoding="UTF-8"?>`,
+    `<distDFeInt xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">`,
+    `<tpDist>${tpDist}</tpDist>`,
+    `<CNPJ>${params.cnpj}</CNPJ>`,
+    `<ultNSU>${params.ultimoNsu}</ultNSU>`,
     `</distDFeInt>`,
-  );
+  ].join("");
 
-  const parsed = parseDfeResponse(response.body);
+  const dfeResponse = await client.postDfe([distXml]);
+
+  const resultados = (dfeResponse.Lote || []).map((doc) => ({
+    chaveAcesso: doc.ChaveAcesso || "",
+    nsuRecepcao: doc.NsuRecepcao || "",
+    statusProcessamento: doc.StatusProcessamento || "",
+  }));
 
   return {
-    ultimoNsu: parsed.ultimoNsu,
-    maxNsu: parsed.maxNsu,
-    totalDocumentos: parsed.documentos.length,
-    documentos: parsed.documentos.map((d) => ({
-      nsu: d.nsu,
-      tipo: d.tipo,
-      resumo: `NSU ${d.nsu} — ${d.tipo} (${d.xml.length} bytes)`,
-    })),
+    resultados,
+    totalDocumentos: resultados.length,
+    dataHoraProcessamento: dfeResponse.DataHoraProcessamento,
   };
 }
 
 export async function nfseConsultarLote(
-  client: AdnHttpClient,
+  _client: AdnHttpClient,
   params: {
     protocolo: string;
     cnpjPrestador: string;
   },
 ): Promise<{
   protocolo: string;
-  situacao: string;
-  totalNotas: number;
-  notas: Array<{
-    chaveAcesso?: string;
-    numero?: string;
-    situacao: string;
-    motivo?: string;
-  }>;
+  mensagem: string;
 }> {
   if (!params.protocolo) {
     throw new NfseValidationError([{ field: "protocolo", message: "Protocolo é obrigatório" }]);
   }
 
-  const response = await client.postXml(
-    "/sefin/v1/DPS/lote/consulta",
-    `<?xml version="1.0" encoding="UTF-8"?>` +
-    `<consLote xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">` +
-    `<nRec>${params.protocolo}</nRec>` +
-    `<CNPJ>${params.cnpjPrestador}</CNPJ>` +
-    `</consLote>`,
-  );
-
-  const lote = parseLoteResponse(response.body);
-
+  // The ADN processes documents synchronously via POST /DFe.
+  // Lote consultation is not needed — results come in the emission response.
   return {
-    protocolo: lote.protocolo,
-    situacao: lote.situacao,
-    totalNotas: lote.notas.length,
-    notas: lote.notas,
+    protocolo: params.protocolo,
+    mensagem: "O ADN processa documentos de forma síncrona via POST /DFe. " +
+      "O resultado de cada documento é retornado imediatamente na resposta da emissão. " +
+      "Use nfse_emitir ou nfse_emitir_lote e verifique o campo statusProcessamento.",
   };
 }

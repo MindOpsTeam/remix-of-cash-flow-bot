@@ -6,18 +6,16 @@ import type { AdnHttpClient } from "../auth/http-client.js";
 import type { CertManager } from "../auth/cert-manager.js";
 import { MAX_LOTE_SIZE } from "../config.js";
 import { buildDpsXml, signDpsXml, buildIdDps, type DpsInput } from "../xml/dps-builder.js";
-import { parseNfseResponse } from "../xml/nfse-parser.js";
 import { NfseValidationError } from "../errors/nfse-errors.js";
 import { emissionCache } from "../cache/idempotency-cache.js";
 
 type EmitirResult = {
+  idDPS: string;
   chaveAcesso: string;
-  numero: string;
-  serie: string;
-  dataEmissao: string;
+  dataHoraProcessamento: string;
   valorServicos: number;
-  valorIss: number;
-  xmlAutorizado: string;
+  ambiente: string;
+  alertas: Array<{ codigo: string; descricao: string }>;
   idempotente?: boolean;
 };
 
@@ -99,18 +97,16 @@ export async function nfseEmitir(
   const xml = buildDpsXml(params);
   const signedXml = signDpsXml(xml, certManager.getCredentials());
 
-  // Send to ADN
-  const response = await client.postXml("/sefin/v1/DPS", signedXml);
-  const nfse = parseNfseResponse(response.body);
+  // Send to SEFIN Nacional (POST /SefinNacional/nfse)
+  const sefinResponse = await client.postSefin(signedXml);
 
   const result: EmitirResult = {
-    chaveAcesso: nfse.chaveAcesso,
-    numero: nfse.numero,
-    serie: nfse.serie,
-    dataEmissao: nfse.dataEmissao,
-    valorServicos: nfse.valores.valorServicos,
-    valorIss: nfse.valores.valorIss || 0,
-    xmlAutorizado: response.body,
+    idDPS: sefinResponse.idDPS,
+    chaveAcesso: sefinResponse.chaveAcesso || "",
+    dataHoraProcessamento: sefinResponse.dataHoraProcessamento,
+    valorServicos: params.valores.valorServicos,
+    ambiente: sefinResponse.tipoAmbiente === 1 ? "producao" : "homologacao",
+    alertas: (sefinResponse.alertas || []).map((a) => ({ codigo: a.Codigo, descricao: a.Descricao })),
   };
 
   // Cache successful emission
@@ -125,9 +121,16 @@ export async function nfseEmitirLote(
   cnpjPrestador: string,
   lote: DpsInput[],
 ): Promise<{
-  protocolo: string;
   totalEnviado: number;
   ambiente: string;
+  dataHoraProcessamento: string;
+  resultados: Array<{
+    idDPS: string;
+    chaveAcesso: string;
+    dataHoraProcessamento: string;
+    alertas: Array<{ codigo: string; descricao: string }>;
+    erros: Array<{ codigo: string; descricao: string }>;
+  }>;
 }> {
   if (lote.length === 0) {
     throw new NfseValidationError([{ field: "lote", message: "Lote não pode estar vazio" }]);
@@ -139,32 +142,45 @@ export async function nfseEmitirLote(
     }]);
   }
 
-  // Build and sign each DPS
-  const signedDpsList: string[] = [];
+  // SEFIN accepts one DPS at a time — send each individually
+  const resultados: Array<{
+    idDPS: string;
+    chaveAcesso: string;
+    dataHoraProcessamento: string;
+    alertas: Array<{ codigo: string; descricao: string }>;
+    erros: Array<{ codigo: string; descricao: string }>;
+  }> = [];
+
   for (const dps of lote) {
     dps.cnpjPrestador = cnpjPrestador;
     const xml = buildDpsXml(dps);
-    signedDpsList.push(signDpsXml(xml, certManager.getCredentials()));
+    const signedXml = signDpsXml(xml, certManager.getCredentials());
+
+    try {
+      const resp = await client.postSefin(signedXml);
+      resultados.push({
+        idDPS: resp.idDPS,
+        chaveAcesso: resp.chaveAcesso || "",
+        dataHoraProcessamento: resp.dataHoraProcessamento,
+        alertas: (resp.alertas || []).map((a) => ({ codigo: a.Codigo, descricao: a.Descricao })),
+        erros: [],
+      });
+    } catch (err) {
+      resultados.push({
+        idDPS: buildIdDps(dps),
+        chaveAcesso: "",
+        dataHoraProcessamento: new Date().toISOString(),
+        alertas: [],
+        erros: [{ codigo: "EMISSAO_FALHOU", descricao: err instanceof Error ? err.message : String(err) }],
+      });
+    }
   }
 
-  // Wrap in lote envelope
-  const loteXml = [
-    `<?xml version="1.0" encoding="UTF-8"?>`,
-    `<enviarLoteDPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.00">`,
-    `<idLote>${Date.now()}</idLote>`,
-    ...signedDpsList.map((xml) => `<DPS>${xml}</DPS>`),
-    `</enviarLoteDPS>`,
-  ].join("");
-
-  const response = await client.postXml("/sefin/v1/DPS/lote", loteXml);
-
-  // Parse protocol number from response
-  const protMatch = response.body.match(/<nRec>(\d+)<\/nRec>/);
-  const protocolo = protMatch?.[1] || "";
-
   return {
-    protocolo,
     totalEnviado: lote.length,
     ambiente: process.env.NFSE_AMBIENTE || "homologacao",
+    dataHoraProcessamento: new Date().toISOString(),
+    resultados,
   };
 }
+

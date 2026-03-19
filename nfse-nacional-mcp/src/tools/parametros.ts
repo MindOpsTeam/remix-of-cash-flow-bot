@@ -1,27 +1,25 @@
 /**
  * Tools de parâmetros: nfse_parametros_municipio, nfse_parametros_contribuinte,
  * nfse_cnc_consultar, nfse_codigos_servico
+ *
+ * Nota: O ADN de Recepção (adn.nfse.gov.br) expõe apenas POST /DFe e GET /danfse/v1.
+ * APIs de parametrização, CNC e contribuintes não estão disponíveis neste endpoint.
+ * Estas funções usam dados locais ou retornam informação sobre a indisponibilidade.
  */
 
 import type { AdnHttpClient } from "../auth/http-client.js";
-import { parametrosCache } from "../cache/parametros-cache.js";
 import { NfseValidationError } from "../errors/nfse-errors.js";
 
 export async function nfseParametrosMunicipio(
-  client: AdnHttpClient,
+  _client: AdnHttpClient,
   params: {
     codigoMunicipio: string;
     cpfCnpj?: string;
   },
 ): Promise<{
   codigoMunicipio: string;
-  nomeMunicipio?: string;
-  aderenteAdn: boolean;
-  aliquotaMinima?: number;
-  aliquotaMaxima?: number;
-  regimesEspeciais?: string[];
-  beneficiosFiscais?: Array<{ codigo: string; descricao: string }>;
-  retencoesobrigatorias?: string[];
+  mensagem: string;
+  sugestao: string;
 }> {
   if (!params.codigoMunicipio || params.codigoMunicipio.length !== 7) {
     throw new NfseValidationError([{
@@ -30,36 +28,17 @@ export async function nfseParametrosMunicipio(
     }]);
   }
 
-  const cacheKey = `param_mun_${params.codigoMunicipio}`;
-  const cached = parametrosCache.get<Record<string, unknown>>(cacheKey);
-  if (cached) {
-    return cached as any;
-  }
-
-  const queryParams = params.cpfCnpj
-    ? `?codigoMunicipio=${params.codigoMunicipio}&cpfCnpj=${params.cpfCnpj}`
-    : `?codigoMunicipio=${params.codigoMunicipio}`;
-
-  const response = await client.getJson(`/parametrizacao/municipios${queryParams}`);
-  const data = JSON.parse(response.body);
-
-  const result = {
+  return {
     codigoMunicipio: params.codigoMunicipio,
-    nomeMunicipio: data.nomeMunicipio || data.nome,
-    aderenteAdn: data.aderente !== false,
-    aliquotaMinima: data.aliquotaMinima ?? data.aliqMinima,
-    aliquotaMaxima: data.aliquotaMaxima ?? data.aliqMaxima,
-    regimesEspeciais: data.regimesEspeciais || [],
-    beneficiosFiscais: data.beneficios || [],
-    retencoesobrigatorias: data.retencoes || [],
+    mensagem: "A API de parametrização municipal não está disponível no ADN de Recepção. " +
+      "Parâmetros municipais devem ser consultados diretamente no portal da prefeitura ou via SEFIN municipal.",
+    sugestao: "Para emitir NFS-e, informe os dados fiscais do município (alíquota ISS, código de serviço) " +
+      "conforme a legislação municipal vigente.",
   };
-
-  parametrosCache.set(cacheKey, result);
-  return result;
 }
 
 export async function nfseParametrosContribuinte(
-  client: AdnHttpClient,
+  _client: AdnHttpClient,
   params: {
     codigoMunicipio: string;
     cpfCnpj: string;
@@ -67,11 +46,7 @@ export async function nfseParametrosContribuinte(
 ): Promise<{
   cpfCnpj: string;
   codigoMunicipio: string;
-  inscricaoMunicipal?: string;
-  optanteSimplesNacional?: boolean;
-  regimeEspecial?: string;
-  beneficiosFiscais?: Array<{ codigo: string; descricao: string; aliquota?: number }>;
-  aliquotaIss?: number;
+  mensagem: string;
 }> {
   if (!params.cpfCnpj) {
     throw new NfseValidationError([{ field: "cpfCnpj", message: "CPF/CNPJ é obrigatório" }]);
@@ -80,71 +55,38 @@ export async function nfseParametrosContribuinte(
     throw new NfseValidationError([{ field: "codigoMunicipio", message: "Código IBGE deve ter 7 dígitos" }]);
   }
 
-  const cacheKey = `param_contrib_${params.cpfCnpj}_${params.codigoMunicipio}`;
-  const cached = parametrosCache.get<Record<string, unknown>>(cacheKey);
-  if (cached) return cached as any;
-
-  const response = await client.getJson(
-    `/contribuintes/parametros?cpfCnpj=${params.cpfCnpj}&codigoMunicipio=${params.codigoMunicipio}`,
-  );
-  const data = JSON.parse(response.body);
-
-  const result = {
+  return {
     cpfCnpj: params.cpfCnpj,
     codigoMunicipio: params.codigoMunicipio,
-    inscricaoMunicipal: data.inscricaoMunicipal || data.IM,
-    optanteSimplesNacional: data.optanteSN ?? data.simplesNacional,
-    regimeEspecial: data.regimeEspecial,
-    beneficiosFiscais: data.beneficios || [],
-    aliquotaIss: data.aliquotaIss ?? data.aliqISS,
+    mensagem: "A API de parâmetros do contribuinte não está disponível no ADN de Recepção. " +
+      "Consulte o cadastro municipal do contribuinte diretamente na prefeitura.",
   };
-
-  parametrosCache.set(cacheKey, result, 12 * 60 * 60 * 1000); // 12h TTL for contributor params
-  return result;
 }
 
 export async function nfseCncConsultar(
-  client: AdnHttpClient,
+  _client: AdnHttpClient,
   params: {
     cpfCnpj: string;
     codigoMunicipio?: string;
   },
 ): Promise<{
   cpfCnpj: string;
-  razaoSocial?: string;
-  nomeFantasia?: string;
-  situacaoCadastral?: string;
-  inscricoesMunicipais?: Array<{
-    codigoMunicipio: string;
-    nomeMunicipio?: string;
-    inscricaoMunicipal: string;
-    situacao: string;
-  }>;
+  mensagem: string;
 }> {
   if (!params.cpfCnpj) {
     throw new NfseValidationError([{ field: "cpfCnpj", message: "CPF/CNPJ é obrigatório" }]);
   }
 
-  const query = params.codigoMunicipio
-    ? `?cpfCnpj=${params.cpfCnpj}&codigoMunicipio=${params.codigoMunicipio}`
-    : `?cpfCnpj=${params.cpfCnpj}`;
-
-  const response = await client.getJson(`/cnc/contribuinte${query}`);
-  const data = JSON.parse(response.body);
-
   return {
     cpfCnpj: params.cpfCnpj,
-    razaoSocial: data.razaoSocial || data.nome,
-    nomeFantasia: data.nomeFantasia,
-    situacaoCadastral: data.situacao || data.situacaoCadastral,
-    inscricoesMunicipais: data.inscricoes || data.inscricoesMunicipais || [],
+    mensagem: "O Cadastro Nacional de Contribuintes (CNC) não está disponível no ADN de Recepção. " +
+      "Consulte o CNC pelo portal https://www.gov.br/nfse.",
   };
 }
 
 /**
  * Códigos de tributação nacional da LC 116/2003
- * Em produção, esses dados viriam da API de parametrização.
- * Aqui mantemos um subset para pesquisa offline.
+ * Dados locais — não depende de API.
  */
 const CODIGOS_SERVICO_SUBSET: Array<{ codigo: string; descricao: string; grupo: string }> = [
   { codigo: "01.01.01", descricao: "Análise e desenvolvimento de sistemas", grupo: "Informática" },
@@ -164,7 +106,7 @@ const CODIGOS_SERVICO_SUBSET: Array<{ codigo: string; descricao: string; grupo: 
 ];
 
 export async function nfseCodigosServico(
-  client: AdnHttpClient,
+  _client: AdnHttpClient,
   params: {
     busca?: string;
     codigo?: string;
@@ -173,25 +115,11 @@ export async function nfseCodigosServico(
   total: number;
   codigos: Array<{ codigo: string; descricao: string; grupo: string }>;
 }> {
-  // If specific code requested
   if (params.codigo) {
     const found = CODIGOS_SERVICO_SUBSET.filter((c) => c.codigo === params.codigo);
-    if (found.length > 0) {
-      return { total: found.length, codigos: found };
-    }
-
-    // Try API for full list
-    try {
-      const response = await client.getJson(`/parametrizacao/codigosServico?codigo=${params.codigo}`);
-      const data = JSON.parse(response.body);
-      const codigos = Array.isArray(data) ? data : data.codigos || [];
-      return { total: codigos.length, codigos };
-    } catch {
-      return { total: 0, codigos: [] };
-    }
+    return { total: found.length, codigos: found };
   }
 
-  // Text search
   if (params.busca) {
     const needle = params.busca.toLowerCase();
     const found = CODIGOS_SERVICO_SUBSET.filter(

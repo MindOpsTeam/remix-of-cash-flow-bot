@@ -9,7 +9,7 @@
 import * as fs from "node:fs";
 import * as https from "node:https";
 import * as tls from "node:tls";
-import * as forge from "node-forge";
+import forge from "node-forge";
 import { NfseCertificateError } from "../errors/nfse-errors.js";
 
 export interface CertificateInfo {
@@ -25,9 +25,8 @@ export interface CertificateInfo {
 }
 
 export interface TlsCredentials {
-  cert: string; // PEM
+  cert: string; // PEM (client cert + chain)
   key: string; // PEM
-  ca?: string; // PEM (chain)
 }
 
 export class CertManager {
@@ -80,7 +79,9 @@ export class CertManager {
     const certPem = forge.pki.certificateToPem(cert);
     const keyPem = forge.pki.privateKeyToPem(privateKey);
 
-    // Build chain (intermediate + root CAs, if present)
+    // Build chain (intermediate + root CAs from .pfx)
+    // These are appended to `cert` so the server receives the full client chain.
+    // They must NOT go in `ca`, which controls server-cert verification.
     const chainPems: string[] = [];
     if (certBag.length > 1) {
       for (let i = 1; i < certBag.length; i++) {
@@ -91,9 +92,8 @@ export class CertManager {
     }
 
     this.credentials = {
-      cert: certPem,
+      cert: chainPems.length > 0 ? certPem + "\n" + chainPems.join("\n") : certPem,
       key: keyPem,
-      ca: chainPems.length > 0 ? chainPems.join("\n") : undefined,
     };
 
     // Parse certificate info
@@ -201,9 +201,8 @@ export class CertManager {
     return new https.Agent({
       cert: this.credentials.cert,
       key: this.credentials.key,
-      ca: this.credentials.ca,
       rejectUnauthorized: true,
-      secureProtocol: "TLSv1_2_method",
+      minVersion: "TLSv1.2",
     });
   }
 
@@ -218,7 +217,6 @@ export class CertManager {
     return {
       cert: this.credentials.cert,
       key: this.credentials.key,
-      ca: this.credentials.ca,
     };
   }
 

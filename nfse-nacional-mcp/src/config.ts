@@ -16,36 +16,32 @@ export interface NfseConfig {
   certStorage: "file" | "vault" | "supabase";
 }
 
-const BASE_URLS: Record<Ambiente, string> = {
+/**
+ * URLs do ecossistema NFS-e Nacional:
+ * - SEFIN: recebe DPS para emissão de NFS-e (POST /SefinNacional/nfse)
+ * - ADN: distribuição de NFS-e autorizadas e DANFSE (GET /contribuintes/DFe, GET /danfse/v1)
+ */
+const SEFIN_URLS: Record<Ambiente, string> = {
+  producao: "https://sefin.nfse.gov.br",
+  homologacao: "https://sefin.producaorestrita.nfse.gov.br",
+};
+
+const ADN_URLS: Record<Ambiente, string> = {
   producao: "https://adn.nfse.gov.br",
   homologacao: "https://adn.producaorestrita.nfse.gov.br",
 };
 
-/**
- * Paths das APIs disponíveis no ADN
- * Cada API tem seu próprio path base dentro do ADN
- */
-const API_PATHS = {
-  /** API SEFIN — emissão de DPS, eventos, consulta por chave */
-  sefin: "/sefin/v1",
-  /** API de DFe — distribuição de documentos por NSU */
-  dfe: "/DFe",
-  /** API de Contribuintes — parâmetros fiscais do contribuinte */
-  contribuintes: "/contribuintes",
-  /** API CNC — Cadastro Nacional de Contribuintes */
-  cnc: "/cnc",
-  /** API de Parametrização — parâmetros municipais */
-  parametrizacao: "/parametrizacao",
-  /** API DANFSE — geração de PDF */
-  danfse: "/danfse",
-} as const;
-
-export function getBaseUrl(ambiente: Ambiente): string {
-  return BASE_URLS[ambiente];
+export function getSefinUrl(ambiente: Ambiente): string {
+  return SEFIN_URLS[ambiente];
 }
 
-export function getApiUrl(ambiente: Ambiente, api: keyof typeof API_PATHS): string {
-  return `${BASE_URLS[ambiente]}${API_PATHS[api]}`;
+export function getAdnUrl(ambiente: Ambiente): string {
+  return ADN_URLS[ambiente];
+}
+
+/** @deprecated Use getSefinUrl or getAdnUrl */
+export function getBaseUrl(ambiente: Ambiente): string {
+  return ADN_URLS[ambiente];
 }
 
 export function loadConfig(): NfseConfig {
