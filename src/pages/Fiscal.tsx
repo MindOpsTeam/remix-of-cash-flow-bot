@@ -8,8 +8,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  FileCheck, Search, FileText, Download, Plus,
+  FileCheck, Search, FileText, Download, Plus, ExternalLink,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -82,9 +83,11 @@ export default function FiscalPage() {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Notas fiscais emitidas e recebidas</p>
           </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-1.5" /> Emitir NF-e
-          </Button>
+          <Link to="/fiscal/nfse/emit">
+            <Button>
+              <Plus className="h-4 w-4 mr-1.5" /> Emitir NFS-e
+            </Button>
+          </Link>
         </div>
 
         {/* Info Banner */}

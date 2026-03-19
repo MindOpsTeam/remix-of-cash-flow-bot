@@ -49,6 +49,7 @@ const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 // Estoque & Fiscal
 const StockPage = lazy(() => import("./pages/Stock"));
 const FiscalPage = lazy(() => import("./pages/Fiscal"));
+const NfseEmitPage = lazy(() => import("./pages/NfseEmit"));
 
 const queryClient = new QueryClient();
 
@@ -106,6 +107,7 @@ const AppRoutes = () => (
       {/* Estoque & Fiscal */}
       <Route path="/stock" element={<P><StockPage /></P>} />
       <Route path="/fiscal" element={<P><FiscalPage /></P>} />
+      <Route path="/fiscal/nfse/emit" element={<P><NfseEmitPage /></P>} />
 
       {/* Análise */}
       <Route path="/dre" element={<P><DRE /></P>} />
