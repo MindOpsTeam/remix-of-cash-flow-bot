@@ -73,6 +73,15 @@ Deno.serve(async (req) => {
     let workerBody: Record<string, unknown> = {};
 
     if (operation === "emit") {
+      // Atomically reserve the next DPS number to prevent race conditions
+      const { data: reserved, error: reserveErr } = await supabase
+        .rpc("reserve_next_dps_number", { config_id: config.id });
+
+      const numeroDps = reserved ?? config.proximo_numero_dps;
+      if (reserveErr) {
+        console.error("Failed to reserve DPS number, using current:", reserveErr.message);
+      }
+
       workerPath = "/emit";
       workerBody = {
         certBase64: config.cert_pfx_base64,
@@ -82,7 +91,7 @@ Deno.serve(async (req) => {
         codigoMunicipio: config.codigo_municipio,
         competencia: data?.competencia,
         serieDps: config.serie_dps,
-        numeroDps: String(config.proximo_numero_dps),
+        numeroDps: String(numeroDps),
         ambiente: config.ambiente,
         servico: data?.servico,
         tomador: data?.tomador,
@@ -113,29 +122,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Call worker
-    const workerRes = await fetch(`${WORKER_URL}${workerPath}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": WORKER_KEY,
-      },
-      body: JSON.stringify(workerBody),
-    });
+    // Call worker with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    let workerRes: Response;
+    try {
+      workerRes = await fetch(`${WORKER_URL}${workerPath}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": WORKER_KEY,
+        },
+        body: JSON.stringify(workerBody),
+        signal: controller.signal,
+      });
+    } catch (fetchErr: any) {
+      clearTimeout(timeout);
+      const msg = fetchErr.name === "AbortError" ? "Timeout: Worker nao respondeu em 30s" : fetchErr.message;
+      return new Response(JSON.stringify({ error: msg }), {
+        status: 504,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    clearTimeout(timeout);
 
     const workerData = await workerRes.json();
 
-    // If emission succeeded, increment proximo_numero_dps
+    // If emission succeeded, save to invoices and update last_emission_at
     if (operation === "emit" && workerData.success) {
       await supabase
         .from("nfse_config")
-        .update({
-          proximo_numero_dps: config.proximo_numero_dps + 1,
-          last_emission_at: new Date().toISOString(),
-        })
+        .update({ last_emission_at: new Date().toISOString() })
         .eq("id", config.id);
 
-      // Also save to invoices table
       await supabase.from("invoices").insert({
         company_id: companyId,
         type: "nfse",
@@ -149,7 +169,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify(workerData), {
-      status: workerRes.ok ? 200 : 500,
+      status: workerRes.status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {

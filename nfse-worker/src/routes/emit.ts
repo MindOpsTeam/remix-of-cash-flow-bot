@@ -66,6 +66,7 @@ export async function handleEmit(req: Request, res: Response) {
       valores: { valorServicos: valores.valorServicos },
       observacoes,
       optanteSimplesNacional,
+      ambiente: ambiente || "producao",
     };
 
     // Build and sign XML

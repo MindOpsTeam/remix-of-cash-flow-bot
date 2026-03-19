@@ -56,7 +56,23 @@ Deno.serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  // Validate JWT first
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
+  }
+  const authClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: authError } = await authClient.auth.getUser();
+  if (authError || !user) {
+    return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
+  }
+
+  // Use service role for DB operations (RLS still protects via company_id verification below)
   const supabase = createClient(supabaseUrl, serviceKey);
 
   try {

@@ -14,8 +14,12 @@ app.use(express.json({ limit: "5mb" }));
 // Auth middleware
 app.use((req, res, next) => {
   if (req.path === "/health") return next();
+  if (!API_KEY) {
+    console.error("[auth] NFSE_WORKER_API_KEY not set — rejecting all requests");
+    return res.status(500).json({ error: "Server misconfigured: API key not set" });
+  }
   const key = req.headers["x-api-key"] || req.headers.authorization?.replace("Bearer ", "");
-  if (!API_KEY || key === API_KEY) return next();
+  if (key === API_KEY) return next();
   res.status(401).json({ error: "Unauthorized" });
 });
 

@@ -31,6 +31,7 @@ export interface EmitParams {
   optanteSimplesNacional?: boolean;
   regimeEspecial?: string;
   naturezaTributacao?: string;
+  ambiente?: "producao" | "homologacao";
 }
 
 export function buildIdDps(p: EmitParams): string {
@@ -57,7 +58,7 @@ export function buildDpsXml(p: EmitParams): string {
       "@_versao": "1.00",
       infDPS: {
         "@_Id": buildIdDps(p),
-        tpAmb: "1", // producao
+        tpAmb: p.ambiente === "homologacao" ? "2" : "1",
         dhEmi: formatDateTimeBRT(new Date()),
         verAplic: "ERP-NFSE-WORKER-1.0",
         serie: p.serieDps,
