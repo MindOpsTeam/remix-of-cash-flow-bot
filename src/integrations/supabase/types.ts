@@ -3365,6 +3365,7 @@ export type Database = {
     Functions: {
       create_company_for_user: { Args: { company_name: string }; Returns: Json }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
+      reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never
