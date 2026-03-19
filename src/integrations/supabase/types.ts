@@ -1524,6 +1524,7 @@ export type Database = {
           total: number
           type: string
           updated_at: string
+          xml_content: string | null
           xml_url: string | null
         }
         Insert: {
@@ -1542,6 +1543,7 @@ export type Database = {
           total?: number
           type?: string
           updated_at?: string
+          xml_content?: string | null
           xml_url?: string | null
         }
         Update: {
@@ -1560,6 +1562,7 @@ export type Database = {
           total?: number
           type?: string
           updated_at?: string
+          xml_content?: string | null
           xml_url?: string | null
         }
         Relationships: [
