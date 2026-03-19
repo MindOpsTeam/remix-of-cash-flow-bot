@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.list-whatsapp-groups]
 verify_jwt = false
+
+[functions.nfse-proxy]
+verify_jwt = false
