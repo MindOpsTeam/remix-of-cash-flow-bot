@@ -2,12 +2,18 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionForm } from "@/components/TransactionForm";
+import { TransactionEditForm } from "@/components/TransactionEditForm";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import type { TransactionRowData } from "@/components/TransactionRow";
 
 const ITEMS_PER_PAGE = 25;
