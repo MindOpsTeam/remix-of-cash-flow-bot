@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -55,6 +55,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
   });
 
   const [aiSuggested, setAiSuggested] = useState(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     if (!company) return;
@@ -100,6 +101,11 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
       setClassifying(false);
     }
   }, [company, form.type, form.account_id]);
+
+  const debouncedClassify = useCallback((description: string) => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => classifyWithAI(description), 600);
+  }, [classifyWithAI]);
 
   const filteredAccounts = accounts.filter((a) => {
     if (form.type === "revenue") return a.type === "revenue";
@@ -182,7 +188,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
             <Textarea 
               value={form.description} 
               onChange={(e) => update("description", e.target.value)} 
-              onBlur={() => classifyWithAI(form.description)}
+              onBlur={() => debouncedClassify(form.description)}
               placeholder="Descreva o lançamento e a IA sugere a classificação..." 
               required 
               className="mt-1 min-h-[60px]" 

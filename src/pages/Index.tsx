@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState, useCallback, memo } from "react";
+import { useEffect, useState, useCallback, memo, useRef } from "react";
 
 interface MonthData {
   month: string;
@@ -51,14 +51,20 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<MonthData[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [erpMetrics, setErpMetrics] = useState({ contacts: 0, pendingSales: 0, pendingSalesTotal: 0, lowStock: 0, pendingPurchases: 0 });
+  const lastFetchRef = useRef(0);
 
   const loadData = useCallback(async () => {
     if (!company) return;
+    // Throttle: skip if fetched less than 5s ago
+    const now = Date.now();
+    if (now - lastFetchRef.current < 5000) return;
+    lastFetchRef.current = now;
+
     setLoading(true);
 
-    const now = new Date();
-    const curYear = now.getFullYear();
-    const curMonth = now.getMonth();
+    const nowDate = new Date();
+    const curYear = nowDate.getFullYear();
+    const curMonth = nowDate.getMonth();
     const curStart = new Date(curYear, curMonth, 1).toISOString().split("T")[0];
     const curEnd = new Date(curYear, curMonth + 1, 0).toISOString().split("T")[0];
     const prevStart = new Date(curYear, curMonth - 1, 1).toISOString().split("T")[0];
