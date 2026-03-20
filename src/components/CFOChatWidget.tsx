@@ -4,6 +4,7 @@ import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -14,6 +15,7 @@ export function CFOChatWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const { company } = useCompany();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -28,7 +30,10 @@ export function CFOChatWidget() {
   const streamChat = async (question: string) => {
     if (!company || !question.trim()) return;
     setIsLoading(true);
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
+
+    const userMsg: Message = { role: "user", content: question };
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput("");
 
     let content = "";
@@ -50,9 +55,20 @@ export function CFOChatWidget() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ question, company_id: company.id }),
+        body: JSON.stringify({
+          messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
+          company_id: company.id,
+        }),
       });
 
+      if (resp.status === 429) {
+        toast({ title: "Limite atingido", description: "Aguarde alguns minutos e tente novamente.", variant: "destructive" });
+        return;
+      }
+      if (resp.status === 402) {
+        toast({ title: "Créditos insuficientes", description: "Adicione créditos ao workspace.", variant: "destructive" });
+        return;
+      }
       if (!resp.ok) throw new Error("Erro na resposta");
       if (!resp.body) throw new Error("Sem resposta");
 
@@ -76,7 +92,10 @@ export function CFOChatWidget() {
             const parsed = JSON.parse(json);
             const c = parsed.choices?.[0]?.delta?.content;
             if (c) update(c);
-          } catch { break; }
+          } catch {
+            buffer = line + "\n" + buffer;
+            break;
+          }
         }
       }
     } catch (e: any) {
@@ -86,9 +105,12 @@ export function CFOChatWidget() {
     }
   };
 
+  const panelClasses = isMobile
+    ? "fixed inset-0 z-50 flex flex-col bg-card animate-scale-in"
+    : "fixed bottom-6 right-6 z-50 w-[380px] max-h-[520px] flex flex-col bg-card border border-border rounded-lg overflow-hidden animate-scale-in shadow-dropdown";
+
   return (
     <>
-      {/* FAB */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -99,10 +121,8 @@ export function CFOChatWidget() {
         </button>
       )}
 
-      {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] max-h-[520px] flex flex-col bg-card border border-border rounded-lg overflow-hidden animate-scale-in shadow-dropdown">
-          {/* Header */}
+        <div className={panelClasses}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
@@ -118,14 +138,13 @@ export function CFOChatWidget() {
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[200px] max-h-[340px]">
+          <div className={`flex-1 overflow-y-auto p-3 space-y-3 ${isMobile ? "min-h-0" : "min-h-[200px] max-h-[340px]"}`}>
             {messages.length === 0 && (
               <div className="text-center py-8">
                 <Brain className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">Pergunte qualquer coisa sobre suas finanças</p>
+                <p className="text-sm text-muted-foreground">Pergunte sobre suas finanças</p>
                 <div className="mt-3 space-y-1.5">
-                  {["Qual meu score financeiro?", "Posso contratar mais alguém?", "Como reduzir custos?"].map((q) => (
+                  {["Qual meu saldo?", "Extrato do mês", "Últimas transações"].map((q) => (
                     <button
                       key={q}
                       onClick={() => streamChat(q)}
@@ -162,7 +181,6 @@ export function CFOChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
           <div className="border-t border-border p-2">
             <form
               onSubmit={(e) => { e.preventDefault(); if (input.trim() && !isLoading) streamChat(input); }}
