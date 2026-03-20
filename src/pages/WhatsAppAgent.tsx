@@ -91,6 +91,9 @@ export default function WhatsApp() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
   const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
 
+  const [reconnect, setReconnect] = useState<ReconnectState>(null);
+  const reconnectPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoFixPhoneRef = useRef<Set<string>>(new Set());
 
   const loadConfigs = useCallback(async () => {
