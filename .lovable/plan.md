@@ -1,37 +1,37 @@
 
 
-## CFO Digital — Conversa humana e responsiva
+## Onboarding Wizard — Modal de configuracao inicial
 
-### Problema atual
-- O widget envia apenas a pergunta atual, sem historico de conversa — a IA nao tem contexto de mensagens anteriores
-- O prompt do sistema e muito "consultor estrategico", nao responde perguntas diretas como "qual meu saldo?" ou "me mostra as ultimas transacoes"
-- Faltam dados de extrato detalhado (ultimas N transacoes com descricao, valor, data) no contexto
+### Conceito
+Modal wizard exibido uma unica vez apos o primeiro login do usuario. Controlado por um campo `onboarding_completed` na tabela `company_members`. O wizard coleta informacoes da empresa e integrações opcionais em etapas.
 
-### Mudancas
+### Etapas do wizard
 
-**1. Frontend `src/components/CFOChatWidget.tsx`**
-- Enviar array `messages` completo (historico da conversa) em vez de apenas `question`
-- Atualizar sugestoes rapidas para: "Qual meu saldo?", "Extrato do mes", "Ultimas transacoes"
-- Responsivo: no mobile, widget ocupa tela cheia (w-full, h-full, bottom-0 right-0)
+1. **Bem-vindo** — Boas-vindas, explicacao rapida do sistema
+2. **Dados da Empresa** — Nome da empresa, CNPJ (opcional). Salva em `companies`
+3. **Integrações (opcional)** — Campos para API keys: Asaas (sandbox/production), Evolution API (WhatsApp URL + key). Todas opcionais, pode pular
+4. **Concluido** — Confirmacao, redireciona ao dashboard
 
-**2. Edge function `supabase/functions/cfo-digital/index.ts`**
-- Aceitar campo `messages` (array de {role, content}) alem de `question` (retrocompativel)
-- Incluir no contexto financeiro as **ultimas 30 transacoes detalhadas** (data, descricao, tipo, valor, conta, centro de custo) para responder perguntas de extrato
-- Incluir **saldo por conta bancaria** se disponivel
-- Passar historico completo de mensagens para a IA (system + messages do usuario)
-- Reescrever system prompt: tom conversacional, direto, responde saldo/extrato/transacoes com dados reais. So faz resumo estrategico se pedido
+### Mudancas no banco
 
-**3. System prompt novo**
-- Foco: assistente financeiro conversacional que responde perguntas objetivas
-- Quando perguntam saldo: responder valor direto
-- Quando perguntam extrato/transacoes: listar as mais recentes
-- Quando pedem resumo: ai sim gerar analise completa
-- Respostas curtas e diretas por padrao
+**Migração**: Adicionar coluna `onboarding_completed` (boolean default false) na tabela `company_members`.
+
+```sql
+ALTER TABLE public.company_members 
+ADD COLUMN onboarding_completed boolean NOT NULL DEFAULT false;
+```
 
 ### Arquivos
 
-| Acao | Arquivo |
+| Ação | Arquivo |
 |------|---------|
-| Editar | `src/components/CFOChatWidget.tsx` — enviar historico, responsivo mobile |
-| Editar | `supabase/functions/cfo-digital/index.ts` — aceitar messages, extrato detalhado, novo prompt |
+| Migração | Adicionar `onboarding_completed` a `company_members` |
+| Criar | `src/components/OnboardingWizard.tsx` — modal com 4 etapas usando Dialog, Progress, steps state |
+| Editar | `src/pages/Index.tsx` — verificar `onboarding_completed` e exibir wizard se false |
+
+### Detalhes tecnicos
+
+- `OnboardingWizard.tsx`: Dialog modal fullscreen-ish, steps controlados por useState. Cada step eh um componente inline. Botoes "Proximo" / "Pular" / "Concluir". Na etapa de empresa, salva via `supabase.from('companies').update(...)`. Na etapa de integrações, salva API keys nas tabelas de config existentes (`company_asaas_config`, `whatsapp_configs`). No final, marca `onboarding_completed = true` em `company_members`.
+- `Index.tsx`: Query `company_members` para checar `onboarding_completed`. Se false, abre o wizard. Ao concluir, refetch.
+- Design: usa componentes existentes (Dialog, Input, Label, Button, Progress, Badge). Tema escuro consistente.
 
