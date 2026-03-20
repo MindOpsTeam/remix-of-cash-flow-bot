@@ -150,7 +150,12 @@ export default function Transactions() {
           <>
             <div className="space-y-0">
               {transactions.map((t) => (
-                <TransactionRow key={t.id} transaction={t} />
+                <TransactionRow
+                  key={t.id}
+                  transaction={t}
+                  onEdit={setEditingTransaction}
+                  onDelete={setDeletingTransaction}
+                />
               ))}
             </div>
 
