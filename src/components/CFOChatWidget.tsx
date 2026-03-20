@@ -144,7 +144,11 @@ export function CFOChatWidget() {
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground"
                 }`}>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  {msg.role === "assistant" ? (
+                    <MarkdownMessage content={msg.content} />
+                  ) : (
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                  )}
                 </div>
               </div>
             ))}
