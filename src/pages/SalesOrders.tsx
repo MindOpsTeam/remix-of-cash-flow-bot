@@ -194,6 +194,7 @@ export default function SalesOrdersPage() {
     onSuccess: () => {
       toast.success(editingId ? "Pedido atualizado!" : "Pedido criado!");
       queryClient.invalidateQueries({ queryKey: ["sales_orders"] });
+      markClean();
       setDialogOpen(false);
       resetForm();
     },
