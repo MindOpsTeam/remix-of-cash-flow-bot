@@ -3047,6 +3047,7 @@ export type Database = {
           competencia: string
           created_at: string
           id: string
+          invoice_id: string | null
           source: string
           status: string
           tipo: string
@@ -3059,6 +3060,7 @@ export type Database = {
           competencia: string
           created_at?: string
           id?: string
+          invoice_id?: string | null
           source?: string
           status?: string
           tipo: string
@@ -3071,6 +3073,7 @@ export type Database = {
           competencia?: string
           created_at?: string
           id?: string
+          invoice_id?: string | null
           source?: string
           status?: string
           tipo?: string
@@ -3084,6 +3087,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_guides_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]
