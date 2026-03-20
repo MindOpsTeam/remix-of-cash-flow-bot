@@ -95,7 +95,7 @@ const AppRoutes = () => (
       {/* Financeiro */}
       <Route path="/transactions" element={<P><Transactions /></P>} />
       <Route path="/transfers" element={<P><CompanyTransfers /></P>} />
-      <Route path="/bills" element={<P><CompanyBills /></P>} />
+      <Route path="/bills" element={<Navigate to="/fiscal/contas-a-pagar" replace />} />
       <Route path="/documents" element={<P><DocumentScanner /></P>} />
       <Route path="/owner-transactions" element={<P><OwnerTransactions /></P>} />
 
