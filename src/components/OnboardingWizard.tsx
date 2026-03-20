@@ -50,7 +50,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
     try {
       const updates: Record<string, string> = {};
       if (companyName.trim()) updates.name = companyName.trim();
-      if (cnpj.trim()) updates.cnpj = cnpj.trim();
+      if (cnpj.trim()) updates.cnpj = cnpj.replace(/\D/g, "");
 
       if (Object.keys(updates).length > 0) {
         const { error } = await supabase.from("companies").update(updates).eq("id", company.id);
