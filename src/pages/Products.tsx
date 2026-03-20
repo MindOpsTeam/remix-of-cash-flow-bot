@@ -161,18 +161,18 @@ export default function ProductsPage() {
     setDialogOpen(true);
   };
 
-  const openEdit = (p: Product) => {
+  const openEdit = (p: any) => {
     setEditingId(p.id);
     setForm({
       name: p.name,
       description: p.description || "",
       type: p.type,
       sku: p.sku || "",
-      barcode: "",
+      barcode: p.barcode || "",
       unit: p.unit,
       sell_price: String(p.sell_price),
       cost_price: p.cost_price != null ? String(p.cost_price) : "",
-      ncm: "",
+      ncm: p.ncm || "",
       track_stock: p.track_stock,
       min_stock: p.min_stock != null ? String(p.min_stock) : "",
       category: p.category || "",
