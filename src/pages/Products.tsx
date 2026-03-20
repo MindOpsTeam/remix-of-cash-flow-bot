@@ -312,6 +312,7 @@ export default function ProductsPage() {
             </div>
           </div>
         )}
+      </div>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setDialogOpen(open); }}>
