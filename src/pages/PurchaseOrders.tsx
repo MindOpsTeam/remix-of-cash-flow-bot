@@ -71,6 +71,13 @@ export default function PurchaseOrdersPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { markDirty, markClean, confirmDiscard } = useUnsavedChanges(dialogOpen);
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open && !confirmDiscard()) return;
+    setDialogOpen(open);
+    if (!open) { resetForm(); markClean(); }
+  };
 
   const [contactId, setContactId] = useState("");
   const [status, setStatus] = useState("draft");
