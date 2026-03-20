@@ -8,6 +8,7 @@ import { Brain, Send, RefreshCw, TrendingUp, AlertTriangle, Target, Loader2 } fr
 import { useToast } from "@/hooks/use-toast";
 import { useCFODashboard } from "@/hooks/useCFODashboard";
 import { CFODashboard } from "@/components/cfo/CFODashboard";
+import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 
 type Message = { role: "user" | "assistant"; content: string };
 
@@ -215,9 +216,7 @@ export default function CFODigital() {
                       }`}
                     >
                       {msg.role === "assistant" ? (
-                        <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                          {msg.content}
-                        </div>
+                        <MarkdownMessage content={msg.content} />
                       ) : (
                         msg.content
                       )}

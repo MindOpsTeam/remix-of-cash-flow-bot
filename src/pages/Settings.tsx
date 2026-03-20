@@ -47,8 +47,8 @@ const sections = [
   },
   {
     icon: MessageSquare,
-    title: "Agente WhatsApp",
-    description: "Configurar o assistente financeiro via WhatsApp",
+    title: "CFO Digital via WhatsApp",
+    description: "Configurar o assistente CFO estratégico via WhatsApp",
     to: "/whatsapp",
     available: true,
   },
