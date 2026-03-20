@@ -111,6 +111,9 @@ const AppRoutes = () => (
       <Route path="/stock" element={<P><StockPage /></P>} />
       <Route path="/fiscal" element={<P><FiscalPage /></P>} />
       <Route path="/fiscal/nfse/emit" element={<P><NfseEmitPage /></P>} />
+      <Route path="/fiscal/impostos" element={<P><TaxCalendarPage /></P>} />
+      <Route path="/fiscal/contas-a-pagar" element={<P><BillsPayablePage /></P>} />
+      <Route path="/fiscal/arquivos" element={<P><FiscalFilesPage /></P>} />
 
       {/* Análise */}
       <Route path="/dre" element={<P><DRE /></P>} />
