@@ -206,6 +206,41 @@ export default function SalesOrdersPage() {
 
   const addItem = () => setItems((prev) => [...prev, { ...emptyItem }]);
 
+  const openEdit = async (order: SalesOrder) => {
+    setEditingId(order.id);
+    setContactId(order.contact?.id || "");
+    setStatus(order.status);
+    setIssueDate(order.issue_date);
+    setDueDate(order.due_date || "");
+    setNotes(order.notes || "");
+    setSalesperson(order.salesperson || "");
+    // Fetch items
+    const { data: orderItems } = await supabase
+      .from("sales_order_items")
+      .select("*")
+      .eq("order_id", order.id)
+      .order("sort_order");
+    if (orderItems && orderItems.length > 0) {
+      setItems(orderItems.map((i: any) => ({
+        id: i.id,
+        product_id: i.product_id,
+        description: i.description,
+        quantity: Number(i.quantity),
+        unit_price: Number(i.unit_price),
+        discount_percent: Number(i.discount_percent || 0),
+        total: Number(i.total),
+      })));
+    } else {
+      setItems([{ ...emptyItem }]);
+    }
+    // Calculate discount/shipping from order
+    const sub = (orderItems || []).reduce((s: number, i: any) => s + Number(i.total), 0);
+    const discVal = sub + (Number(order.total) > sub ? 0 : sub - Number(order.total));
+    setDiscount("");
+    setShipping("");
+    setDialogOpen(true);
+  };
+
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
 
   const updateItem = (idx: number, field: string, value: any) => {
