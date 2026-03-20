@@ -60,7 +60,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
   const debouncedClassify = useCallback((description: string) => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => classifyWithAI(description), 600);
-  }, []);
+  }, [classifyWithAI]);
 
   useEffect(() => {
     if (!company) return;
