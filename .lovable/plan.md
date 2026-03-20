@@ -1,53 +1,37 @@
 
 
-## Remover mock data — Conectar 3 páginas fiscais ao banco de dados
+## CFO Digital — Conversa humana e responsiva
 
-### Problema
-As páginas Calendário de Impostos, Contas a Pagar e Arquivos Fiscais usam dados mock hardcoded. Precisam ser conectadas a tabelas reais no banco.
+### Problema atual
+- O widget envia apenas a pergunta atual, sem historico de conversa — a IA nao tem contexto de mensagens anteriores
+- O prompt do sistema e muito "consultor estrategico", nao responde perguntas diretas como "qual meu saldo?" ou "me mostra as ultimas transacoes"
+- Faltam dados de extrato detalhado (ultimas N transacoes com descricao, valor, data) no contexto
 
-### 1. Criar 3 tabelas via migração
+### Mudancas
 
-**`tax_guides`** — Guias de impostos
-- `id`, `company_id`, `tipo` (text), `competencia` (text), `vencimento` (date), `valor` (numeric), `status` (text: a_pagar/pago/atrasado), `source` (text: manual/ocr/nf), `created_at`, `updated_at`
-- RLS: `is_company_member(company_id)` para CRUD
+**1. Frontend `src/components/CFOChatWidget.tsx`**
+- Enviar array `messages` completo (historico da conversa) em vez de apenas `question`
+- Atualizar sugestoes rapidas para: "Qual meu saldo?", "Extrato do mes", "Ultimas transacoes"
+- Responsivo: no mobile, widget ocupa tela cheia (w-full, h-full, bottom-0 right-0)
 
-**`bills_payable`** — Contas a pagar (boletos)
-- `id`, `company_id`, `fornecedor` (text), `descricao` (text), `valor` (numeric), `vencimento` (date), `status` (text: a_vencer/vencido/pago), `source` (text: manual/ocr), `contact_id` (uuid nullable, FK contacts), `created_at`, `updated_at`
-- RLS: `is_company_member(company_id)` para CRUD
+**2. Edge function `supabase/functions/cfo-digital/index.ts`**
+- Aceitar campo `messages` (array de {role, content}) alem de `question` (retrocompativel)
+- Incluir no contexto financeiro as **ultimas 30 transacoes detalhadas** (data, descricao, tipo, valor, conta, centro de custo) para responder perguntas de extrato
+- Incluir **saldo por conta bancaria** se disponivel
+- Passar historico completo de mensagens para a IA (system + messages do usuario)
+- Reescrever system prompt: tom conversacional, direto, responde saldo/extrato/transacoes com dados reais. So faz resumo estrategico se pedido
 
-**`fiscal_files`** — Arquivos fiscais
-- `id`, `company_id`, `nome` (text), `tipo` (text: contrato/xml/certificado/outro), `file_url` (text), `file_size` (text), `source` (text: manual/ocr), `created_at`, `updated_at`
-- RLS: `is_company_member(company_id)` para CRUD
-
-### 2. Criar hooks de dados
-
-**`src/hooks/useTaxGuides.ts`**
-- useQuery para buscar `tax_guides` por `company_id`, ordenadas por `vencimento`
-- Recalcula status automaticamente: se `vencimento < hoje` e status != pago → "atrasado"
-- Mutation para criar/atualizar guias
-
-**`src/hooks/useBillsPayable.ts`**
-- useQuery para buscar `bills_payable` por `company_id`
-- Recalcula: se `vencimento < hoje` e status != pago → "vencido", senão "a_vencer"
-- Mutation para criar/atualizar
-
-**`src/hooks/useFiscalFiles.ts`**
-- useQuery para buscar `fiscal_files` por `company_id`
-- Mutation para criar/deletar
-
-### 3. Atualizar as 3 páginas
-
-Substituir os arrays mock e `useState` por chamadas aos hooks acima. Manter exatamente o mesmo layout/design, apenas trocar a fonte de dados. Adicionar estados de loading e empty state.
+**3. System prompt novo**
+- Foco: assistente financeiro conversacional que responde perguntas objetivas
+- Quando perguntam saldo: responder valor direto
+- Quando perguntam extrato/transacoes: listar as mais recentes
+- Quando pedem resumo: ai sim gerar analise completa
+- Respostas curtas e diretas por padrao
 
 ### Arquivos
 
-| Ação | Arquivo |
+| Acao | Arquivo |
 |------|---------|
-| Migração | Criar tabelas `tax_guides`, `bills_payable`, `fiscal_files` com RLS |
-| Criar | `src/hooks/useTaxGuides.ts` |
-| Criar | `src/hooks/useBillsPayable.ts` |
-| Criar | `src/hooks/useFiscalFiles.ts` |
-| Editar | `src/pages/fiscal/TaxCalendar.tsx` — usar hook real |
-| Editar | `src/pages/fiscal/BillsPayable.tsx` — usar hook real |
-| Editar | `src/pages/fiscal/FiscalFiles.tsx` — usar hook real |
+| Editar | `src/components/CFOChatWidget.tsx` — enviar historico, responsivo mobile |
+| Editar | `supabase/functions/cfo-digital/index.ts` — aceitar messages, extrato detalhado, novo prompt |
 
