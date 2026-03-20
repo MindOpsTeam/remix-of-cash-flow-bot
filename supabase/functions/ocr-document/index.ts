@@ -55,38 +55,74 @@ Analise a imagem e extraia os dados em JSON:
 }
 Campos não identificados = null. Responda APENAS com JSON válido, sem markdown.`;
 
-    const imageUrl = `data:${mimetype};base64,${image_base64}`;
+    const isPdf = mimetype === "application/pdf";
+    let visionContent: string;
 
-    const visionRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${lovableApiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{
-          role: "user",
-          content: [
-            { type: "text", text: extractionPrompt },
-            { type: "image_url", image_url: { url: imageUrl } },
-          ],
-        }],
-        temperature: 0.1,
-      }),
-    });
-
-    if (!visionRes.ok) {
-      const errText = await visionRes.text();
-      console.error("Vision AI error:", visionRes.status, errText);
-      return new Response(JSON.stringify({ error: "Falha ao analisar imagem" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (isPdf) {
+      // For PDFs: use Gemini with inline_data for PDF
+      const visionRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${lovableApiKey}`,
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: extractionPrompt },
+              { type: "image_url", image_url: { url: `data:application/pdf;base64,${image_base64}` } },
+            ],
+          }],
+          temperature: 0.1,
+        }),
       });
+
+      if (!visionRes.ok) {
+        const errText = await visionRes.text();
+        console.error("Vision AI error (PDF):", visionRes.status, errText);
+        return new Response(JSON.stringify({ error: "Falha ao analisar PDF" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const visionResult = await visionRes.json();
+      visionContent = visionResult.choices?.[0]?.message?.content || "";
+    } else {
+      // For images: standard vision
+      const imageUrl = `data:${mimetype};base64,${image_base64}`;
+      const visionRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${lovableApiKey}`,
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [{
+            role: "user",
+            content: [
+              { type: "text", text: extractionPrompt },
+              { type: "image_url", image_url: { url: imageUrl } },
+            ],
+          }],
+          temperature: 0.1,
+        }),
+      });
+
+      if (!visionRes.ok) {
+        const errText = await visionRes.text();
+        console.error("Vision AI error:", visionRes.status, errText);
+        return new Response(JSON.stringify({ error: "Falha ao analisar imagem" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const visionResult = await visionRes.json();
+      visionContent = visionResult.choices?.[0]?.message?.content || "";
     }
 
-    const visionResult = await visionRes.json();
-    const visionContent = visionResult.choices?.[0]?.message?.content || "";
     const jsonMatch = visionContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return new Response(JSON.stringify({ error: "Não foi possível extrair dados da imagem" }), {
@@ -105,8 +141,8 @@ Campos não identificados = null. Responda APENAS com JSON válido, sem markdown
       });
     }
 
-    // ── Step 2: Classify using chart of accounts + cost centers ──────────────
-    let classification = { account_id: null, cost_center_id: null, confidence: "low" };
+    // ── Step 2: Classify using chart of accounts + cost centers + bank accounts + history ──
+    let classification = { account_id: null, cost_center_id: null, bank_account_id: null, confidence: "low" };
 
     if (company_id && extracted.description) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -114,19 +150,39 @@ Campos não identificados = null. Responda APENAS com JSON válido, sem markdown
       const supabase = createClient(supabaseUrl, serviceKey);
 
       const txType = extracted.transaction_type || "expense";
-      const [accountsRes, centersRes] = await Promise.all([
+      const [accountsRes, centersRes, banksRes, historyRes] = await Promise.all([
         supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company_id),
         supabase.from("cost_centers").select("id, name, category").eq("company_id", company_id).eq("active", true),
+        supabase.from("bank_accounts").select("id, name, bank_name").eq("company_id", company_id),
+        // Fetch recent similar transactions for learning context
+        supabase.from("transactions")
+          .select("description, type, account_id, cost_center_id, bank_account_id")
+          .eq("company_id", company_id)
+          .not("account_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(50),
       ]);
 
       const accounts = (accountsRes.data || []).filter((a: any) =>
         txType === "revenue" ? a.type === "revenue" : a.type === "expense"
       );
       const centers = centersRes.data || [];
+      const banks = banksRes.data || [];
+      const history = historyRes.data || [];
 
       if (accounts.length > 0 || centers.length > 0) {
         const accountsList = accounts.map((a: any) => `${a.code} ${a.name} [id:${a.id}]`).join("\n");
         const centersList = centers.map((c: any) => `${c.name} (${c.category}) [id:${c.id}]`).join("\n");
+        const banksList = banks.map((b: any) => `${b.name}${b.bank_name ? ` (${b.bank_name})` : ""} [id:${b.id}]`).join("\n");
+
+        // Build learning context from recent transactions
+        let learningContext = "";
+        if (history.length > 0) {
+          const examples = history.slice(0, 20).map((h: any) =>
+            `"${h.description}" → account:${h.account_id || "null"}, center:${h.cost_center_id || "null"}, bank:${h.bank_account_id || "null"}`
+          ).join("\n");
+          learningContext = `\n\nExemplos de classificações anteriores do usuário (use como referência para padrões):\n${examples}`;
+        }
 
         const classifyRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -139,11 +195,11 @@ Campos não identificados = null. Responda APENAS com JSON válido, sem markdown
             messages: [
               {
                 role: "system",
-                content: `Você é um classificador financeiro. Dado a descrição de um documento, sugira a conta contábil e o centro de custo mais adequados.\n\nContas contábeis:\n${accountsList}\n\nCentros de custo:\n${centersList}\n\nResponda APENAS com JSON: {"account_id": "uuid", "cost_center_id": "uuid", "confidence": "high|medium|low"}`,
+                content: `Você é um classificador financeiro. Dado a descrição de um documento, sugira a conta contábil, centro de custo e conta bancária mais adequados.\n\nContas contábeis:\n${accountsList}\n\nCentros de custo:\n${centersList}\n\nContas bancárias:\n${banksList}${learningContext}\n\nResponda APENAS com JSON: {"account_id": "uuid ou null", "cost_center_id": "uuid ou null", "bank_account_id": "uuid ou null", "confidence": "high|medium|low"}`,
               },
               {
                 role: "user",
-                content: `Tipo: ${txType === "revenue" ? "Receita" : "Despesa"}\nDocumento: ${extracted.document_type}\nDescrição: ${sanitizeForPrompt(extracted.description)}\nEmitente: ${extracted.issuer || "Não identificado"}`,
+                content: `Tipo: ${txType === "revenue" ? "Receita" : "Despesa"}\nDocumento: ${extracted.document_type}\nDescrição: ${sanitizeForPrompt(extracted.description)}\nEmitente: ${extracted.issuer || "Não identificado"}\nValor: ${extracted.value || "Não identificado"}`,
               },
             ],
             temperature: 0.1,
@@ -165,6 +221,7 @@ Campos não identificados = null. Responda APENAS com JSON válido, sem markdown
       ...extracted,
       suggested_account_id: classification.account_id,
       suggested_cost_center_id: classification.cost_center_id,
+      suggested_bank_account_id: classification.bank_account_id,
       classification_confidence: classification.confidence,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

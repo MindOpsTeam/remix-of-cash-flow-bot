@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import {
 import {
   ScanLine, Check, RotateCcw, FileText, ArrowLeftRight,
   Receipt, CreditCard, QrCode, FileSpreadsheet, Sparkles, Clock,
+  Paperclip, Loader2,
 } from "lucide-react";
 import { DocumentUploader } from "@/components/DocumentUploader";
 import { useDocumentScanner, ScanResult } from "@/hooks/useDocumentScanner";
@@ -45,9 +46,10 @@ const docTypeIcons: Record<string, typeof Receipt> = {
 };
 
 export default function DocumentScanner() {
-  const { scanning, result, creating, recentScans, scanDocument, createTransactionFromScan, clearResult } = useDocumentScanner();
+  const { scanning, result, creating, recentScans, batchResults, batchProcessing, scanDocument, scanBatch, createTransactionFromScan, clearResult } = useDocumentScanner();
   const { company } = useCompany();
   const { user } = useAuth();
+  const scannedFileRef = useRef<File | null>(null);
 
   // Editable overrides
   const [editAmount, setEditAmount] = useState("");
@@ -57,21 +59,25 @@ export default function DocumentScanner() {
   const [editStatus, setEditStatus] = useState<"confirmed" | "pending">("confirmed");
   const [editAccountId, setEditAccountId] = useState("");
   const [editCostCenterId, setEditCostCenterId] = useState("");
+  const [editBankAccountId, setEditBankAccountId] = useState("");
 
   // Options for selects
   const [accounts, setAccounts] = useState<{ id: string; name: string; code: string | null; type: string }[]>([]);
   const [costCenters, setCostCenters] = useState<{ id: string; name: string }[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string; bank_name: string | null }[]>([]);
 
   // Load PJ options
   useEffect(() => {
     if (!company) return;
     const load = async () => {
-      const [accts, ccs] = await Promise.all([
+      const [accts, ccs, banks] = await Promise.all([
         supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company.id).order("code"),
         supabase.from("cost_centers").select("id, name, category").eq("company_id", company.id).eq("active", true).order("name"),
+        supabase.from("bank_accounts").select("id, name, bank_name").eq("company_id", company.id).order("name"),
       ]);
       if (accts.data) setAccounts(accts.data);
       if (ccs.data) setCostCenters(ccs.data as any);
+      if (banks.data) setBankAccounts(banks.data);
     };
     load();
   }, [company]);
@@ -85,6 +91,7 @@ export default function DocumentScanner() {
     setEditType(result.transaction_type || "expense");
     setEditAccountId(result.suggested_account_id || "");
     setEditCostCenterId(result.suggested_cost_center_id || "");
+    setEditBankAccountId(result.suggested_bank_account_id || "");
 
     // Auto-detect pending: boleto or future date
     const today = new Date().toISOString().split("T")[0];
@@ -96,6 +103,15 @@ export default function DocumentScanner() {
   const filteredAccounts = accounts.filter((a) =>
     editType === "revenue" ? a.type === "revenue" : a.type === "expense"
   );
+
+  const handleFileSelected = (file: File) => {
+    scannedFileRef.current = file;
+    scanDocument(file);
+  };
+
+  const handleBatchSelected = (files: File[]) => {
+    scanBatch(files);
+  };
 
   const handleCreate = async () => {
     if (!result) return;
@@ -110,7 +126,10 @@ export default function DocumentScanner() {
       status: editStatus,
       account_id: editAccountId || undefined,
       cost_center_id: editCostCenterId || undefined,
-    });
+      bank_account_id: editBankAccountId || undefined,
+    }, scannedFileRef.current || undefined);
+
+    scannedFileRef.current = null;
   };
 
   const DocIcon = result?.document_type ? (docTypeIcons[result.document_type] || FileText) : FileText;
@@ -127,14 +146,57 @@ export default function DocumentScanner() {
             <ScanLine className="h-6 w-6" /> Scanner OCR
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Escaneie boletos, notas fiscais, recibos e comprovantes para criar lançamentos ou contas a pagar
+            Escaneie boletos, notas fiscais, recibos e comprovantes — suporta imagens e PDF
           </p>
         </div>
 
         {/* Upload area or Result */}
-        {!result ? (
-          <DocumentUploader onFileSelected={scanDocument} scanning={scanning} />
-        ) : (
+        {!result && !batchProcessing && batchResults.length === 0 ? (
+          <DocumentUploader
+            onFileSelected={handleFileSelected}
+            onBatchSelected={handleBatchSelected}
+            scanning={scanning}
+          />
+        ) : batchProcessing || batchResults.length > 0 ? (
+          /* Batch results */
+          <Card>
+            <CardContent className="pt-6 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Processamento em lote</p>
+                {batchProcessing && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
+              </div>
+              <div className="space-y-2">
+                {batchResults.map((br, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center ${br.result ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>
+                      {br.result ? <Check className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{br.file}</p>
+                      {br.result ? (
+                        <p className="text-xs text-muted-foreground">
+                          {docTypeLabels[br.result.document_type || "outro"]} — {br.result.value != null ? fmt(br.result.value) : "Sem valor"}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-destructive">{br.error}</p>
+                      )}
+                    </div>
+                    {br.result && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {br.result.transaction_type === "revenue" ? "Receita" : "Despesa"}
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {!batchProcessing && (
+                <Button variant="outline" className="w-full" onClick={() => { clearResult(); }}>
+                  <RotateCcw className="h-4 w-4 mr-1.5" /> Novo Scan
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : result ? (
           <Card className="border-primary/30">
             <CardContent className="pt-6 space-y-5">
               {/* Header */}
@@ -236,22 +298,43 @@ export default function DocumentScanner() {
                   </div>
                 </div>
 
-                <div>
-                  <Label className="text-xs">Centro de Custo</Label>
-                  <Select value={editCostCenterId} onValueChange={setEditCostCenterId}>
-                    <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                      {costCenters.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Centro de Custo</Label>
+                    <Select value={editCostCenterId} onValueChange={setEditCostCenterId}>
+                      <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>
+                        {costCenters.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Conta Bancária</Label>
+                    <Select value={editBankAccountId} onValueChange={setEditBankAccountId}>
+                      <SelectTrigger className="mt-1 h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                      <SelectContent>
+                        {bankAccounts.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>{b.name}{b.bank_name ? ` (${b.bank_name})` : ""}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+
+                {scannedFileRef.current && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    <span className="truncate">{scannedFileRef.current.name}</span>
+                    <span className="text-[10px]">— será salvo como anexo</span>
+                  </div>
+                )}
               </div>
 
               {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <Button variant="outline" className="flex-1" onClick={clearResult} disabled={creating}>
+                <Button variant="outline" className="flex-1" onClick={() => { clearResult(); scannedFileRef.current = null; }} disabled={creating}>
                   <RotateCcw className="h-4 w-4 mr-1.5" /> Novo Scan
                 </Button>
                 <Button variant="accent" className="flex-1" onClick={handleCreate} disabled={creating || !editAmount}>
@@ -261,7 +344,7 @@ export default function DocumentScanner() {
               </div>
             </CardContent>
           </Card>
-        )}
+        ) : null}
 
         {/* Recent scans history */}
         {recentScans.length > 0 && (
@@ -287,6 +370,9 @@ export default function DocumentScanner() {
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500 text-amber-600">
                           A Pagar
                         </Badge>
+                      )}
+                      {scan.attachment_url && (
+                        <Paperclip className="h-3 w-3 text-muted-foreground" />
                       )}
                     </div>
                   </div>
