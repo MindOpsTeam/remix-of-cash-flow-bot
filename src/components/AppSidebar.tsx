@@ -61,9 +61,7 @@ const mainNav: NavEntry[] = [
     icon: ArrowLeftRight,
     items: [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
-      { to: "/bills", label: "Contas a Pagar", icon: Receipt },
       { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },
-      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
     ],
   },
