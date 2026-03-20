@@ -57,11 +57,6 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
   const [aiSuggested, setAiSuggested] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const debouncedClassify = useCallback((description: string) => {
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => classifyWithAI(description), 600);
-  }, [classifyWithAI]);
-
   useEffect(() => {
     if (!company) return;
     const fetchOptions = async () => {
