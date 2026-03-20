@@ -51,16 +51,16 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<MonthData[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [erpMetrics, setErpMetrics] = useState({ contacts: 0, pendingSales: 0, pendingSalesTotal: 0, lowStock: 0, pendingPurchases: 0 });
-  const [lastFetchTime, setLastFetchTime] = useState(0);
+  const lastFetchRef = useRef(0);
 
   const loadData = useCallback(async () => {
     if (!company) return;
     // Throttle: skip if fetched less than 5s ago
     const now = Date.now();
-    if (now - lastFetchTime < 5000 && !loading) return;
+    if (now - lastFetchRef.current < 5000) return;
+    lastFetchRef.current = now;
 
     setLoading(true);
-    setLastFetchTime(now);
 
     const nowDate = new Date();
     const curYear = nowDate.getFullYear();
