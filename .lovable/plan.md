@@ -1,59 +1,53 @@
 
 
-## Módulo Fiscal — 3 novas páginas + reorganização sidebar
+## Remover mock data — Conectar 3 páginas fiscais ao banco de dados
 
-### Sidebar
+### Problema
+As páginas Calendário de Impostos, Contas a Pagar e Arquivos Fiscais usam dados mock hardcoded. Precisam ser conectadas a tabelas reais no banco.
 
-Reorganizar o grupo "Vendas" (que hoje tem `/fiscal`) e o item `/documents` em um novo grupo **Fiscal**:
+### 1. Criar 3 tabelas via migração
 
-```
-Fiscal (accordion)
-├── Notas Fiscais       → /fiscal          (existente)
-├── Emitir NFS-e        → /fiscal/nfse/emit (existente, fica oculto na sidebar)
-├── Calendário Impostos → /fiscal/impostos  (NOVO)
-├── Contas a Pagar      → /fiscal/contas-a-pagar (NOVO)
-├── Arquivos Fiscais    → /fiscal/arquivos  (NOVO)
-└── Scanner OCR         → /documents        (existente, movido do Financeiro)
-```
+**`tax_guides`** — Guias de impostos
+- `id`, `company_id`, `tipo` (text), `competencia` (text), `vencimento` (date), `valor` (numeric), `status` (text: a_pagar/pago/atrasado), `source` (text: manual/ocr/nf), `created_at`, `updated_at`
+- RLS: `is_company_member(company_id)` para CRUD
 
-- Remover `/fiscal` do grupo "Vendas" e `/documents` do grupo "Financeiro"
-- Remover `/bills` do grupo "Financeiro" (substituído por `/fiscal/contas-a-pagar`)
-- Grupo "Vendas" fica com: Pedidos/Orçamentos apenas
-- Ícone do grupo: `FileCheck`
+**`bills_payable`** — Contas a pagar (boletos)
+- `id`, `company_id`, `fornecedor` (text), `descricao` (text), `valor` (numeric), `vencimento` (date), `status` (text: a_vencer/vencido/pago), `source` (text: manual/ocr), `contact_id` (uuid nullable, FK contacts), `created_at`, `updated_at`
+- RLS: `is_company_member(company_id)` para CRUD
 
-### Novas páginas (mock data)
+**`fiscal_files`** — Arquivos fiscais
+- `id`, `company_id`, `nome` (text), `tipo` (text: contrato/xml/certificado/outro), `file_url` (text), `file_size` (text), `source` (text: manual/ocr), `created_at`, `updated_at`
+- RLS: `is_company_member(company_id)` para CRUD
 
-**1. `/fiscal/impostos` — `src/pages/fiscal/TaxCalendar.tsx`**
-- Alerta no topo se houver guias vencidas (status "Atrasado")
-- Cards resumo: Total A Pagar, Pago este mês, Atrasado
-- Lista de guias mock (DAS, DARF, ISS, ICMS) com: tipo, competência, vencimento, valor, status
-- Badge colorido: A Pagar (amber), Pago (emerald), Atrasado (red)
-- Botão "Adicionar Guia" (dialog placeholder)
-- Padrão visual idêntico ao Fiscal.tsx
+### 2. Criar hooks de dados
 
-**2. `/fiscal/contas-a-pagar` — `src/pages/fiscal/BillsPayable.tsx`**
-- Cards resumo: A Vencer, Vencido, Pago
-- Lista mock de boletos: fornecedor, descrição, valor, vencimento, status
-- Badge: A Vencer (amber), Vencido (red), Pago (emerald)
-- Botão "Adicionar Boleto" (dialog placeholder)
-- Nota: substitui `/bills` (Asaas bills) — rota `/bills` redireciona para `/fiscal/contas-a-pagar`
+**`src/hooks/useTaxGuides.ts`**
+- useQuery para buscar `tax_guides` por `company_id`, ordenadas por `vencimento`
+- Recalcula status automaticamente: se `vencimento < hoje` e status != pago → "atrasado"
+- Mutation para criar/atualizar guias
 
-**3. `/fiscal/arquivos` — `src/pages/fiscal/FiscalFiles.tsx`**
-- Lista mock de documentos: nome, tipo (Contrato, XML, Certificado), data upload, tamanho
-- Botão "Adicionar Documento" (upload placeholder)
-- Cards resumo: Total documentos, por tipo
+**`src/hooks/useBillsPayable.ts`**
+- useQuery para buscar `bills_payable` por `company_id`
+- Recalcula: se `vencimento < hoje` e status != pago → "vencido", senão "a_vencer"
+- Mutation para criar/atualizar
 
-### Rotas (App.tsx)
-- Adicionar: `/fiscal/impostos`, `/fiscal/contas-a-pagar`, `/fiscal/arquivos`
-- Manter `/bills` como redirect para `/fiscal/contas-a-pagar`
+**`src/hooks/useFiscalFiles.ts`**
+- useQuery para buscar `fiscal_files` por `company_id`
+- Mutation para criar/deletar
+
+### 3. Atualizar as 3 páginas
+
+Substituir os arrays mock e `useState` por chamadas aos hooks acima. Manter exatamente o mesmo layout/design, apenas trocar a fonte de dados. Adicionar estados de loading e empty state.
 
 ### Arquivos
 
 | Ação | Arquivo |
 |------|---------|
-| Criar | `src/pages/fiscal/TaxCalendar.tsx` |
-| Criar | `src/pages/fiscal/BillsPayable.tsx` |
-| Criar | `src/pages/fiscal/FiscalFiles.tsx` |
-| Editar | `src/components/AppSidebar.tsx` — novo grupo Fiscal |
-| Editar | `src/App.tsx` — novas rotas lazy |
+| Migração | Criar tabelas `tax_guides`, `bills_payable`, `fiscal_files` com RLS |
+| Criar | `src/hooks/useTaxGuides.ts` |
+| Criar | `src/hooks/useBillsPayable.ts` |
+| Criar | `src/hooks/useFiscalFiles.ts` |
+| Editar | `src/pages/fiscal/TaxCalendar.tsx` — usar hook real |
+| Editar | `src/pages/fiscal/BillsPayable.tsx` — usar hook real |
+| Editar | `src/pages/fiscal/FiscalFiles.tsx` — usar hook real |
 
