@@ -10,6 +10,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Rocket, Building2, Link2, CheckCircle2 } from "lucide-react";
 
+function formatCNPJ(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  return digits
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
+
 interface OnboardingWizardProps {
   open: boolean;
   onComplete: () => void;
@@ -41,7 +50,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
     try {
       const updates: Record<string, string> = {};
       if (companyName.trim()) updates.name = companyName.trim();
-      if (cnpj.trim()) updates.cnpj = cnpj.trim();
+      if (cnpj.trim()) updates.cnpj = cnpj.replace(/\D/g, "");
 
       if (Object.keys(updates).length > 0) {
         const { error } = await supabase.from("companies").update(updates).eq("id", company.id);
@@ -206,7 +215,8 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
                     id="ob-cnpj"
                     placeholder="00.000.000/0001-00"
                     value={cnpj}
-                    onChange={(e) => setCnpj(e.target.value)}
+                    onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
+                    maxLength={18}
                   />
                 </div>
               </div>
