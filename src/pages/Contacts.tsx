@@ -93,18 +93,26 @@ export default function ContactsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 50;
+
   const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["contacts", company?.id],
+    queryKey: ["contacts", company?.id, page],
     queryFn: async () => {
       if (!company) return [];
-      const { data, error } = await supabase
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error, count } = await supabase
         .from("contacts")
-        .select("id, name, trade_name, type, person_type, document, email, phone, whatsapp, city, state, active, created_at")
+        .select("id, name, trade_name, type, person_type, document, email, phone, whatsapp, website, zip_code, street, number, complement, neighborhood, city, state, default_payment_terms, credit_limit, notes, active, created_at, state_registration", { count: "exact" })
         .eq("company_id", company.id)
         .eq("active", true)
-        .order("name");
+        .order("name")
+        .range(from, to);
       if (error) throw error;
-      return (data || []) as Contact[];
+      if (count !== null) setTotalCount(count);
+      return (data || []) as (Contact & Record<string, any>)[];
     },
     enabled: !!company,
   });
