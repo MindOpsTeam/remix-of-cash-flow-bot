@@ -290,6 +290,42 @@ export function useDocumentScanner() {
         await createInvoiceRecord(scanData, contactId, amount, date, description);
       }
 
+      // Auto-create bill_payable for boletos
+      if (scanData.document_type === "boleto" && pjType === "expense") {
+        await supabase.from("bills_payable").insert({
+          company_id: company.id,
+          fornecedor: scanData.issuer || "Fornecedor não identificado",
+          descricao: description,
+          valor: amount,
+          vencimento: date,
+          status: "a_vencer",
+          source: "ocr",
+          contact_id: contactId,
+        });
+        queryClient.invalidateQueries({ queryKey: ["bills_payable"] });
+      }
+
+      // Auto-create tax_guide for scanned tax documents (DAS, DARF, ISS, etc.)
+      const taxDocTypes = ["boleto"];
+      const taxKeywords = ["das", "darf", "iss", "icms", "pis", "cofins", "inss", "guia"];
+      const descLower = description.toLowerCase();
+      const isTaxGuide = taxKeywords.some(k => descLower.includes(k));
+      if (isTaxGuide && pjType === "expense") {
+        const tipoGuess = taxKeywords.find(k => descLower.includes(k))?.toUpperCase() || "DAS";
+        const today = new Date();
+        const comp = `${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+        await supabase.from("tax_guides").insert({
+          company_id: company.id,
+          tipo: tipoGuess,
+          competencia: comp,
+          vencimento: date,
+          valor: amount,
+          status: "a_pagar",
+          source: "ocr",
+        });
+        queryClient.invalidateQueries({ queryKey: ["tax_guides"] });
+      }
+
       toast.success(status === "pending" ? "Conta a pagar criada!" : "Lançamento criado com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["recent_scans_company"] });
