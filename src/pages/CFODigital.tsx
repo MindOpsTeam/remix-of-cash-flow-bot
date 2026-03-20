@@ -216,9 +216,7 @@ export default function CFODigital() {
                       }`}
                     >
                       {msg.role === "assistant" ? (
-                        <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                          {msg.content}
-                        </div>
+                        <MarkdownMessage content={msg.content} />
                       ) : (
                         msg.content
                       )}
