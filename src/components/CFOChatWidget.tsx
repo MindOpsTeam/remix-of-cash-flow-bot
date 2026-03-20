@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Brain, Send, X, Loader2 } from "lucide-react";
+import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
 import { useToast } from "@/hooks/use-toast";
