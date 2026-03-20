@@ -98,7 +98,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
         if (existing) {
           await supabase.from("whatsapp_configs").update(waPayload).eq("id", existing.id);
         } else {
-          await supabase.from("whatsapp_configs").insert(waPayload);
+          await supabase.from("whatsapp_configs").insert([waPayload as any]);
         }
       }
     } catch (e: any) {
