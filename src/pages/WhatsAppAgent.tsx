@@ -50,6 +50,13 @@ interface WhatsAppMessage {
 
 type ModalStep = "credentials" | "qrcode";
 type ConnectionStatus = "waiting" | "connected" | "error";
+type ReconnectState = {
+  config: WhatsAppConfig;
+  qrCodeBase64: string;
+  status: ConnectionStatus;
+  error: string;
+  loading: boolean;
+} | null;
 
 export default function WhatsApp() {
   const { company } = useCompany();
