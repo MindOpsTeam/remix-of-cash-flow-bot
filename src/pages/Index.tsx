@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState, useCallback, memo } from "react";
+import { useEffect, useState, useCallback, memo, useRef } from "react";
 
 interface MonthData {
   month: string;
