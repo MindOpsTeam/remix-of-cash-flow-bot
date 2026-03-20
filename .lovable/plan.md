@@ -1,53 +1,34 @@
 
 
-## OCR → Auto-cadastro de Contato + Registro de Nota Fiscal
+## Movimentações: Seletor Asaas / Banco Inter
 
-**Objetivo**: Quando o usuário confirma um documento escaneado via OCR, o sistema deve:
-1. Auto-cadastrar o contato (cliente/fornecedor) se não existir, com base nos dados extraídos (nome, CNPJ/CPF)
-2. Se for receita (NF emitida), criar também um registro na tabela `invoices` (Vendas > Notas Fiscais)
+**Objetivo**: Adicionar um seletor no topo da página de Movimentações para alternar entre dados do Asaas e do Banco Inter.
 
 ### Mudanças
 
-**1. Ampliar extração OCR — `supabase/functions/ocr-document/index.ts`**
+**1. Página `src/pages/CompanyTransfers.tsx`**
 
-- Adicionar campo `beneficiary` ao prompt de extração (já existe no prompt mas precisa garantir que captura nome e documento do tomador/destinatário)
-- Adicionar campos: `beneficiary_document` (CNPJ/CPF do tomador) para facilitar cadastro
+- Adicionar estado `source` com valores `"asaas" | "inter"`
+- No header, trocar titulo fixo "Movimentações Asaas" por "Movimentações" + seletor de fonte (tabs ou toggle com ícones Asaas / Inter)
+- Quando `source === "asaas"`: mostrar o conteúdo atual (transferências, assinaturas, antecipações)
+- Quando `source === "inter"`: mostrar dados do Banco Inter
 
-**2. Atualizar `ScanResult` — `src/hooks/useDocumentScanner.ts`**
+**2. Conteúdo Inter**
 
-- Adicionar `beneficiary_document` ao interface `ScanResult`
+- Criar hook `src/hooks/useCompanyInterTransactions.ts`:
+  - Busca transações da tabela `transactions` com `source = 'inter'` e `company_id`
+  - Busca config de `inter_config` para exibir saldo e última sincronização
+  - Calcula sumário: total receitas, total despesas, saldo do período
+- Na aba Inter, exibir:
+  - Cards resumo: Saldo Inter (last_balance), Total Receitas, Total Despesas
+  - Lista de transações agrupadas por data (mesmo padrão visual das transferências Asaas)
+  - Cada item mostra: descrição, tipo (C/D com cores), valor, status, payment_method
+  - Botão "Sincronizar" que chama a edge function `inter-banking` com action `sync`
 
-**3. Auto-cadastro de contato + invoice no `createTransactionFromScan`**
+**3. Detalhes visuais**
 
-No `useDocumentScanner.ts`, na função `createTransactionFromScan`:
-
-- **Buscar contato existente** pelo `issuer_document` (CNPJ/CPF do emitente) ou `beneficiary_document`
-  - Se receita: o contato é o **beneficiary** (tomador do serviço — o cliente)
-  - Se despesa: o contato é o **issuer** (fornecedor)
-- **Se não existe**: inserir automaticamente na tabela `contacts` com:
-  - `name`: issuer ou beneficiary
-  - `document`: CNPJ/CPF
-  - `type`: "customer" (se receita) ou "supplier" (se despesa)
-  - `person_type`: detectar pelo tamanho do documento (11 chars = pf, 14+ = pj)
-  - `company_id`: company.id
-- **Se receita e document_type é nota_fiscal/nfse**: inserir na tabela `invoices` com:
-  - `company_id`, `contact_id` (do contato encontrado/criado)
-  - `type`: "nfse" ou "nfe" (conforme document_type)
-  - `status`: "authorized"
-  - `number`: document_number
-  - `issue_date`: date
-  - `total`: amount
-  - `notes`: description
-
-**4. Exibir contato sugerido na UI — `src/pages/DocumentScanner.tsx`**
-
-- Na seção de dados extraídos (read-only), mostrar o nome e CNPJ do contato identificado (emitente ou beneficiário conforme o tipo)
-- Adicionar indicador visual: "Contato será cadastrado automaticamente" se novo, ou "Contato existente: [nome]" se já existe
-
-### Detalhes técnicos
-
-- A busca de contato existente usa `supabase.from("contacts").select("id, name").eq("company_id", company.id).eq("document", cleanDoc)` onde `cleanDoc` remove pontuação
-- Função auxiliar `cleanDocument(doc)` que remove `.`, `-`, `/` para comparação normalizada
-- O insert no `invoices` usa `contact_id` do contato encontrado/criado
-- Invalidar queries `["contacts"]` e `["invoices"]` após criação
+- Seletor no header: dois botões lado a lado (estilo segmented control) com logos/ícones
+- Asaas: cor verde, ícone `DollarSign`
+- Inter: cor laranja, ícone `Building2`
+- Título e subtítulo mudam dinamicamente conforme a fonte selecionada
 
