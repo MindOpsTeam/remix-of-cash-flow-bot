@@ -1079,6 +1079,59 @@ export default function WhatsApp() {
         </DialogContent>
       </Dialog>
 
+      {/* Reconnect QR Dialog */}
+      <Dialog open={!!reconnect} onOpenChange={(open) => { if (!open) { stopReconnectPolling(); setReconnect(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reconectar — {reconnect?.config.instance_name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 mt-2">
+            {reconnect?.status === "connected" ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <div className="p-3 rounded-full bg-revenue/10">
+                  <CheckCircle2 className="h-8 w-8 text-revenue" />
+                </div>
+                <h3 className="text-sm font-semibold text-foreground">WhatsApp reconectado!</h3>
+                <p className="text-xs text-muted-foreground text-center">
+                  A instância está pronta para uso.
+                </p>
+              </div>
+            ) : reconnect?.loading ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                <p className="text-sm text-muted-foreground">Gerando QR Code...</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground text-center">
+                  Abra o WhatsApp no celular → Dispositivos conectados → Conectar dispositivo
+                </p>
+                {reconnect?.qrCodeBase64 && (
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <img src={reconnect.qrCodeBase64} alt="QR Code WhatsApp" className="w-64 h-64 object-contain" />
+                  </div>
+                )}
+                {reconnect?.status === "waiting" && reconnect.qrCodeBase64 && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Aguardando leitura do QR Code...
+                  </div>
+                )}
+                {reconnect?.error && (
+                  <div className="text-xs px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-center">
+                    {reconnect.error}
+                  </div>
+                )}
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={handleReconnectRefreshQr} disabled={reconnect?.loading}>
+                  {reconnect?.loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  Gerar novo QR
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </AppLayout>
   );
 }
