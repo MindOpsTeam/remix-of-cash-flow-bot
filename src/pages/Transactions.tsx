@@ -26,6 +26,8 @@ export default function Transactions() {
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editingTransaction, setEditingTransaction] = useState<TransactionRowData | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<TransactionRowData | null>(null);
 
   const realtimeConfigs = useMemo(() => {
     if (!company?.id) return [];
