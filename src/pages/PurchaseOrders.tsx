@@ -93,6 +93,7 @@ export default function PurchaseOrdersPage() {
       return (data || []).map((o: any) => ({ ...o, contact: o.contacts })) as PurchaseOrder[];
     },
     enabled: !!company,
+    staleTime: 30_000,
   });
 
   const { data: suppliers = [] } = useQuery({

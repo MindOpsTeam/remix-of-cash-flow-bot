@@ -111,6 +111,7 @@ export default function SalesOrdersPage() {
       return (data || []).map((o: any) => ({ ...o, contact: o.contacts })) as SalesOrder[];
     },
     enabled: !!company,
+    staleTime: 30_000,
   });
 
   const { data: contacts = [] } = useQuery({
