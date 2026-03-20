@@ -93,18 +93,26 @@ export default function ContactsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 50;
+
   const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["contacts", company?.id],
+    queryKey: ["contacts", company?.id, page],
     queryFn: async () => {
       if (!company) return [];
-      const { data, error } = await supabase
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error, count } = await supabase
         .from("contacts")
-        .select("id, name, trade_name, type, person_type, document, email, phone, whatsapp, city, state, active, created_at")
+        .select("id, name, trade_name, type, person_type, document, email, phone, whatsapp, website, zip_code, street, number, complement, neighborhood, city, state, default_payment_terms, credit_limit, notes, active, created_at, state_registration", { count: "exact" })
         .eq("company_id", company.id)
         .eq("active", true)
-        .order("name");
+        .order("name")
+        .range(from, to);
       if (error) throw error;
-      return (data || []) as Contact[];
+      if (count !== null) setTotalCount(count);
+      return (data || []) as (Contact & Record<string, any>)[];
     },
     enabled: !!company,
   });
@@ -174,7 +182,7 @@ export default function ContactsPage() {
     setDialogOpen(true);
   };
 
-  const openEdit = (c: Contact) => {
+  const openEdit = (c: any) => {
     setEditingId(c.id);
     setForm({
       name: c.name,
@@ -185,17 +193,17 @@ export default function ContactsPage() {
       email: c.email || "",
       phone: c.phone || "",
       whatsapp: c.whatsapp || "",
-      website: "",
-      zip_code: "",
-      street: "",
-      number: "",
-      complement: "",
-      neighborhood: "",
+      website: c.website || "",
+      zip_code: c.zip_code || "",
+      street: c.street || "",
+      number: c.number || "",
+      complement: c.complement || "",
+      neighborhood: c.neighborhood || "",
       city: c.city || "",
       state: c.state || "",
-      default_payment_terms: "",
-      credit_limit: "",
-      notes: "",
+      default_payment_terms: c.default_payment_terms != null ? String(c.default_payment_terms) : "",
+      credit_limit: c.credit_limit != null ? String(c.credit_limit) : "",
+      notes: c.notes || "",
     });
     setDialogOpen(true);
   };
@@ -289,7 +297,20 @@ export default function ContactsPage() {
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground">{filtered.length} contato{filtered.length !== 1 ? "s" : ""}</p>
+        {/* Pagination */}
+        {totalCount > PAGE_SIZE && (
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-muted-foreground">
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} de {totalCount}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
+              <Button variant="outline" size="sm" disabled={(page + 1) * PAGE_SIZE >= totalCount} onClick={() => setPage((p) => p + 1)}>Próximo</Button>
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground">{filtered.length} contato{filtered.length !== 1 ? "s" : ""} nesta página</p>
       </div>
 
       {/* Create/Edit Dialog */}

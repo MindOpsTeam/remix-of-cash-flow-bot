@@ -1,6 +1,7 @@
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Building2, Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MessageSquare, Building2, Pencil, Trash2 } from "lucide-react";
 
 const sourceIcons: Record<string, React.ReactNode> = {
   whatsapp: <MessageSquare className="h-3 w-3" />,
@@ -29,10 +30,13 @@ export interface TransactionRowData {
 
 interface TransactionRowProps {
   transaction: TransactionRowData;
+  onEdit?: (transaction: TransactionRowData) => void;
+  onDelete?: (transaction: TransactionRowData) => void;
 }
 
-export function TransactionRow({ transaction }: TransactionRowProps) {
+export function TransactionRow({ transaction, onEdit, onDelete }: TransactionRowProps) {
   const isRevenue = transaction.type === "revenue";
+  const isExternal = transaction.source === "asaas" || transaction.source === "bank";
 
   return (
     <div className="flex items-center justify-between py-3 px-4 border-b border-[hsl(240,5%,96%)] hover:bg-background transition-colors duration-150 group">
@@ -61,13 +65,23 @@ export function TransactionRow({ transaction }: TransactionRowProps) {
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Badge variant={transaction.status === "pending" ? "outline" : "secondary"} className="text-[11px] hidden sm:flex">
           {statusLabels[transaction.status] || transaction.status}
         </Badge>
         <span className={`text-sm font-semibold font-mono tabular-nums ${isRevenue ? "text-revenue" : "text-expense"}`}>
           {isRevenue ? "+" : "-"} {formatCurrency(transaction.amount)}
         </span>
+        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit?.(transaction)}>
+            <Pencil className="h-3 w-3" />
+          </Button>
+          {!isExternal && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => onDelete?.(transaction)}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

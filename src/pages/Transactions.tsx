@@ -2,12 +2,18 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionForm } from "@/components/TransactionForm";
+import { TransactionEditForm } from "@/components/TransactionEditForm";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import type { TransactionRowData } from "@/components/TransactionRow";
 
 const ITEMS_PER_PAGE = 25;
@@ -20,6 +26,8 @@ export default function Transactions() {
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editingTransaction, setEditingTransaction] = useState<TransactionRowData | null>(null);
+  const [deletingTransaction, setDeletingTransaction] = useState<TransactionRowData | null>(null);
 
   const realtimeConfigs = useMemo(() => {
     if (!company?.id) return [];
@@ -142,7 +150,12 @@ export default function Transactions() {
           <>
             <div className="space-y-0">
               {transactions.map((t) => (
-                <TransactionRow key={t.id} transaction={t} />
+                <TransactionRow
+                  key={t.id}
+                  transaction={t}
+                  onEdit={setEditingTransaction}
+                  onDelete={setDeletingTransaction}
+                />
               ))}
             </div>
 
@@ -181,6 +194,37 @@ export default function Transactions() {
       </div>
 
       <TransactionForm open={formOpen} onOpenChange={setFormOpen} onSuccess={fetchTransactions} />
+
+      <TransactionEditForm
+        open={!!editingTransaction}
+        onOpenChange={(open) => { if (!open) setEditingTransaction(null); }}
+        transaction={editingTransaction}
+        onSuccess={() => { setRefreshKey((k) => k + 1); }}
+      />
+
+      <AlertDialog open={!!deletingTransaction} onOpenChange={() => setDeletingTransaction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita. O lançamento será removido permanentemente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!deletingTransaction) return;
+                const { error } = await supabase.from("transactions").delete().eq("id", deletingTransaction.id);
+                if (error) toast.error("Erro ao excluir: " + error.message);
+                else { toast.success("Lançamento excluído!"); setRefreshKey((k) => k + 1); }
+                setDeletingTransaction(null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

@@ -1,8 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,11 +12,12 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Sparkles, Loader2 } from "lucide-react";
+import type { TransactionRowData } from "@/components/TransactionRow";
 
-interface TransactionFormProps {
+interface TransactionEditFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  transaction: TransactionRowData | null;
   onSuccess: () => void;
 }
 
@@ -32,21 +31,18 @@ const paymentMethods = [
   { value: "other", label: "Outro" },
 ];
 
-export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFormProps) {
+export function TransactionEditForm({ open, onOpenChange, transaction, onSuccess }: TransactionEditFormProps) {
   const { company } = useCompany();
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
-  const [classifying, setClassifying] = useState(false);
   const [accounts, setAccounts] = useState<{ id: string; name: string; code: string | null; type: string }[]>([]);
-  const [costCenters, setCostCenters] = useState<{ id: string; name: string; category: string }[]>([]);
+  const [costCenters, setCostCenters] = useState<{ id: string; name: string }[]>([]);
   const [bankAccounts, setBankAccounts] = useState<{ id: string; name: string }[]>([]);
 
   const [form, setForm] = useState({
-    date: new Date().toISOString().split("T")[0],
+    date: "",
     description: "",
     amount: "",
-    type: "expense" as "revenue" | "expense",
+    type: "expense" as string,
     account_id: "",
     cost_center_id: "",
     bank_account_id: "",
@@ -54,104 +50,106 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     project: "",
   });
 
-  const [aiSuggested, setAiSuggested] = useState(false);
+  const isExternal = transaction?.source === "asaas" || transaction?.source === "bank";
+
+  useEffect(() => {
+    if (!transaction || !open) return;
+    // Fetch full transaction data to populate form
+    const fetchFull = async () => {
+      const { data } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("id", transaction.id)
+        .single();
+      if (data) {
+        setForm({
+          date: data.date,
+          description: data.description,
+          amount: String(data.amount),
+          type: data.type,
+          account_id: data.account_id || "",
+          cost_center_id: data.cost_center_id || "",
+          bank_account_id: data.bank_account_id || "",
+          payment_method: data.payment_method || "",
+          project: data.project || "",
+        });
+      }
+    };
+    fetchFull();
+  }, [transaction, open]);
 
   useEffect(() => {
     if (!company) return;
     const fetchOptions = async () => {
       const [accts, ccs, banks] = await Promise.all([
         supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company.id).order("code"),
-        supabase.from("cost_centers").select("id, name, category").eq("company_id", company.id).eq("active", true).order("name"),
+        supabase.from("cost_centers").select("id, name").eq("company_id", company.id).eq("active", true).order("name"),
         supabase.from("bank_accounts").select("id, name").eq("company_id", company.id).order("name"),
       ]);
       if (accts.data) setAccounts(accts.data);
-      if (ccs.data) setCostCenters(ccs.data as any);
+      if (ccs.data) setCostCenters(ccs.data);
       if (banks.data) setBankAccounts(banks.data);
     };
     fetchOptions();
   }, [company]);
 
-  const classifyWithAI = useCallback(async (description: string) => {
-    if (!company || description.trim().length < 5) return;
-    setClassifying(true);
-    setAiSuggested(false);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-classify`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ description, type: form.type, company_id: company.id }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.account_id && !form.account_id) {
-          setForm(prev => ({ ...prev, account_id: data.account_id, cost_center_id: data.cost_center_id || prev.cost_center_id }));
-          setAiSuggested(true);
-          toast.success("✨ IA sugeriu a classificação automaticamente!");
-        }
-      }
-    } catch (e) {
-      console.error("AI classify error:", e);
-    } finally {
-      setClassifying(false);
-    }
-  }, [company, form.type, form.account_id]);
-
-  const filteredAccounts = accounts.filter((a) => {
-    if (form.type === "revenue") return a.type === "revenue";
-    return a.type === "expense";
-  });
+  const filteredAccounts = accounts.filter((a) =>
+    form.type === "revenue" ? a.type === "revenue" : a.type === "expense"
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!company || !user) return;
-    const amount = parseFloat(form.amount.replace(",", "."));
-    if (isNaN(amount) || amount <= 0) { toast.error("Informe um valor válido."); return; }
-    if (!form.account_id) { toast.error("Selecione uma conta contábil."); return; }
-    if (!form.cost_center_id) { toast.error("Selecione um centro de custo."); return; }
+    if (!transaction) return;
 
     setLoading(true);
-    const { error } = await supabase.from("transactions").insert({
-      company_id: company.id, user_id: user.id, date: form.date,
-      description: form.description.trim(), amount, type: form.type,
-      account_id: form.account_id, cost_center_id: form.cost_center_id,
-      bank_account_id: form.bank_account_id || null, payment_method: form.payment_method || null,
-      project: form.project.trim() || null, status: "confirmed", source: "manual",
-    });
 
+    const updates: Record<string, any> = {
+      account_id: form.account_id || null,
+      cost_center_id: form.cost_center_id || null,
+      bank_account_id: form.bank_account_id || null,
+      payment_method: form.payment_method || null,
+      project: form.project.trim() || null,
+    };
+
+    // Only allow full edits for manual transactions
+    if (!isExternal) {
+      const amount = parseFloat(form.amount.replace(",", "."));
+      if (isNaN(amount) || amount <= 0) { toast.error("Informe um valor válido."); setLoading(false); return; }
+      updates.date = form.date;
+      updates.description = form.description.trim();
+      updates.amount = amount;
+      updates.type = form.type;
+    }
+
+    const { error } = await supabase.from("transactions").update(updates).eq("id", transaction.id);
     if (error) { toast.error("Erro ao salvar: " + error.message); }
     else {
-      toast.success("Lançamento criado com sucesso!");
-      setForm({ date: new Date().toISOString().split("T")[0], description: "", amount: "", type: "expense", account_id: "", cost_center_id: "", bank_account_id: "", payment_method: "", project: "" });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      toast.success("Lançamento atualizado!");
       onSuccess();
       onOpenChange(false);
     }
     setLoading(false);
   };
 
-  const update = (key: string, value: string) => {
-    if (key === "type") { setForm({ ...form, type: value as any, account_id: "" }); }
-    else { setForm({ ...form, [key]: value }); }
-  };
+  const update = (key: string, value: string) => setForm({ ...form, [key]: value });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Lançamento</DialogTitle>
-          <DialogDescription>Registre uma receita ou despesa</DialogDescription>
+          <DialogTitle>Editar Lançamento</DialogTitle>
+          <DialogDescription>
+            {isExternal
+              ? "Lançamento de integração — apenas classificação editável"
+              : "Edite os dados do lançamento"}
+          </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Tipo *</Label>
-              <Select value={form.type} onValueChange={(v) => update("type", v)}>
+              <Label>Tipo</Label>
+              <Select value={form.type} onValueChange={(v) => update("type", v)} disabled={isExternal}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="revenue">Receita</SelectItem>
@@ -160,39 +158,20 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
               </Select>
             </div>
             <div>
-              <Label>Data *</Label>
-              <Input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} required className="mt-1" />
+              <Label>Data</Label>
+              <Input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} disabled={isExternal} className="mt-1" />
             </div>
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
-              <Label>Descrição *</Label>
-              {classifying && (
-                <span className="flex items-center gap-1 text-xs text-primary">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Classificando...
-                </span>
-              )}
-              {aiSuggested && !classifying && (
-                <span className="flex items-center gap-1 text-xs text-revenue">
-                  <Sparkles className="h-3 w-3" /> IA sugeriu
-                </span>
-              )}
-            </div>
-            <Textarea 
-              value={form.description} 
-              onChange={(e) => update("description", e.target.value)} 
-              onBlur={() => classifyWithAI(form.description)}
-              placeholder="Descreva o lançamento e a IA sugere a classificação..." 
-              required 
-              className="mt-1 min-h-[60px]" 
-            />
+            <Label>Descrição</Label>
+            <Textarea value={form.description} onChange={(e) => update("description", e.target.value)} disabled={isExternal} className="mt-1 min-h-[60px]" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Valor (R$) *</Label>
-              <Input value={form.amount} onChange={(e) => update("amount", e.target.value)} placeholder="0,00" required className="mt-1" />
+              <Label>Valor (R$)</Label>
+              <Input value={form.amount} onChange={(e) => update("amount", e.target.value)} disabled={isExternal} className="mt-1" />
             </div>
             <div>
               <Label>Forma de Pagamento</Label>
@@ -208,9 +187,9 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
           </div>
 
           <div>
-            <Label>Conta Contábil *</Label>
+            <Label>Conta Contábil</Label>
             <Select value={form.account_id} onValueChange={(v) => update("account_id", v)}>
-              <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione uma conta..." /></SelectTrigger>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
               <SelectContent>
                 {filteredAccounts.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.code ? `${a.code} - ` : ""}{a.name}</SelectItem>
@@ -221,7 +200,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Centro de Custo *</Label>
+              <Label>Centro de Custo</Label>
               <Select value={form.cost_center_id} onValueChange={(v) => update("cost_center_id", v)}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
@@ -246,7 +225,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
 
           <div>
             <Label>Projeto (opcional)</Label>
-            <Input value={form.project} onChange={(e) => update("project", e.target.value)} placeholder="Ex: Projeto Alpha, Cliente XYZ..." className="mt-1" />
+            <Input value={form.project} onChange={(e) => update("project", e.target.value)} className="mt-1" />
           </div>
 
           <div className="flex gap-3 pt-2">
