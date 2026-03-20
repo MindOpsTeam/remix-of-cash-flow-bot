@@ -102,6 +102,11 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     }
   }, [company, form.type, form.account_id]);
 
+  const debouncedClassify = useCallback((description: string) => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => classifyWithAI(description), 600);
+  }, [classifyWithAI]);
+
   const filteredAccounts = accounts.filter((a) => {
     if (form.type === "revenue") return a.type === "revenue";
     return a.type === "expense";
