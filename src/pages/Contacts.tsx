@@ -297,7 +297,20 @@ export default function ContactsPage() {
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground">{filtered.length} contato{filtered.length !== 1 ? "s" : ""}</p>
+        {/* Pagination */}
+        {totalCount > PAGE_SIZE && (
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-muted-foreground">
+              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} de {totalCount}
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Anterior</Button>
+              <Button variant="outline" size="sm" disabled={(page + 1) * PAGE_SIZE >= totalCount} onClick={() => setPage((p) => p + 1)}>Próximo</Button>
+            </div>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground">{filtered.length} contato{filtered.length !== 1 ? "s" : ""} nesta página</p>
       </div>
 
       {/* Create/Edit Dialog */}

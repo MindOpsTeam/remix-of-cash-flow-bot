@@ -8,6 +8,31 @@ Deno.serve(async (req) => {
   if (preflight) return preflight;
 
   try {
+    // --- JWT verification ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Verify the caller's JWT by creating a client with their token
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const parsed = await parseJsonBody(req);
     if ("error" in parsed) {
       return new Response(JSON.stringify({ error: parsed.error }), {
@@ -30,13 +55,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+    // Verify user is a member of the company
+    const adminClient = createClient(supabaseUrl, serviceKey);
+    const { data: membership } = await adminClient
+      .from("company_members")
+      .select("id")
+      .eq("company_id", company_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!membership) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const [accountsRes, centersRes] = await Promise.all([
-      supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company_id),
-      supabase.from("cost_centers").select("id, name, category").eq("company_id", company_id).eq("active", true),
+      adminClient.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company_id),
+      adminClient.from("cost_centers").select("id, name, category").eq("company_id", company_id).eq("active", true),
     ]);
 
     const accounts = (accountsRes.data || []).filter((a: any) => 
@@ -100,7 +137,6 @@ Escolha a classificação mais provável. Se não tiver certeza, use confidence 
     const result = await response.json();
     const content = result.choices?.[0]?.message?.content || "";
 
-    // Extract JSON from response
     const jsonMatch = content.match(/\{[^}]+\}/);
     if (!jsonMatch) {
       return new Response(JSON.stringify({ account_id: null, cost_center_id: null, confidence: "low" }), {
