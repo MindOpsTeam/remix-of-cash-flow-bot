@@ -45,6 +45,7 @@ const CustomTooltip = memo(({ active, payload, label }: {
 
 export default function Dashboard() {
   const { company } = useCompany();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [revenue, setRevenue] = useState(0);
   const [expense, setExpense] = useState(0);
@@ -54,6 +55,26 @@ export default function Dashboard() {
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [erpMetrics, setErpMetrics] = useState({ contacts: 0, pendingSales: 0, pendingSalesTotal: 0, lowStock: 0, pendingPurchases: 0 });
   const lastFetchRef = useRef(0);
+
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [memberId, setMemberId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user || !company) return;
+    supabase
+      .from("company_members")
+      .select("id, onboarding_completed")
+      .eq("user_id", user.id)
+      .eq("company_id", company.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && !(data as any).onboarding_completed) {
+          setMemberId(data.id);
+          setShowOnboarding(true);
+        }
+      });
+  }, [user, company]);
 
   const loadData = useCallback(async () => {
     if (!company) return;
