@@ -1,4 +1,5 @@
 import { KPICard } from "@/components/KPICard";
+import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CFODashboardData } from "@/hooks/useCFODashboard";
 import { formatCurrency } from "@/lib/utils";
