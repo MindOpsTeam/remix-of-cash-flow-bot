@@ -188,7 +188,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
             <Textarea 
               value={form.description} 
               onChange={(e) => update("description", e.target.value)} 
-              onBlur={() => classifyWithAI(form.description)}
+              onBlur={() => debouncedClassify(form.description)}
               placeholder="Descreva o lançamento e a IA sugere a classificação..." 
               required 
               className="mt-1 min-h-[60px]" 

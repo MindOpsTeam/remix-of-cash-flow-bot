@@ -316,7 +316,7 @@ export default function SalesOrdersPage() {
                   </div>
                 </div>
                 <p className="text-sm font-semibold font-mono">{fmt(Number(o.total))}</p>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(o)}>
                   <Eye className="h-3.5 w-3.5" />
                 </Button>
               </div>
