@@ -1341,6 +1341,7 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          onboarding_completed: boolean
           role: string
           user_id: string
         }
@@ -1348,6 +1349,7 @@ export type Database = {
           company_id: string
           created_at?: string
           id?: string
+          onboarding_completed?: boolean
           role?: string
           user_id: string
         }
@@ -1355,6 +1357,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           id?: string
+          onboarding_completed?: boolean
           role?: string
           user_id?: string
         }
