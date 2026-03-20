@@ -2699,6 +2699,39 @@ export type Database = {
           },
         ]
       }
+      reconciliation_log: {
+        Row: {
+          company_id: string
+          created_at: string
+          decision: string
+          id: string
+          kept_transaction_id: string
+          removed_snapshot: Json
+          removed_transaction_id: string
+          resolved_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          decision?: string
+          id?: string
+          kept_transaction_id: string
+          removed_snapshot?: Json
+          removed_transaction_id: string
+          resolved_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          decision?: string
+          id?: string
+          kept_transaction_id?: string
+          removed_snapshot?: Json
+          removed_transaction_id?: string
+          resolved_by?: string | null
+        }
+        Relationships: []
+      }
       sales_order_items: {
         Row: {
           description: string
