@@ -411,6 +411,117 @@ export default function WhatsApp() {
     toast.success("Webhook configurado! Envie uma mensagem de teste.", { id: "webhook-config" });
   };
 
+  const stopReconnectPolling = useCallback(() => {
+    if (reconnectPollingRef.current) { clearInterval(reconnectPollingRef.current); reconnectPollingRef.current = null; }
+    if (reconnectTimeoutRef.current) { clearTimeout(reconnectTimeoutRef.current); reconnectTimeoutRef.current = null; }
+  }, []);
+
+  useEffect(() => () => stopReconnectPolling(), [stopReconnectPolling]);
+
+  const handleReconnect = async (c: WhatsAppConfig) => {
+    if (!c.evolution_api_url || !c.evolution_api_key) {
+      toast.error("Credenciais da Evolution API não encontradas.");
+      return;
+    }
+    const url = c.evolution_api_url.replace(/\/$/, "");
+    const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+
+    setReconnect({ config: c, qrCodeBase64: "", status: "waiting", error: "", loading: true });
+    stopReconnectPolling();
+
+    try {
+      // Try to disconnect first so a new QR is generated
+      await fetch(`${url}/instance/logout/${c.instance_name}`, { method: "DELETE", headers }).catch(() => {});
+
+      // Get new QR
+      const qr = await fetchQrCode(url, headers, c.instance_name);
+      if (!qr) {
+        // Maybe already connected
+        const stateRes = await fetch(`${url}/instance/connectionState/${c.instance_name}`, { headers });
+        if (stateRes.ok) {
+          const st = await stateRes.json();
+          if ((st?.instance?.state || st?.state) === "open") {
+            setReconnect(prev => prev ? { ...prev, status: "connected", loading: false } : null);
+            toast.success("Instância já está conectada!");
+            return;
+          }
+        }
+        setReconnect(prev => prev ? { ...prev, error: "Não foi possível gerar o QR Code.", loading: false } : null);
+        return;
+      }
+
+      const qrSrc = qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`;
+      setReconnect(prev => prev ? { ...prev, qrCodeBase64: qrSrc, loading: false } : null);
+
+      // Poll for connection
+      reconnectPollingRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`${url}/instance/connectionState/${c.instance_name}`, { headers });
+          if (!res.ok) return;
+          const data = await res.json();
+          if ((data?.instance?.state || data?.state) === "open") {
+            stopReconnectPolling();
+            setReconnect(prev => prev ? { ...prev, status: "connected" } : null);
+            const phone = await fetchInstancePhone(url, headers, c.instance_name);
+            if (phone) {
+              await supabase.from("whatsapp_configs").update({ phone_number: phone } as any).eq("id", c.id);
+            }
+            await configureWebhook(url, headers, c.instance_name);
+            loadConfigs();
+            toast.success("WhatsApp reconectado!");
+          }
+        } catch { /* ignore */ }
+      }, 5000);
+
+      reconnectTimeoutRef.current = setTimeout(() => {
+        stopReconnectPolling();
+        setReconnect(prev => prev ? { ...prev, status: "error", error: "Tempo esgotado. Tente novamente." } : null);
+      }, 120_000);
+    } catch {
+      setReconnect(prev => prev ? { ...prev, error: "Erro ao conectar ao servidor Evolution.", loading: false } : null);
+    }
+  };
+
+  const handleReconnectRefreshQr = async () => {
+    if (!reconnect) return;
+    const c = reconnect.config;
+    const url = c.evolution_api_url!.replace(/\/$/, "");
+    const headers = { apikey: c.evolution_api_key!, "Content-Type": "application/json" };
+    setReconnect(prev => prev ? { ...prev, loading: true, status: "waiting", error: "" } : null);
+    stopReconnectPolling();
+    try {
+      const qr = await fetchQrCode(url, headers, c.instance_name);
+      if (qr) {
+        const qrSrc = qr.startsWith("data:") ? qr : `data:image/png;base64,${qr}`;
+        setReconnect(prev => prev ? { ...prev, qrCodeBase64: qrSrc, loading: false } : null);
+        // Re-poll
+        reconnectPollingRef.current = setInterval(async () => {
+          try {
+            const res = await fetch(`${url}/instance/connectionState/${c.instance_name}`, { headers });
+            if (!res.ok) return;
+            const data = await res.json();
+            if ((data?.instance?.state || data?.state) === "open") {
+              stopReconnectPolling();
+              setReconnect(prev => prev ? { ...prev, status: "connected" } : null);
+              await configureWebhook(url, headers, c.instance_name);
+              loadConfigs();
+              toast.success("WhatsApp reconectado!");
+            }
+          } catch { /* ignore */ }
+        }, 5000);
+        reconnectTimeoutRef.current = setTimeout(() => {
+          stopReconnectPolling();
+          setReconnect(prev => prev ? { ...prev, status: "error", error: "Tempo esgotado." } : null);
+        }, 120_000);
+      } else {
+        setReconnect(prev => prev ? { ...prev, error: "Não foi possível gerar QR Code.", loading: false } : null);
+      }
+    } catch {
+      setReconnect(prev => prev ? { ...prev, error: "Erro ao gerar QR Code.", loading: false } : null);
+    }
+  };
+
+
   const toggleActive = async (c: WhatsAppConfig) => {
     await supabase.from("whatsapp_configs").update({ active: !c.active }).eq("id", c.id);
     loadConfigs();
