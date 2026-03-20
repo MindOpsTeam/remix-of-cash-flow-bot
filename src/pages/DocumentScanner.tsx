@@ -11,7 +11,7 @@ import {
 import {
   ScanLine, Check, RotateCcw, FileText, ArrowLeftRight,
   Receipt, CreditCard, QrCode, FileSpreadsheet, Sparkles, Clock,
-  Paperclip, Loader2,
+  Paperclip, Loader2, UserPlus, UserCheck,
 } from "lucide-react";
 import { DocumentUploader } from "@/components/DocumentUploader";
 import { useDocumentScanner, ScanResult } from "@/hooks/useDocumentScanner";
@@ -46,7 +46,7 @@ const docTypeIcons: Record<string, typeof Receipt> = {
 };
 
 export default function DocumentScanner() {
-  const { scanning, result, creating, recentScans, batchResults, batchProcessing, scanDocument, scanBatch, createTransactionFromScan, clearResult } = useDocumentScanner();
+  const { scanning, result, creating, recentScans, batchResults, batchProcessing, scanDocument, scanBatch, createTransactionFromScan, checkExistingContact, clearResult } = useDocumentScanner();
   const { company } = useCompany();
   const { user } = useAuth();
   const scannedFileRef = useRef<File | null>(null);
@@ -60,6 +60,9 @@ export default function DocumentScanner() {
   const [editAccountId, setEditAccountId] = useState("");
   const [editCostCenterId, setEditCostCenterId] = useState("");
   const [editBankAccountId, setEditBankAccountId] = useState("");
+
+  // Contact detection
+  const [contactInfo, setContactInfo] = useState<{ exists: boolean; name?: string } | null>(null);
 
   // Options for selects
   const [accounts, setAccounts] = useState<{ id: string; name: string; code: string | null; type: string }[]>([]);
@@ -84,7 +87,7 @@ export default function DocumentScanner() {
 
   // Populate editable fields when result arrives
   useEffect(() => {
-    if (!result) return;
+    if (!result) { setContactInfo(null); return; }
     setEditAmount(result.value != null ? String(result.value) : "");
     setEditDate(result.date || new Date().toISOString().split("T")[0]);
     setEditDescription(result.description || "");
@@ -98,6 +101,10 @@ export default function DocumentScanner() {
     const isFutureDate = result.date && result.date > today;
     const isBoleto = result.document_type === "boleto";
     setEditStatus(isFutureDate || isBoleto ? "pending" : "confirmed");
+
+    // Check existing contact
+    const txType = result.transaction_type || "expense";
+    checkExistingContact(result, txType).then(setContactInfo);
   }, [result]);
 
   const filteredAccounts = accounts.filter((a) =>
@@ -137,6 +144,10 @@ export default function DocumentScanner() {
   const statusLabel = editStatus === "pending"
     ? (editType === "revenue" ? "Conta a Receber" : "Conta a Pagar")
     : (editType === "revenue" ? "Receita" : "Despesa");
+
+  // Determine contact display
+  const contactName = editType === "revenue" ? result?.beneficiary : result?.issuer;
+  const contactDoc = editType === "revenue" ? result?.beneficiary_document : result?.issuer_document;
 
   return (
     <AppLayout>
@@ -234,7 +245,13 @@ export default function DocumentScanner() {
                   <div><span className="text-muted-foreground text-xs">Emitente</span><p className="font-medium truncate">{result.issuer}</p></div>
                 )}
                 {result.issuer_document && (
-                  <div><span className="text-muted-foreground text-xs">CNPJ/CPF</span><p className="font-medium font-mono text-xs">{result.issuer_document}</p></div>
+                  <div><span className="text-muted-foreground text-xs">CNPJ/CPF Emitente</span><p className="font-medium font-mono text-xs">{result.issuer_document}</p></div>
+                )}
+                {result.beneficiary && (
+                  <div><span className="text-muted-foreground text-xs">Beneficiário/Tomador</span><p className="font-medium truncate">{result.beneficiary}</p></div>
+                )}
+                {result.beneficiary_document && (
+                  <div><span className="text-muted-foreground text-xs">CNPJ/CPF Beneficiário</span><p className="font-medium font-mono text-xs">{result.beneficiary_document}</p></div>
                 )}
                 {result.document_number && (
                   <div><span className="text-muted-foreground text-xs">N° Documento</span><p className="font-medium">{result.document_number}</p></div>
@@ -243,6 +260,38 @@ export default function DocumentScanner() {
                   <div className="col-span-2"><span className="text-muted-foreground text-xs">Código de Barras</span><p className="font-mono text-xs break-all">{result.barcode}</p></div>
                 )}
               </div>
+
+              {/* Contact auto-detection indicator */}
+              {(contactName || contactDoc) && (
+                <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${
+                  contactInfo?.exists
+                    ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-700"
+                    : "bg-primary/5 border-primary/20 text-primary"
+                }`}>
+                  {contactInfo?.exists ? (
+                    <>
+                      <UserCheck className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>Contato existente: <strong>{contactInfo.name}</strong></span>
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span>
+                        {editType === "revenue" ? "Cliente" : "Fornecedor"} será cadastrado: <strong>{contactName}</strong>
+                        {contactDoc && <span className="font-mono ml-1">({contactDoc})</span>}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Revenue NF indicator */}
+              {editType === "revenue" && (result.document_type === "nota_fiscal" || result.document_type === "nfse") && (
+                <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border bg-blue-500/5 border-blue-500/20 text-blue-700">
+                  <FileSpreadsheet className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span>Nota fiscal será registrada em <strong>Vendas → Notas Fiscais</strong></span>
+                </div>
+              )}
 
               {/* Editable fields */}
               <div className="space-y-3 pt-2 border-t border-border">
