@@ -79,18 +79,26 @@ export default function ProductsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
 
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 50;
+
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", company?.id],
+    queryKey: ["products", company?.id, page],
     queryFn: async () => {
       if (!company) return [];
-      const { data, error } = await supabase
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, error, count } = await supabase
         .from("products")
-        .select("id, name, description, type, sku, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active")
+        .select("id, name, description, type, sku, barcode, ncm, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
         .eq("company_id", company.id)
         .eq("active", true)
-        .order("name");
+        .order("name")
+        .range(from, to);
       if (error) throw error;
-      return (data || []) as Product[];
+      if (count !== null) setTotalCount(count);
+      return (data || []) as (Product & Record<string, any>)[];
     },
     enabled: !!company,
   });
