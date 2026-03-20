@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { image_base64, mimetype, company_id, mode } = parsed.data;
+    const { image_base64, mimetype, company_id } = parsed.data;
 
     const validationError = validate(
       validateRequired(parsed.data, ["image_base64", "mimetype"]),
@@ -39,13 +39,14 @@ Deno.serve(async (req) => {
 
     // ── Step 1: Extract document data via Gemini Vision ─────────────────────
     const extractionPrompt = `Você é um especialista em análise de documentos financeiros brasileiros.
-Analise a imagem e extraia os dados em JSON:
+Analise a imagem e extraia os dados em JSON puro (sem markdown, sem \`\`\`):
+
 {
   "document_type": "boleto|nota_fiscal|nfse|cupom_fiscal|recibo|comprovante_pix|extrato|outro",
   "value": numero_decimal_ou_null,
   "date": "YYYY-MM-DD ou null",
   "issuer": "nome emitente ou null",
-  "issuer_document": "CNPJ ou CPF ou null",
+  "issuer_document": "CNPJ ou CPF formatado ou null",
   "beneficiary": "nome beneficiário ou null",
   "description": "descrição resumida do documento",
   "barcode": "linha digitável se boleto ou null",
@@ -53,75 +54,52 @@ Analise a imagem e extraia os dados em JSON:
   "transaction_type": "revenue ou expense",
   "items": [{"description": "item", "value": 10.00}]
 }
-Campos não identificados = null. Responda APENAS com JSON válido, sem markdown.`;
 
-    const isPdf = mimetype === "application/pdf";
-    let visionContent: string;
+Regras para transaction_type:
+- Boleto recebido para PAGAR → sempre "expense"
+- Cupom fiscal de compra → sempre "expense"
+- Comprovante PIX enviado (pagamento) → "expense"
+- Comprovante PIX recebido → "revenue"
+- Nota Fiscal / NFS-e EMITIDA pela empresa (prestação de serviço) → "revenue"
+- Nota Fiscal / NFS-e RECEBIDA de fornecedor (compra/serviço contratado) → "expense"
+- Recibo de pagamento feito → "expense"
+- Recibo de recebimento → "revenue"
+- Se não for possível determinar, use "expense" como padrão
 
-    if (isPdf) {
-      // For PDFs: use Gemini with inline_data for PDF
-      const visionRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${lovableApiKey}`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: extractionPrompt },
-              { type: "image_url", image_url: { url: `data:application/pdf;base64,${image_base64}` } },
-            ],
-          }],
-          temperature: 0.1,
-        }),
+Campos não identificados = null. Responda APENAS com JSON válido.`;
+
+    const dataUrl = `data:${mimetype};base64,${image_base64}`;
+    const visionRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${lovableApiKey}`,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: extractionPrompt },
+            { type: "image_url", image_url: { url: dataUrl } },
+          ],
+        }],
+        temperature: 0.1,
+      }),
+    });
+
+    if (!visionRes.ok) {
+      const errText = await visionRes.text();
+      console.error("Vision AI error:", visionRes.status, errText);
+      const label = mimetype === "application/pdf" ? "PDF" : "imagem";
+      return new Response(JSON.stringify({ error: `Falha ao analisar ${label}` }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-
-      if (!visionRes.ok) {
-        const errText = await visionRes.text();
-        console.error("Vision AI error (PDF):", visionRes.status, errText);
-        return new Response(JSON.stringify({ error: "Falha ao analisar PDF" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const visionResult = await visionRes.json();
-      visionContent = visionResult.choices?.[0]?.message?.content || "";
-    } else {
-      // For images: standard vision
-      const imageUrl = `data:${mimetype};base64,${image_base64}`;
-      const visionRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${lovableApiKey}`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [{
-            role: "user",
-            content: [
-              { type: "text", text: extractionPrompt },
-              { type: "image_url", image_url: { url: imageUrl } },
-            ],
-          }],
-          temperature: 0.1,
-        }),
-      });
-
-      if (!visionRes.ok) {
-        const errText = await visionRes.text();
-        console.error("Vision AI error:", visionRes.status, errText);
-        return new Response(JSON.stringify({ error: "Falha ao analisar imagem" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const visionResult = await visionRes.json();
-      visionContent = visionResult.choices?.[0]?.message?.content || "";
     }
+
+    const visionResult = await visionRes.json();
+    const visionContent = visionResult.choices?.[0]?.message?.content || "";
 
     const jsonMatch = visionContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
@@ -141,8 +119,18 @@ Campos não identificados = null. Responda APENAS com JSON válido, sem markdown
       });
     }
 
+    // Apply document-type heuristics as fallback
+    if (!extracted.transaction_type || extracted.transaction_type === "null") {
+      const docType = extracted.document_type;
+      if (docType === "boleto" || docType === "cupom_fiscal") {
+        extracted.transaction_type = "expense";
+      } else {
+        extracted.transaction_type = "expense"; // safe default
+      }
+    }
+
     // ── Step 2: Classify using chart of accounts + cost centers + bank accounts + history ──
-    let classification = { account_id: null, cost_center_id: null, bank_account_id: null, confidence: "low" };
+    let classification: any = { account_id: null, cost_center_id: null, bank_account_id: null, confidence: "low" };
 
     if (company_id && extracted.description) {
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -154,7 +142,6 @@ Campos não identificados = null. Responda APENAS com JSON válido, sem markdown
         supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company_id),
         supabase.from("cost_centers").select("id, name, category").eq("company_id", company_id).eq("active", true),
         supabase.from("bank_accounts").select("id, name, bank_name").eq("company_id", company_id),
-        // Fetch recent similar transactions for learning context
         supabase.from("transactions")
           .select("description, type, account_id, cost_center_id, bank_account_id")
           .eq("company_id", company_id)
@@ -163,26 +150,58 @@ Campos não identificados = null. Responda APENAS com JSON válido, sem markdown
           .limit(50),
       ]);
 
-      const accounts = (accountsRes.data || []).filter((a: any) =>
+      const allAccounts = accountsRes.data || [];
+      const filteredAccounts = allAccounts.filter((a: any) =>
         txType === "revenue" ? a.type === "revenue" : a.type === "expense"
       );
       const centers = centersRes.data || [];
       const banks = banksRes.data || [];
       const history = historyRes.data || [];
 
-      if (accounts.length > 0 || centers.length > 0) {
-        const accountsList = accounts.map((a: any) => `${a.code} ${a.name} [id:${a.id}]`).join("\n");
-        const centersList = centers.map((c: any) => `${c.name} (${c.category}) [id:${c.id}]`).join("\n");
-        const banksList = banks.map((b: any) => `${b.name}${b.bank_name ? ` (${b.bank_name})` : ""} [id:${b.id}]`).join("\n");
+      // Build valid ID sets for validation
+      const validAccountIds = new Set(filteredAccounts.map((a: any) => a.id));
+      const validCenterIds = new Set(centers.map((c: any) => c.id));
+      const validBankIds = new Set(banks.map((b: any) => b.id));
+
+      if (filteredAccounts.length > 0 || centers.length > 0) {
+        const accountsList = filteredAccounts.map((a: any) => `- ${a.code || "?"} ${a.name} [id:${a.id}]`).join("\n");
+        const centersList = centers.map((c: any) => `- ${c.name} (${c.category}) [id:${c.id}]`).join("\n");
+        const banksList = banks.map((b: any) => `- ${b.name}${b.bank_name ? ` (${b.bank_name})` : ""} [id:${b.id}]`).join("\n");
 
         // Build learning context from recent transactions
         let learningContext = "";
         if (history.length > 0) {
-          const examples = history.slice(0, 20).map((h: any) =>
-            `"${h.description}" → account:${h.account_id || "null"}, center:${h.cost_center_id || "null"}, bank:${h.bank_account_id || "null"}`
+          // Map IDs to names for better context
+          const accountMap = Object.fromEntries(allAccounts.map((a: any) => [a.id, `${a.code || ""} ${a.name}`]));
+          const centerMap = Object.fromEntries(centers.map((c: any) => [c.id, c.name]));
+          const bankMap = Object.fromEntries(banks.map((b: any) => [b.id, b.name]));
+
+          const examples = history.slice(0, 25).map((h: any) =>
+            `"${h.description}" (${h.type}) → conta: ${accountMap[h.account_id] || "N/A"}, centro: ${centerMap[h.cost_center_id] || "N/A"}, banco: ${bankMap[h.bank_account_id] || "N/A"}`
           ).join("\n");
-          learningContext = `\n\nExemplos de classificações anteriores do usuário (use como referência para padrões):\n${examples}`;
+          learningContext = `\n\nHistórico de classificações anteriores (aprenda os padrões do usuário):\n${examples}`;
         }
+
+        const classifyPrompt = `Você é um classificador financeiro especialista. Analise o documento e classifique-o nas categorias corretas.
+
+CONTAS CONTÁBEIS (${txType === "revenue" ? "receitas" : "despesas"} disponíveis):
+${accountsList}
+
+CENTROS DE CUSTO disponíveis:
+${centersList}
+
+CONTAS BANCÁRIAS disponíveis:
+${banksList}${learningContext}
+
+REGRAS:
+1. Escolha a conta contábil mais específica para o tipo de gasto/receita
+2. Escolha o centro de custo pelo departamento responsável
+3. Se houver padrão claro no histórico, siga-o
+4. confidence = "high" se o match é óbvio, "medium" se razoável, "low" se incerto
+5. Use null se nenhuma opção se encaixa bem
+
+Responda APENAS com JSON puro (sem markdown):
+{"account_id": "uuid_ou_null", "cost_center_id": "uuid_ou_null", "bank_account_id": "uuid_ou_null", "confidence": "high|medium|low"}`;
 
         const classifyRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -191,15 +210,18 @@ Campos não identificados = null. Responda APENAS com JSON válido, sem markdown
             Authorization: `Bearer ${lovableApiKey}`,
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
+            model: "google/gemini-2.5-flash",
             messages: [
-              {
-                role: "system",
-                content: `Você é um classificador financeiro. Dado a descrição de um documento, sugira a conta contábil, centro de custo e conta bancária mais adequados.\n\nContas contábeis:\n${accountsList}\n\nCentros de custo:\n${centersList}\n\nContas bancárias:\n${banksList}${learningContext}\n\nResponda APENAS com JSON: {"account_id": "uuid ou null", "cost_center_id": "uuid ou null", "bank_account_id": "uuid ou null", "confidence": "high|medium|low"}`,
-              },
+              { role: "system", content: classifyPrompt },
               {
                 role: "user",
-                content: `Tipo: ${txType === "revenue" ? "Receita" : "Despesa"}\nDocumento: ${extracted.document_type}\nDescrição: ${sanitizeForPrompt(extracted.description)}\nEmitente: ${extracted.issuer || "Não identificado"}\nValor: ${extracted.value || "Não identificado"}`,
+                content: `Tipo: ${txType === "revenue" ? "Receita" : "Despesa"}
+Documento: ${extracted.document_type || "desconhecido"}
+Descrição: ${sanitizeForPrompt(extracted.description)}
+Emitente: ${sanitizeForPrompt(extracted.issuer || "Não identificado")}
+CNPJ/CPF: ${extracted.issuer_document || "N/A"}
+Valor: R$ ${extracted.value != null ? extracted.value.toFixed(2) : "N/A"}
+Itens: ${extracted.items?.map((i: any) => i.description).join(", ") || "N/A"}`,
               },
             ],
             temperature: 0.1,
@@ -209,9 +231,19 @@ Campos não identificados = null. Responda APENAS com JSON válido, sem markdown
         if (classifyRes.ok) {
           const classifyResult = await classifyRes.json();
           const classContent = classifyResult.choices?.[0]?.message?.content || "";
-          const classJson = classContent.match(/\{[^}]+\}/);
+          // Use greedy regex to capture full JSON object including newlines
+          const classJson = classContent.match(/\{[\s\S]*\}/);
           if (classJson) {
-            try { classification = JSON.parse(classJson[0]); } catch { /* keep defaults */ }
+            try {
+              const parsed = JSON.parse(classJson[0]);
+              // Validate that returned IDs actually exist
+              classification = {
+                account_id: parsed.account_id && validAccountIds.has(parsed.account_id) ? parsed.account_id : null,
+                cost_center_id: parsed.cost_center_id && validCenterIds.has(parsed.cost_center_id) ? parsed.cost_center_id : null,
+                bank_account_id: parsed.bank_account_id && validBankIds.has(parsed.bank_account_id) ? parsed.bank_account_id : null,
+                confidence: ["high", "medium", "low"].includes(parsed.confidence) ? parsed.confidence : "low",
+              };
+            } catch { /* keep defaults */ }
           }
         }
       }
