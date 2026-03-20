@@ -229,10 +229,29 @@ Deno.serve(async (req) => {
       const { transaction_id, match_id, decision } = body;
 
       if (decision === "confirm") {
+        // Snapshot the transaction being removed for audit trail
+        const { data: removedTx } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("id", transaction_id)
+          .maybeSingle();
+
         await supabase
           .from("transactions")
           .update({ status: "reconciled", source: "reconciled", reconciled_at: new Date().toISOString() })
           .eq("id", match_id);
+
+        // Log before deleting
+        if (removedTx) {
+          await supabase.from("reconciliation_log").insert({
+            company_id: removedTx.company_id,
+            kept_transaction_id: match_id,
+            removed_transaction_id: transaction_id,
+            decision: "confirm",
+            resolved_by: "user",
+            removed_snapshot: removedTx,
+          });
+        }
 
         await supabase.from("transactions").delete().eq("id", transaction_id);
 

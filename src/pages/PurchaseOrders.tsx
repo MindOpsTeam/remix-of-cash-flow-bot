@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,13 @@ export default function PurchaseOrdersPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const { markDirty, markClean, confirmDiscard } = useUnsavedChanges(dialogOpen);
+
+  const handleDialogClose = (open: boolean) => {
+    if (!open && !confirmDiscard()) return;
+    setDialogOpen(open);
+    if (!open) { resetForm(); markClean(); }
+  };
 
   const [contactId, setContactId] = useState("");
   const [status, setStatus] = useState("draft");
@@ -93,6 +101,7 @@ export default function PurchaseOrdersPage() {
       return (data || []).map((o: any) => ({ ...o, contact: o.contacts })) as PurchaseOrder[];
     },
     enabled: !!company,
+    staleTime: 30_000,
   });
 
   const { data: suppliers = [] } = useQuery({
@@ -165,6 +174,7 @@ export default function PurchaseOrdersPage() {
     onSuccess: () => {
       toast.success(editingId ? "Pedido atualizado!" : "Pedido criado!");
       queryClient.invalidateQueries({ queryKey: ["purchase_orders"] });
+      markClean();
       setDialogOpen(false);
       resetForm();
     },
@@ -284,7 +294,7 @@ export default function PurchaseOrdersPage() {
       </div>
 
       {/* Create Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setDialogOpen(open); }}>
+      <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Pedido" : "Novo Pedido de Compra"}</DialogTitle>
