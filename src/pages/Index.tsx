@@ -8,8 +8,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState, useCallback, memo, useRef } from "react";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
 
 interface MonthData {
   month: string;
