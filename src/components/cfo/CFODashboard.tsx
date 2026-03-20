@@ -148,12 +148,10 @@ export function CFODashboard({ data }: CFODashboardProps) {
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" /> Analisando...
               </div>
+            ) : tip ? (
+              <MarkdownMessage content={tip} />
             ) : (
-              {tip ? (
-                <MarkdownMessage content={tip} />
-              ) : (
-                <p className="text-sm text-foreground">Adicione transações para receber insights personalizados.</p>
-              )}
+              <p className="text-sm text-foreground">Adicione transações para receber insights personalizados.</p>
             )}
           </div>
         </CardContent>
