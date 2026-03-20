@@ -10,6 +10,15 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Rocket, Building2, Link2, CheckCircle2 } from "lucide-react";
 
+function formatCNPJ(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  return digits
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
+
 interface OnboardingWizardProps {
   open: boolean;
   onComplete: () => void;
