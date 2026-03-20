@@ -589,6 +589,63 @@ export type Database = {
           },
         ]
       }
+      bills_payable: {
+        Row: {
+          company_id: string
+          contact_id: string | null
+          created_at: string
+          descricao: string | null
+          fornecedor: string
+          id: string
+          source: string
+          status: string
+          updated_at: string
+          valor: number
+          vencimento: string
+        }
+        Insert: {
+          company_id: string
+          contact_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          fornecedor: string
+          id?: string
+          source?: string
+          status?: string
+          updated_at?: string
+          valor?: number
+          vencimento: string
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string | null
+          created_at?: string
+          descricao?: string | null
+          fornecedor?: string
+          id?: string
+          source?: string
+          status?: string
+          updated_at?: string
+          valor?: number
+          vencimento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bills_payable_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bills_payable_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           code: string | null
@@ -1431,6 +1488,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "cost_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_files: {
+        Row: {
+          company_id: string
+          created_at: string
+          file_size: string | null
+          file_url: string | null
+          id: string
+          nome: string
+          source: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          file_size?: string | null
+          file_url?: string | null
+          id?: string
+          nome: string
+          source?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          file_size?: string | null
+          file_url?: string | null
+          id?: string
+          nome?: string
+          source?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_files_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
@@ -2936,6 +3037,53 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_guides: {
+        Row: {
+          company_id: string
+          competencia: string
+          created_at: string
+          id: string
+          source: string
+          status: string
+          tipo: string
+          updated_at: string
+          valor: number
+          vencimento: string
+        }
+        Insert: {
+          company_id: string
+          competencia: string
+          created_at?: string
+          id?: string
+          source?: string
+          status?: string
+          tipo: string
+          updated_at?: string
+          valor?: number
+          vencimento: string
+        }
+        Update: {
+          company_id?: string
+          competencia?: string
+          created_at?: string
+          id?: string
+          source?: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor?: number
+          vencimento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_guides_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
