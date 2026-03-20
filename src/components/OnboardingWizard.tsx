@@ -76,7 +76,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
         if (existing) {
           await supabase.from("company_asaas_config").update(asaasPayload).eq("id", existing.id);
         } else {
-          await supabase.from("company_asaas_config").insert(asaasPayload);
+          await supabase.from("company_asaas_config").insert([asaasPayload as any]);
         }
       }
 
