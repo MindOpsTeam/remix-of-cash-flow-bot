@@ -12,6 +12,7 @@ export interface ScanResult {
   issuer: string | null;
   issuer_document: string | null;
   beneficiary: string | null;
+  beneficiary_document: string | null;
   description: string | null;
   barcode: string | null;
   document_number: string | null;
@@ -32,6 +33,15 @@ export interface CreateOverrides {
   account_id?: string;
   cost_center_id?: string;
   bank_account_id?: string;
+}
+
+function cleanDocument(doc: string): string {
+  return doc.replace(/[.\-\/\s]/g, "");
+}
+
+function detectPersonType(doc: string): "pf" | "pj" {
+  const clean = cleanDocument(doc);
+  return clean.length <= 11 ? "pf" : "pj";
 }
 
 export function useDocumentScanner() {
@@ -138,11 +148,7 @@ export function useDocumentScanner() {
         return null;
       }
 
-      // Update transaction with attachment_url
-      const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
-      // Since bucket is private, store the path for signed URL generation
       const attachmentUrl = path;
-
       await supabase.from("transactions")
         .update({ attachment_url: attachmentUrl })
         .eq("id", transactionId);
@@ -151,6 +157,92 @@ export function useDocumentScanner() {
     } catch (e) {
       console.error("Upload attach error:", e);
       return null;
+    }
+  };
+
+  /** Find or create contact based on scan data */
+  const findOrCreateContact = async (
+    scanData: ScanResult,
+    txType: string,
+  ): Promise<string | null> => {
+    if (!company) return null;
+
+    // Determine which entity is the contact
+    // Revenue (NF emitida) → beneficiary is the client
+    // Expense → issuer is the supplier
+    const isRevenue = txType === "revenue";
+    const contactName = isRevenue ? scanData.beneficiary : scanData.issuer;
+    const contactDoc = isRevenue ? scanData.beneficiary_document : scanData.issuer_document;
+
+    if (!contactDoc && !contactName) return null;
+
+    const cleanDoc = contactDoc ? cleanDocument(contactDoc) : null;
+
+    // Try to find existing contact by document
+    if (cleanDoc) {
+      const { data: existing } = await supabase
+        .from("contacts")
+        .select("id")
+        .eq("company_id", company.id)
+        .ilike("document", `%${cleanDoc}%`)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        return existing[0].id;
+      }
+    }
+
+    // Auto-create contact
+    if (!contactName) return null;
+
+    const { data: created, error } = await supabase
+      .from("contacts")
+      .insert({
+        company_id: company.id,
+        name: contactName,
+        document: contactDoc || null,
+        type: isRevenue ? "customer" : "supplier",
+        person_type: contactDoc ? detectPersonType(contactDoc) : "pj",
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("Auto-create contact error:", error);
+      return null;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    return created?.id || null;
+  };
+
+  /** Create invoice record for revenue NFs */
+  const createInvoiceRecord = async (
+    scanData: ScanResult,
+    contactId: string | null,
+    amount: number,
+    date: string,
+    description: string,
+  ) => {
+    if (!company) return;
+    const docType = scanData.document_type;
+    if (docType !== "nota_fiscal" && docType !== "nfse") return;
+
+    const { error } = await supabase.from("invoices").insert({
+      company_id: company.id,
+      contact_id: contactId,
+      type: docType === "nfse" ? "nfse" : "nfe",
+      status: "authorized",
+      number: scanData.document_number || null,
+      issue_date: date,
+      total: amount,
+      notes: description,
+    });
+
+    if (error) {
+      console.error("Auto-create invoice error:", error);
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     }
   };
 
@@ -169,6 +261,10 @@ export function useDocumentScanner() {
       const status = overrides?.status ?? "confirmed";
 
       const pjType = txType === "receita" || txType === "revenue" ? "revenue" : "expense";
+
+      // Auto-register contact
+      const contactId = await findOrCreateContact(scanData, pjType);
+
       const { data: inserted, error } = await supabase.from("transactions").insert({
         company_id: company.id,
         user_id: user.id,
@@ -189,6 +285,11 @@ export function useDocumentScanner() {
         await uploadAndAttach(file, inserted.id);
       }
 
+      // Auto-create invoice for revenue NFs
+      if (pjType === "revenue") {
+        await createInvoiceRecord(scanData, contactId, amount, date, description);
+      }
+
       toast.success(status === "pending" ? "Conta a pagar criada!" : "Lançamento criado com sucesso!");
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["recent_scans_company"] });
@@ -201,6 +302,28 @@ export function useDocumentScanner() {
     } finally {
       setCreating(false);
     }
+  };
+
+  /** Check if a contact already exists for the current scan result */
+  const checkExistingContact = async (scanData: ScanResult, txType: string): Promise<{ exists: boolean; name?: string }> => {
+    if (!company) return { exists: false };
+
+    const isRevenue = txType === "revenue";
+    const contactDoc = isRevenue ? scanData.beneficiary_document : scanData.issuer_document;
+    if (!contactDoc) return { exists: false };
+
+    const cleanDoc = cleanDocument(contactDoc);
+    const { data } = await supabase
+      .from("contacts")
+      .select("id, name")
+      .eq("company_id", company.id)
+      .ilike("document", `%${cleanDoc}%`)
+      .limit(1);
+
+    if (data && data.length > 0) {
+      return { exists: true, name: data[0].name };
+    }
+    return { exists: false };
   };
 
   const { data: recentScans = [] } = useQuery({
@@ -219,7 +342,7 @@ export function useDocumentScanner() {
     enabled: !!company?.id,
   });
 
-  const clearResult = () => setResult(null);
+  const clearResult = () => { setResult(null); setBatchResults([]); };
 
   return {
     scanning,
@@ -231,6 +354,7 @@ export function useDocumentScanner() {
     scanDocument,
     scanBatch,
     createTransactionFromScan,
+    checkExistingContact,
     clearResult,
   };
 }
