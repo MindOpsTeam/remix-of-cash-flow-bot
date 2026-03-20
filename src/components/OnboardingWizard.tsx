@@ -291,16 +291,23 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
 
           {/* Actions */}
           <div className="flex items-center justify-between mt-6 pt-4 border-t border-border">
-            {step > 0 && step < 3 ? (
-              <Button variant="ghost" size="sm" onClick={handleSkip} disabled={saving}>
-                Pular
+            <div className="flex gap-2">
+              {step > 0 && step < 3 && (
+                <Button variant="outline" size="sm" onClick={() => setStep((s) => s - 1)} disabled={saving}>
+                  Voltar
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {step > 0 && step < 3 && (
+                <Button variant="ghost" size="sm" onClick={handleSkip} disabled={saving}>
+                  Pular
+                </Button>
+              )}
+              <Button onClick={handleNext} disabled={saving} size="sm">
+                {saving ? "Salvando..." : step === 3 ? "Ir para o Dashboard" : "Próximo"}
               </Button>
-            ) : (
-              <div />
-            )}
-            <Button onClick={handleNext} disabled={saving} size="sm">
-              {saving ? "Salvando..." : step === 3 ? "Ir para o Dashboard" : "Próximo"}
-            </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
