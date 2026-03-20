@@ -215,7 +215,8 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
                     id="ob-cnpj"
                     placeholder="00.000.000/0001-00"
                     value={cnpj}
-                    onChange={(e) => setCnpj(e.target.value)}
+                    onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
+                    maxLength={18}
                   />
                 </div>
               </div>
