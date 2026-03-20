@@ -182,7 +182,7 @@ export default function ContactsPage() {
     setDialogOpen(true);
   };
 
-  const openEdit = (c: Contact) => {
+  const openEdit = (c: any) => {
     setEditingId(c.id);
     setForm({
       name: c.name,
@@ -193,17 +193,17 @@ export default function ContactsPage() {
       email: c.email || "",
       phone: c.phone || "",
       whatsapp: c.whatsapp || "",
-      website: "",
-      zip_code: "",
-      street: "",
-      number: "",
-      complement: "",
-      neighborhood: "",
+      website: c.website || "",
+      zip_code: c.zip_code || "",
+      street: c.street || "",
+      number: c.number || "",
+      complement: c.complement || "",
+      neighborhood: c.neighborhood || "",
       city: c.city || "",
       state: c.state || "",
-      default_payment_terms: "",
-      credit_limit: "",
-      notes: "",
+      default_payment_terms: c.default_payment_terms != null ? String(c.default_payment_terms) : "",
+      credit_limit: c.credit_limit != null ? String(c.credit_limit) : "",
+      notes: c.notes || "",
     });
     setDialogOpen(true);
   };
