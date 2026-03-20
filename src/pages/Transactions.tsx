@@ -194,6 +194,37 @@ export default function Transactions() {
       </div>
 
       <TransactionForm open={formOpen} onOpenChange={setFormOpen} onSuccess={fetchTransactions} />
+
+      <TransactionEditForm
+        open={!!editingTransaction}
+        onOpenChange={(open) => { if (!open) setEditingTransaction(null); }}
+        transaction={editingTransaction}
+        onSuccess={() => { setRefreshKey((k) => k + 1); }}
+      />
+
+      <AlertDialog open={!!deletingTransaction} onOpenChange={() => setDeletingTransaction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita. O lançamento será removido permanentemente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!deletingTransaction) return;
+                const { error } = await supabase.from("transactions").delete().eq("id", deletingTransaction.id);
+                if (error) toast.error("Erro ao excluir: " + error.message);
+                else { toast.success("Lançamento excluído!"); setRefreshKey((k) => k + 1); }
+                setDeletingTransaction(null);
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
