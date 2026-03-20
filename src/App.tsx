@@ -50,6 +50,9 @@ const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 const StockPage = lazy(() => import("./pages/Stock"));
 const FiscalPage = lazy(() => import("./pages/Fiscal"));
 const NfseEmitPage = lazy(() => import("./pages/NfseEmit"));
+const TaxCalendarPage = lazy(() => import("./pages/fiscal/TaxCalendar"));
+const BillsPayablePage = lazy(() => import("./pages/fiscal/BillsPayable"));
+const FiscalFilesPage = lazy(() => import("./pages/fiscal/FiscalFiles"));
 
 const queryClient = new QueryClient();
 
@@ -92,7 +95,7 @@ const AppRoutes = () => (
       {/* Financeiro */}
       <Route path="/transactions" element={<P><Transactions /></P>} />
       <Route path="/transfers" element={<P><CompanyTransfers /></P>} />
-      <Route path="/bills" element={<P><CompanyBills /></P>} />
+      <Route path="/bills" element={<Navigate to="/fiscal/contas-a-pagar" replace />} />
       <Route path="/documents" element={<P><DocumentScanner /></P>} />
       <Route path="/owner-transactions" element={<P><OwnerTransactions /></P>} />
 
@@ -108,6 +111,9 @@ const AppRoutes = () => (
       <Route path="/stock" element={<P><StockPage /></P>} />
       <Route path="/fiscal" element={<P><FiscalPage /></P>} />
       <Route path="/fiscal/nfse/emit" element={<P><NfseEmitPage /></P>} />
+      <Route path="/fiscal/impostos" element={<P><TaxCalendarPage /></P>} />
+      <Route path="/fiscal/contas-a-pagar" element={<P><BillsPayablePage /></P>} />
+      <Route path="/fiscal/arquivos" element={<P><FiscalFilesPage /></P>} />
 
       {/* Análise */}
       <Route path="/dre" element={<P><DRE /></P>} />

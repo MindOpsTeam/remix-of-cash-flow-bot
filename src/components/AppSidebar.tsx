@@ -27,6 +27,7 @@ import {
   ShoppingBag,
   Warehouse,
   FileCheck,
+  Calendar,
   type LucideIcon,
 } from "lucide-react";
 
@@ -61,9 +62,7 @@ const mainNav: NavEntry[] = [
     icon: ArrowLeftRight,
     items: [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
-      { to: "/bills", label: "Contas a Pagar", icon: Receipt },
       { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },
-      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
     ],
   },
@@ -82,7 +81,18 @@ const mainNav: NavEntry[] = [
     icon: ShoppingCart,
     items: [
       { to: "/sales", label: "Pedidos / Orçamentos", icon: ShoppingCart },
+    ],
+  },
+  {
+    key: "fiscal",
+    label: "Fiscal",
+    icon: FileCheck,
+    items: [
       { to: "/fiscal", label: "Notas Fiscais", icon: FileCheck },
+      { to: "/fiscal/impostos", label: "Calendário Impostos", icon: Calendar },
+      { to: "/fiscal/contas-a-pagar", label: "Contas a Pagar", icon: Receipt },
+      { to: "/fiscal/arquivos", label: "Arquivos Fiscais", icon: FileText },
+      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
     ],
   },
   {
