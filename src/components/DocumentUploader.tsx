@@ -1,16 +1,18 @@
 import { useCallback, useRef, useState } from "react";
-import { Upload, Camera, Loader2, FileText } from "lucide-react";
+import { Upload, Camera, Loader2, FileText, Files } from "lucide-react";
 
 interface DocumentUploaderProps {
   onFileSelected: (file: File) => void;
+  onBatchSelected?: (files: File[]) => void;
   scanning: boolean;
 }
 
 const ACCEPTED = "image/jpeg,image/png,image/webp,image/heic,application/pdf";
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
-export function DocumentUploader({ onFileSelected, scanning }: DocumentUploaderProps) {
+export function DocumentUploader({ onFileSelected, onBatchSelected, scanning }: DocumentUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const batchInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
   const handleFile = useCallback((file: File) => {
@@ -20,12 +22,25 @@ export function DocumentUploader({ onFileSelected, scanning }: DocumentUploaderP
     onFileSelected(file);
   }, [onFileSelected]);
 
+  const handleFiles = useCallback((files: File[]) => {
+    const valid = files.filter(f => f.size <= MAX_SIZE);
+    if (valid.length === 1) {
+      onFileSelected(valid[0]);
+    } else if (valid.length > 1 && onBatchSelected) {
+      onBatchSelected(valid);
+    }
+  }, [onFileSelected, onBatchSelected]);
+
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  }, [handleFile]);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length > 1 && onBatchSelected) {
+      handleFiles(files);
+    } else if (files[0]) {
+      handleFile(files[0]);
+    }
+  }, [handleFile, handleFiles, onBatchSelected]);
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -39,6 +54,12 @@ export function DocumentUploader({ onFileSelected, scanning }: DocumentUploaderP
     if (file) handleFile(file);
     if (inputRef.current) inputRef.current.value = "";
   }, [handleFile]);
+
+  const onBatchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) handleFiles(files);
+    if (batchInputRef.current) batchInputRef.current.value = "";
+  }, [handleFiles]);
 
   if (scanning) {
     return (
@@ -70,6 +91,14 @@ export function DocumentUploader({ onFileSelected, scanning }: DocumentUploaderP
         onChange={onChange}
         className="hidden"
       />
+      <input
+        ref={batchInputRef}
+        type="file"
+        accept={ACCEPTED}
+        multiple
+        onChange={onBatchChange}
+        className="hidden"
+      />
       <div className="flex items-center gap-3 mb-4">
         <div className="h-12 w-12 rounded-full flex items-center justify-center bg-primary/10 text-primary">
           <FileText className="h-6 w-6" />
@@ -88,6 +117,14 @@ export function DocumentUploader({ onFileSelected, scanning }: DocumentUploaderP
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
           <Camera className="h-3.5 w-3.5" /> Câmera
         </span>
+        {onBatchSelected && (
+          <span
+            onClick={(e) => { e.stopPropagation(); batchInputRef.current?.click(); }}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full hover:bg-muted/80 cursor-pointer"
+          >
+            <Files className="h-3.5 w-3.5" /> Lote
+          </span>
+        )}
       </div>
       <p className="text-[10px] text-muted-foreground mt-3">JPG, PNG, WebP, PDF — até 10 MB</p>
     </div>
