@@ -1,31 +1,12 @@
-import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, FileText, FileArchive, FileKey, Files } from "lucide-react";
 import { formatDate } from "@/lib/utils";
+import { useFiscalFiles } from "@/hooks/useFiscalFiles";
 
-type FileType = "contrato" | "xml" | "certificado" | "outro";
-
-interface FiscalFile {
-  id: string;
-  nome: string;
-  tipo: FileType;
-  uploadedAt: string;
-  tamanho: string;
-}
-
-const mockFiles: FiscalFile[] = [
-  { id: "1", nome: "Contrato_Locacao_Sede.pdf", tipo: "contrato", uploadedAt: "2026-02-15", tamanho: "1.2 MB" },
-  { id: "2", nome: "NFe_000142_XML.xml", tipo: "xml", uploadedAt: "2026-03-01", tamanho: "48 KB" },
-  { id: "3", nome: "Certificado_A1_2026.pfx", tipo: "certificado", uploadedAt: "2026-01-10", tamanho: "3.8 KB" },
-  { id: "4", nome: "Contrato_Social_Alteracao.pdf", tipo: "contrato", uploadedAt: "2026-03-12", tamanho: "890 KB" },
-  { id: "5", nome: "SPED_Contribuicoes_022026.xml", tipo: "xml", uploadedAt: "2026-03-18", tamanho: "2.1 MB" },
-  { id: "6", nome: "Procuracao_ECAC.pdf", tipo: "outro", uploadedAt: "2026-02-28", tamanho: "320 KB" },
-];
-
-const typeConfig: Record<FileType, { label: string; icon: typeof FileText; className: string }> = {
+const typeConfig: Record<string, { label: string; icon: typeof FileText; className: string }> = {
   contrato: { label: "Contrato", icon: FileText, className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
   xml: { label: "XML", icon: FileArchive, className: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
   certificado: { label: "Certificado", icon: FileKey, className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
@@ -33,7 +14,7 @@ const typeConfig: Record<FileType, { label: string; icon: typeof FileText; class
 };
 
 export default function FiscalFiles() {
-  const [files] = useState(mockFiles);
+  const { files, isLoading } = useFiscalFiles();
 
   const counts = {
     total: files.length,
@@ -78,38 +59,50 @@ export default function FiscalFiles() {
 
         <Card>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nome</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Tipo</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Data Upload</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Tamanho</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {files.map(f => {
-                    const tc = typeConfig[f.tipo];
-                    return (
-                      <tr key={f.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
-                        <td className="px-4 py-3 font-medium flex items-center gap-2">
-                          <tc.icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                          {f.nome}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium ${tc.className}`}>
-                            {tc.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">{formatDate(f.uploadedAt)}</td>
-                        <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">{f.tamanho}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {isLoading ? (
+              <div className="p-4 space-y-3">
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+              </div>
+            ) : files.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                <Files className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Nenhum arquivo cadastrado</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/30">
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nome</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Tipo</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Data Upload</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Tamanho</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {files.map(f => {
+                      const tc = typeConfig[f.tipo] ?? typeConfig.outro;
+                      const TcIcon = tc.icon;
+                      return (
+                        <tr key={f.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                          <td className="px-4 py-3 font-medium flex items-center gap-2">
+                            <TcIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                            {f.nome}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium ${tc.className}`}>
+                              {tc.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">{formatDate(f.created_at)}</td>
+                          <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">{f.file_size ?? "—"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
