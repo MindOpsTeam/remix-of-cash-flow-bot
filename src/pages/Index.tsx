@@ -8,8 +8,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState, useCallback, memo, useRef } from "react";
+import { OnboardingWizard } from "@/components/OnboardingWizard";
 
 interface MonthData {
   month: string;
@@ -43,6 +45,7 @@ const CustomTooltip = memo(({ active, payload, label }: {
 
 export default function Dashboard() {
   const { company } = useCompany();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [revenue, setRevenue] = useState(0);
   const [expense, setExpense] = useState(0);
@@ -52,6 +55,26 @@ export default function Dashboard() {
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
   const [erpMetrics, setErpMetrics] = useState({ contacts: 0, pendingSales: 0, pendingSalesTotal: 0, lowStock: 0, pendingPurchases: 0 });
   const lastFetchRef = useRef(0);
+
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [memberId, setMemberId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user || !company) return;
+    supabase
+      .from("company_members")
+      .select("id, onboarding_completed")
+      .eq("user_id", user.id)
+      .eq("company_id", company.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && !(data as any).onboarding_completed) {
+          setMemberId(data.id);
+          setShowOnboarding(true);
+        }
+      });
+  }, [user, company]);
 
   const loadData = useCallback(async () => {
     if (!company) return;
@@ -159,6 +182,13 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
+      {showOnboarding && memberId && (
+        <OnboardingWizard
+          open={showOnboarding}
+          onComplete={() => setShowOnboarding(false)}
+          memberId={memberId}
+        />
+      )}
       <div className="mb-6 animate-fade-in">
         <h1 className="text-[28px] font-semibold text-foreground tracking-[-0.02em]">Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1 capitalize">Visão geral — {monthLabel}</p>
