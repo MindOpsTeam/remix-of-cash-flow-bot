@@ -1,4 +1,5 @@
 import { KPICard } from "@/components/KPICard";
+import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CFODashboardData } from "@/hooks/useCFODashboard";
 import { formatCurrency } from "@/lib/utils";
@@ -147,8 +148,10 @@ export function CFODashboard({ data }: CFODashboardProps) {
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" /> Analisando...
               </div>
+            ) : tip ? (
+              <MarkdownMessage content={tip} />
             ) : (
-              <p className="text-sm text-foreground whitespace-pre-wrap">{tip || "Adicione transações para receber insights personalizados."}</p>
+              <p className="text-sm text-foreground">Adicione transações para receber insights personalizados.</p>
             )}
           </div>
         </CardContent>

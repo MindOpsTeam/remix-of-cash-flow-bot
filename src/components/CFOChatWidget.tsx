@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Brain, Send, X, Loader2 } from "lucide-react";
+import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
 import { useToast } from "@/hooks/use-toast";
@@ -143,7 +144,11 @@ export function CFOChatWidget() {
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground"
                 }`}>
-                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  {msg.role === "assistant" ? (
+                    <MarkdownMessage content={msg.content} />
+                  ) : (
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                  )}
                 </div>
               </div>
             ))}
