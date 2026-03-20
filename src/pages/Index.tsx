@@ -182,6 +182,13 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
+      {showOnboarding && memberId && (
+        <OnboardingWizard
+          open={showOnboarding}
+          onComplete={() => setShowOnboarding(false)}
+          memberId={memberId}
+        />
+      )}
       <div className="mb-6 animate-fade-in">
         <h1 className="text-[28px] font-semibold text-foreground tracking-[-0.02em]">Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1 capitalize">Visão geral — {monthLabel}</p>
