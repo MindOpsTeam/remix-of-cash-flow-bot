@@ -408,7 +408,7 @@ export default function ContactsPage() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">CEP</Label>
-                <Input className="mt-1" value={form.zip_code} onChange={(e) => set("zip_code", e.target.value)} />
+                <Input className="mt-1" value={form.zip_code} onChange={(e) => set("zip_code", maskCEP(e.target.value))} placeholder="00000-000" inputMode="numeric" />
               </div>
               <div className="col-span-2">
                 <Label className="text-xs">Rua</Label>
