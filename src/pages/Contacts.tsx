@@ -61,6 +61,31 @@ function formatDoc(doc: string | null, personType: string) {
   return doc;
 }
 
+function maskCPF(v: string) {
+  return v.replace(/\D/g, "").slice(0, 11)
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
+function maskCNPJ(v: string) {
+  return v.replace(/\D/g, "").slice(0, 14)
+    .replace(/(\d{2})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1.$2")
+    .replace(/(\d{3})(\d)/, "$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
+
+function maskPhone(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 10) return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d)/, "$1-$2");
+  return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d)/, "$1-$2");
+}
+
+function maskCEP(v: string) {
+  return v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+}
+
 const emptyForm = {
   name: "",
   trade_name: "",
@@ -354,7 +379,7 @@ export default function ContactsPage() {
             </div>
             <div>
               <Label className="text-xs">{form.person_type === "pf" ? "CPF" : "CNPJ"}</Label>
-              <Input className="mt-1 font-mono" value={form.document} onChange={(e) => set("document", e.target.value)} placeholder={form.person_type === "pf" ? "000.000.000-00" : "00.000.000/0000-00"} />
+              <Input className="mt-1 font-mono" value={form.document} onChange={(e) => set("document", form.person_type === "pf" ? maskCPF(e.target.value) : maskCNPJ(e.target.value))} placeholder={form.person_type === "pf" ? "000.000.000-00" : "00.000.000/0000-00"} inputMode="numeric" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -364,14 +389,14 @@ export default function ContactsPage() {
               </div>
               <div>
                 <Label className="text-xs">Telefone</Label>
-                <Input className="mt-1" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+                <Input className="mt-1" value={form.phone} onChange={(e) => set("phone", maskPhone(e.target.value))} placeholder="(00) 00000-0000" inputMode="numeric" />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">WhatsApp</Label>
-                <Input className="mt-1" value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} />
+                <Input className="mt-1" value={form.whatsapp} onChange={(e) => set("whatsapp", maskPhone(e.target.value))} placeholder="(00) 00000-0000" inputMode="numeric" />
               </div>
               <div>
                 <Label className="text-xs">Website</Label>
@@ -383,7 +408,7 @@ export default function ContactsPage() {
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">CEP</Label>
-                <Input className="mt-1" value={form.zip_code} onChange={(e) => set("zip_code", e.target.value)} />
+                <Input className="mt-1" value={form.zip_code} onChange={(e) => set("zip_code", maskCEP(e.target.value))} placeholder="00000-000" inputMode="numeric" />
               </div>
               <div className="col-span-2">
                 <Label className="text-xs">Rua</Label>
