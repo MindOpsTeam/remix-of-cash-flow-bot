@@ -254,15 +254,16 @@ export default function OwnerTransactions() {
               <div>
                 <Label>Valor</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  value={form.amount || ""}
-                  onChange={(e) =>
+                  inputMode="numeric"
+                  value={form.amount ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(form.amount) : ""}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
                     setForm((f) => ({
                       ...f,
-                      amount: parseFloat(e.target.value) || 0,
-                    }))
-                  }
+                      amount: parseInt(digits || "0", 10) / 100,
+                    }));
+                  }}
+                  placeholder="0,00"
                 />
               </div>
               <div>
