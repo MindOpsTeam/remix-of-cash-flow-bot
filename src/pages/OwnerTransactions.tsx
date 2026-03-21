@@ -44,7 +44,7 @@ const emptyForm: OwnerTransactionFormData = {
 
 export default function OwnerTransactions() {
   const { transactions, isLoading, summary, createTransaction, isCreating } = useOwnerTransactions();
-  const pfAccounts: { id: string; name: string }[] = []; // PF accounts removed — PJ-only ERP
+  
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<OwnerTransactionFormData>({ ...emptyForm });
 
