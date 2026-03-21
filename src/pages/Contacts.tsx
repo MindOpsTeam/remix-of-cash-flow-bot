@@ -396,7 +396,7 @@ export default function ContactsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">WhatsApp</Label>
-                <Input className="mt-1" value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} />
+                <Input className="mt-1" value={form.whatsapp} onChange={(e) => set("whatsapp", maskPhone(e.target.value))} placeholder="(00) 00000-0000" inputMode="numeric" />
               </div>
               <div>
                 <Label className="text-xs">Website</Label>
