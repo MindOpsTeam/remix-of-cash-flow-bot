@@ -44,7 +44,7 @@ const emptyForm: OwnerTransactionFormData = {
 
 export default function OwnerTransactions() {
   const { transactions, isLoading, summary, createTransaction, isCreating } = useOwnerTransactions();
-  const pfAccounts: { id: string; name: string }[] = []; // PF accounts removed — PJ-only ERP
+  
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<OwnerTransactionFormData>({ ...emptyForm });
 
@@ -276,26 +276,6 @@ export default function OwnerTransactions() {
                   }
                 />
               </div>
-            </div>
-            <div>
-              <Label>Conta Pessoal (opcional)</Label>
-              <Select
-                value={form.pf_account_id || ""}
-                onValueChange={(v) =>
-                  setForm((f) => ({ ...f, pf_account_id: v || null }))
-                }
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {pfAccounts.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <Label>Descrição (opcional)</Label>
