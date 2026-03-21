@@ -215,7 +215,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Valor (R$) *</Label>
-              <Input value={form.amount} onChange={(e) => update("amount", e.target.value)} placeholder="0,00" required className="mt-1" />
+              <Input value={form.amount} onChange={handleAmountChange} placeholder="0,00" required className="mt-1" inputMode="numeric" />
             </div>
             <div>
               <Label>Forma de Pagamento</Label>
