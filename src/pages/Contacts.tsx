@@ -379,7 +379,7 @@ export default function ContactsPage() {
             </div>
             <div>
               <Label className="text-xs">{form.person_type === "pf" ? "CPF" : "CNPJ"}</Label>
-              <Input className="mt-1 font-mono" value={form.document} onChange={(e) => set("document", e.target.value)} placeholder={form.person_type === "pf" ? "000.000.000-00" : "00.000.000/0000-00"} />
+              <Input className="mt-1 font-mono" value={form.document} onChange={(e) => set("document", form.person_type === "pf" ? maskCPF(e.target.value) : maskCNPJ(e.target.value))} placeholder={form.person_type === "pf" ? "000.000.000-00" : "00.000.000/0000-00"} inputMode="numeric" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
