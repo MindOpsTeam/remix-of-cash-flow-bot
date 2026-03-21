@@ -112,10 +112,27 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     return a.type === "expense";
   });
 
+  const formatCurrency = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    const num = (parseInt(digits || "0", 10) / 100).toFixed(2);
+    return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(num));
+  };
+
+  const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "");
+    if (!raw) { update("amount", ""); return; }
+    update("amount", formatCurrency(raw));
+  };
+
+  const parseAmount = (masked: string): number => {
+    const cleaned = masked.replace(/\./g, "").replace(",", ".");
+    return parseFloat(cleaned) || 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!company || !user) return;
-    const amount = parseFloat(form.amount.replace(",", "."));
+    const amount = parseAmount(form.amount);
     if (isNaN(amount) || amount <= 0) { toast.error("Informe um valor válido."); return; }
     if (!form.account_id) { toast.error("Selecione uma conta contábil."); return; }
     if (!form.cost_center_id) { toast.error("Selecione um centro de custo."); return; }
