@@ -389,7 +389,7 @@ export default function ContactsPage() {
               </div>
               <div>
                 <Label className="text-xs">Telefone</Label>
-                <Input className="mt-1" value={form.phone} onChange={(e) => set("phone", e.target.value)} />
+                <Input className="mt-1" value={form.phone} onChange={(e) => set("phone", maskPhone(e.target.value))} placeholder="(00) 00000-0000" inputMode="numeric" />
               </div>
             </div>
 
