@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, ChangeEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -112,10 +112,27 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     return a.type === "expense";
   });
 
+  const formatCurrency = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    const num = (parseInt(digits || "0", 10) / 100).toFixed(2);
+    return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(parseFloat(num));
+  };
+
+  const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "");
+    if (!raw) { update("amount", ""); return; }
+    update("amount", formatCurrency(raw));
+  };
+
+  const parseAmount = (masked: string): number => {
+    const cleaned = masked.replace(/\./g, "").replace(",", ".");
+    return parseFloat(cleaned) || 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!company || !user) return;
-    const amount = parseFloat(form.amount.replace(",", "."));
+    const amount = parseAmount(form.amount);
     if (isNaN(amount) || amount <= 0) { toast.error("Informe um valor válido."); return; }
     if (!form.account_id) { toast.error("Selecione uma conta contábil."); return; }
     if (!form.cost_center_id) { toast.error("Selecione um centro de custo."); return; }
@@ -198,7 +215,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Valor (R$) *</Label>
-              <Input value={form.amount} onChange={(e) => update("amount", e.target.value)} placeholder="0,00" required className="mt-1" />
+              <Input value={form.amount} onChange={handleAmountChange} placeholder="0,00" required className="mt-1" inputMode="numeric" />
             </div>
             <div>
               <Label>Forma de Pagamento</Label>
