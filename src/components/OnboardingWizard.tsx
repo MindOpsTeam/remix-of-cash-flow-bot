@@ -40,6 +40,8 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
   const [asaasKeyProduction, setAsaasKeyProduction] = useState("");
   const [evolutionUrl, setEvolutionUrl] = useState("");
   const [evolutionKey, setEvolutionKey] = useState("");
+  const [interClientId, setInterClientId] = useState("");
+  const [interClientSecret, setInterClientSecret] = useState("");
 
   const totalSteps = 4;
   const progress = ((step + 1) / totalSteps) * 100;
@@ -108,6 +110,27 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
           await supabase.from("whatsapp_configs").update(waPayload).eq("id", existing.id);
         } else {
           await supabase.from("whatsapp_configs").insert([waPayload as any]);
+        }
+      }
+
+      // Save Inter config if provided
+      if (interClientId.trim() || interClientSecret.trim()) {
+        const { data: existing } = await supabase
+          .from("inter_config")
+          .select("id")
+          .eq("company_id", company.id)
+          .maybeSingle();
+
+        const interPayload: Record<string, string> = {
+          company_id: company.id,
+        };
+        if (interClientId.trim()) interPayload.client_id = interClientId.trim();
+        if (interClientSecret.trim()) interPayload.client_secret = interClientSecret.trim();
+
+        if (existing) {
+          await supabase.from("inter_config").update(interPayload).eq("id", existing.id);
+        } else {
+          await supabase.from("inter_config").insert([interPayload as any]);
         }
       }
     } catch (e: any) {
@@ -275,6 +298,27 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
                       placeholder="sua-api-key"
                       value={evolutionKey}
                       onChange={(e) => setEvolutionKey(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-3 bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs font-medium text-foreground">Banco Inter (Open Banking)</p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ob-inter-cid" className="text-xs">Client ID</Label>
+                    <Input
+                      id="ob-inter-cid"
+                      placeholder="client_id do app Inter"
+                      value={interClientId}
+                      onChange={(e) => setInterClientId(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ob-inter-cs" className="text-xs">Client Secret</Label>
+                    <Input
+                      id="ob-inter-cs"
+                      placeholder="client_secret do app Inter"
+                      value={interClientSecret}
+                      onChange={(e) => setInterClientSecret(e.target.value)}
                     />
                   </div>
                 </div>
