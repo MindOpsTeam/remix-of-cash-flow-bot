@@ -104,6 +104,15 @@ export default function StockPage() {
       const qty = parseFloat(moveQty);
       if (!qty || !moveProductId) throw new Error("Produto e quantidade são obrigatórios");
 
+      // Validate stock availability for outbound movements
+      if (moveType === "out") {
+        const product = products.find((p) => p.id === moveProductId);
+        const currentStock = product?.current_stock ?? 0;
+        if (Math.abs(qty) > currentStock) {
+          throw new Error(`Estoque insuficiente. Disponível: ${currentStock} ${product?.unit || "un"}`);
+        }
+      }
+
       // Insert movement
       const { error: moveError } = await supabase.from("stock_movements").insert({
         company_id: company.id,

@@ -54,6 +54,7 @@ export function useCFODashboard(): CFODashboardData {
         .from("transactions")
         .select("date, amount, type, cost_center_id")
         .eq("company_id", company.id)
+        .eq("status", "confirmed")
         .gte("date", format(sixMonthsAgo, "yyyy-MM-dd")),
       supabase
         .from("cost_centers")

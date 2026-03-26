@@ -168,7 +168,7 @@ export default function Dashboard() {
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
   const prevProfit = prevRevenue - prevExpense;
   const prevMargin = prevRevenue > 0 ? (prevProfit / prevRevenue) * 100 : 0;
-  const pctChange = (cur: number, prev: number) => prev > 0 ? ((cur - prev) / prev) * 100 : cur > 0 ? 100 : 0;
+  const pctChange = (cur: number, prev: number) => prev === 0 ? (cur > 0 ? 100 : cur < 0 ? -100 : 0) : ((cur - prev) / Math.abs(prev)) * 100;
 
   const kpis = [
     { label: "Receita Mensal", value: revenue, change: pctChange(revenue, prevRevenue), icon: <DollarSign className="h-4 w-4" />, delay: 0 },
