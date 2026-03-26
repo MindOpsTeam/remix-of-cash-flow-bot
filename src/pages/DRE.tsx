@@ -7,7 +7,7 @@ import { exportDREtoPDF } from "@/lib/pdf-export";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { FileDown } from "lucide-react";
+import { FileDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface DRELine {
@@ -22,22 +22,41 @@ export default function DRE() {
   const [lines, setLines] = useState<DRELine[]>([]);
   const [monthlyData, setMonthlyData] = useState<{ month: string; receitas: number; despesas: number; lucro: number }[]>([]);
 
+  // Period selector
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+
+  const monthLabel = new Date(selectedYear, selectedMonth).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  const goToPrevMonth = () => {
+    if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear((y) => y - 1); }
+    else setSelectedMonth((m) => m - 1);
+  };
+
+  const goToNextMonth = () => {
+    if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear((y) => y + 1); }
+    else setSelectedMonth((m) => m + 1);
+  };
+
+  const goToCurrentMonth = () => {
+    setSelectedYear(new Date().getFullYear());
+    setSelectedMonth(new Date().getMonth());
+  };
+
+  const isCurrentMonth = selectedYear === new Date().getFullYear() && selectedMonth === new Date().getMonth();
+
   const buildDRE = useCallback(async () => {
     if (!company) return;
 
-    // Get current month range
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+    const startOfMonth = new Date(selectedYear, selectedMonth, 1).toISOString().split("T")[0];
+    const endOfMonth = new Date(selectedYear, selectedMonth + 1, 0).toISOString().split("T")[0];
 
-    // Fetch ALL chart of accounts
     const { data: allAccounts } = await supabase
       .from("chart_of_accounts")
       .select("id, name, code, type")
       .eq("company_id", company.id)
       .order("code");
 
-    // Fetch transactions with their chart_of_accounts info
     const { data: transactions } = await supabase
       .from("transactions")
       .select("amount, type, account_id, date, chart_of_accounts(name, code)")
@@ -48,14 +67,12 @@ export default function DRE() {
 
     if (!allAccounts) return;
 
-    // Build totals from transactions
     const txTotals: Record<string, number> = {};
     for (const t of (transactions || [])) {
       const key = t.account_id || "unclassified";
       txTotals[key] = (txTotals[key] || 0) + Number(t.amount);
     }
 
-    // All accounts with their values (zero if no transactions)
     const revenues = allAccounts.filter((a) => a.type === "revenue").map((a) => ({
       name: a.code ? `${a.code} – ${a.name}` : a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
     }));
@@ -84,10 +101,11 @@ export default function DRE() {
     ];
 
     setLines(dreLines);
-    // Build last 6 months chart
+
+    // Build last 6 months chart relative to selected month
     const chartData: { month: string; receitas: number; despesas: number; lucro: number }[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const d = new Date(selectedYear, selectedMonth - i, 1);
       const mStart = d.toISOString().split("T")[0];
       const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split("T")[0];
 
@@ -110,11 +128,10 @@ export default function DRE() {
       });
     }
     setMonthlyData(chartData);
-  }, [company]);
+  }, [company, selectedYear, selectedMonth]);
 
   useEffect(() => { buildDRE(); }, [buildDRE]);
 
-  // Realtime: rebuild DRE when transactions change
   useEffect(() => {
     if (!company) return;
     const channel = supabase
@@ -137,21 +154,38 @@ export default function DRE() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Demonstração do Resultado</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} — Baseado nas contas contábeis
+          <p className="text-sm text-muted-foreground mt-1 capitalize">
+            {monthLabel} — Baseado nas contas contábeis
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="gap-2"
-          disabled={lines.length === 0}
-          onClick={() => {
-            const period = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-            exportDREtoPDF(lines, company?.name || "Empresa", period);
-          }}
-        >
-          <FileDown className="h-4 w-4" />Exportar PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Period selector */}
+          <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goToPrevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <button
+              className="text-sm font-medium px-3 py-1.5 capitalize hover:text-primary transition-colors"
+              onClick={goToCurrentMonth}
+              title="Ir para mês atual"
+            >
+              {new Date(selectedYear, selectedMonth).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" })}
+            </button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goToNextMonth} disabled={isCurrentMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={lines.length === 0}
+            onClick={() => {
+              exportDREtoPDF(lines, company?.name || "Empresa", monthLabel);
+            }}
+          >
+            <FileDown className="h-4 w-4" />Exportar PDF
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
