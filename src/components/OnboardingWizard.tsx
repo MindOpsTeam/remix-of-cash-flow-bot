@@ -33,7 +33,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
 
   // Step 2 - Company data
   const [companyName, setCompanyName] = useState(company?.name || "");
-  const [cnpj, setCnpj] = useState(company?.cnpj || "");
+  const [cnpj, setCnpj] = useState(company?.cnpj ? formatCNPJ(company.cnpj) : "");
 
   // Step 3 - Integrations (all optional)
   const [asaasKeySandbox, setAsaasKeySandbox] = useState("");
@@ -192,7 +192,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
           </p>
         </div>
 
-        <div className="px-6 pb-6 pt-4 min-h-[320px] flex flex-col">
+        <div className="px-6 pb-6 pt-4 min-h-[320px] max-h-[70vh] overflow-y-auto flex flex-col">
           {/* Step 0 — Welcome */}
           {step === 0 && (
             <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
@@ -329,8 +329,8 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
           {/* Step 3 — Done */}
           {step === 3 && (
             <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
-                <CheckCircle2 className="h-7 w-7 text-emerald-500" />
+              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <CheckCircle2 className="h-7 w-7 text-primary" />
               </div>
               <div>
                 <h2 className="text-xl font-semibold text-foreground leading-tight">

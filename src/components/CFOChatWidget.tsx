@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Brain, Send, X, Loader2 } from "lucide-react";
+import { Brain, Send, X, Loader2, RotateCcw } from "lucide-react";
 import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -14,6 +16,7 @@ export function CFOChatWidget() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { company } = useCompany();
+  const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -49,11 +52,12 @@ export function CFOChatWidget() {
     };
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cfo-digital`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
           messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
@@ -133,9 +137,16 @@ export function CFOChatWidget() {
                 <p className="text-[10px] text-muted-foreground">Assistente Financeiro</p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} aria-label="Fechar chat" className="text-muted-foreground hover:text-foreground transition-colors duration-150">
-              <X className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              {messages.length > 0 && (
+                <button onClick={() => setMessages([])} aria-label="Nova conversa" className="text-muted-foreground hover:text-foreground transition-colors duration-150 mr-1">
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <button onClick={() => setIsOpen(false)} aria-label="Fechar chat" className="text-muted-foreground hover:text-foreground transition-colors duration-150">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div className={`flex-1 overflow-y-auto p-3 space-y-3 ${isMobile ? "min-h-0" : "min-h-[200px] max-h-[340px]"}`}>
