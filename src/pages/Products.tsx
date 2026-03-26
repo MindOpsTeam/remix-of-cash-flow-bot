@@ -376,11 +376,21 @@ export default function ProductsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Preço de Venda *</Label>
-                <Input className="mt-1 font-mono" value={form.sell_price} onChange={(e) => set("sell_price", e.target.value)} placeholder="0.00" />
+                <Input className="mt-1 font-mono" value={form.sell_price} onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  if (!raw) { set("sell_price", ""); return; }
+                  const num = (parseInt(raw, 10) / 100).toFixed(2);
+                  set("sell_price", new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(parseFloat(num)));
+                }} placeholder="0,00" inputMode="numeric" />
               </div>
               <div>
                 <Label className="text-xs">Preço de Custo</Label>
-                <Input className="mt-1 font-mono" value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} placeholder="0.00" />
+                <Input className="mt-1 font-mono" value={form.cost_price} onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  if (!raw) { set("cost_price", ""); return; }
+                  const num = (parseInt(raw, 10) / 100).toFixed(2);
+                  set("cost_price", new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(parseFloat(num)));
+                }} placeholder="0,00" inputMode="numeric" />
               </div>
             </div>
 
