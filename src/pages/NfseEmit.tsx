@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Send, FileCheck, Building2, User, DollarSign, Loader2,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
