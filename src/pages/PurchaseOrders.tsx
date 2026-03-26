@@ -171,9 +171,32 @@ export default function PurchaseOrdersPage() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success(editingId ? "Pedido atualizado!" : "Pedido criado!");
       queryClient.invalidateQueries({ queryKey: ["purchase_orders"] });
+
+      // Auto-generate bill payable when status is "confirmed"
+      if (status === "confirmed" && company && contactId) {
+        const supplier = suppliers.find((s) => s.id === contactId);
+        const totalVal = items.reduce((s, i) => s + i.total, 0) - (parseFloat(discount) || 0) + (parseFloat(shipping) || 0);
+        const dueDate = expectedDate || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
+        
+        const { error: billError } = await supabase.from("bills_payable").insert({
+          company_id: company.id,
+          fornecedor: supplier?.name || "Fornecedor",
+          contact_id: contactId,
+          valor: totalVal,
+          vencimento: dueDate,
+          descricao: `Pedido de compra #${editingId ? "editado" : "novo"}`,
+          source: "purchase_order",
+          status: "pendente",
+        });
+        if (!billError) {
+          toast.success("Conta a pagar gerada automaticamente!");
+          queryClient.invalidateQueries({ queryKey: ["bills_payable"] });
+        }
+      }
+
       markClean();
       setDialogOpen(false);
       resetForm();

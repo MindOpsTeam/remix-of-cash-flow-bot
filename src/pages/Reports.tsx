@@ -5,7 +5,7 @@ import { exportReportToPDF } from "@/lib/pdf-export";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { FileDown } from "lucide-react";
+import { FileDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const COLORS = [
@@ -33,12 +33,34 @@ export default function Reports() {
   const [categoryData, setCategoryData] = useState<CategoryItem[]>([]);
   const [costCenterData, setCostCenterData] = useState<CostCenterItem[]>([]);
 
+  // Period selector
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+
+  const monthLabel = new Date(selectedYear, selectedMonth).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  const goToPrevMonth = () => {
+    if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear((y) => y - 1); }
+    else setSelectedMonth((m) => m - 1);
+  };
+
+  const goToNextMonth = () => {
+    if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear((y) => y + 1); }
+    else setSelectedMonth((m) => m + 1);
+  };
+
+  const goToCurrentMonth = () => {
+    setSelectedYear(new Date().getFullYear());
+    setSelectedMonth(new Date().getMonth());
+  };
+
+  const isCurrentMonth = selectedYear === new Date().getFullYear() && selectedMonth === new Date().getMonth();
+
   const loadData = useCallback(async () => {
     if (!company) return;
 
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+    const startOfMonth = new Date(selectedYear, selectedMonth, 1).toISOString().split("T")[0];
+    const endOfMonth = new Date(selectedYear, selectedMonth + 1, 0).toISOString().split("T")[0];
 
     const [{ data: transactions }, { data: costCenters }] = await Promise.all([
       supabase
@@ -57,7 +79,6 @@ export default function Reports() {
 
     if (!transactions) return;
 
-    // Category breakdown (expenses by account name)
     const catMap = new Map<string, number>();
     transactions
       .filter((t) => t.type === "expense")
@@ -75,12 +96,10 @@ export default function Reports() {
       }));
     setCategoryData(cats);
 
-    // Cost center breakdown — show ALL active cost centers, even with zero
     const ccMap = new Map<string, string>();
     costCenters?.forEach((cc) => ccMap.set(cc.id, cc.name));
 
     const ccTotals = new Map<string, { receita: number; despesa: number }>();
-    // Initialize all cost centers with zero
     costCenters?.forEach((cc) => {
       ccTotals.set(cc.name, { receita: 0, despesa: 0 });
     });
@@ -97,11 +116,10 @@ export default function Reports() {
       .map(([name, vals]) => ({ name, ...vals }))
       .sort((a, b) => b.receita - b.despesa - (a.receita - a.despesa));
     setCostCenterData(ccs);
-  }, [company]);
+  }, [company, selectedYear, selectedMonth]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Realtime: reload when transactions change
   useEffect(() => {
     if (!company) return;
     const channel = supabase
@@ -118,22 +136,42 @@ export default function Reports() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Relatórios Gerenciais</h1>
-          <p className="text-sm text-muted-foreground mt-1">Análises e indicadores da empresa</p>
+          <p className="text-sm text-muted-foreground mt-1 capitalize">
+            {monthLabel} — Análises e indicadores da empresa
+          </p>
         </div>
-        <Button
-          variant="outline"
-          className="gap-2"
-          disabled={!company}
-          onClick={() => {
-            exportReportToPDF(
-              company?.name || "Empresa",
-              categoryData.map((c) => ({ name: c.name, value: c.value })),
-              costCenterData
-            );
-          }}
-        >
-          <FileDown className="h-4 w-4" />Exportar PDF
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Period selector */}
+          <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-1">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goToPrevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <button
+              className="text-sm font-medium px-3 py-1.5 capitalize hover:text-primary transition-colors"
+              onClick={goToCurrentMonth}
+              title="Ir para mês atual"
+            >
+              {new Date(selectedYear, selectedMonth).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" })}
+            </button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goToNextMonth} disabled={isCurrentMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={!company}
+            onClick={() => {
+              exportReportToPDF(
+                company?.name || "Empresa",
+                categoryData.map((c) => ({ name: c.name, value: c.value })),
+                costCenterData
+              );
+            }}
+          >
+            <FileDown className="h-4 w-4" />Exportar PDF
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

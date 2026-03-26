@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, Send, FileCheck, Building2, User, DollarSign, Loader2,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,9 +60,38 @@ const emptyForm: EmitForm = {
 export default function NfseEmitPage() {
   const { company } = useCompany();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState<EmitForm>(emptyForm);
   const [emitting, setEmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  // Pre-fill from sales order query params
+  useEffect(() => {
+    const valor = searchParams.get("valor");
+    const contactId = searchParams.get("contact_id");
+
+    if (valor) {
+      setForm((f) => ({ ...f, valorServicos: valor }));
+    }
+
+    if (contactId && company) {
+      supabase
+        .from("contacts")
+        .select("name, document, email")
+        .eq("id", contactId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setForm((f) => ({
+              ...f,
+              tomadorCpfCnpj: data.document || "",
+              tomadorRazaoSocial: data.name || "",
+              tomadorEmail: data.email || "",
+            }));
+          }
+        });
+    }
+  }, [searchParams, company]);
 
   const set = <K extends keyof EmitForm>(key: K, value: EmitForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
