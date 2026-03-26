@@ -40,6 +40,8 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
   const [asaasKeyProduction, setAsaasKeyProduction] = useState("");
   const [evolutionUrl, setEvolutionUrl] = useState("");
   const [evolutionKey, setEvolutionKey] = useState("");
+  const [interClientId, setInterClientId] = useState("");
+  const [interClientSecret, setInterClientSecret] = useState("");
 
   const totalSteps = 4;
   const progress = ((step + 1) / totalSteps) * 100;
