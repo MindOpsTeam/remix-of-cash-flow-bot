@@ -47,6 +47,37 @@ interface InterTransaction {
   descricao: string;
 }
 
+// ---------- PEM normalization ----------
+
+/**
+ * Normaliza conteúdo PEM: garante headers corretos, line-breaks Unix e
+ * quebra o body em linhas de 64 chars (padrão RFC 7468).
+ */
+function normalizePem(raw: string, type: "CERTIFICATE" | "PRIVATE KEY"): string {
+  if (!raw || !raw.trim()) throw new Error(`PEM de ${type} está vazio`);
+
+  let content = raw.trim();
+
+  // Remove headers/footers existentes (inclusive variantes com espaços extras)
+  content = content
+    .replace(/-----\s*BEGIN\s+[A-Z\s]+-----/g, "")
+    .replace(/-----\s*END\s+[A-Z\s]+-----/g, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+
+  // Remove tudo que não é base64
+  const b64 = content.replace(/[^A-Za-z0-9+/=]/g, "");
+  if (b64.length < 10) throw new Error(`No certificates found in ${type} data — conteúdo base64 insuficiente`);
+
+  // Reconstrói com quebras de 64 chars
+  const lines: string[] = [];
+  for (let i = 0; i < b64.length; i += 64) {
+    lines.push(b64.slice(i, i + 64));
+  }
+
+  return `-----BEGIN ${type}-----\n${lines.join("\n")}\n-----END ${type}-----\n`;
+}
+
 // ---------- Raw HTTPS over Deno.connectTls (mTLS) ----------
 
 /**
@@ -256,6 +287,16 @@ Deno.serve(async (req) => {
     if (cfgErr || !cfg) return jsonResp({ error: "Integração Inter não configurada" }, 404);
     if (!cfg.active) return jsonResp({ error: "Integração Inter desativada" }, 400);
     const config = cfg as InterConfig;
+
+    // Normaliza PEMs antes de qualquer uso
+    try {
+      config.cert_pem = normalizePem(config.cert_pem, "CERTIFICATE");
+      config.key_pem = normalizePem(config.key_pem, "PRIVATE KEY");
+    } catch (pemErr) {
+      const msg = pemErr instanceof Error ? pemErr.message : String(pemErr);
+      console.error("[inter-banking]", msg);
+      return jsonResp({ error: msg }, 400);
+    }
 
     // ---- test ----
     if (action === "test") {
