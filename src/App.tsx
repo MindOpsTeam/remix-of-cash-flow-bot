@@ -99,6 +99,7 @@ const AppRoutes = () => (
       <Route path="/bills" element={<Navigate to="/fiscal/contas-a-pagar" replace />} />
       <Route path="/documents" element={<P><DocumentScanner /></P>} />
       <Route path="/owner-transactions" element={<P><OwnerTransactions /></P>} />
+      <Route path="/inter" element={<P><InterBankingPage /></P>} />
 
       {/* Cadastros */}
       <Route path="/contacts" element={<P><ContactsPage /></P>} />

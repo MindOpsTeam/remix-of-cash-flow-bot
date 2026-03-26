@@ -63,6 +63,7 @@ const mainNav: NavEntry[] = [
     items: [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
       { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },
+      { to: "/inter", label: "Banco Inter", icon: ArrowLeftRight },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
     ],
   },
