@@ -14,12 +14,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  ShoppingCart, Plus, Pencil, Trash2, Search, FileText, Eye,
+  ShoppingCart, Plus, Pencil, Trash2, Search, FileText, Eye, Receipt,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 interface SalesOrder {
