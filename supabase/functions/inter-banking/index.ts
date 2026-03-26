@@ -288,6 +288,16 @@ Deno.serve(async (req) => {
     if (!cfg.active) return jsonResp({ error: "Integração Inter desativada" }, 400);
     const config = cfg as InterConfig;
 
+    // Normaliza PEMs antes de qualquer uso
+    try {
+      config.cert_pem = normalizePem(config.cert_pem, "CERTIFICATE");
+      config.key_pem = normalizePem(config.key_pem, "PRIVATE KEY");
+    } catch (pemErr) {
+      const msg = pemErr instanceof Error ? pemErr.message : String(pemErr);
+      console.error("[inter-banking]", msg);
+      return jsonResp({ error: msg }, 400);
+    }
+
     // ---- test ----
     if (action === "test") {
       const token = await getToken(config, "extrato.read");
