@@ -102,31 +102,42 @@ export default function DRE() {
 
     setLines(dreLines);
 
-    // Build last 6 months chart relative to selected month
-    const chartData: { month: string; receitas: number; despesas: number; lucro: number }[] = [];
+    // Build last 6 months chart with a single query
+    const chartStart = new Date(selectedYear, selectedMonth - 5, 1).toISOString().split("T")[0];
+    const chartEnd = endOfMonth;
+
+    const { data: chartTx } = await supabase
+      .from("transactions")
+      .select("amount, type, date")
+      .eq("company_id", company.id)
+      .eq("status", "confirmed")
+      .gte("date", chartStart)
+      .lte("date", chartEnd);
+
+    const monthBuckets: Record<string, { receitas: number; despesas: number }> = {};
     for (let i = 5; i >= 0; i--) {
       const d = new Date(selectedYear, selectedMonth - i, 1);
-      const mStart = d.toISOString().split("T")[0];
-      const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split("T")[0];
-
-      const { data: mTx } = await supabase
-        .from("transactions")
-        .select("amount, type")
-        .eq("company_id", company.id)
-        .eq("status", "confirmed")
-        .gte("date", mStart)
-        .lte("date", mEnd);
-
-      const rec = (mTx || []).filter((t) => t.type === "revenue").reduce((s, t) => s + Number(t.amount), 0);
-      const desp = (mTx || []).filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount), 0);
-
-      chartData.push({
-        month: d.toLocaleDateString("pt-BR", { month: "short" }),
-        receitas: rec,
-        despesas: desp,
-        lucro: rec - desp,
-      });
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      monthBuckets[key] = { receitas: 0, despesas: 0 };
     }
+
+    for (const t of (chartTx || [])) {
+      const key = t.date.substring(0, 7); // "YYYY-MM"
+      if (monthBuckets[key]) {
+        if (t.type === "revenue") monthBuckets[key].receitas += Number(t.amount);
+        else monthBuckets[key].despesas += Number(t.amount);
+      }
+    }
+
+    const chartData = Object.entries(monthBuckets).map(([key, vals]) => {
+      const [y, m] = key.split("-").map(Number);
+      return {
+        month: new Date(y, m - 1).toLocaleDateString("pt-BR", { month: "short" }),
+        receitas: vals.receitas,
+        despesas: vals.despesas,
+        lucro: vals.receitas - vals.despesas,
+      };
+    });
     setMonthlyData(chartData);
   }, [company, selectedYear, selectedMonth]);
 

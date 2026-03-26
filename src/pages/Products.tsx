@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -84,18 +84,26 @@ export default function ProductsPage() {
   const PAGE_SIZE = 50;
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products", company?.id, page],
+    queryKey: ["products", company?.id, page, search, filterType],
     queryFn: async () => {
       if (!company) return [];
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const { data, error, count } = await supabase
+      let query = supabase
         .from("products")
         .select("id, name, description, type, sku, barcode, ncm, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
         .eq("company_id", company.id)
-        .eq("active", true)
-        .order("name")
-        .range(from, to);
+        .eq("active", true);
+
+      if (filterType !== "all") {
+        query = query.eq("type", filterType);
+      }
+      if (search.trim()) {
+        const s = search.trim();
+        query = query.or(`name.ilike.%${s}%,sku.ilike.%${s}%`);
+      }
+
+      const { data, error, count } = await query.order("name").range(from, to);
       if (error) throw error;
       if (count !== null) setTotalCount(count);
       return (data || []) as (Product & Record<string, any>)[];
@@ -114,8 +122,8 @@ export default function ProductsPage() {
         sku: form.sku.trim() || null,
         barcode: form.barcode.trim() || null,
         unit: form.unit,
-        sell_price: parseFloat(form.sell_price) || 0,
-        cost_price: form.cost_price ? parseFloat(form.cost_price) : null,
+        sell_price: parseFloat(form.sell_price.replace(/\./g, "").replace(",", ".")) || 0,
+        cost_price: form.cost_price ? parseFloat(form.cost_price.replace(/\./g, "").replace(",", ".")) : null,
         ncm: form.ncm.trim() || null,
         track_stock: form.track_stock,
         min_stock: form.min_stock ? parseFloat(form.min_stock) : 0,
@@ -170,8 +178,8 @@ export default function ProductsPage() {
       sku: p.sku || "",
       barcode: p.barcode || "",
       unit: p.unit,
-      sell_price: String(p.sell_price),
-      cost_price: p.cost_price != null ? String(p.cost_price) : "",
+      sell_price: new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(p.sell_price),
+      cost_price: p.cost_price != null ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(p.cost_price) : "",
       ncm: p.ncm || "",
       track_stock: p.track_stock,
       min_stock: p.min_stock != null ? String(p.min_stock) : "",
@@ -180,12 +188,11 @@ export default function ProductsPage() {
     setDialogOpen(true);
   };
 
-  const filtered = products.filter((p) => {
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.sku && p.sku.toLowerCase().includes(search.toLowerCase()));
-    const matchType = filterType === "all" || p.type === filterType;
-    return matchSearch && matchType;
-  });
+  // Filtering is now done server-side
+  const filtered = products;
+
+  // Reset page when filters change
+  useEffect(() => { setPage(0); }, [search, filterType]);
 
   const set = (key: string, value: string | boolean) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -369,11 +376,21 @@ export default function ProductsPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Preço de Venda *</Label>
-                <Input className="mt-1 font-mono" value={form.sell_price} onChange={(e) => set("sell_price", e.target.value)} placeholder="0.00" />
+                <Input className="mt-1 font-mono" value={form.sell_price} onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  if (!raw) { set("sell_price", ""); return; }
+                  const num = (parseInt(raw, 10) / 100).toFixed(2);
+                  set("sell_price", new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(parseFloat(num)));
+                }} placeholder="0,00" inputMode="numeric" />
               </div>
               <div>
                 <Label className="text-xs">Preço de Custo</Label>
-                <Input className="mt-1 font-mono" value={form.cost_price} onChange={(e) => set("cost_price", e.target.value)} placeholder="0.00" />
+                <Input className="mt-1 font-mono" value={form.cost_price} onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  if (!raw) { set("cost_price", ""); return; }
+                  const num = (parseInt(raw, 10) / 100).toFixed(2);
+                  set("cost_price", new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(parseFloat(num)));
+                }} placeholder="0,00" inputMode="numeric" />
               </div>
             </div>
 

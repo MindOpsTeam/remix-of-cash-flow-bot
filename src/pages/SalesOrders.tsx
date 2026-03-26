@@ -245,11 +245,10 @@ export default function SalesOrdersPage() {
     } else {
       setItems([{ ...emptyItem }]);
     }
-    // Calculate discount/shipping from order
-    const sub = (orderItems || []).reduce((s: number, i: any) => s + Number(i.total), 0);
-    const discVal = sub + (Number(order.total) > sub ? 0 : sub - Number(order.total));
-    setDiscount("");
-    setShipping("");
+    // Restore discount and shipping from saved order
+    const { data: orderData } = await supabase.from("sales_orders").select("discount_value, shipping").eq("id", order.id).single();
+    setDiscount(orderData?.discount_value ? String(orderData.discount_value) : "");
+    setShipping(orderData?.shipping ? String(orderData.shipping) : "");
     setDialogOpen(true);
   };
 

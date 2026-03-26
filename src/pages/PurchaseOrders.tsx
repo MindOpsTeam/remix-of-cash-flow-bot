@@ -254,8 +254,10 @@ export default function PurchaseOrdersPage() {
     } else {
       setItems([{ ...emptyItem }]);
     }
-    setDiscount("");
-    setShipping("");
+    // Restore discount and shipping from saved order
+    const { data: orderData } = await supabase.from("purchase_orders").select("discount_value, shipping").eq("id", order.id).single();
+    setDiscount(orderData?.discount_value ? String(orderData.discount_value) : "");
+    setShipping(orderData?.shipping ? String(orderData.shipping) : "");
     setDialogOpen(true);
   };
 

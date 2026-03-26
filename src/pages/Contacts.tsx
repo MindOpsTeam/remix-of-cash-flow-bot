@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -123,18 +123,27 @@ export default function ContactsPage() {
   const PAGE_SIZE = 50;
 
   const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["contacts", company?.id, page],
+    queryKey: ["contacts", company?.id, page, search, filterType],
     queryFn: async () => {
       if (!company) return [];
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const { data, error, count } = await supabase
+      let query = supabase
         .from("contacts")
         .select("id, name, trade_name, type, person_type, document, email, phone, whatsapp, website, zip_code, street, number, complement, neighborhood, city, state, default_payment_terms, credit_limit, notes, active, created_at, state_registration", { count: "exact" })
         .eq("company_id", company.id)
-        .eq("active", true)
-        .order("name")
-        .range(from, to);
+        .eq("active", true);
+
+      if (filterType !== "all") {
+        query = query.in("type", [filterType, "both"]);
+      }
+      if (search.trim()) {
+        const s = search.trim();
+        const cleanDigits = s.replace(/\D/g, "");
+        query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%${cleanDigits ? `,document.ilike.%${cleanDigits}%` : ""}`);
+      }
+
+      const { data, error, count } = await query.order("name").range(from, to);
       if (error) throw error;
       if (count !== null) setTotalCount(count);
       return (data || []) as (Contact & Record<string, any>)[];
@@ -233,13 +242,11 @@ export default function ContactsPage() {
     setDialogOpen(true);
   };
 
-  const filtered = contacts.filter((c) => {
-    const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.document && c.document.includes(search.replace(/\D/g, ""))) ||
-      (c.email && c.email.toLowerCase().includes(search.toLowerCase()));
-    const matchType = filterType === "all" || c.type === filterType || (filterType !== "all" && c.type === "both");
-    return matchSearch && matchType;
-  });
+  // Filtering is now done server-side in the query
+  const filtered = contacts;
+
+  // Reset page when filters change
+  useEffect(() => { setPage(0); }, [search, filterType]);
 
   const set = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
 
