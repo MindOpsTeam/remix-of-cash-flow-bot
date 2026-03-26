@@ -33,7 +33,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
 
   // Step 2 - Company data
   const [companyName, setCompanyName] = useState(company?.name || "");
-  const [cnpj, setCnpj] = useState(company?.cnpj || "");
+  const [cnpj, setCnpj] = useState(company?.cnpj ? formatCNPJ(company.cnpj) : "");
 
   // Step 3 - Integrations (all optional)
   const [asaasKeySandbox, setAsaasKeySandbox] = useState("");
