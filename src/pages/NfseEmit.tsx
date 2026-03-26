@@ -60,9 +60,38 @@ const emptyForm: EmitForm = {
 export default function NfseEmitPage() {
   const { company } = useCompany();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState<EmitForm>(emptyForm);
   const [emitting, setEmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
+
+  // Pre-fill from sales order query params
+  useEffect(() => {
+    const valor = searchParams.get("valor");
+    const contactId = searchParams.get("contact_id");
+
+    if (valor) {
+      setForm((f) => ({ ...f, valorServicos: valor }));
+    }
+
+    if (contactId && company) {
+      supabase
+        .from("contacts")
+        .select("name, document, email")
+        .eq("id", contactId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setForm((f) => ({
+              ...f,
+              tomadorCpfCnpj: data.document || "",
+              tomadorRazaoSocial: data.name || "",
+              tomadorEmail: data.email || "",
+            }));
+          }
+        });
+    }
+  }, [searchParams, company]);
 
   const set = <K extends keyof EmitForm>(key: K, value: EmitForm[K]) => {
     setForm((f) => ({ ...f, [key]: value }));
