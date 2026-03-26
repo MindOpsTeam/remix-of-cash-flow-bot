@@ -26,6 +26,7 @@ interface HistoryMonth {
 
 export default function CashFlowForecast() {
   const { company } = useCompany();
+  const { session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [forecast, setForecast] = useState<ForecastMonth[]>([]);
   const [history, setHistory] = useState<HistoryMonth[]>([]);
