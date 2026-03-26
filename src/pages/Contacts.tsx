@@ -123,18 +123,27 @@ export default function ContactsPage() {
   const PAGE_SIZE = 50;
 
   const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["contacts", company?.id, page],
+    queryKey: ["contacts", company?.id, page, search, filterType],
     queryFn: async () => {
       if (!company) return [];
       const from = page * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const { data, error, count } = await supabase
+      let query = supabase
         .from("contacts")
         .select("id, name, trade_name, type, person_type, document, email, phone, whatsapp, website, zip_code, street, number, complement, neighborhood, city, state, default_payment_terms, credit_limit, notes, active, created_at, state_registration", { count: "exact" })
         .eq("company_id", company.id)
-        .eq("active", true)
-        .order("name")
-        .range(from, to);
+        .eq("active", true);
+
+      if (filterType !== "all") {
+        query = query.in("type", [filterType, "both"]);
+      }
+      if (search.trim()) {
+        const s = search.trim();
+        const cleanDigits = s.replace(/\D/g, "");
+        query = query.or(`name.ilike.%${s}%,email.ilike.%${s}%${cleanDigits ? `,document.ilike.%${cleanDigits}%` : ""}`);
+      }
+
+      const { data, error, count } = await query.order("name").range(from, to);
       if (error) throw error;
       if (count !== null) setTotalCount(count);
       return (data || []) as (Contact & Record<string, any>)[];
