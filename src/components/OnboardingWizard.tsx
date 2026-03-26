@@ -112,6 +112,27 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
           await supabase.from("whatsapp_configs").insert([waPayload as any]);
         }
       }
+
+      // Save Inter config if provided
+      if (interClientId.trim() || interClientSecret.trim()) {
+        const { data: existing } = await supabase
+          .from("inter_config")
+          .select("id")
+          .eq("company_id", company.id)
+          .maybeSingle();
+
+        const interPayload: Record<string, string> = {
+          company_id: company.id,
+        };
+        if (interClientId.trim()) interPayload.client_id = interClientId.trim();
+        if (interClientSecret.trim()) interPayload.client_secret = interClientSecret.trim();
+
+        if (existing) {
+          await supabase.from("inter_config").update(interPayload).eq("id", existing.id);
+        } else {
+          await supabase.from("inter_config").insert([interPayload as any]);
+        }
+      }
     } catch (e: any) {
       toast.error("Erro ao salvar integrações: " + e.message);
     } finally {
