@@ -20,6 +20,7 @@ const SCENARIOS = [
 
 export default function Simulator() {
   const { company } = useCompany();
+  const { session } = useAuth();
   const { toast } = useToast();
   const [input, setInput] = useState("");
   const [result, setResult] = useState("");
