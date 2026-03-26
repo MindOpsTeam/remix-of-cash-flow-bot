@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, TrendingUp, AlertTriangle, Shield, RefreshCw } from "lucide-react";
