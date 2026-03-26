@@ -188,12 +188,11 @@ export default function ProductsPage() {
     setDialogOpen(true);
   };
 
-  const filtered = products.filter((p) => {
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.sku && p.sku.toLowerCase().includes(search.toLowerCase()));
-    const matchType = filterType === "all" || p.type === filterType;
-    return matchSearch && matchType;
-  });
+  // Filtering is now done server-side
+  const filtered = products;
+
+  // Reset page when filters change
+  useEffect(() => { setPage(0); }, [search, filterType]);
 
   const set = (key: string, value: string | boolean) => setForm((prev) => ({ ...prev, [key]: value }));
 
