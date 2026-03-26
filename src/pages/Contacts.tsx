@@ -242,13 +242,11 @@ export default function ContactsPage() {
     setDialogOpen(true);
   };
 
-  const filtered = contacts.filter((c) => {
-    const matchSearch = !search || c.name.toLowerCase().includes(search.toLowerCase()) ||
-      (c.document && c.document.includes(search.replace(/\D/g, ""))) ||
-      (c.email && c.email.toLowerCase().includes(search.toLowerCase()));
-    const matchType = filterType === "all" || c.type === filterType || (filterType !== "all" && c.type === "both");
-    return matchSearch && matchType;
-  });
+  // Filtering is now done server-side in the query
+  const filtered = contacts;
+
+  // Reset page when filters change
+  useEffect(() => { setPage(0); }, [search, filterType]);
 
   const set = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
 
