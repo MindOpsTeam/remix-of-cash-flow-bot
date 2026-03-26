@@ -363,9 +363,29 @@ export default function SalesOrdersPage() {
                   </div>
                 </div>
                 <p className="text-sm font-semibold font-mono">{fmt(Number(o.total))}</p>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(o)}>
-                  <Eye className="h-3.5 w-3.5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {(o.status === "confirmed" || o.status === "delivered") && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Gerar NFS-e"
+                      onClick={() => {
+                        // Navigate to NFS-e emit with pre-filled data from this order
+                        const params = new URLSearchParams();
+                        params.set("sales_order_id", o.id);
+                        params.set("contact_id", o.contact?.id || "");
+                        params.set("valor", String(o.total));
+                        navigate(`/nfse/emit?${params.toString()}`);
+                      }}
+                    >
+                      <Receipt className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(o)}>
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
