@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { useState, useCallback, useMemo } from "react";
 import {
   Loader2, FileText, RefreshCw, TrendingUp, TrendingDown, DollarSign,
@@ -115,6 +116,7 @@ function SectionCard({
 
 export default function ExecutiveSummary() {
   const { company } = useCompany();
+  const { session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState("");
   const [error, setError] = useState("");
@@ -133,7 +135,7 @@ export default function ExecutiveSummary() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ company_id: company.id }),
       });

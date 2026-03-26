@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +20,7 @@ const SCENARIOS = [
 
 export default function Simulator() {
   const { company } = useCompany();
+  const { session } = useAuth();
   const { toast } = useToast();
   const [input, setInput] = useState("");
   const [result, setResult] = useState("");
@@ -36,7 +38,7 @@ export default function Simulator() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({
           question: `SIMULAÇÃO FINANCEIRA: ${question}. Analise os dados reais da empresa e simule o cenário. Inclua: 1) Impacto no resultado mensal, 2) Impacto na margem, 3) Impacto no fluxo de caixa (3 meses), 4) Riscos do cenário, 5) Recomendação final. Use tabelas markdown quando possível.`,

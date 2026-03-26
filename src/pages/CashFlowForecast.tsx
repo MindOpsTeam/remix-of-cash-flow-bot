@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, TrendingUp, AlertTriangle, Shield, RefreshCw } from "lucide-react";
@@ -25,6 +26,7 @@ interface HistoryMonth {
 
 export default function CashFlowForecast() {
   const { company } = useCompany();
+  const { session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [forecast, setForecast] = useState<ForecastMonth[]>([]);
   const [history, setHistory] = useState<HistoryMonth[]>([]);
@@ -44,7 +46,7 @@ export default function CashFlowForecast() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ company_id: company.id }),
       });

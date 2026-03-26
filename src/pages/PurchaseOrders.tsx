@@ -124,6 +124,9 @@ export default function PurchaseOrdersPage() {
     enabled: !!company,
   });
 
+  // Track previous status to detect transitions
+  const [previousStatus, setPreviousStatus] = useState<string | null>(null);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!company || !user) return;
@@ -147,12 +150,17 @@ export default function PurchaseOrdersPage() {
       };
 
       let orderId = editingId;
+      let isNewConfirmation = false;
+
       if (editingId) {
+        // Only generate bill if status is transitioning TO confirmed
+        isNewConfirmation = status === "confirmed" && previousStatus !== "confirmed";
         const { error } = await supabase.from("purchase_orders").update(payload).eq("id", editingId);
         if (error) throw error;
         await supabase.from("purchase_order_items").delete().eq("order_id", editingId);
       } else {
-        const { data, error } = await supabase.from("purchase_orders").insert(payload).select("id").single();
+        isNewConfirmation = status === "confirmed";
+        const { data, error } = await supabase.from("purchase_orders").insert(payload).select("id, order_number").single();
         if (error) throw error;
         orderId = data.id;
       }
@@ -170,13 +178,15 @@ export default function PurchaseOrdersPage() {
         const { error } = await supabase.from("purchase_order_items").insert(itemsPayload);
         if (error) throw error;
       }
+
+      return { isNewConfirmation, orderId };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       toast.success(editingId ? "Pedido atualizado!" : "Pedido criado!");
       queryClient.invalidateQueries({ queryKey: ["purchase_orders"] });
 
-      // Auto-generate bill payable when status is "confirmed"
-      if (status === "confirmed" && company && contactId) {
+      // Auto-generate bill payable only on status transition TO confirmed
+      if (result?.isNewConfirmation && company && contactId) {
         const supplier = suppliers.find((s) => s.id === contactId);
         const totalVal = items.reduce((s, i) => s + i.total, 0) - (parseFloat(discount) || 0) + (parseFloat(shipping) || 0);
         const dueDate = expectedDate || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
@@ -187,7 +197,7 @@ export default function PurchaseOrdersPage() {
           contact_id: contactId,
           valor: totalVal,
           vencimento: dueDate,
-          descricao: `Pedido de compra #${editingId ? "editado" : "novo"}`,
+          descricao: `Pedido de compra #${result.orderId?.slice(0, 8) || ""}`,
           source: "purchase_order",
           status: "pendente",
         });
@@ -218,6 +228,36 @@ export default function PurchaseOrdersPage() {
 
   const addItem = () => setItems((prev) => [...prev, { ...emptyItem }]);
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
+
+  const openEdit = async (order: PurchaseOrder) => {
+    setEditingId(order.id);
+    setContactId(order.contact?.id || "");
+    setStatus(order.status);
+    setPreviousStatus(order.status);
+    setIssueDate(order.issue_date);
+    setExpectedDate(order.expected_date || "");
+    setNotes(order.notes || "");
+    // Fetch items
+    const { data: orderItems } = await supabase
+      .from("purchase_order_items")
+      .select("*")
+      .eq("order_id", order.id)
+      .order("sort_order");
+    if (orderItems && orderItems.length > 0) {
+      setItems(orderItems.map((i: any) => ({
+        product_id: i.product_id,
+        description: i.description,
+        quantity: Number(i.quantity),
+        unit_price: Number(i.unit_price),
+        total: Number(i.total),
+      })));
+    } else {
+      setItems([{ ...emptyItem }]);
+    }
+    setDiscount("");
+    setShipping("");
+    setDialogOpen(true);
+  };
 
   const updateItem = (idx: number, field: string, value: any) => {
     setItems((prev) => {
@@ -307,7 +347,7 @@ export default function PurchaseOrdersPage() {
                   </div>
                 </div>
                 <p className="text-sm font-semibold font-mono">{fmt(Number(o.total))}</p>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(o)}>
                   <Eye className="h-3.5 w-3.5" />
                 </Button>
               </div>
