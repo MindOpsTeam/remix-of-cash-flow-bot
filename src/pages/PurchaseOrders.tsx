@@ -124,6 +124,9 @@ export default function PurchaseOrdersPage() {
     enabled: !!company,
   });
 
+  // Track previous status to detect transitions
+  const [previousStatus, setPreviousStatus] = useState<string | null>(null);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!company || !user) return;
@@ -147,12 +150,17 @@ export default function PurchaseOrdersPage() {
       };
 
       let orderId = editingId;
+      let isNewConfirmation = false;
+
       if (editingId) {
+        // Only generate bill if status is transitioning TO confirmed
+        isNewConfirmation = status === "confirmed" && previousStatus !== "confirmed";
         const { error } = await supabase.from("purchase_orders").update(payload).eq("id", editingId);
         if (error) throw error;
         await supabase.from("purchase_order_items").delete().eq("order_id", editingId);
       } else {
-        const { data, error } = await supabase.from("purchase_orders").insert(payload).select("id").single();
+        isNewConfirmation = status === "confirmed";
+        const { data, error } = await supabase.from("purchase_orders").insert(payload).select("id, order_number").single();
         if (error) throw error;
         orderId = data.id;
       }
@@ -170,6 +178,8 @@ export default function PurchaseOrdersPage() {
         const { error } = await supabase.from("purchase_order_items").insert(itemsPayload);
         if (error) throw error;
       }
+
+      return { isNewConfirmation, orderId };
     },
     onSuccess: async () => {
       toast.success(editingId ? "Pedido atualizado!" : "Pedido criado!");
