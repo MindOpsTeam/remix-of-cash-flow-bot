@@ -229,6 +229,36 @@ export default function PurchaseOrdersPage() {
   const addItem = () => setItems((prev) => [...prev, { ...emptyItem }]);
   const removeItem = (idx: number) => setItems((prev) => prev.filter((_, i) => i !== idx));
 
+  const openEdit = async (order: PurchaseOrder) => {
+    setEditingId(order.id);
+    setContactId(order.contact?.id || "");
+    setStatus(order.status);
+    setPreviousStatus(order.status);
+    setIssueDate(order.issue_date);
+    setExpectedDate(order.expected_date || "");
+    setNotes(order.notes || "");
+    // Fetch items
+    const { data: orderItems } = await supabase
+      .from("purchase_order_items")
+      .select("*")
+      .eq("order_id", order.id)
+      .order("sort_order");
+    if (orderItems && orderItems.length > 0) {
+      setItems(orderItems.map((i: any) => ({
+        product_id: i.product_id,
+        description: i.description,
+        quantity: Number(i.quantity),
+        unit_price: Number(i.unit_price),
+        total: Number(i.total),
+      })));
+    } else {
+      setItems([{ ...emptyItem }]);
+    }
+    setDiscount("");
+    setShipping("");
+    setDialogOpen(true);
+  };
+
   const updateItem = (idx: number, field: string, value: any) => {
     setItems((prev) => {
       const next = [...prev];
