@@ -52,6 +52,21 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Verify company membership
+    const { data: membership } = await supabase
+      .from("company_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("company_id", company_id)
+      .maybeSingle();
+
+    if (!membership) {
+      return new Response(JSON.stringify({ error: "Acesso negado a esta empresa" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const financialContext = await buildFinancialContext(supabase, company_id);
 
     const systemPrompt = buildSystemPrompt(financialContext);
