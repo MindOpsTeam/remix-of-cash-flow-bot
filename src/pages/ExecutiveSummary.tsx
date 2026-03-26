@@ -116,6 +116,7 @@ function SectionCard({
 
 export default function ExecutiveSummary() {
   const { company } = useCompany();
+  const { session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState("");
   const [error, setError] = useState("");
