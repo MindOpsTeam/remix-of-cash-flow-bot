@@ -68,8 +68,13 @@ export default function Dashboard() {
       .eq("user_id", user.id)
       .eq("company_id", company.id)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (data && !(data as any).onboarding_completed) {
+          // Mark as shown immediately so it never appears again, even on crash/reload
+          await (supabase as any)
+            .from("company_members")
+            .update({ onboarding_completed: true })
+            .eq("id", data.id);
           setMemberId(data.id);
           setShowOnboarding(true);
         }
