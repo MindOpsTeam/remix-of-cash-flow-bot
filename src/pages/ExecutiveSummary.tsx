@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { useState, useCallback, useMemo } from "react";
 import {
   Loader2, FileText, RefreshCw, TrendingUp, TrendingDown, DollarSign,
