@@ -181,12 +181,12 @@ export default function PurchaseOrdersPage() {
 
       return { isNewConfirmation, orderId };
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       toast.success(editingId ? "Pedido atualizado!" : "Pedido criado!");
       queryClient.invalidateQueries({ queryKey: ["purchase_orders"] });
 
-      // Auto-generate bill payable when status is "confirmed"
-      if (status === "confirmed" && company && contactId) {
+      // Auto-generate bill payable only on status transition TO confirmed
+      if (result?.isNewConfirmation && company && contactId) {
         const supplier = suppliers.find((s) => s.id === contactId);
         const totalVal = items.reduce((s, i) => s + i.total, 0) - (parseFloat(discount) || 0) + (parseFloat(shipping) || 0);
         const dueDate = expectedDate || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0];
@@ -197,7 +197,7 @@ export default function PurchaseOrdersPage() {
           contact_id: contactId,
           valor: totalVal,
           vencimento: dueDate,
-          descricao: `Pedido de compra #${editingId ? "editado" : "novo"}`,
+          descricao: `Pedido de compra #${result.orderId?.slice(0, 8) || ""}`,
           source: "purchase_order",
           status: "pendente",
         });
