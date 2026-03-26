@@ -16,6 +16,7 @@ export function CFOChatWidget() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { company } = useCompany();
+  const { user } = useAuth();
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const messagesEndRef = useRef<HTMLDivElement>(null);
