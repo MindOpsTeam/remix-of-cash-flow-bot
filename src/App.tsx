@@ -32,6 +32,7 @@ const CompanySettingsPage = lazy(() => import("./pages/settings/CompanySettings"
 const UsersPage = lazy(() => import("./pages/settings/Users"));
 const BankAccountsPage = lazy(() => import("./pages/settings/BankAccounts"));
 const InterIntegrationPage = lazy(() => import("./pages/settings/InterIntegration"));
+const InterBankingPage = lazy(() => import("./pages/InterBanking"));
 const NfseIntegrationPage = lazy(() => import("./pages/settings/NfseIntegration"));
 const CompanyTransfers = lazy(() => import("./pages/CompanyTransfers"));
 const CompanyBills = lazy(() => import("./pages/CompanyBills"));
