@@ -322,6 +322,9 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
                     />
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
 
           {/* Step 3 — Done */}
           {step === 3 && (
