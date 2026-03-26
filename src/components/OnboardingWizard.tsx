@@ -301,9 +301,27 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
                     />
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+                <div className="space-y-3 bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs font-medium text-foreground">Banco Inter (Open Banking)</p>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ob-inter-cid" className="text-xs">Client ID</Label>
+                    <Input
+                      id="ob-inter-cid"
+                      placeholder="client_id do app Inter"
+                      value={interClientId}
+                      onChange={(e) => setInterClientId(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ob-inter-cs" className="text-xs">Client Secret</Label>
+                    <Input
+                      id="ob-inter-cs"
+                      placeholder="client_secret do app Inter"
+                      value={interClientSecret}
+                      onChange={(e) => setInterClientSecret(e.target.value)}
+                    />
+                  </div>
+                </div>
 
           {/* Step 3 — Done */}
           {step === 3 && (
