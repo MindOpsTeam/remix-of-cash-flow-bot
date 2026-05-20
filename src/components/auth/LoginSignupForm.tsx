@@ -428,9 +428,28 @@ const LoginSignupForm = () => {
             </div>
           </div>
         </div>
+
+        <div className="lsf-disclaimer" role="note">
+          <AlertTriangle size={22} className="lsf-disclaimer-icon" aria-hidden />
+          <div>
+            <p className="lsf-disclaimer-title">Uso consciente e responsabilidade</p>
+            <p className="lsf-disclaimer-body">
+              Esta plataforma processa dados financeiros sensíveis. Recomendamos fortemente o
+              acompanhamento por <strong>auditorias de segurança regulares</strong> e a adoção de
+              boas práticas de proteção de credenciais e acessos.
+            </p>
+            <p className="lsf-disclaimer-body">
+              A <strong>Viver de IA</strong> não se responsabiliza por eventuais falhas, perdas ou
+              incidentes ocorridos em produção. A manutenção, o monitoramento e o nível de
+              qualidade de segurança da plataforma são de{" "}
+              <strong>responsabilidade exclusiva do cliente</strong>.
+            </p>
+          </div>
+        </div>
       </div>
     </>
   );
 };
 
 export default LoginSignupForm;
+
