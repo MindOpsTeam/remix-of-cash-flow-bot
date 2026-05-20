@@ -3554,6 +3554,7 @@ export type Database = {
           instance_name: string
           phone_number: string | null
           updated_at: string
+          webhook_secret: string
         }
         Insert: {
           active?: boolean
@@ -3567,6 +3568,7 @@ export type Database = {
           instance_name: string
           phone_number?: string | null
           updated_at?: string
+          webhook_secret?: string
         }
         Update: {
           active?: boolean
@@ -3580,6 +3582,7 @@ export type Database = {
           instance_name?: string
           phone_number?: string | null
           updated_at?: string
+          webhook_secret?: string
         }
         Relationships: [
           {
