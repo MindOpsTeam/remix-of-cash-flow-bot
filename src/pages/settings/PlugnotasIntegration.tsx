@@ -45,7 +45,7 @@ const SANDBOX_KEY = "2da392a6-79d2-4304-a8b7-959572c7e44d";
 
 const emptyConfig: PlugnotasConfig = {
   api_key: "",
-  environment: "sandbox",
+  environment: "producao",
   plugnotas_empresa_cnpj: null,
   plugnotas_empresa_id: null,
   enabled_nfe: false,
@@ -276,7 +276,7 @@ export default function PlugnotasIntegration() {
             <Badge variant="outline" className="capitalize">{form.environment}</Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Provedor alternativo para emissão de NFe, NFSe, NFCe, CTe e MDFe via API REST
+            Emissão de NF-e, NFS-e, NFC-e, CT-e e MDF-e via PlugNotas. Certificado A1 hospedado pelo provedor.
           </p>
         </div>
         <a
@@ -324,17 +324,20 @@ export default function PlugnotasIntegration() {
           </div>
         )}
 
-        {/* Como configurar */}
+        {/* Setup steps */}
         <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-          <p className="text-xs font-semibold text-foreground mb-2">Como funciona</p>
+          <p className="text-xs font-semibold text-foreground mb-2">Passos para começar a emitir</p>
           <ol className="text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
-            <li>Cadastre-se em <a className="text-primary underline" target="_blank" rel="noopener noreferrer" href="https://plugnotas.com.br">plugnotas.com.br</a> e obtenha sua API Key</li>
-            <li>Em Sandbox, use a chave de teste pré-preenchida abaixo</li>
-            <li>Cadastre a empresa fiscal no PlugNotas (botão abaixo)</li>
-            <li>Envie o certificado digital A1 (.pfx)</li>
-            <li>Habilite os tipos de documento que você emite (NFe, NFSe, NFCe, CTe, MDFe)</li>
-            <li>Use <strong>Testar conexão</strong> para validar a integração</li>
+            <li>Cadastre-se em <a className="text-primary underline" target="_blank" rel="noopener noreferrer" href="https://plugnotas.com.br">plugnotas.com.br</a> e obtenha sua chave de produção</li>
+            <li>Cole a chave abaixo, mantenha o ambiente em <strong>Produção</strong></li>
+            <li>Cadastre a empresa emissora (CNPJ, razão social, endereço fiscal)</li>
+            <li>Envie o certificado digital A1 (.pfx) — fica hospedado no PlugNotas</li>
+            <li>Habilite os tipos de documento que você emite</li>
+            <li>Clique em <strong>Testar conexão</strong> e comece a emitir em <Link to="/fiscal/plugnotas/emit" className="text-primary hover:underline">Fiscal → Emitir</Link></li>
           </ol>
+          <p className="text-[11px] text-muted-foreground mt-3 pt-3 border-t border-primary/10">
+            Para integrações iniciais ou QA, use ambiente <strong>Sandbox</strong> — só serve para validar o fluxo, não emite documento real.
+          </p>
         </div>
 
         {/* Credenciais */}
@@ -365,10 +368,10 @@ export default function PlugnotasIntegration() {
                 {form.environment === "sandbox" && form.api_key !== SANDBOX_KEY && (
                   <button
                     type="button"
-                    className="text-[11px] text-primary hover:underline"
+                    className="text-[11px] text-muted-foreground hover:text-primary hover:underline"
                     onClick={() => set("api_key", SANDBOX_KEY)}
                   >
-                    Usar chave de teste
+                    Preencher com chave de teste (sandbox)
                   </button>
                 )}
               </div>
@@ -377,7 +380,9 @@ export default function PlugnotasIntegration() {
                   type={showKey ? "text" : "password"}
                   value={form.api_key}
                   onChange={(e) => set("api_key", e.target.value)}
-                  placeholder="Cole sua X-API-KEY"
+                  placeholder={form.environment === "producao"
+                    ? "Cole sua chave de produção do PlugNotas"
+                    : "Cole a chave do ambiente sandbox"}
                   className="font-mono text-sm pr-10"
                 />
                 <button
@@ -389,7 +394,7 @@ export default function PlugnotasIntegration() {
                 </button>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Enviada no header <code className="bg-muted px-1 rounded">X-API-KEY</code> em todas as chamadas
+                A chave fica armazenada com isolamento por empresa (RLS). Nunca exibimos em logs ou histórico.
               </p>
             </div>
           </div>
