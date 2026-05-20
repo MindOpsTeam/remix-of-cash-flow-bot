@@ -35,3 +35,24 @@ verify_jwt = false
 
 [functions.nfse-operations]
 verify_jwt = false
+
+[functions.plugnotas-empresa]
+verify_jwt = false
+
+[functions.plugnotas-nfe]
+verify_jwt = false
+
+[functions.plugnotas-nfse]
+verify_jwt = false
+
+[functions.plugnotas-nfce]
+verify_jwt = false
+
+[functions.plugnotas-cte]
+verify_jwt = false
+
+[functions.plugnotas-mdfe]
+verify_jwt = false
+
+[functions.plugnotas-status]
+verify_jwt = false
