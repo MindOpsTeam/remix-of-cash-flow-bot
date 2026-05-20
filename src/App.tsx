@@ -118,6 +118,8 @@ const AppRoutes = () => (
       <Route path="/fiscal/impostos" element={<P><TaxCalendarPage /></P>} />
       <Route path="/fiscal/contas-a-pagar" element={<P><BillsPayablePage /></P>} />
       <Route path="/fiscal/arquivos" element={<P><FiscalFilesPage /></P>} />
+      <Route path="/fiscal/plugnotas/config" element={<P><PlugNotasConfigPage /></P>} />
+      <Route path="/fiscal/plugnotas/emitir" element={<P><PlugNotasEmitPage /></P>} />
 
       {/* Análise */}
       <Route path="/dre" element={<P><DRE /></P>} />
