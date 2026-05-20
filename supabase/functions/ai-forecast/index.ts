@@ -1,19 +1,19 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { corsPreflightResponse } from "../_shared/cors.ts";
+import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { parseJsonBody, validate, validateRequired, validateUUID } from "../_shared/validate.ts";
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
   const preflight = corsPreflightResponse(req);
   if (preflight) return preflight;
+
+  const auth = await authenticate(req);
+  if (auth instanceof Response) return auth;
+  const { user, supabase, corsHeaders } = auth;
 
   try {
     const parsed = await parseJsonBody(req);
     if ("error" in parsed) {
-      return new Response(JSON.stringify({ error: parsed.error }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: parsed.error }, 400, corsHeaders);
     }
     const { company_id } = parsed.data;
 
@@ -22,21 +22,15 @@ Deno.serve(async (req) => {
       validateUUID(company_id, "company_id"),
     );
     if (validationError) {
-      return new Response(JSON.stringify({ error: validationError }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: validationError }, 400, corsHeaders);
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceKey);
+    const forbidden = await assertMembership(supabase, user.id, company_id as string, corsHeaders);
+    if (forbidden) return forbidden;
+
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableApiKey) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: "AI not configured" }, 500, corsHeaders);
     }
 
     // Load last 6 months of transactions
@@ -120,10 +114,7 @@ Use os dados reais para fazer projeções inteligentes. Se não houver dados suf
 
     if (!response.ok) {
       console.error("AI forecast error:", response.status, await response.text());
-      return new Response(JSON.stringify({ error: "AI forecast failed" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: "AI forecast failed" }, 500, corsHeaders);
     }
 
     const result = await response.json();
@@ -131,15 +122,11 @@ Use os dados reais para fazer projeções inteligentes. Se não houver dados suf
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return new Response(JSON.stringify({ error: "Invalid AI response" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: "Invalid AI response" }, 500, corsHeaders);
     }
 
     const forecast = JSON.parse(jsonMatch[0]);
 
-    // Include historical data for the chart
     const history = Object.entries(monthlyData)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, val]) => {
@@ -152,14 +139,9 @@ Use os dados reais para fazer projeções inteligentes. Se não houver dados suf
         };
       });
 
-    return new Response(JSON.stringify({ ...forecast, history }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResp({ ...forecast, history }, 200, corsHeaders);
   } catch (error) {
     console.error("Forecast error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResp({ error: "Internal server error" }, 500, corsHeaders);
   }
 });

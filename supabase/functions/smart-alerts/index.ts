@@ -7,6 +7,28 @@ serve(async (req) => {
   const preflight = corsPreflightResponse(req);
   if (preflight) return preflight;
 
+  // Função de cron — só pode ser chamada com CRON_SECRET.
+  // Pattern: header `X-Cron-Secret` ou `Authorization: Bearer <secret>`.
+  // O secret deve ser configurado via lovable_create_secrets antes do agendamento.
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (!cronSecret) {
+    console.error("[smart-alerts] CRON_SECRET not configured");
+    return new Response(JSON.stringify({ error: "Cron secret not configured" }), {
+      status: 503,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const provided =
+    req.headers.get("x-cron-secret") ||
+    req.headers.get("X-Cron-Secret") ||
+    (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (provided !== cronSecret) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
