@@ -346,10 +346,10 @@ Deno.serve(async (req) => {
         const description = [tx.titulo, tx.descricao].filter(Boolean).join(" — ").trim() || "Transação Inter";
 
         const { data: result, error: recErr } = await supabase.functions.invoke("reconcile-transactions", {
+          headers: { Authorization: authHeader },
           body: {
             action: "reconcile_pj",
             company_id,
-            user_id: user.id,
             amount: tx.valor,
             date: tx.dataEntrada,
             type: tx.tipoOperacao === "C" ? "revenue" : "expense",

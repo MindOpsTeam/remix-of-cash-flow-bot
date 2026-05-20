@@ -8,10 +8,14 @@
  *   reconcile_pj — concilia transactions (PJ)
  *   list_pending — lista transações com possíveis duplicatas
  *   resolve       — resolve manualmente (confirm/reject)
+ *
+ * Auth: exige JWT do usuário + membership em company_id.
+ * Chamadas internas (ex: inter-banking) devem repassar o Authorization
+ * do usuário via `headers: { Authorization }` no functions.invoke.
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { corsPreflightResponse } from "../_shared/cors.ts";
+import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 
 const EXTRA_HEADERS = "authorization, x-client-info, apikey, content-type";
 
@@ -30,25 +34,31 @@ interface ReconcileCandidate {
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req, EXTRA_HEADERS);
   const preflight = corsPreflightResponse(req, EXTRA_HEADERS);
   if (preflight) return preflight;
 
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+  // ── Auth first, then dispatch ──
+  const auth = await authenticate(req, { extraHeaders: EXTRA_HEADERS });
+  if (auth instanceof Response) return auth;
+  const { user, supabase, corsHeaders } = auth;
 
+  try {
     const body = await req.json();
     const { action } = body;
 
     // ── reconcile_pj: Find matching PJ transaction or insert new ──
     if (action === "reconcile_pj") {
-      const { company_id, user_id, amount, date, type, description, source, external_id, bank_account_id, account_id, cost_center_id } = body;
+      const {
+        company_id, amount, date, type, description, source, external_id,
+        bank_account_id, account_id, cost_center_id,
+      } = body;
       if (!company_id || !amount || !date || !type) {
         return jsonResp({ error: "company_id, amount, date, type required" }, 400, corsHeaders);
       }
+
+      // O user que chama deve ser member da empresa.
+      const forbidden = await assertMembership(supabase, user.id, company_id, corsHeaders);
+      if (forbidden) return forbidden;
 
       // Idempotency check
       if (external_id) {
@@ -80,7 +90,7 @@ Deno.serve(async (req) => {
         .lte("date", endDate.toISOString().split("T")[0]);
 
       const absAmount = Math.abs(amount);
-      const match = (candidates || []).find((c: any) => {
+      const match = (candidates || []).find((c: { amount: number }) => {
         const diff = Math.abs(Math.abs(c.amount) - absAmount);
         return diff <= absAmount * VALUE_TOLERANCE;
       });
@@ -103,11 +113,12 @@ Deno.serve(async (req) => {
         }, 200, corsHeaders);
       }
 
+      // user_id sempre do JWT autenticado — nunca aceitar do body
       const { data: inserted, error: insertErr } = await supabase
         .from("transactions")
         .insert({
           company_id,
-          user_id: user_id || "00000000-0000-0000-0000-000000000000",
+          user_id: user.id,
           description: description || "Transação via API",
           amount: absAmount,
           type,
@@ -131,8 +142,10 @@ Deno.serve(async (req) => {
     if (action === "list_pending") {
       const { company_id } = body;
       if (!company_id) {
-        return jsonResp({ candidates: [], orphans: [] }, 200, corsHeaders);
+        return jsonResp({ error: "company_id required" }, 400, corsHeaders);
       }
+      const forbidden = await assertMembership(supabase, user.id, company_id, corsHeaders);
+      if (forbidden) return forbidden;
 
       const { data: apiTxs } = await supabase
         .from("transactions")
@@ -227,6 +240,24 @@ Deno.serve(async (req) => {
     // ── resolve: Manual reconciliation decision ──
     if (action === "resolve") {
       const { transaction_id, match_id, decision } = body;
+      if (!transaction_id || !match_id || !decision) {
+        return jsonResp({ error: "transaction_id, match_id, decision required" }, 400, corsHeaders);
+      }
+
+      // Carrega ambas as transactions e valida que o user é membro das duas companies
+      const { data: txs, error: txErr } = await supabase
+        .from("transactions")
+        .select("id, company_id")
+        .in("id", [transaction_id, match_id]);
+      if (txErr || !txs || txs.length !== 2) {
+        return jsonResp({ error: "transactions not found" }, 404, corsHeaders);
+      }
+      const companyIds: string[] = [...new Set((txs as { company_id: string }[]).map((t) => t.company_id))];
+      if (companyIds.length !== 1) {
+        return jsonResp({ error: "transactions belong to different companies" }, 400, corsHeaders);
+      }
+      const forbidden = await assertMembership(supabase, user.id, companyIds[0], corsHeaders);
+      if (forbidden) return forbidden;
 
       if (decision === "confirm") {
         // Snapshot the transaction being removed for audit trail
@@ -248,7 +279,7 @@ Deno.serve(async (req) => {
             kept_transaction_id: match_id,
             removed_transaction_id: transaction_id,
             decision: "confirm",
-            resolved_by: "user",
+            resolved_by: user.id,
             removed_snapshot: removedTx,
           });
         }
@@ -278,10 +309,3 @@ Deno.serve(async (req) => {
     return jsonResp({ error: message }, 500, corsHeaders);
   }
 });
-
-function jsonResp(data: unknown, status: number, headers: Record<string, string>) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...headers, "Content-Type": "application/json" },
-  });
-}

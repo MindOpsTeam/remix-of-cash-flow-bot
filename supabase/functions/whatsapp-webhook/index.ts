@@ -12,7 +12,8 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    console.log("Evolution webhook received:", JSON.stringify(body).slice(0, 500));
+    // Não logar payload completo — pode conter PII e texto financeiro
+    console.log("Evolution webhook received:", body?.event, "instance:", body?.instance);
 
     if (body.event !== "messages.upsert") {
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
@@ -39,6 +40,25 @@ Deno.serve(async (req) => {
     if (!whatsappConfig) {
       console.log("No active config found for instance:", instanceName);
       return new Response(JSON.stringify({ ok: true, skipped: "no-config" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Webhook secret check (CRÍTICO) ────────────────────────────────────────
+    // Evita que qualquer um na internet forje mensagens forjando body.instance.
+    // O secret pode vir via header X-Webhook-Secret ou query param ?token=
+    // O usuário configura a Evolution para enviar esse header/query no webhook.
+    const url = new URL(req.url);
+    const providedSecret =
+      req.headers.get("x-webhook-secret") ||
+      req.headers.get("X-Webhook-Secret") ||
+      url.searchParams.get("token") ||
+      "";
+    const expectedSecret = (whatsappConfig as { webhook_secret?: string }).webhook_secret || "";
+    if (!expectedSecret || providedSecret !== expectedSecret) {
+      console.warn(`[whatsapp-webhook] invalid secret for instance ${instanceName}`);
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

@@ -26,6 +26,7 @@ interface WhatsAppConfig {
   phone_number: string | null;
   group_jid: string | null;
   group_name: string | null;
+  webhook_secret: string | null;
   active: boolean;
   created_at: string;
 }
@@ -89,7 +90,15 @@ export default function WhatsApp() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-  const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
+  const webhookBaseUrl = `${supabaseUrl}/functions/v1/whatsapp-webhook`;
+
+  // O webhook só aceita chamadas autenticadas via secret na query string.
+  // Este builder anexa ?token=<webhook_secret> à URL configurada na Evolution.
+  const buildWebhookUrl = (secret: string | null | undefined) =>
+    secret ? `${webhookBaseUrl}?token=${encodeURIComponent(secret)}` : webhookBaseUrl;
+
+  // Secret gerado pré-conexão e usado consistentemente no webhook URL e no INSERT
+  const [formWebhookSecret, setFormWebhookSecret] = useState("");
 
   const [reconnect, setReconnect] = useState<ReconnectState>(null);
   const reconnectPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -216,6 +225,7 @@ export default function WhatsApp() {
       evolution_api_url: getCleanUrl(),
       evolution_api_key: formApiKey.trim(),
       phone_number: phoneNumber || null,
+      webhook_secret: formWebhookSecret,
     } as any);
     if (error) {
       toast.error("Erro ao salvar: " + error.message);
@@ -230,6 +240,13 @@ export default function WhatsApp() {
     if (!formInstance.trim() || !formApiUrl.trim() || !formApiKey.trim()) return;
     setConnecting(true);
     setErrorMessage("");
+
+    // Gera o webhook_secret antes da criação para usá-lo tanto na Evolution
+    // (webhook URL com ?token=) quanto no INSERT em whatsapp_configs.
+    const secret = formWebhookSecret || crypto.randomUUID();
+    if (!formWebhookSecret) setFormWebhookSecret(secret);
+    const webhookUrl = buildWebhookUrl(secret);
+
     const url = getCleanUrl();
     const headers = getHeaders();
     const instanceName = formInstance.trim();
@@ -270,7 +287,7 @@ export default function WhatsApp() {
       // If instance already exists (409) or no QR from create, try connect + set webhook
       if (!qr) {
         // Ensure webhook is configured on existing instance
-        await configureWebhook(url, headers, instanceName);
+        await configureWebhook(url, headers, instanceName, secret);
         qr = await fetchQrCode(url, headers, instanceName);
       }
 
@@ -352,7 +369,13 @@ export default function WhatsApp() {
     }
   };
 
-  const configureWebhook = async (url: string, headers: Record<string, string>, instanceName: string) => {
+  const configureWebhook = async (
+    url: string,
+    headers: Record<string, string>,
+    instanceName: string,
+    secret: string | null | undefined,
+  ) => {
+    const targetUrl = buildWebhookUrl(secret);
     try {
       // Evolution API v2: POST /webhook/set/{instance}
       const res = await fetch(`${url}/webhook/set/${instanceName}`, {
@@ -360,7 +383,7 @@ export default function WhatsApp() {
         headers,
         body: JSON.stringify({
           webhook: {
-            url: webhookUrl,
+            url: targetUrl,
             webhook_by_events: false,
             events: ["MESSAGES_UPSERT"],
             enabled: true,
@@ -376,7 +399,7 @@ export default function WhatsApp() {
           method: "POST",
           headers,
           body: JSON.stringify({
-            url: webhookUrl,
+            url: targetUrl,
             webhook_by_events: false,
             events: ["MESSAGES_UPSERT"],
             enabled: true,
@@ -401,7 +424,7 @@ export default function WhatsApp() {
     const url = c.evolution_api_url.replace(/\/$/, "");
     const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
     toast.loading("Configurando webhook...", { id: "webhook-config" });
-    await configureWebhook(url, headers, c.instance_name);
+    await configureWebhook(url, headers, c.instance_name, c.webhook_secret);
     // Also fetch and save phone number if missing
     const phone = await fetchInstancePhone(url, headers, c.instance_name);
     if (phone) {
@@ -466,7 +489,7 @@ export default function WhatsApp() {
             if (phone) {
               await supabase.from("whatsapp_configs").update({ phone_number: phone } as any).eq("id", c.id);
             }
-            await configureWebhook(url, headers, c.instance_name);
+            await configureWebhook(url, headers, c.instance_name, c.webhook_secret);
             loadConfigs();
             toast.success("WhatsApp reconectado!");
           }
@@ -503,7 +526,7 @@ export default function WhatsApp() {
             if ((data?.instance?.state || data?.state) === "open") {
               stopReconnectPolling();
               setReconnect(prev => prev ? { ...prev, status: "connected" } : null);
-              await configureWebhook(url, headers, c.instance_name);
+              await configureWebhook(url, headers, c.instance_name, c.webhook_secret);
               loadConfigs();
               toast.success("WhatsApp reconectado!");
             }
