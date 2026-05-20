@@ -259,8 +259,46 @@ const LoginSignupForm = () => {
           box-shadow: none;
         }
 
+        .lsf-wrapper { flex-direction: column; }
+
+        .lsf-disclaimer {
+          width: 850px;
+          max-width: 100%;
+          margin-top: 20px;
+          padding: 16px 20px;
+          background: rgba(255, 255, 255, .75);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          border-left: 4px solid #f59e0b;
+          border-radius: 12px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, .06);
+          display: flex;
+          gap: 14px;
+          align-items: flex-start;
+          color: #444;
+          font-size: 13px;
+          line-height: 1.55;
+        }
+
+        .lsf-disclaimer .lsf-disclaimer-icon {
+          color: #f59e0b;
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .lsf-disclaimer-title {
+          font-size: 13.5px;
+          font-weight: 600;
+          color: #1f2937;
+          margin: 0 0 6px;
+        }
+
+        .lsf-disclaimer-body { margin: 0; }
+        .lsf-disclaimer-body + .lsf-disclaimer-body { margin-top: 8px; }
+        .lsf-disclaimer-body strong { color: #1f2937; font-weight: 600; }
+
         @media screen and (max-width: 650px) {
-          .lsf-container { height: calc(100vh - 40px); }
+          .lsf-container { height: calc(100vh - 200px); min-height: 480px; }
           .lsf-form-box { bottom: 0; width: 100%; height: 70%; }
           .lsf-container.active .lsf-form-box { right: 0; bottom: 30%; }
           .lsf-toggle-box::before {
@@ -272,6 +310,7 @@ const LoginSignupForm = () => {
           .lsf-toggle-panel.toggle-left { top: 0; }
           .lsf-toggle-panel.toggle-right { right: 0; bottom: -30%; }
           .lsf-container.active .lsf-toggle-panel.toggle-right { bottom: 0; }
+          .lsf-disclaimer { padding: 14px 16px; font-size: 12.5px; }
         }
 
         @media screen and (max-width: 400px) {
@@ -279,6 +318,7 @@ const LoginSignupForm = () => {
           .lsf-toggle-panel h1 { font-size: 30px; }
         }
       `}</style>
+
 
       <div className="lsf-wrapper">
         <div className={`lsf-container ${isActive ? "active" : ""}`}>
