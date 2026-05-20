@@ -2593,6 +2593,161 @@ export type Database = {
           },
         ]
       }
+      plugnotas_config: {
+        Row: {
+          active: boolean
+          api_key: string
+          company_id: string
+          created_at: string
+          enabled_cte: boolean
+          enabled_mdfe: boolean
+          enabled_nfce: boolean
+          enabled_nfe: boolean
+          enabled_nfse: boolean
+          environment: string
+          id: string
+          last_emission_at: string | null
+          last_test_at: string | null
+          last_test_status: string | null
+          plugnotas_empresa_cnpj: string | null
+          plugnotas_empresa_id: string | null
+          serie_padrao: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          api_key?: string
+          company_id: string
+          created_at?: string
+          enabled_cte?: boolean
+          enabled_mdfe?: boolean
+          enabled_nfce?: boolean
+          enabled_nfe?: boolean
+          enabled_nfse?: boolean
+          environment?: string
+          id?: string
+          last_emission_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          plugnotas_empresa_cnpj?: string | null
+          plugnotas_empresa_id?: string | null
+          serie_padrao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          api_key?: string
+          company_id?: string
+          created_at?: string
+          enabled_cte?: boolean
+          enabled_mdfe?: boolean
+          enabled_nfce?: boolean
+          enabled_nfe?: boolean
+          enabled_nfse?: boolean
+          environment?: string
+          id?: string
+          last_emission_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          plugnotas_empresa_cnpj?: string | null
+          plugnotas_empresa_id?: string | null
+          serie_padrao?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plugnotas_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plugnotas_documents: {
+        Row: {
+          cancelled_at: string | null
+          chave_acesso: string | null
+          company_id: string
+          created_at: string
+          doc_type: string
+          emitted_at: string | null
+          id: string
+          invoice_id: string | null
+          last_check_at: string | null
+          numero: string | null
+          payload_request: Json | null
+          payload_response: Json | null
+          pdf_url: string | null
+          plugnotas_id: string | null
+          plugnotas_protocolo: string | null
+          serie: string | null
+          status: string
+          status_message: string | null
+          updated_at: string
+          xml_url: string | null
+        }
+        Insert: {
+          cancelled_at?: string | null
+          chave_acesso?: string | null
+          company_id: string
+          created_at?: string
+          doc_type: string
+          emitted_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          last_check_at?: string | null
+          numero?: string | null
+          payload_request?: Json | null
+          payload_response?: Json | null
+          pdf_url?: string | null
+          plugnotas_id?: string | null
+          plugnotas_protocolo?: string | null
+          serie?: string | null
+          status?: string
+          status_message?: string | null
+          updated_at?: string
+          xml_url?: string | null
+        }
+        Update: {
+          cancelled_at?: string | null
+          chave_acesso?: string | null
+          company_id?: string
+          created_at?: string
+          doc_type?: string
+          emitted_at?: string | null
+          id?: string
+          invoice_id?: string | null
+          last_check_at?: string | null
+          numero?: string | null
+          payload_request?: Json | null
+          payload_response?: Json | null
+          pdf_url?: string | null
+          plugnotas_id?: string | null
+          plugnotas_protocolo?: string | null
+          serie?: string | null
+          status?: string
+          status_message?: string | null
+          updated_at?: string
+          xml_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plugnotas_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plugnotas_documents_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           account_id: string | null
