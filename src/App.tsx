@@ -54,6 +54,8 @@ const NfseEmitPage = lazy(() => import("./pages/NfseEmit"));
 const TaxCalendarPage = lazy(() => import("./pages/fiscal/TaxCalendar"));
 const BillsPayablePage = lazy(() => import("./pages/fiscal/BillsPayable"));
 const FiscalFilesPage = lazy(() => import("./pages/fiscal/FiscalFiles"));
+const PlugNotasConfigPage = lazy(() => import("./pages/fiscal/PlugNotasConfig"));
+const PlugNotasEmitPage = lazy(() => import("./pages/fiscal/PlugNotasEmit"));
 
 const queryClient = new QueryClient();
 
