@@ -41,19 +41,19 @@ ALTER TABLE plugnotas_config ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view their company plugnotas_config"
   ON plugnotas_config FOR SELECT
-  USING (company_id IN (SELECT id FROM companies WHERE user_id = auth.uid()));
+  USING (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
 
 CREATE POLICY "Users can insert their company plugnotas_config"
   ON plugnotas_config FOR INSERT
-  WITH CHECK (company_id IN (SELECT id FROM companies WHERE user_id = auth.uid()));
+  WITH CHECK (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
 
 CREATE POLICY "Users can update their company plugnotas_config"
   ON plugnotas_config FOR UPDATE
-  USING (company_id IN (SELECT id FROM companies WHERE user_id = auth.uid()));
+  USING (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
 
 CREATE POLICY "Users can delete their company plugnotas_config"
   ON plugnotas_config FOR DELETE
-  USING (company_id IN (SELECT id FROM companies WHERE user_id = auth.uid()));
+  USING (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
 
 
 -- Log de emissões/consultas PlugNotas (auditoria + cache de status)
@@ -94,12 +94,12 @@ ALTER TABLE plugnotas_documents ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can view their company plugnotas_documents"
   ON plugnotas_documents FOR SELECT
-  USING (company_id IN (SELECT id FROM companies WHERE user_id = auth.uid()));
+  USING (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
 
 CREATE POLICY "Users can insert their company plugnotas_documents"
   ON plugnotas_documents FOR INSERT
-  WITH CHECK (company_id IN (SELECT id FROM companies WHERE user_id = auth.uid()));
+  WITH CHECK (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));
 
 CREATE POLICY "Users can update their company plugnotas_documents"
   ON plugnotas_documents FOR UPDATE
-  USING (company_id IN (SELECT id FROM companies WHERE user_id = auth.uid()));
+  USING (company_id IN (SELECT company_id FROM company_members WHERE user_id = auth.uid()));

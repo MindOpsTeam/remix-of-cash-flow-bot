@@ -96,13 +96,14 @@ export async function bootstrap(
     return jsonResponse({ error: "company_id é obrigatório" }, 400, corsHeaders);
   }
 
-  // Ownership: the company must belong to the authenticated user
-  const { data: company, error: companyErr } = await supabase
-    .from("companies")
-    .select("id, user_id")
-    .eq("id", companyId)
-    .single();
-  if (companyErr || !company || company.user_id !== user.id) {
+  // Ownership: the authenticated user must be a member of this company
+  const { data: membership, error: membershipErr } = await supabase
+    .from("company_members")
+    .select("company_id")
+    .eq("company_id", companyId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (membershipErr || !membership) {
     return jsonResponse({ error: "Forbidden" }, 403, corsHeaders);
   }
 
