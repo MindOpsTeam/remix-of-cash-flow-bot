@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft, Send, FileCheck, Building2, User, DollarSign, Loader2,
+  ArrowLeft, Send, FileCheck, Building2, User, DollarSign, Loader2, Layers,
 } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useCompany } from "@/hooks/useCompany";
@@ -110,6 +110,22 @@ export default function NfseEmitPage() {
       return data;
     },
   });
+
+  // Detect PlugNotas as alternative provider so the user can switch
+  const { data: plugnotasConfig } = useQuery({
+    queryKey: ["plugnotas_config", company?.id],
+    enabled: !!company,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("plugnotas_config")
+        .select("active, enabled_nfse")
+        .eq("company_id", company!.id)
+        .maybeSingle();
+      return data as { active: boolean; enabled_nfse: boolean } | null;
+    },
+  });
+
+  const plugnotasAvailable = plugnotasConfig?.active && plugnotasConfig?.enabled_nfse;
 
   // Load contacts for autocomplete
   const { data: contacts = [] } = useQuery({
@@ -211,6 +227,30 @@ export default function NfseEmitPage() {
             </p>
           </div>
         </div>
+
+        {/* Provider selector — only shown when PlugNotas is also available */}
+        {plugnotasAvailable && (
+          <Card className="border-sky-200 bg-sky-50 dark:bg-sky-900/10 dark:border-sky-800">
+            <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <Layers className="h-4 w-4 text-sky-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-sky-900 dark:text-sky-300">
+                    PlugNotas também está habilitado para NFSe nessa empresa
+                  </p>
+                  <p className="text-[11px] text-sky-700 dark:text-sky-400/80 mt-0.5">
+                    Use o provedor que melhor atende o município ou tipo de operação.
+                  </p>
+                </div>
+              </div>
+              <Link to="/fiscal/plugnotas/emit">
+                <Button size="sm" variant="outline" className="shrink-0">
+                  Emitir via PlugNotas
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Not configured warning */}
         {!configLoading && !isConfigured && (

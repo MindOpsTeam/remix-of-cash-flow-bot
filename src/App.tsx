@@ -34,6 +34,8 @@ const BankAccountsPage = lazy(() => import("./pages/settings/BankAccounts"));
 const InterIntegrationPage = lazy(() => import("./pages/settings/InterIntegration"));
 const InterBankingPage = lazy(() => import("./pages/InterBanking"));
 const NfseIntegrationPage = lazy(() => import("./pages/settings/NfseIntegration"));
+const PlugnotasIntegrationPage = lazy(() => import("./pages/settings/PlugnotasIntegration"));
+const PlugnotasEmitPage = lazy(() => import("./pages/PlugnotasEmit"));
 const CompanyTransfers = lazy(() => import("./pages/CompanyTransfers"));
 const CompanyBills = lazy(() => import("./pages/CompanyBills"));
 const DocumentScanner = lazy(() => import("./pages/DocumentScanner"));
@@ -113,6 +115,7 @@ const AppRoutes = () => (
       <Route path="/stock" element={<P><StockPage /></P>} />
       <Route path="/fiscal" element={<P><FiscalPage /></P>} />
       <Route path="/fiscal/nfse/emit" element={<P><NfseEmitPage /></P>} />
+      <Route path="/fiscal/plugnotas/emit" element={<P><PlugnotasEmitPage /></P>} />
       <Route path="/fiscal/impostos" element={<P><TaxCalendarPage /></P>} />
       <Route path="/fiscal/contas-a-pagar" element={<P><BillsPayablePage /></P>} />
       <Route path="/fiscal/arquivos" element={<P><FiscalFilesPage /></P>} />
@@ -139,6 +142,7 @@ const AppRoutes = () => (
       <Route path="/settings/integrations/asaas" element={<P><AsaasIntegrationPJ /></P>} />
       <Route path="/settings/integrations/inter" element={<P><InterIntegrationPage /></P>} />
       <Route path="/settings/integrations/nfse" element={<P><NfseIntegrationPage /></P>} />
+      <Route path="/settings/integrations/plugnotas" element={<P><PlugnotasIntegrationPage /></P>} />
       <Route path="/settings/preferences" element={<P><PreferencesPage /></P>} />
 
       <Route path="*" element={<NotFound />} />

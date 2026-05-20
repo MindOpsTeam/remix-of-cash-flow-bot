@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  FileCheck, Search, FileText, Download, Plus, ExternalLink,
+  FileCheck, Search, FileText, Download, Plus, ExternalLink, Layers,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -83,11 +83,18 @@ export default function FiscalPage() {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Notas fiscais emitidas e recebidas</p>
           </div>
-          <Link to="/fiscal/nfse/emit">
-            <Button>
-              <Plus className="h-4 w-4 mr-1.5" /> Emitir NFS-e
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/fiscal/plugnotas/emit">
+              <Button variant="outline">
+                <Layers className="h-4 w-4 mr-1.5" /> Emitir via PlugNotas
+              </Button>
+            </Link>
+            <Link to="/fiscal/nfse/emit">
+              <Button>
+                <Plus className="h-4 w-4 mr-1.5" /> Emitir NFS-e
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Info Banner */}

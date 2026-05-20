@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock, FileText } from "lucide-react";
+import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock, FileText, Layers } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +37,14 @@ const integrationCards = [
     title: "NFS-e Nacional",
     description: "Emissao de NFS-e via API ADN da Receita Federal (certificado A1)",
     to: "/settings/integrations/nfse",
+  },
+  {
+    icon: Layers,
+    iconBg: "bg-sky-500/10",
+    iconColor: "text-sky-500",
+    title: "PlugNotas",
+    description: "NFe, NFSe, NFCe, CTe e MDFe via API REST (alternativa ao NFS-e Nacional)",
+    to: "/settings/integrations/plugnotas",
   },
 ];
 
