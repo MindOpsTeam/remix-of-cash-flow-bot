@@ -179,37 +179,67 @@ export default function NfseEmitPage() {
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("nfse-proxy", {
-        body: {
-          operation: "emit",
-          companyId: company!.id,
-          data: {
-            tomador: {
-              cpfCnpj: form.tomadorCpfCnpj.replace(/\D/g, ""),
-              razaoSocial: form.tomadorRazaoSocial,
-              email: form.tomadorEmail,
+      if (provider === "plugnotas") {
+        const { data, error } = await supabase.functions.invoke("plugnotas-nfse", {
+          body: {
+            company_id: company!.id,
+            operation: "emitir",
+            params: {
+              idIntegracao: `nfse-${Date.now()}`,
+              serie: plugConfig?.serie_padrao ?? "1",
+              competencia: form.competencia,
+              tomador: {
+                cpfCnpj: form.tomadorCpfCnpj.replace(/\D/g, ""),
+                razaoSocial: form.tomadorRazaoSocial,
+                email: form.tomadorEmail,
+              },
+              servico: {
+                codigo: form.codigoServico,
+                discriminacao: form.descricao,
+                valor: valor,
+              },
+              observacoes: form.observacoes,
             },
-            servico: {
-              codigoTribNac: form.codigoServico,
-              descricao: form.descricao,
-            },
-            valores: {
-              valorServicos: valor,
-            },
-            competencia: form.competencia,
-            observacoes: form.observacoes,
           },
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.success) {
-        setResult(data);
-        toast.success("NFS-e emitida com sucesso!");
+        });
+        if (error) throw error;
+        if (data?.ok) {
+          setResult({ success: true, ...(data.data ?? {}) });
+          toast.success("NFS-e enviada via PlugNotas!");
+        } else {
+          const msg = data?.data?.error?.message ?? "Erro ao emitir via PlugNotas";
+          toast.error(msg);
+          setResult({ success: false, error: msg, raw: data });
+        }
       } else {
-        toast.error(data?.error || "Erro ao emitir NFS-e");
-        setResult(data);
+        const { data, error } = await supabase.functions.invoke("nfse-proxy", {
+          body: {
+            operation: "emit",
+            companyId: company!.id,
+            data: {
+              tomador: {
+                cpfCnpj: form.tomadorCpfCnpj.replace(/\D/g, ""),
+                razaoSocial: form.tomadorRazaoSocial,
+                email: form.tomadorEmail,
+              },
+              servico: {
+                codigoTribNac: form.codigoServico,
+                descricao: form.descricao,
+              },
+              valores: { valorServicos: valor },
+              competencia: form.competencia,
+              observacoes: form.observacoes,
+            },
+          },
+        });
+        if (error) throw error;
+        if (data?.success) {
+          setResult(data);
+          toast.success("NFS-e emitida com sucesso!");
+        } else {
+          toast.error(data?.error || "Erro ao emitir NFS-e");
+          setResult(data);
+        }
       }
     } catch (err: any) {
       toast.error(err.message || "Erro de comunicacao com o servidor");
@@ -218,7 +248,10 @@ export default function NfseEmitPage() {
     }
   };
 
-  const isConfigured = nfseConfig?.active && nfseConfig?.cert_pfx_base64;
+  const isConfigured =
+    provider === "plugnotas"
+      ? !!(plugConfig?.active && plugConfig?.api_key && plugConfig?.enabled_nfse)
+      : !!(nfseConfig?.active && nfseConfig?.cert_pfx_base64);
 
   return (
     <AppLayout>
