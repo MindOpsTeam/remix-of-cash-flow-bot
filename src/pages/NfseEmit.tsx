@@ -64,6 +64,21 @@ export default function NfseEmitPage() {
   const [form, setForm] = useState<EmitForm>(emptyForm);
   const [emitting, setEmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const providerKey = company ? `nfse_provider_${company.id}` : "nfse_provider";
+  const [provider, setProvider] = useState<"nacional" | "plugnotas">(() => {
+    if (typeof window === "undefined") return "nacional";
+    return (localStorage.getItem(providerKey) as any) || "nacional";
+  });
+  useEffect(() => {
+    if (company) {
+      const stored = localStorage.getItem(`nfse_provider_${company.id}`);
+      if (stored === "plugnotas" || stored === "nacional") setProvider(stored);
+    }
+  }, [company]);
+  const changeProvider = (v: "nacional" | "plugnotas") => {
+    setProvider(v);
+    if (company) localStorage.setItem(`nfse_provider_${company.id}`, v);
+  };
 
   // Pre-fill from sales order query params
   useEffect(() => {
