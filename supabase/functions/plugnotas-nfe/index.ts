@@ -12,7 +12,7 @@
  *  - listar         GET  /nfe?...
  */
 
-import { bootstrap, plugnotasFetch, logDocument, jsonResponse } from "../_shared/plugnotas.ts";
+import { bootstrap, plugnotasFetch, logDocument, jsonResponse, toDocumentArray } from "../_shared/plugnotas.ts";
 
 Deno.serve(async (req) => {
   const ctx = await bootstrap(req);
@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       case "emitir": {
         const res = await plugnotasFetch(config, "/nfe", {
           method: "POST",
-          body: JSON.stringify(params),
+          body: JSON.stringify(toDocumentArray(params)),
         });
         const data = res.data as Record<string, unknown> | null;
         await logDocument(supabase, companyId, "nfe", {

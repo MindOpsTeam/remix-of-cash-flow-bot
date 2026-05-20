@@ -137,6 +137,14 @@ export async function bootstrap(
 }
 
 /**
+ * PlugNotas emit endpoints (NFe, NFSe, NFCe, MDFe) require an array of
+ * documents in the body. Wrap single objects into a single-element array.
+ */
+export function toDocumentArray(params: unknown): unknown[] {
+  return Array.isArray(params) ? params : [params];
+}
+
+/**
  * Generic fetch helper for the PlugNotas REST API.
  * Returns { ok, status, data } where data is the parsed JSON (or text fallback).
  */
