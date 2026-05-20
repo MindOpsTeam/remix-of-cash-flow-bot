@@ -126,6 +126,19 @@ export default function NfseEmitPage() {
     },
   });
 
+  const { data: plugConfig } = useQuery({
+    queryKey: ["plugnotas_config", company?.id],
+    enabled: !!company,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("plugnotas_config")
+        .select("api_key, enabled_nfse, serie_padrao, active")
+        .eq("company_id", company!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   // Load contacts for autocomplete
   const { data: contacts = [] } = useQuery({
     queryKey: ["contacts", company?.id],
