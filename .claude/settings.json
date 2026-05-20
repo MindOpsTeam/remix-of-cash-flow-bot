@@ -1,0 +1,6 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "printf '\\033[1;36m📒 FinanceAI\\033[0m \\033[2m· %s · %s · ctx %s\\033[0m' \"$(git -C \"$CLAUDE_PROJECT_DIR\" branch --show-current 2>/dev/null || echo main)\" \"${CLAUDE_MODEL_DISPLAY_NAME:-claude}\" \"${CLAUDE_CONTEXT_USAGE_PERCENT:-?}%\""
+  }
+}
