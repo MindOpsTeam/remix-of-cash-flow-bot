@@ -96,10 +96,10 @@ export function useOwnerTransactions() {
   const createMutation = useMutation({
     mutationFn: async (data: OwnerTransactionFormData) => {
       if (!user?.id || !company?.id) throw new Error("Não autenticado ou sem empresa");
+      // user_id é derivado do JWT pelo backend — não enviamos mais
       const { data: result, error } = await supabase.functions.invoke("owner-transactions", {
         body: {
           ...data,
-          user_id: user.id,
           company_id: company.id,
         },
       });

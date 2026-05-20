@@ -277,6 +277,16 @@ Deno.serve(async (req) => {
     const { action, company_id, start_date, end_date } = body;
     if (!company_id) return jsonResp({ error: "company_id obrigatório" }, 400);
 
+    // Membership check — sem isso qualquer user autenticado lia saldo/extrato
+    // Inter de qualquer empresa cujo UUID conhecesse.
+    const { data: membership } = await supabase
+      .from("company_members")
+      .select("company_id")
+      .eq("company_id", company_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!membership) return jsonResp({ error: "Forbidden" }, 403);
+
     // Carrega config Inter da empresa
     const { data: cfg, error: cfgErr } = await supabase
       .from("inter_config")

@@ -1,19 +1,20 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { corsPreflightResponse } from "../_shared/cors.ts";
+import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { parseJsonBody, validate, validateRequired, validateString, sanitizeForPrompt } from "../_shared/validate.ts";
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
   const preflight = corsPreflightResponse(req);
   if (preflight) return preflight;
+
+  // Auth obrigatório — antes qualquer um chamava e queimava a quota Lovable AI
+  const auth = await authenticate(req);
+  if (auth instanceof Response) return auth;
+  const { user, supabase, corsHeaders } = auth;
 
   try {
     const parsed = await parseJsonBody(req);
     if ("error" in parsed) {
-      return new Response(JSON.stringify({ error: parsed.error }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: parsed.error }, 400, corsHeaders);
     }
     const { image_base64, mimetype, company_id } = parsed.data;
 
@@ -23,18 +24,20 @@ Deno.serve(async (req) => {
       validateString(mimetype, "mimetype"),
     );
     if (validationError) {
-      return new Response(JSON.stringify({ error: validationError }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: validationError }, 400, corsHeaders);
+    }
+
+    // Se o caller passou company_id, exigir membership.
+    // Se omitir, o OCR roda mas sem classificação contábil (passo 2 só roda
+    // quando company_id E membership conferem).
+    if (company_id) {
+      const forbidden = await assertMembership(supabase, user.id, company_id as string, corsHeaders);
+      if (forbidden) return forbidden;
     }
 
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableApiKey) {
-      return new Response(JSON.stringify({ error: "AI not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: "AI not configured" }, 500, corsHeaders);
     }
 
     // ── Step 1: Extract document data via Gemini Vision ─────────────────────
@@ -93,10 +96,7 @@ Campos não identificados = null. Responda APENAS com JSON válido.`;
       const errText = await visionRes.text();
       console.error("Vision AI error:", visionRes.status, errText);
       const label = mimetype === "application/pdf" ? "PDF" : "imagem";
-      return new Response(JSON.stringify({ error: `Falha ao analisar ${label}` }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: `Falha ao analisar ${label}` }, 500, corsHeaders);
     }
 
     const visionResult = await visionRes.json();
@@ -104,20 +104,14 @@ Campos não identificados = null. Responda APENAS com JSON válido.`;
 
     const jsonMatch = visionContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      return new Response(JSON.stringify({ error: "Não foi possível extrair dados da imagem" }), {
-        status: 422,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: "Não foi possível extrair dados da imagem" }, 422, corsHeaders);
     }
 
     let extracted: any;
     try {
       extracted = JSON.parse(jsonMatch[0]);
     } catch {
-      return new Response(JSON.stringify({ error: "Resposta da IA em formato inválido" }), {
-        status: 422,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: "Resposta da IA em formato inválido" }, 422, corsHeaders);
     }
 
     // Apply document-type heuristics as fallback
@@ -134,10 +128,7 @@ Campos não identificados = null. Responda APENAS com JSON válido.`;
     let classification: any = { account_id: null, cost_center_id: null, bank_account_id: null, confidence: "low" };
 
     if (company_id && extracted.description) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, serviceKey);
-
+      // supabase já vem do bootstrap auth — não precisa recriar
       const txType = extracted.transaction_type || "expense";
       const [accountsRes, centersRes, banksRes, historyRes] = await Promise.all([
         supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company_id),
@@ -250,20 +241,15 @@ Itens: ${extracted.items?.map((i: any) => i.description).join(", ") || "N/A"}`,
       }
     }
 
-    return new Response(JSON.stringify({
+    return jsonResp({
       ...extracted,
       suggested_account_id: classification.account_id,
       suggested_cost_center_id: classification.cost_center_id,
       suggested_bank_account_id: classification.bank_account_id,
       classification_confidence: classification.confidence,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    }, 200, corsHeaders);
   } catch (error) {
     console.error("OCR error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResp({ error: "Internal server error" }, 500, corsHeaders);
   }
 });

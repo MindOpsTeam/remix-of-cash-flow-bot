@@ -1,5 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { corsPreflightResponse } from "../_shared/cors.ts";
+import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { parseJsonBody, validate, validateRequired, validateEnum, validateUUID } from "../_shared/validate.ts";
 
 const TRANSACTION_TYPES = [
@@ -37,76 +37,60 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
   const preflight = corsPreflightResponse(req);
   if (preflight) return preflight;
 
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, serviceKey);
+  // Auth obrigatório: o user_id de query string vinha sendo aceito sem validação.
+  // Agora forçamos o user a vir do JWT — query param é ignorado.
+  const auth = await authenticate(req);
+  if (auth instanceof Response) return auth;
+  const { user, supabase, corsHeaders } = auth;
 
   try {
     if (req.method === "GET") {
-      // List owner transactions for a user
+      // Lista owner_transactions do user autenticado.
+      // company_id, se passado, restringe — mas sempre exige membership.
       const url = new URL(req.url);
-      const userId = url.searchParams.get("user_id");
       const companyId = url.searchParams.get("company_id");
-
-      if (!userId) {
-        return new Response(JSON.stringify({ error: "user_id required" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
 
       let query = supabase
         .from("owner_transactions")
         .select("*")
-        .eq("user_id", userId)
+        .eq("user_id", user.id)
         .order("date", { ascending: false });
 
       if (companyId) {
+        const forbidden = await assertMembership(supabase, user.id, companyId, corsHeaders);
+        if (forbidden) return forbidden;
         query = query.eq("company_id", companyId);
       }
 
       const { data, error } = await query;
       if (error) throw error;
 
-      return new Response(JSON.stringify({ data }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ data }, 200, corsHeaders);
     }
 
     if (req.method !== "POST") {
-      return new Response(JSON.stringify({ error: "Method not allowed" }), {
-        status: 405,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: "Method not allowed" }, 405, corsHeaders);
     }
 
     // POST: Create owner transaction with dual-side entries
     const parsed = await parseJsonBody(req);
     if ("error" in parsed) {
-      return new Response(JSON.stringify({ error: parsed.error }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: parsed.error }, 400, corsHeaders);
     }
 
     const body = parsed.data;
+    // user_id NÃO vem do body — vem do JWT autenticado
     const validationError = validate(
-      validateRequired(body, ["transaction_type", "amount", "date", "company_id", "user_id"]),
+      validateRequired(body, ["transaction_type", "amount", "date", "company_id"]),
       validateEnum(body.transaction_type, "transaction_type", TRANSACTION_TYPES),
       validateUUID(body.company_id as string, "company_id"),
-      validateUUID(body.user_id as string, "user_id"),
     );
 
     if (validationError) {
-      return new Response(JSON.stringify({ error: validationError }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: validationError }, 400, corsHeaders);
     }
 
     const transactionType = body.transaction_type as string;
@@ -114,31 +98,17 @@ Deno.serve(async (req) => {
     const date = body.date as string;
     const description = (body.description as string) || TYPE_LABELS[transactionType] || transactionType;
     const companyId = body.company_id as string;
-    const userId = body.user_id as string;
+    const userId = user.id; // do JWT — nunca do body
     const pfAccountId = (body.pf_account_id as string) || null;
     const pjBankAccountId = (body.pj_bank_account_id as string) || null;
 
     if (amount <= 0) {
-      return new Response(JSON.stringify({ error: "amount must be greater than zero" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResp({ error: "amount must be greater than zero" }, 400, corsHeaders);
     }
 
-    // Verify user is a member of the company
-    const { data: membership, error: memError } = await supabase
-      .from("company_members")
-      .select("role")
-      .eq("company_id", companyId)
-      .eq("user_id", userId)
-      .single();
-
-    if (memError || !membership) {
-      return new Response(JSON.stringify({ error: "User is not a member of this company" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Confirma que o user autenticado é membro da empresa
+    const forbidden = await assertMembership(supabase, userId, companyId, corsHeaders);
+    if (forbidden) return forbidden;
 
     const { pjType } = getDirection(transactionType);
     const label = TYPE_LABELS[transactionType] || transactionType;
@@ -158,21 +128,15 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingTx) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          data: {
-            id: existingTx.id,
-            pj_transaction_id: existingTx.pj_transaction_id,
-            pf_transaction_id: existingTx.pf_transaction_id,
-          },
-          deduplicated: true,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      return jsonResp({
+        success: true,
+        data: {
+          id: existingTx.id,
+          pj_transaction_id: existingTx.pj_transaction_id,
+          pf_transaction_id: existingTx.pf_transaction_id,
+        },
+        deduplicated: true,
+      }, 200, corsHeaders);
     }
 
     // 1. Insert owner_transaction record
@@ -231,27 +195,19 @@ Deno.serve(async (req) => {
       throw updateError;
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        data: {
-          id: ownerTx.id,
-          pj_transaction_id: pjTx.id,
-        },
-      }),
-      {
-        status: 201,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return jsonResp({
+      success: true,
+      data: {
+        id: ownerTx.id,
+        pj_transaction_id: pjTx.id,
+      },
+    }, 201, corsHeaders);
   } catch (error) {
     console.error("Owner transaction error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+    return jsonResp(
+      { error: error instanceof Error ? error.message : "Internal server error" },
+      500,
+      corsHeaders,
     );
   }
 });
