@@ -273,19 +273,39 @@ export default function NfseEmitPage() {
           </div>
         </div>
 
+        {/* Provider selector */}
+        <Card>
+          <CardContent className="py-4 px-5 flex items-center gap-3">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
+              Provedor
+            </Label>
+            <Select value={provider} onValueChange={(v: any) => changeProvider(v)}>
+              <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nacional">NFS-e Nacional (gov.br)</SelectItem>
+                <SelectItem value="plugnotas" disabled={!plugConfig?.enabled_nfse}>
+                  PlugNotas {!plugConfig?.enabled_nfse && "(NFS-e desabilitado)"}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
         {/* Not configured warning */}
         {!configLoading && !isConfigured && (
           <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
             <CardContent className="py-4 px-5">
               <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                Configuracao NFS-e pendente
+                Configuração {provider === "plugnotas" ? "PlugNotas" : "NFS-e Nacional"} pendente
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
-                Antes de emitir, configure o certificado digital e os dados fiscais.
+                {provider === "plugnotas"
+                  ? "Configure a API key e habilite NFS-e antes de emitir."
+                  : "Antes de emitir, configure o certificado digital e os dados fiscais."}
               </p>
-              <Link to="/settings/integrations/nfse">
+              <Link to={provider === "plugnotas" ? "/fiscal/plugnotas/config" : "/settings/integrations/nfse"}>
                 <Button variant="outline" size="sm" className="mt-3">
-                  Configurar NFS-e
+                  Configurar
                 </Button>
               </Link>
             </CardContent>
