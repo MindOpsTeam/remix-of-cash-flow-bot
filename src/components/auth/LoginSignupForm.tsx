@@ -1,6 +1,6 @@
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Lock, Mail, Github, Facebook, Linkedin, Chrome, AlertTriangle } from "lucide-react";
+import { User, Lock, Mail, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -353,13 +353,6 @@ const LoginSignupForm = () => {
               <button type="submit" className="lsf-btn" disabled={loading}>
                 {loading ? "Aguarde..." : "Entrar"}
               </button>
-              <p>ou entre com redes sociais</p>
-              <div className="lsf-social">
-                <a><Chrome size={22} /></a>
-                <a><Facebook size={22} /></a>
-                <a><Github size={22} /></a>
-                <a><Linkedin size={22} /></a>
-              </div>
             </form>
           </div>
 
@@ -400,13 +393,6 @@ const LoginSignupForm = () => {
               <button type="submit" className="lsf-btn" disabled={loading}>
                 {loading ? "Aguarde..." : "Cadastrar"}
               </button>
-              <p>ou cadastre-se com redes sociais</p>
-              <div className="lsf-social">
-                <a><Chrome size={22} /></a>
-                <a><Facebook size={22} /></a>
-                <a><Github size={22} /></a>
-                <a><Linkedin size={22} /></a>
-              </div>
             </form>
           </div>
 
