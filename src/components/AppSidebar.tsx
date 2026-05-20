@@ -93,6 +93,8 @@ const mainNav: NavEntry[] = [
       { to: "/fiscal/impostos", label: "Calendário Impostos", icon: Calendar },
       { to: "/fiscal/contas-a-pagar", label: "Contas a Pagar", icon: Receipt },
       { to: "/fiscal/arquivos", label: "Arquivos Fiscais", icon: FileText },
+      { to: "/fiscal/plugnotas/config", label: "PlugNotas - Config", icon: Plug },
+      { to: "/fiscal/plugnotas/emitir", label: "PlugNotas - Emitir", icon: Send },
       { to: "/documents", label: "Scanner OCR", icon: ScanLine },
     ],
   },
