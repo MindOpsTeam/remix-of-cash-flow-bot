@@ -1,6 +1,6 @@
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Lock, Mail, Github, Facebook, Linkedin, Chrome } from "lucide-react";
+import { User, Lock, Mail, Github, Facebook, Linkedin, Chrome, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
