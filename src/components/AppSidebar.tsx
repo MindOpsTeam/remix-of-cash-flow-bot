@@ -28,6 +28,7 @@ import {
   Warehouse,
   FileCheck,
   Calendar,
+  Send,
   type LucideIcon,
 } from "lucide-react";
 
