@@ -64,6 +64,21 @@ export default function NfseEmitPage() {
   const [form, setForm] = useState<EmitForm>(emptyForm);
   const [emitting, setEmitting] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const providerKey = company ? `nfse_provider_${company.id}` : "nfse_provider";
+  const [provider, setProvider] = useState<"nacional" | "plugnotas">(() => {
+    if (typeof window === "undefined") return "nacional";
+    return (localStorage.getItem(providerKey) as any) || "nacional";
+  });
+  useEffect(() => {
+    if (company) {
+      const stored = localStorage.getItem(`nfse_provider_${company.id}`);
+      if (stored === "plugnotas" || stored === "nacional") setProvider(stored);
+    }
+  }, [company]);
+  const changeProvider = (v: "nacional" | "plugnotas") => {
+    setProvider(v);
+    if (company) localStorage.setItem(`nfse_provider_${company.id}`, v);
+  };
 
   // Pre-fill from sales order query params
   useEffect(() => {
@@ -111,6 +126,19 @@ export default function NfseEmitPage() {
     },
   });
 
+  const { data: plugConfig } = useQuery({
+    queryKey: ["plugnotas_config", company?.id],
+    enabled: !!company,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("plugnotas_config")
+        .select("api_key, enabled_nfse, serie_padrao, active")
+        .eq("company_id", company!.id)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   // Load contacts for autocomplete
   const { data: contacts = [] } = useQuery({
     queryKey: ["contacts", company?.id],
@@ -151,37 +179,67 @@ export default function NfseEmitPage() {
     setResult(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke("nfse-proxy", {
-        body: {
-          operation: "emit",
-          companyId: company!.id,
-          data: {
-            tomador: {
-              cpfCnpj: form.tomadorCpfCnpj.replace(/\D/g, ""),
-              razaoSocial: form.tomadorRazaoSocial,
-              email: form.tomadorEmail,
+      if (provider === "plugnotas") {
+        const { data, error } = await supabase.functions.invoke("plugnotas-nfse", {
+          body: {
+            company_id: company!.id,
+            operation: "emitir",
+            params: {
+              idIntegracao: `nfse-${Date.now()}`,
+              serie: plugConfig?.serie_padrao ?? "1",
+              competencia: form.competencia,
+              tomador: {
+                cpfCnpj: form.tomadorCpfCnpj.replace(/\D/g, ""),
+                razaoSocial: form.tomadorRazaoSocial,
+                email: form.tomadorEmail,
+              },
+              servico: {
+                codigo: form.codigoServico,
+                discriminacao: form.descricao,
+                valor: valor,
+              },
+              observacoes: form.observacoes,
             },
-            servico: {
-              codigoTribNac: form.codigoServico,
-              descricao: form.descricao,
-            },
-            valores: {
-              valorServicos: valor,
-            },
-            competencia: form.competencia,
-            observacoes: form.observacoes,
           },
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.success) {
-        setResult(data);
-        toast.success("NFS-e emitida com sucesso!");
+        });
+        if (error) throw error;
+        if (data?.ok) {
+          setResult({ success: true, ...(data.data ?? {}) });
+          toast.success("NFS-e enviada via PlugNotas!");
+        } else {
+          const msg = data?.data?.error?.message ?? "Erro ao emitir via PlugNotas";
+          toast.error(msg);
+          setResult({ success: false, error: msg, raw: data });
+        }
       } else {
-        toast.error(data?.error || "Erro ao emitir NFS-e");
-        setResult(data);
+        const { data, error } = await supabase.functions.invoke("nfse-proxy", {
+          body: {
+            operation: "emit",
+            companyId: company!.id,
+            data: {
+              tomador: {
+                cpfCnpj: form.tomadorCpfCnpj.replace(/\D/g, ""),
+                razaoSocial: form.tomadorRazaoSocial,
+                email: form.tomadorEmail,
+              },
+              servico: {
+                codigoTribNac: form.codigoServico,
+                descricao: form.descricao,
+              },
+              valores: { valorServicos: valor },
+              competencia: form.competencia,
+              observacoes: form.observacoes,
+            },
+          },
+        });
+        if (error) throw error;
+        if (data?.success) {
+          setResult(data);
+          toast.success("NFS-e emitida com sucesso!");
+        } else {
+          toast.error(data?.error || "Erro ao emitir NFS-e");
+          setResult(data);
+        }
       }
     } catch (err: any) {
       toast.error(err.message || "Erro de comunicacao com o servidor");
@@ -190,7 +248,10 @@ export default function NfseEmitPage() {
     }
   };
 
-  const isConfigured = nfseConfig?.active && nfseConfig?.cert_pfx_base64;
+  const isConfigured =
+    provider === "plugnotas"
+      ? !!(plugConfig?.active && plugConfig?.api_key && plugConfig?.enabled_nfse)
+      : !!(nfseConfig?.active && nfseConfig?.cert_pfx_base64);
 
   return (
     <AppLayout>
@@ -212,19 +273,39 @@ export default function NfseEmitPage() {
           </div>
         </div>
 
+        {/* Provider selector */}
+        <Card>
+          <CardContent className="py-4 px-5 flex items-center gap-3">
+            <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider shrink-0">
+              Provedor
+            </Label>
+            <Select value={provider} onValueChange={(v: any) => changeProvider(v)}>
+              <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="nacional">NFS-e Nacional (gov.br)</SelectItem>
+                <SelectItem value="plugnotas" disabled={!plugConfig?.enabled_nfse}>
+                  PlugNotas {!plugConfig?.enabled_nfse && "(NFS-e desabilitado)"}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
         {/* Not configured warning */}
         {!configLoading && !isConfigured && (
           <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
             <CardContent className="py-4 px-5">
               <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                Configuracao NFS-e pendente
+                Configuração {provider === "plugnotas" ? "PlugNotas" : "NFS-e Nacional"} pendente
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
-                Antes de emitir, configure o certificado digital e os dados fiscais.
+                {provider === "plugnotas"
+                  ? "Configure a API key e habilite NFS-e antes de emitir."
+                  : "Antes de emitir, configure o certificado digital e os dados fiscais."}
               </p>
-              <Link to="/settings/integrations/nfse">
+              <Link to={provider === "plugnotas" ? "/fiscal/plugnotas/config" : "/settings/integrations/nfse"}>
                 <Button variant="outline" size="sm" className="mt-3">
-                  Configurar NFS-e
+                  Configurar
                 </Button>
               </Link>
             </CardContent>

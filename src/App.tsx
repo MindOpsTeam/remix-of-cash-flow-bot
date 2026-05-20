@@ -54,6 +54,8 @@ const NfseEmitPage = lazy(() => import("./pages/NfseEmit"));
 const TaxCalendarPage = lazy(() => import("./pages/fiscal/TaxCalendar"));
 const BillsPayablePage = lazy(() => import("./pages/fiscal/BillsPayable"));
 const FiscalFilesPage = lazy(() => import("./pages/fiscal/FiscalFiles"));
+const PlugNotasConfigPage = lazy(() => import("./pages/fiscal/PlugNotasConfig"));
+const PlugNotasEmitPage = lazy(() => import("./pages/fiscal/PlugNotasEmit"));
 
 const queryClient = new QueryClient();
 
@@ -116,6 +118,8 @@ const AppRoutes = () => (
       <Route path="/fiscal/impostos" element={<P><TaxCalendarPage /></P>} />
       <Route path="/fiscal/contas-a-pagar" element={<P><BillsPayablePage /></P>} />
       <Route path="/fiscal/arquivos" element={<P><FiscalFilesPage /></P>} />
+      <Route path="/fiscal/plugnotas/config" element={<P><PlugNotasConfigPage /></P>} />
+      <Route path="/fiscal/plugnotas/emitir" element={<P><PlugNotasEmitPage /></P>} />
 
       {/* Análise */}
       <Route path="/dre" element={<P><DRE /></P>} />
