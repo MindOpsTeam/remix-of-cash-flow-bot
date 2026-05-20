@@ -353,13 +353,6 @@ const LoginSignupForm = () => {
               <button type="submit" className="lsf-btn" disabled={loading}>
                 {loading ? "Aguarde..." : "Entrar"}
               </button>
-              <p>ou entre com redes sociais</p>
-              <div className="lsf-social">
-                <a><Chrome size={22} /></a>
-                <a><Facebook size={22} /></a>
-                <a><Github size={22} /></a>
-                <a><Linkedin size={22} /></a>
-              </div>
             </form>
           </div>
 
@@ -400,13 +393,6 @@ const LoginSignupForm = () => {
               <button type="submit" className="lsf-btn" disabled={loading}>
                 {loading ? "Aguarde..." : "Cadastrar"}
               </button>
-              <p>ou cadastre-se com redes sociais</p>
-              <div className="lsf-social">
-                <a><Chrome size={22} /></a>
-                <a><Facebook size={22} /></a>
-                <a><Github size={22} /></a>
-                <a><Linkedin size={22} /></a>
-              </div>
             </form>
           </div>
 
