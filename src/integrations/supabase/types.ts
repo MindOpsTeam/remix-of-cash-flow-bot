@@ -700,6 +700,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          org_id: string
           updated_at: string
         }
         Insert: {
@@ -707,6 +708,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          org_id?: string
           updated_at?: string
         }
         Update: {
@@ -714,6 +716,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          org_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -3691,6 +3694,16 @@ export type Database = {
       }
     }
     Views: {
+      v_company_margin: {
+        Row: {
+          company_id: string | null
+          month: string | null
+          receita: number | null
+          custos: number | null
+          despesas: number | null
+        }
+        Relationships: []
+      }
       v_personal_kpis: {
         Row: {
           entradas_mes: number | null
@@ -3715,7 +3728,11 @@ export type Database = {
       }
     }
     Functions: {
-      create_company_for_user: { Args: { company_name: string }; Returns: Json }
+      create_company_for_user: {
+        Args: { company_name: string; company_cnpj?: string | null }
+        Returns: Json
+      }
+      gen_org_id: { Args: Record<PropertyKey, never>; Returns: string }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
     }

@@ -2,6 +2,7 @@ import { ReactNode, useState } from "react";
 import { AppSidebar, SidebarContent } from "./AppSidebar";
 import { CFOChatWidget } from "./CFOChatWidget";
 import { NotificationBell } from "./NotificationBell";
+import { CompanyScopeSwitcher } from "./company/CompanyScopeSwitcher";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 
@@ -37,7 +38,10 @@ export function AppLayout({ children }: AppLayoutProps) {
             <Menu className="h-5 w-5" />
           </button>
           <div className="lg:hidden" /> {/* spacer */}
-          <NotificationBell />
+          <div className="flex items-center gap-3">
+            <CompanyScopeSwitcher />
+            <NotificationBell />
+          </div>
         </div>
         <div className="p-6 lg:px-10 lg:py-4 max-w-[1400px] mx-auto animate-fade-in">
           {children}
