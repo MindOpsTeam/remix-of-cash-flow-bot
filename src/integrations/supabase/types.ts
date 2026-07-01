@@ -3697,12 +3697,20 @@ export type Database = {
       v_company_margin: {
         Row: {
           company_id: string | null
-          month: string | null
-          receita: number | null
           custos: number | null
           despesas: number | null
+          month: string | null
+          receita: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_personal_kpis: {
         Row: {
@@ -3729,10 +3737,10 @@ export type Database = {
     }
     Functions: {
       create_company_for_user: {
-        Args: { company_name: string; company_cnpj?: string | null }
+        Args: { company_cnpj?: string; company_name: string }
         Returns: Json
       }
-      gen_org_id: { Args: Record<PropertyKey, never>; Returns: string }
+      gen_org_id: { Args: never; Returns: string }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
     }
