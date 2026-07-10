@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug } from "lucide-react";
+import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -8,6 +8,13 @@ const sections = [
     title: "Empresa",
     description: "Dados cadastrais, CNPJ, razão social e endereço",
     to: "/settings/company",
+    available: true,
+  },
+  {
+    icon: Layers,
+    title: "Consolidação do grupo",
+    description: "Plano de contas do grupo e mapeamento entre CNPJs",
+    to: "/settings/consolidation",
     available: true,
   },
   {

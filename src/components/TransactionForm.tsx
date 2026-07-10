@@ -33,7 +33,7 @@ const paymentMethods = [
 ];
 
 export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFormProps) {
-  const { company } = useCompany();
+  const { company, companies } = useCompany();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
@@ -52,6 +52,8 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     bank_account_id: "",
     payment_method: "",
     project: "",
+    is_intercompany: false,
+    counterparty_company_id: "",
   });
 
   const [aiSuggested, setAiSuggested] = useState(false);
@@ -144,12 +146,14 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
       account_id: form.account_id, cost_center_id: form.cost_center_id,
       bank_account_id: form.bank_account_id || null, payment_method: form.payment_method || null,
       project: form.project.trim() || null, status: "confirmed", source: "manual",
-    });
+      is_intercompany: form.is_intercompany,
+      counterparty_company_id: form.is_intercompany && form.counterparty_company_id ? form.counterparty_company_id : null,
+    } as any);
 
     if (error) { toast.error("Erro ao salvar: " + error.message); }
     else {
       toast.success("Lançamento criado com sucesso!");
-      setForm({ date: new Date().toISOString().split("T")[0], description: "", amount: "", type: "expense", account_id: "", cost_center_id: "", bank_account_id: "", payment_method: "", project: "" });
+      setForm({ date: new Date().toISOString().split("T")[0], description: "", amount: "", type: "expense", account_id: "", cost_center_id: "", bank_account_id: "", payment_method: "", project: "", is_intercompany: false, counterparty_company_id: "" });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       onSuccess();
       onOpenChange(false);
@@ -157,7 +161,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     setLoading(false);
   };
 
-  const update = (key: string, value: string) => {
+  const update = (key: string, value: string | boolean) => {
     if (key === "type") { setForm({ ...form, type: value as any, account_id: "" }); }
     else { setForm({ ...form, [key]: value }); }
   };
@@ -271,6 +275,36 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
             <Label>Projeto (opcional)</Label>
             <Input value={form.project} onChange={(e) => update("project", e.target.value)} placeholder="Ex: Projeto Alpha, Cliente XYZ..." className="mt-1" />
           </div>
+
+          {companies.length > 1 && (
+            <div className="rounded-md border border-border p-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.is_intercompany}
+                  onChange={(e) => update("is_intercompany", e.target.checked)}
+                  className="h-4 w-4 rounded border-input"
+                />
+                Transação entre empresas do grupo (intercompany)
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Marcada como intercompany, ela é eliminada da visão consolidada — não infla receita/despesa combinada.
+              </p>
+              {form.is_intercompany && (
+                <div className="mt-2">
+                  <Label>Empresa contraparte</Label>
+                  <Select value={form.counterparty_company_id} onValueChange={(v) => update("counterparty_company_id", v)}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione o outro CNPJ" /></SelectTrigger>
+                    <SelectContent>
+                      {companies.filter((c) => c.id !== company?.id).map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Cancelar</Button>
