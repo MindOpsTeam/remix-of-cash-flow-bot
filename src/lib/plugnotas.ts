@@ -146,6 +146,8 @@ export interface NfeItem {
   quantidade: number;
   valorUnitario: number;
   origemTributaria?: string;
+  /** cClassTrib do produto — sobrepõe o padrão da empresa no destaque CBS/IBS. */
+  cClassTrib?: string;
 }
 
 export interface NfeFormData {
@@ -309,7 +311,7 @@ export function mapNfe(d: NfeFormData, reforma?: ReformaOpts | null) {
     },
     itens: d.itens.map((it, idx) => {
       const itemTotal = +(it.quantidade * it.valorUnitario).toFixed(2);
-      const grupoItem = reforma ? montarGrupoIbsCbs(itemTotal, reforma.cClassTrib) : null;
+      const grupoItem = reforma ? montarGrupoIbsCbs(itemTotal, it.cClassTrib || reforma.cClassTrib) : null;
       return {
         numeroItem: idx + 1,
         codigo: it.codigo,

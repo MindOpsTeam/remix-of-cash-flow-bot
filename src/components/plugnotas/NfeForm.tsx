@@ -216,6 +216,7 @@ export function NfeForm({ emitenteCnpj }: Props) {
                         codigo: p.sku ?? p.id.slice(0, 8),
                         descricao: p.description ?? p.name,
                         ncm: p.ncm ?? "",
+                        cClassTrib: p.cclasstrib ?? undefined,
                         cfop: p.cfop ?? "5102",
                         unidade: p.unit.toUpperCase(),
                         valorUnitario: Number(p.sell_price) || 0,

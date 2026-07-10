@@ -64,6 +64,7 @@ const emptyForm = {
   sell_price: "",
   cost_price: "",
   ncm: "",
+  cclasstrib: "",
   track_stock: false,
   min_stock: "",
   category: "",
@@ -91,7 +92,7 @@ export default function ProductsPage() {
       const to = from + PAGE_SIZE - 1;
       let query = supabase
         .from("products")
-        .select("id, name, description, type, sku, barcode, ncm, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
+        .select("id, name, description, type, sku, barcode, ncm, cclasstrib, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
         .eq("company_id", company.id)
         .eq("active", true);
 
@@ -125,6 +126,7 @@ export default function ProductsPage() {
         sell_price: parseFloat(form.sell_price.replace(/\./g, "").replace(",", ".")) || 0,
         cost_price: form.cost_price ? parseFloat(form.cost_price.replace(/\./g, "").replace(",", ".")) : null,
         ncm: form.ncm.trim() || null,
+        cclasstrib: form.cclasstrib.trim() || null,
         track_stock: form.track_stock,
         min_stock: form.min_stock ? parseFloat(form.min_stock) : 0,
         category: form.category.trim() || null,
@@ -181,6 +183,7 @@ export default function ProductsPage() {
       sell_price: new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(p.sell_price),
       cost_price: p.cost_price != null ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(p.cost_price) : "",
       ncm: p.ncm || "",
+      cclasstrib: p.cclasstrib || "",
       track_stock: p.track_stock,
       min_stock: p.min_stock != null ? String(p.min_stock) : "",
       category: p.category || "",
@@ -398,6 +401,10 @@ export default function ProductsPage() {
               <div>
                 <Label className="text-xs">NCM</Label>
                 <Input className="mt-1 font-mono" value={form.ncm} onChange={(e) => set("ncm", e.target.value)} placeholder="0000.00.00" />
+              </div>
+              <div>
+                <Label className="text-xs">cClassTrib (Reforma CBS/IBS)</Label>
+                <Input className="mt-1 font-mono" value={form.cclasstrib} onChange={(e) => set("cclasstrib", e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000001" />
               </div>
               <div>
                 <Label className="text-xs">Categoria</Label>

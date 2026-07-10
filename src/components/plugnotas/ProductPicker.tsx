@@ -25,6 +25,7 @@ export interface ProductOption {
   ncm: string | null;
   cfop: string | null;
   tax_origin: string | null;
+  cclasstrib: string | null;
 }
 
 interface Props {
@@ -43,7 +44,7 @@ export function ProductPicker({ productType = "any", onSelect, placeholder = "Se
     queryFn: async () => {
       let q = (supabase as any)
         .from("products")
-        .select("id, name, description, type, sku, unit, sell_price, ncm, cfop, tax_origin, active")
+        .select("id, name, description, type, sku, unit, sell_price, ncm, cfop, tax_origin, cclasstrib, active")
         .eq("company_id", company!.id)
         .eq("active", true)
         .order("name")

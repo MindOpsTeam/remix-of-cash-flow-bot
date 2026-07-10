@@ -238,3 +238,19 @@ describe("destaque CBS/IBS nos mappers (formato PlugNotas ibscbs)", () => {
     });
   });
 });
+
+describe("cClassTrib por produto (override do padrão da empresa)", () => {
+  it("item com cClassTrib próprio ganha do padrão; sem, herda o da empresa", () => {
+    const p = mapNfe({
+      emitenteCnpj: "11222333000181",
+      destinatario: tomador,
+      naturezaOperacao: "Venda",
+      itens: [
+        { codigo: "A", descricao: "c/ override", ncm: "1", cfop: "5102", unidade: "UN", quantidade: 1, valorUnitario: 100, cClassTrib: "200003" },
+        { codigo: "B", descricao: "sem override", ncm: "1", cfop: "5102", unidade: "UN", quantidade: 1, valorUnitario: 100 },
+      ],
+    }, { cClassTrib: "000001" });
+    expect(p.itens[0].tributos?.ibscbs.classificacao).toBe("200003");
+    expect(p.itens[1].tributos?.ibscbs.classificacao).toBe("000001");
+  });
+});
