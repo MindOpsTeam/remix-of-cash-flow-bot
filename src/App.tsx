@@ -33,6 +33,7 @@ const AsaasIntegrationPJ = lazy(() => import("./pages/settings/AsaasIntegrationP
 const PreferencesPage = lazy(() => import("./pages/settings/Preferences"));
 const CompanySettingsPage = lazy(() => import("./pages/settings/CompanySettings"));
 const GroupConsolidationPage = lazy(() => import("./pages/settings/GroupConsolidation"));
+const ApiKeysPage = lazy(() => import("./pages/settings/ApiKeys"));
 const UsersPage = lazy(() => import("./pages/settings/Users"));
 const BankAccountsPage = lazy(() => import("./pages/settings/BankAccounts"));
 const InterIntegrationPage = lazy(() => import("./pages/settings/InterIntegration"));
@@ -142,6 +143,7 @@ const AppRoutes = () => (
       <Route path="/settings" element={<P><SettingsPage /></P>} />
       <Route path="/settings/company" element={<P><CompanySettingsPage /></P>} />
       <Route path="/settings/consolidation" element={<P><GroupConsolidationPage /></P>} />
+      <Route path="/settings/api" element={<P><ApiKeysPage /></P>} />
       <Route path="/settings/users" element={<P><UsersPage /></P>} />
       <Route path="/settings/bank-accounts" element={<P><BankAccountsPage /></P>} />
       <Route path="/settings/chart-of-accounts" element={<P><ChartOfAccountsPage /></P>} />

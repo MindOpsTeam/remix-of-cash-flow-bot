@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { formatCurrency } from "@/lib/utils";
 import { exportReportToPDF } from "@/lib/pdf-export";
+import { toCsv, downloadCsv } from "@/lib/csv-export";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
@@ -169,7 +170,24 @@ export default function Reports() {
               );
             }}
           >
-            <FileDown className="h-4 w-4" />Exportar PDF
+            <FileDown className="h-4 w-4" />PDF
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={!company}
+            onClick={() => {
+              const csv = toCsv(
+                ["Categoria", "Valor"],
+                [
+                  ...categoryData.map((c) => [c.name, c.value] as [string, number]),
+                  ...costCenterData.map((c) => [`Centro de custo: ${c.name}`, c.value] as [string, number]),
+                ],
+              );
+              downloadCsv(`relatorio-${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}.csv`, csv);
+            }}
+          >
+            <FileDown className="h-4 w-4" />CSV
           </Button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers } from "lucide-react";
+import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers, KeyRound } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -15,6 +15,13 @@ const sections = [
     title: "Consolidação do grupo",
     description: "Plano de contas do grupo e mapeamento entre CNPJs",
     to: "/settings/consolidation",
+    available: true,
+  },
+  {
+    icon: KeyRound,
+    title: "API pública",
+    description: "Chaves de integração para BI, planilhas e automações",
+    to: "/settings/api",
     available: true,
   },
   {
