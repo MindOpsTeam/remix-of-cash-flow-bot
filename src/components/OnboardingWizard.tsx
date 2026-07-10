@@ -34,6 +34,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
   // Step 2 - Company data
   const [companyName, setCompanyName] = useState(company?.name || "");
   const [cnpj, setCnpj] = useState(company?.cnpj ? formatCNPJ(company.cnpj) : "");
+  const [regime, setRegime] = useState<string>(company?.regimeTributario ?? "");
 
   // Step 3 - Integrations (all optional)
   const [asaasKeySandbox, setAsaasKeySandbox] = useState("");
@@ -53,6 +54,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
       const updates: Record<string, string> = {};
       if (companyName.trim()) updates.name = companyName.trim();
       if (cnpj.trim()) updates.cnpj = cnpj.replace(/\D/g, "");
+      if (regime) updates.regime_tributario = regime;
 
       if (Object.keys(updates).length > 0) {
         const { error } = await supabase.from("companies").update(updates).eq("id", company.id);
@@ -241,6 +243,23 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
                     onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
                     maxLength={18}
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ob-regime">Regime tributário <span className="text-muted-foreground font-normal">(Reforma CBS/IBS)</span></Label>
+                  <select
+                    id="ob-regime"
+                    value={regime}
+                    onChange={(e) => setRegime(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="">Escolher depois</option>
+                    <option value="simples">Simples Nacional</option>
+                    <option value="regular">Regime regular (Lucro Real/Presumido)</option>
+                    <option value="mei">MEI</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Com o regime informado, as notas já saem com o destaque CBS/IBS exigido em 2026.
+                  </p>
                 </div>
               </div>
             </div>
