@@ -14,6 +14,127 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_actions: {
+        Row: {
+          action_type: string
+          agent: string
+          amount: number | null
+          company_id: string
+          contact_name: string | null
+          contact_whatsapp: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          dedupe_key: string | null
+          description: string | null
+          due_date: string | null
+          executed_at: string | null
+          id: string
+          payload: Json | null
+          result: Json | null
+          status: string
+          suggested_message: string | null
+          title: string
+        }
+        Insert: {
+          action_type: string
+          agent: string
+          amount?: number | null
+          company_id: string
+          contact_name?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          dedupe_key?: string | null
+          description?: string | null
+          due_date?: string | null
+          executed_at?: string | null
+          id?: string
+          payload?: Json | null
+          result?: Json | null
+          status?: string
+          suggested_message?: string | null
+          title: string
+        }
+        Update: {
+          action_type?: string
+          agent?: string
+          amount?: number | null
+          company_id?: string
+          contact_name?: string | null
+          contact_whatsapp?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          dedupe_key?: string | null
+          description?: string | null
+          due_date?: string | null
+          executed_at?: string | null
+          id?: string
+          payload?: Json | null
+          result?: Json | null
+          status?: string
+          suggested_message?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_actions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_keys: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          last_used_at: string | null
+          name: string
+          prefix: string
+          revoked_at: string | null
+          scopes: string[]
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          last_used_at?: string | null
+          name: string
+          prefix: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          last_used_at?: string | null
+          name?: string
+          prefix?: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asaas_anticipations: {
         Row: {
           anticipated_value: number | null
@@ -591,12 +712,16 @@ export type Database = {
       }
       bills_payable: {
         Row: {
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           company_id: string
           contact_id: string | null
           created_at: string
           descricao: string | null
           fornecedor: string
           id: string
+          requested_by: string | null
           source: string
           status: string
           updated_at: string
@@ -604,12 +729,16 @@ export type Database = {
           vencimento: string
         }
         Insert: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           company_id: string
           contact_id?: string | null
           created_at?: string
           descricao?: string | null
           fornecedor: string
           id?: string
+          requested_by?: string | null
           source?: string
           status?: string
           updated_at?: string
@@ -617,12 +746,16 @@ export type Database = {
           vencimento: string
         }
         Update: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           company_id?: string
           contact_id?: string | null
           created_at?: string
           descricao?: string | null
           fornecedor?: string
           id?: string
+          requested_by?: string | null
           source?: string
           status?: string
           updated_at?: string
@@ -646,12 +779,58 @@ export type Database = {
           },
         ]
       }
+      budgets: {
+        Row: {
+          company_id: string
+          created_at: string
+          custos: number
+          despesas: number
+          id: string
+          month: string
+          notes: string | null
+          receita: number
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          custos?: number
+          despesas?: number
+          id?: string
+          month: string
+          notes?: string | null
+          receita?: number
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          custos?: number
+          despesas?: number
+          id?: string
+          month?: string
+          notes?: string | null
+          receita?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           code: string | null
           company_id: string
           created_at: string
           editable: boolean
+          group_code: string | null
+          group_name: string | null
           id: string
           name: string
           parent_id: string | null
@@ -662,6 +841,8 @@ export type Database = {
           company_id: string
           created_at?: string
           editable?: boolean
+          group_code?: string | null
+          group_name?: string | null
           id?: string
           name: string
           parent_id?: string | null
@@ -672,6 +853,8 @@ export type Database = {
           company_id?: string
           created_at?: string
           editable?: boolean
+          group_code?: string | null
+          group_name?: string | null
           id?: string
           name?: string
           parent_id?: string | null
@@ -696,27 +879,33 @@ export type Database = {
       }
       companies: {
         Row: {
+          cclasstrib_padrao: string | null
           cnpj: string | null
           created_at: string
           id: string
           name: string
           org_id: string
+          regime_tributario: string | null
           updated_at: string
         }
         Insert: {
+          cclasstrib_padrao?: string | null
           cnpj?: string | null
           created_at?: string
           id?: string
           name: string
           org_id?: string
+          regime_tributario?: string | null
           updated_at?: string
         }
         Update: {
+          cclasstrib_padrao?: string | null
           cnpj?: string | null
           created_at?: string
           id?: string
           name?: string
           org_id?: string
+          regime_tributario?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1341,6 +1530,7 @@ export type Database = {
       }
       company_members: {
         Row: {
+          approval_limit: number | null
           company_id: string
           created_at: string
           id: string
@@ -1349,6 +1539,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          approval_limit?: number | null
           company_id: string
           created_at?: string
           id?: string
@@ -1357,6 +1548,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          approval_limit?: number | null
           company_id?: string
           created_at?: string
           id?: string
@@ -1617,9 +1809,12 @@ export type Database = {
       invoices: {
         Row: {
           access_key: string | null
+          cbs_valor: number | null
+          cclasstrib: string | null
           company_id: string
           contact_id: string | null
           created_at: string
+          ibs_valor: number | null
           id: string
           issue_date: string
           notes: string | null
@@ -1636,9 +1831,12 @@ export type Database = {
         }
         Insert: {
           access_key?: string | null
+          cbs_valor?: number | null
+          cclasstrib?: string | null
           company_id: string
           contact_id?: string | null
           created_at?: string
+          ibs_valor?: number | null
           id?: string
           issue_date?: string
           notes?: string | null
@@ -1655,9 +1853,12 @@ export type Database = {
         }
         Update: {
           access_key?: string | null
+          cbs_valor?: number | null
+          cclasstrib?: string | null
           company_id?: string
           contact_id?: string | null
           created_at?: string
+          ibs_valor?: number | null
           id?: string
           issue_date?: string
           notes?: string | null
@@ -1736,6 +1937,47 @@ export type Database = {
             columns: ["transaction_id"]
             isOneToOne: false
             referencedRelation: "personal_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      monthly_close: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          company_id: string
+          created_at: string
+          id: string
+          month: string
+          snapshot: Json | null
+          status: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          month: string
+          snapshot?: Json | null
+          status?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          month?: string
+          snapshot?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_close_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -2670,11 +2912,16 @@ export type Database = {
       plugnotas_documents: {
         Row: {
           cancelled_at: string | null
+          cbs_aliquota: number | null
+          cbs_valor: number | null
+          cclasstrib: string | null
           chave_acesso: string | null
           company_id: string
           created_at: string
           doc_type: string
           emitted_at: string | null
+          ibs_aliquota: number | null
+          ibs_valor: number | null
           id: string
           invoice_id: string | null
           last_check_at: string | null
@@ -2692,11 +2939,16 @@ export type Database = {
         }
         Insert: {
           cancelled_at?: string | null
+          cbs_aliquota?: number | null
+          cbs_valor?: number | null
+          cclasstrib?: string | null
           chave_acesso?: string | null
           company_id: string
           created_at?: string
           doc_type: string
           emitted_at?: string | null
+          ibs_aliquota?: number | null
+          ibs_valor?: number | null
           id?: string
           invoice_id?: string | null
           last_check_at?: string | null
@@ -2714,11 +2966,16 @@ export type Database = {
         }
         Update: {
           cancelled_at?: string | null
+          cbs_aliquota?: number | null
+          cbs_valor?: number | null
+          cclasstrib?: string | null
           chave_acesso?: string | null
           company_id?: string
           created_at?: string
           doc_type?: string
           emitted_at?: string | null
+          ibs_aliquota?: number | null
+          ibs_valor?: number | null
           id?: string
           invoice_id?: string | null
           last_check_at?: string | null
@@ -3267,11 +3524,13 @@ export type Database = {
           bank_account_id: string | null
           company_id: string
           cost_center_id: string | null
+          counterparty_company_id: string | null
           created_at: string
           date: string
           description: string
           external_id: string | null
           id: string
+          is_intercompany: boolean
           payment_method: string | null
           project: string | null
           source: string
@@ -3287,11 +3546,13 @@ export type Database = {
           bank_account_id?: string | null
           company_id: string
           cost_center_id?: string | null
+          counterparty_company_id?: string | null
           created_at?: string
           date: string
           description: string
           external_id?: string | null
           id?: string
+          is_intercompany?: boolean
           payment_method?: string | null
           project?: string | null
           source?: string
@@ -3307,11 +3568,13 @@ export type Database = {
           bank_account_id?: string | null
           company_id?: string
           cost_center_id?: string | null
+          counterparty_company_id?: string | null
           created_at?: string
           date?: string
           description?: string
           external_id?: string | null
           id?: string
+          is_intercompany?: boolean
           payment_method?: string | null
           project?: string | null
           source?: string
@@ -3347,6 +3610,13 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_counterparty_company_id_fkey"
+            columns: ["counterparty_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -3701,6 +3971,43 @@ export type Database = {
           despesas: number | null
           month: string | null
           receita: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_company_margin_full: {
+        Row: {
+          company_id: string | null
+          custos: number | null
+          despesas: number | null
+          month: string | null
+          receita: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_group_account_totals: {
+        Row: {
+          company_id: string | null
+          group_code: string | null
+          group_name: string | null
+          month: string | null
+          total: number | null
+          type: string | null
         }
         Relationships: [
           {
