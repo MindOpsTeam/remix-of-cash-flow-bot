@@ -17,7 +17,7 @@ const statusConfig: Record<string, { label: string; className: string; icon: typ
 };
 
 export default function BillsPayable() {
-  const { bills, isLoading, createBill, updateBill, deleteBill, markAsPaid } = useBillsPayable();
+  const { bills, isLoading, createBill, updateBill, deleteBill, markAsPaid, decideBill } = useBillsPayable();
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<(BillInput & { id: string }) | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -87,6 +87,16 @@ export default function BillsPayable() {
                           <span className={`inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium ${statusConfig[b.status]?.className ?? ""}`}>
                             {statusConfig[b.status]?.label ?? b.status}
                           </span>
+                          {b.approval_status === "awaiting_approval" && (
+                            <span className="ml-1 inline-flex items-center rounded-sm bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                              Aguardando aprovação
+                            </span>
+                          )}
+                          {b.approval_status === "rejected" && (
+                            <span className="ml-1 inline-flex items-center rounded-sm bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                              Rejeitada
+                            </span>
+                          )}
                         </td>
                         <td className="px-2 py-3">
                           <DropdownMenu>
@@ -94,8 +104,18 @@ export default function BillsPayable() {
                               <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {b.status !== "pago" && (
-                                <DropdownMenuItem onClick={() => markAsPaid.mutate(b.id)}>
+                              {b.approval_status === "awaiting_approval" && (
+                                <>
+                                  <DropdownMenuItem onClick={() => decideBill.mutate({ id: b.id, valor: b.valor, approve: true })}>
+                                    <Check className="h-4 w-4 mr-2" /> Aprovar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => decideBill.mutate({ id: b.id, valor: b.valor, approve: false })}>
+                                    <Trash2 className="h-4 w-4 mr-2" /> Rejeitar
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {b.status !== "pago" && b.approval_status !== "awaiting_approval" && b.approval_status !== "rejected" && (
+                                <DropdownMenuItem onClick={() => markAsPaid.mutate({ id: b.id, approval_status: b.approval_status })}>
                                   <Check className="h-4 w-4 mr-2" /> Marcar como Pago
                                 </DropdownMenuItem>
                               )}

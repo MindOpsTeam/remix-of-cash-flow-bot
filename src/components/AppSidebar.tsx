@@ -31,6 +31,7 @@ import {
   type LucideIcon,
   Bot,
   CalendarCheck,
+  Target,
 } from "lucide-react";
 
 // ---------- Types ----------
@@ -113,6 +114,7 @@ const mainNav: NavEntry[] = [
     icon: PieChart,
     items: [
       { to: "/dre", label: "DRE", icon: FileBarChart2 },
+      { to: "/budget", label: "Orçamento", icon: Target },
       { to: "/reports", label: "Relatórios", icon: PieChart },
       { to: "/forecast", label: "Previsão Fluxo", icon: TrendingUp },
       { to: "/summary", label: "Resumo Executivo", icon: FileText },

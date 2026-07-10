@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export interface BillPayable {
@@ -13,6 +14,10 @@ export interface BillPayable {
   status: string;
   source: string;
   contact_id: string | null;
+  approval_status: "draft" | "awaiting_approval" | "approved" | "rejected";
+  requested_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,9 +40,27 @@ function computeStatus(bill: { status: string; vencimento: string }): string {
 
 export function useBillsPayable() {
   const { company } = useCompany();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const companyId = company?.id;
   const qk = ["bills_payable", companyId];
+
+  // Alçada do usuário atual nesta empresa (NULL = ilimitada)
+  const { data: membership } = useQuery({
+    queryKey: ["member_approval_limit", companyId, user?.id],
+    enabled: !!companyId && !!user,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("company_members")
+        .select("approval_limit, role")
+        .eq("company_id", companyId!)
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      return data as { approval_limit: number | null; role: string } | null;
+    },
+  });
+
+  const approvalLimit = membership?.approval_limit ?? null;
 
   const query = useQuery({
     queryKey: qk,
@@ -55,14 +78,25 @@ export function useBillsPayable() {
 
   const createBill = useMutation({
     mutationFn: async (input: BillInput) => {
-      const { error } = await supabase
-        .from("bills_payable")
-        .insert({ ...input, company_id: companyId!, source: input.source ?? "manual" });
+      // Acima da alçada do criador → entra aguardando aprovação
+      const needsApproval = approvalLimit != null && Number(input.valor) > approvalLimit;
+      const { error } = await (supabase as any).from("bills_payable").insert({
+        ...input,
+        company_id: companyId!,
+        source: input.source ?? "manual",
+        approval_status: needsApproval ? "awaiting_approval" : "approved",
+        requested_by: user?.id ?? null,
+      });
       if (error) throw error;
+      return needsApproval;
     },
-    onSuccess: () => {
+    onSuccess: (needsApproval) => {
       queryClient.invalidateQueries({ queryKey: qk });
-      toast.success("Conta adicionada");
+      toast.success(
+        needsApproval
+          ? "Conta criada — acima da sua alçada, aguardando aprovação"
+          : "Conta adicionada",
+      );
     },
     onError: (e: Error) => toast.error("Erro ao criar conta: " + e.message),
   });
@@ -91,17 +125,56 @@ export function useBillsPayable() {
     onError: (e: Error) => toast.error("Erro ao remover: " + e.message),
   });
 
+  const decideBill = useMutation({
+    mutationFn: async ({ id, valor, approve }: { id: string; valor: number; approve: boolean }) => {
+      // Quem decide também precisa de alçada suficiente
+      if (approve && approvalLimit != null && Number(valor) > approvalLimit) {
+        throw new Error("Valor acima da sua alçada de aprovação");
+      }
+      const { error } = await (supabase as any)
+        .from("bills_payable")
+        .update({
+          approval_status: approve ? "approved" : "rejected",
+          approved_by: user?.id ?? null,
+          approved_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .eq("approval_status", "awaiting_approval");
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: qk });
+      toast.success("Decisão registrada");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const markAsPaid = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("bills_payable").update({ status: "pago" }).eq("id", id);
+    mutationFn: async (bill: { id: string; approval_status?: string }) => {
+      if (bill.approval_status === "awaiting_approval") {
+        throw new Error("Conta aguardando aprovação — aprove antes de pagar");
+      }
+      if (bill.approval_status === "rejected") {
+        throw new Error("Conta rejeitada não pode ser paga");
+      }
+      const { error } = await supabase.from("bills_payable").update({ status: "pago" }).eq("id", bill.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Conta marcada como paga");
     },
-    onError: (e: Error) => toast.error("Erro: " + e.message),
+    onError: (e: Error) => toast.error(e.message),
   });
 
-  return { ...query, bills: query.data ?? [], createBill, updateBill, deleteBill, markAsPaid };
+  return {
+    ...query,
+    bills: query.data ?? [],
+    approvalLimit,
+    createBill,
+    updateBill,
+    deleteBill,
+    decideBill,
+    markAsPaid,
+  };
 }
