@@ -1,0 +1,157 @@
+import { describe, it, expect } from "vitest";
+import {
+  isValidCNPJ,
+  isValidCPF,
+  isValidDocument,
+  formatDocument,
+  newIdIntegracao,
+  mapNfse,
+  mapNfe,
+  mapNfce,
+  mapCte,
+  mapMdfe,
+  extractErrorMessage,
+  type NfeFormData,
+  type NfseFormData,
+} from "@/lib/plugnotas";
+
+describe("validação de documentos", () => {
+  it("aceita CNPJ válido com e sem máscara", () => {
+    expect(isValidCNPJ("11.222.333/0001-81")).toBe(true);
+    expect(isValidCNPJ("11222333000181")).toBe(true);
+  });
+
+  it("rejeita CNPJ com dígito verificador errado ou repetido", () => {
+    expect(isValidCNPJ("11222333000182")).toBe(false);
+    expect(isValidCNPJ("11111111111111")).toBe(false);
+    expect(isValidCNPJ("123")).toBe(false);
+  });
+
+  it("aceita CPF válido e rejeita inválido", () => {
+    expect(isValidCPF("529.982.247-25")).toBe(true);
+    expect(isValidCPF("52998224726")).toBe(false);
+    expect(isValidCPF("00000000000")).toBe(false);
+  });
+
+  it("isValidDocument roteia por tamanho", () => {
+    expect(isValidDocument("529.982.247-25")).toBe(true);
+    expect(isValidDocument("11.222.333/0001-81")).toBe(true);
+    expect(isValidDocument("12345")).toBe(false);
+  });
+
+  it("formatDocument aplica máscara de CPF e CNPJ", () => {
+    expect(formatDocument("52998224725")).toBe("529.982.247-25");
+    expect(formatDocument("11222333000181")).toBe("11.222.333/0001-81");
+    expect(formatDocument(null)).toBe("");
+    expect(formatDocument("abc")).toBe("abc");
+  });
+});
+
+describe("newIdIntegracao", () => {
+  it("gera ids únicos com prefixo do documento", () => {
+    const a = newIdIntegracao("nfe");
+    const b = newIdIntegracao("nfe");
+    expect(a).toMatch(/^nfe-\d{14}-[a-z0-9]{6}$/);
+    expect(a).not.toBe(b);
+  });
+});
+
+const tomador = { cpfCnpj: "11.222.333/0001-81", razaoSocial: "Cliente LTDA" };
+
+describe("mapNfse", () => {
+  const base: NfseFormData = {
+    prestadorCnpj: "11.222.333/0001-81",
+    tomador,
+    servico: {
+      codigoTributacaoMunicipio: "010101",
+      itemListaServico: "01.01",
+      discriminacao: "Consultoria",
+      valorServico: 1500.5,
+    },
+  };
+
+  it("normaliza documentos para dígitos e monta valor do serviço", () => {
+    const p = mapNfse(base);
+    expect(p.prestador.cpfCnpj).toBe("11222333000181");
+    expect(p.tomador.cpfCnpj).toBe("11222333000181");
+    expect(p.servico.valor.servico).toBe(1500.5);
+    expect(p.servico.issRetido).toBe(false);
+  });
+
+  it("omite campos opcionais ausentes", () => {
+    const p = mapNfse(base) as Record<string, unknown>;
+    expect(p.informacoesComplementares).toBeUndefined();
+    expect(p.competencia).toBeUndefined();
+  });
+});
+
+describe("mapNfe / mapNfce", () => {
+  const nfe: NfeFormData = {
+    emitenteCnpj: "11.222.333/0001-81",
+    destinatario: tomador,
+    naturezaOperacao: "Venda",
+    itens: [
+      { codigo: "P1", descricao: "Produto 1", ncm: "12345678", cfop: "5102", unidade: "UN", quantidade: 3, valorUnitario: 10.333 },
+      { codigo: "P2", descricao: "Produto 2", ncm: "12345678", cfop: "5102", unidade: "UN", quantidade: 1, valorUnitario: 5 },
+    ],
+  };
+
+  it("numera itens e arredonda totais a 2 casas", () => {
+    const p = mapNfe(nfe);
+    expect(p.itens[0].numeroItem).toBe(1);
+    expect(p.itens[1].numeroItem).toBe(2);
+    expect(p.itens[0].valorTotal).toBe(31.0);
+    expect(p.totais.valorTotal).toBe(36.0);
+  });
+
+  it("mapNfce herda NFe e adiciona consumidor/pagamento", () => {
+    const p = mapNfce({ ...nfe, consumidorFinal: true, formaPagamento: "01", valorPago: 40 });
+    expect(p.idIntegracao.startsWith("nfce-")).toBe(true);
+    expect(p.consumidorFinal).toBe(true);
+    expect(p.pagamento).toEqual({ formaPagamento: "01", valorPago: 40 });
+  });
+});
+
+describe("mapCte / mapMdfe", () => {
+  it("mapCte monta prestação, carga e percurso", () => {
+    const p = mapCte({
+      emitenteCnpj: "11222333000181",
+      naturezaOperacao: "Transporte",
+      modal: "01",
+      remetente: tomador,
+      destinatario: tomador,
+      tomador: "remetente",
+      valorTotal: 900,
+      pesoBruto: 120,
+      origemMunicipio: "3550308",
+      destinoMunicipio: "3106200",
+    });
+    expect(p.prestacao.valor).toBe(900);
+    expect(p.carga.pesoBruto).toBe(120);
+    expect(p.tomador).toBe("remetente");
+  });
+
+  it("mapMdfe vincula documentos por chave", () => {
+    const p = mapMdfe({
+      emitenteCnpj: "11222333000181",
+      modal: "1",
+      ufOrigem: "SP",
+      ufDestino: "MG",
+      veiculoPlaca: "ABC1D23",
+      documentosVinculados: ["chave1", "chave2"],
+      pesoBruto: 500,
+    });
+    expect(p.documentos).toEqual([{ chave: "chave1" }, { chave: "chave2" }]);
+  });
+});
+
+describe("extractErrorMessage", () => {
+  it("extrai mensagem aninhada em error.message", () => {
+    expect(extractErrorMessage({ error: { message: "CNPJ inválido" } })).toBe("CNPJ inválido");
+  });
+  it("cai para message no topo e para JSON truncado", () => {
+    expect(extractErrorMessage({ message: "falhou" })).toBe("falhou");
+    expect(extractErrorMessage({ foo: 1 })).toBe('{"foo":1}');
+    expect(extractErrorMessage(null)).toBe("Erro desconhecido");
+  });
+});
