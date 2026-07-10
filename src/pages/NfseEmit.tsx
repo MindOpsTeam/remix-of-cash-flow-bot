@@ -252,19 +252,35 @@ export default function NfseEmitPage() {
           </Card>
         )}
 
-        {/* Not configured warning */}
+        {/* Not configured: guia de ativação em 3 passos */}
         {!configLoading && !isConfigured && (
           <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
             <CardContent className="py-4 px-5">
               <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-                Configuracao NFS-e pendente
+                Ative a emissão NFS-e Nacional em 3 passos
               </p>
               <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
-                Antes de emitir, configure o certificado digital e os dados fiscais.
+                A partir de <strong>01/09/2026</strong> o Emissor Nacional é obrigatório para
+                empresas do Simples Nacional (Resolução CGSN 189/2026). Emitindo por aqui você
+                já fica em conformidade — sem custo por nota.
               </p>
+              <ol className="mt-3 space-y-1.5 text-xs text-amber-800 dark:text-amber-400">
+                <li className="flex gap-2">
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-900 dark:bg-amber-800 dark:text-amber-200">1</span>
+                  Envie o certificado digital A1 (.pfx) da empresa e a senha
+                </li>
+                <li className="flex gap-2">
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-900 dark:bg-amber-800 dark:text-amber-200">2</span>
+                  Confirme inscrição municipal e código de serviço padrão
+                </li>
+                <li className="flex gap-2">
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-900 dark:bg-amber-800 dark:text-amber-200">3</span>
+                  Teste a conexão e emita a primeira nota nesta tela
+                </li>
+              </ol>
               <Link to="/settings/integrations/nfse">
                 <Button variant="outline" size="sm" className="mt-3">
-                  Configurar NFS-e
+                  Começar configuração
                 </Button>
               </Link>
             </CardContent>

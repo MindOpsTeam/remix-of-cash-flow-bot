@@ -13,6 +13,7 @@ import { MarginByCompanyChart } from "@/components/bi/MarginByCompanyChart";
 import { MarginTrendChart } from "@/components/bi/MarginTrendChart";
 import { RevenueContributionChart } from "@/components/bi/RevenueContributionChart";
 import { MarginWaterfall } from "@/components/bi/MarginWaterfall";
+import { ReformaReadinessCard } from "@/components/reforma/ReformaReadinessCard";
 
 function useOnboarding() {
   const { user } = useAuth();
@@ -72,6 +73,8 @@ export default function Dashboard() {
           </p>
         </div>
       </div>
+
+      <ReformaReadinessCard />
 
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">

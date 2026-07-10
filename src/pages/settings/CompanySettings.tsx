@@ -20,13 +20,25 @@ function formatCNPJ(value: string) {
     .replace(/(\d{4})(\d)/, "$1-$2");
 }
 
+const REGIME_OPTIONS = [
+  { value: "regular", label: "Regime regular (Lucro Real/Presumido)" },
+  { value: "simples", label: "Simples Nacional" },
+  { value: "mei", label: "MEI" },
+] as const;
+
 function CompanyCard({ company, onSaved }: { company: Company; onSaved: () => void }) {
   const { toast } = useToast();
   const [name, setName] = useState(company.name);
   const [cnpj, setCnpj] = useState(company.cnpj ? formatCNPJ(company.cnpj) : "");
+  const [regime, setRegime] = useState<string>(company.regimeTributario ?? "");
+  const [cclasstrib, setCclasstrib] = useState(company.cclasstribPadrao ?? "");
   const [saving, setSaving] = useState(false);
 
-  const dirty = name !== company.name || cnpj.replace(/\D/g, "") !== (company.cnpj ?? "");
+  const dirty =
+    name !== company.name ||
+    cnpj.replace(/\D/g, "") !== (company.cnpj ?? "") ||
+    regime !== (company.regimeTributario ?? "") ||
+    cclasstrib.trim() !== (company.cclasstribPadrao ?? "");
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -35,9 +47,14 @@ function CompanyCard({ company, onSaved }: { company: Company; onSaved: () => vo
     }
     setSaving(true);
     const rawCnpj = cnpj.replace(/\D/g, "");
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("companies")
-      .update({ name: name.trim(), cnpj: rawCnpj || null })
+      .update({
+        name: name.trim(),
+        cnpj: rawCnpj || null,
+        regime_tributario: regime || null,
+        cclasstrib_padrao: cclasstrib.trim() || null,
+      })
       .eq("id", company.id);
     setSaving(false);
     if (error) {
@@ -74,6 +91,33 @@ function CompanyCard({ company, onSaved }: { company: Company; onSaved: () => vo
             placeholder="00.000.000/0000-00"
             maxLength={18}
           />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`regime-${company.id}`}>Regime tributário (Reforma CBS/IBS)</Label>
+          <select
+            id={`regime-${company.id}`}
+            value={regime}
+            onChange={(e) => setRegime(e.target.value)}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value="">Não informado</option>
+            {REGIME_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`cclasstrib-${company.id}`}>cClassTrib padrão</Label>
+          <Input
+            id={`cclasstrib-${company.id}`}
+            value={cclasstrib}
+            onChange={(e) => setCclasstrib(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="000001 (tributação integral)"
+            maxLength={6}
+          />
+          <p className="text-xs text-muted-foreground">
+            Código da tabela nacional de classificação tributária usado no destaque CBS/IBS das notas.
+          </p>
         </div>
       </div>
       <div className="mt-4 flex justify-end">

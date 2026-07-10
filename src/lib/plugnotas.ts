@@ -207,16 +207,19 @@ export function deveDestacar(
 }
 
 /**
- * Grupo IBS/CBS no formato do payload de emissão (NT 2025.002).
- * ÚNICO ponto que conhece as chaves do payload — se o PlugNotas nomear
- * diferente, ajustar apenas aqui.
+ * Grupo IBS/CBS no formato REAL do PlugNotas (schema `ibscbsNfe`, api.json
+ * v2.4.2, exige esquema pl_010b): vai em `itens[].tributos.ibscbs`, com IBS
+ * separado em uf (0,1% em 2026) e municipio (0%). ÚNICO ponto que conhece as
+ * chaves do payload.
  */
 export function ibsCbsPayloadGroup(g: GrupoIbsCbs) {
   return {
-    cClassTrib: g.cClassTrib,
+    cst: g.cst,
+    classificacao: g.cClassTrib,
     baseCalculo: g.baseCalculo,
+    uf: { aliquota: g.ibsUfAliquota, valor: g.ibsUfValor },
+    municipio: { aliquota: g.ibsMunAliquota, valor: g.ibsMunValor },
     cbs: { aliquota: g.cbsAliquota, valor: g.cbsValor },
-    ibs: { aliquota: g.ibsAliquota, valor: g.ibsValor },
   };
 }
 
@@ -232,18 +235,26 @@ export function reformaDbMeta(g: GrupoIbsCbs) {
 }
 
 /**
- * Extrai do payload já mapeado os metadados de destaque para enviar à edge
- * function (que persiste em plugnotas_documents). Undefined se não há destaque.
+ * Extrai do payload já mapeado (NFe/NFCe) os metadados de destaque para a
+ * edge function persistir em plugnotas_documents. Soma os grupos por item.
+ * Undefined se nenhum item tem destaque.
  */
 export function extractReformaMeta(payload: unknown): ReturnType<typeof reformaDbMeta> | undefined {
-  const g = (payload as { ibsCbs?: ReturnType<typeof ibsCbsPayloadGroup> }).ibsCbs;
-  if (!g) return undefined;
+  const itens = (payload as {
+    itens?: Array<{ tributos?: { ibscbs?: ReturnType<typeof ibsCbsPayloadGroup> } }>;
+  }).itens;
+  const grupos = (itens ?? [])
+    .map((it) => it.tributos?.ibscbs)
+    .filter((g): g is ReturnType<typeof ibsCbsPayloadGroup> => Boolean(g));
+  if (grupos.length === 0) return undefined;
+  const sum = (get: (g: ReturnType<typeof ibsCbsPayloadGroup>) => number) =>
+    Math.round(grupos.reduce((acc, g) => acc + get(g), 0) * 100) / 100;
   return {
-    cbs_valor: g.cbs.valor,
-    ibs_valor: g.ibs.valor,
-    cbs_aliquota: g.cbs.aliquota,
-    ibs_aliquota: g.ibs.aliquota,
-    cclasstrib: g.cClassTrib,
+    cbs_valor: sum((g) => g.cbs.valor),
+    ibs_valor: sum((g) => g.uf.valor + g.municipio.valor),
+    cbs_aliquota: grupos[0].cbs.aliquota,
+    ibs_aliquota: grupos[0].uf.aliquota + grupos[0].municipio.aliquota,
+    cclasstrib: grupos[0].classificacao,
   };
 }
 
@@ -251,10 +262,11 @@ export function extractReformaMeta(payload: unknown): ReturnType<typeof reformaD
 
 function digits(s: string) { return s.replace(/\D/g, ""); }
 
-export function mapNfse(d: NfseFormData, reforma?: ReformaOpts | null) {
-  const grupo = reforma ? montarGrupoIbsCbs(d.servico.valorServico, reforma.cClassTrib) : null;
+// NFS-e via PlugNotas usa schema RTC próprio (`servico[].ibscbs` com
+// finalidadeNFSe/codigoOperacao/valores) e Simples só destaca em 2027 —
+// grupo NÃO anexado por ora; via primária de NFS-e é o Emissor Nacional.
+export function mapNfse(d: NfseFormData, _reforma?: ReformaOpts | null) {
   return {
-    ...(grupo && { ibsCbs: ibsCbsPayloadGroup(grupo) }),
     idIntegracao: newIdIntegracao("nfse"),
     prestador: {
       cpfCnpj: digits(d.prestadorCnpj),
@@ -284,10 +296,8 @@ export function mapNfse(d: NfseFormData, reforma?: ReformaOpts | null) {
 
 export function mapNfe(d: NfeFormData, reforma?: ReformaOpts | null) {
   const total = d.itens.reduce((s, it) => s + it.quantidade * it.valorUnitario, 0);
-  const grupoTotal = reforma ? montarGrupoIbsCbs(total, reforma.cClassTrib) : null;
   return {
     idIntegracao: newIdIntegracao("nfe"),
-    ...(grupoTotal && { ibsCbs: ibsCbsPayloadGroup(grupoTotal) }),
     natureza: d.naturezaOperacao,
     emitente: { cpfCnpj: digits(d.emitenteCnpj) },
     destinatario: {
@@ -311,7 +321,7 @@ export function mapNfe(d: NfeFormData, reforma?: ReformaOpts | null) {
         valorUnitario: it.valorUnitario,
         valorTotal: itemTotal,
         ...(it.origemTributaria && { origemTributaria: it.origemTributaria }),
-        ...(grupoItem && { tributos: { ibsCbs: ibsCbsPayloadGroup(grupoItem) } }),
+        ...(grupoItem && { tributos: { ibscbs: ibsCbsPayloadGroup(grupoItem) } }),
       };
     }),
     totais: { valorTotal: +total.toFixed(2) },
@@ -332,11 +342,12 @@ export function mapNfce(d: NfceFormData, reforma?: ReformaOpts | null) {
   };
 }
 
-export function mapCte(d: CteFormData, reforma?: ReformaOpts | null) {
-  const grupo = reforma ? montarGrupoIbsCbs(d.valorTotal, reforma.cClassTrib) : null;
+// ATENÇÃO: o PlugNotas NÃO possui endpoint /cte (confirmado na spec api.json
+// v2.4.2) — a emissão de CT-e por esta via não funciona; NT 2025.001 exigiria
+// outro provedor (Componentes Tecnospeed). Mapper mantido para histórico/UI.
+export function mapCte(d: CteFormData, _reforma?: ReformaOpts | null) {
   return {
     idIntegracao: newIdIntegracao("cte"),
-    ...(grupo && { ibsCbs: ibsCbsPayloadGroup(grupo) }),
     natureza: d.naturezaOperacao,
     modal: d.modal,
     emitente: { cpfCnpj: digits(d.emitenteCnpj) },

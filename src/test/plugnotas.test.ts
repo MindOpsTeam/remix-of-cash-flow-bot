@@ -161,7 +161,7 @@ describe("extractErrorMessage", () => {
 import { deveDestacar, extractReformaMeta, ibsCbsPayloadGroup } from "@/lib/plugnotas";
 import { montarGrupoIbsCbs } from "@/lib/reforma";
 
-describe("destaque CBS/IBS nos mappers", () => {
+describe("destaque CBS/IBS nos mappers (formato PlugNotas ibscbs)", () => {
   const nfeReforma: NfeFormData = {
     emitenteCnpj: "11222333000181",
     destinatario: tomador,
@@ -171,32 +171,37 @@ describe("destaque CBS/IBS nos mappers", () => {
     ],
   };
 
-  it("mapNfe com reforma anexa grupo no doc e nos itens", () => {
+  it("mapNfe com reforma anexa itens[].tributos.ibscbs com cst/classificacao e IBS uf+municipio", () => {
     const p = mapNfe(nfeReforma, { cClassTrib: "000001" });
-    expect(p.ibsCbs?.cbs.valor).toBe(9.0);
-    expect(p.ibsCbs?.ibs.valor).toBe(1.0);
-    expect(p.itens[0].tributos?.ibsCbs.cClassTrib).toBe("000001");
+    const g = p.itens[0].tributos?.ibscbs;
+    expect(g?.cst).toBe("000");
+    expect(g?.classificacao).toBe("000001");
+    expect(g?.baseCalculo).toBe(1000);
+    expect(g?.uf).toEqual({ aliquota: 0.1, valor: 1.0 });
+    expect(g?.municipio).toEqual({ aliquota: 0, valor: 0 });
+    expect(g?.cbs).toEqual({ aliquota: 0.9, valor: 9.0 });
   });
 
   it("mapNfe sem reforma NÃO anexa grupo (retrocompatível)", () => {
-    const p = mapNfe(nfeReforma) as Record<string, unknown>;
-    expect(p.ibsCbs).toBeUndefined();
+    const p = mapNfe(nfeReforma);
+    expect(p.itens[0].tributos).toBeUndefined();
   });
 
-  it("mapNfse e mapCte anexam grupo sobre o valor da operação", () => {
+  it("mapNfse e mapCte NÃO anexam grupo (NFS-e Nacional é a via; PlugNotas não emite CT-e)", () => {
     const nfse = mapNfse({
       prestadorCnpj: "11222333000181",
       tomador,
       servico: { codigoTributacaoMunicipio: "01", itemListaServico: "01.01", discriminacao: "x", valorServico: 2000 },
-    }, {});
-    expect(nfse.ibsCbs?.cbs.valor).toBe(18.0);
+    }, {}) as Record<string, unknown>;
+    expect(nfse.ibscbs).toBeUndefined();
+    expect(nfse.ibsCbs).toBeUndefined();
 
     const cte = mapCte({
       emitenteCnpj: "11222333000181", naturezaOperacao: "T", modal: "01",
       remetente: tomador, destinatario: tomador, tomador: "remetente",
       valorTotal: 500, pesoBruto: 1, origemMunicipio: "1", destinoMunicipio: "2",
-    }, {});
-    expect(cte.ibsCbs?.ibs.valor).toBe(0.5);
+    }, {}) as Record<string, unknown>;
+    expect(cte.ibscbs).toBeUndefined();
   });
 
   it("deveDestacar respeita regime e documento", () => {
@@ -206,18 +211,30 @@ describe("destaque CBS/IBS nos mappers", () => {
     expect(deveDestacar(null, "nfe", 2026)).toBe(false);
   });
 
-  it("extractReformaMeta faz o round-trip payload → colunas do banco", () => {
-    const p = mapNfe(nfeReforma, {});
-    const meta = extractReformaMeta(p);
+  it("extractReformaMeta soma grupos dos itens → colunas do banco", () => {
+    const doisItens: NfeFormData = {
+      ...nfeReforma,
+      itens: [
+        { codigo: "P1", descricao: "A", ncm: "1", cfop: "5102", unidade: "UN", quantidade: 1, valorUnitario: 1000 },
+        { codigo: "P2", descricao: "B", ncm: "1", cfop: "5102", unidade: "UN", quantidade: 1, valorUnitario: 500 },
+      ],
+    };
+    const meta = extractReformaMeta(mapNfe(doisItens, {}));
     expect(meta).toEqual({
-      cbs_valor: 9.0, ibs_valor: 1.0, cbs_aliquota: 0.9, ibs_aliquota: 0.1, cclasstrib: "000001",
+      cbs_valor: 13.5, ibs_valor: 1.5, cbs_aliquota: 0.9, ibs_aliquota: 0.1, cclasstrib: "000001",
     });
     expect(extractReformaMeta(mapNfe(nfeReforma))).toBeUndefined();
   });
 
-  it("ibsCbsPayloadGroup preserva base e alíquotas do grupo", () => {
+  it("ibsCbsPayloadGroup emite o shape do schema ibscbsNfe", () => {
     const g = ibsCbsPayloadGroup(montarGrupoIbsCbs(100));
-    expect(g.baseCalculo).toBe(100);
-    expect(g.cbs).toEqual({ aliquota: 0.9, valor: 0.9 });
+    expect(g).toEqual({
+      cst: "000",
+      classificacao: "000001",
+      baseCalculo: 100,
+      uf: { aliquota: 0.1, valor: 0.1 },
+      municipio: { aliquota: 0, valor: 0 },
+      cbs: { aliquota: 0.9, valor: 0.9 },
+    });
   });
 });

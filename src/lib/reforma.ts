@@ -10,15 +10,22 @@
  */
 
 export const REFORMA_2026 = {
-  /** Alíquota CBS do ano-teste (0,9%). */
+  /** Alíquota CBS do ano-teste (0,9% — LC 214/2025 art. 346). */
   cbsAliquota: 0.9,
-  /** Alíquota IBS do ano-teste (0,1%). */
+  /** Alíquota IBS total do ano-teste (0,1% — art. 343, integralmente estadual). */
   ibsAliquota: 0.1,
+  /** Parcela estadual do IBS em 2026 (0,1%). */
+  ibsUfAliquota: 0.1,
+  /** Parcela municipal do IBS em 2026 (0%). */
+  ibsMunAliquota: 0,
   /** Início da obrigação de destaque. */
   vigenciaDestaque: "2026-01-01",
-  /** Rejeição de DF-e sem grupo IBS/CBS (regime regular). */
+  /** Rejeição 1115 de DF-e sem grupo IBS/CBS em produção (NT 2025.002 v1.40, CRT 3). */
   inicioRejeicao: "2026-08-03",
 } as const;
+
+/** CST IBS/CBS padrão: 000 = tributação integral. */
+export const CST_PADRAO = "000";
 
 export type RegimeTributario = "simples" | "regular" | "mei";
 
@@ -44,8 +51,15 @@ export interface IbsCbsValores {
   baseCalculo: number;
   cbsAliquota: number;
   cbsValor: number;
+  /** IBS total (uf + município). */
   ibsAliquota: number;
   ibsValor: number;
+  /** Parcela estadual do IBS (gIBSUF). */
+  ibsUfAliquota: number;
+  ibsUfValor: number;
+  /** Parcela municipal do IBS (gIBSMun) — 0% em 2026. */
+  ibsMunAliquota: number;
+  ibsMunValor: number;
 }
 
 function round2(n: number): number {
@@ -55,20 +69,29 @@ function round2(n: number): number {
 /** Calcula o destaque CBS/IBS do ano-teste sobre uma base (valor da operação). */
 export function calcularIbsCbs(baseCalculo: number): IbsCbsValores {
   const base = round2(baseCalculo);
+  const ibsUfValor = round2((base * REFORMA_2026.ibsUfAliquota) / 100);
+  const ibsMunValor = round2((base * REFORMA_2026.ibsMunAliquota) / 100);
   return {
     baseCalculo: base,
     cbsAliquota: REFORMA_2026.cbsAliquota,
     cbsValor: round2((base * REFORMA_2026.cbsAliquota) / 100),
     ibsAliquota: REFORMA_2026.ibsAliquota,
-    ibsValor: round2((base * REFORMA_2026.ibsAliquota) / 100),
+    ibsValor: round2(ibsUfValor + ibsMunValor),
+    ibsUfAliquota: REFORMA_2026.ibsUfAliquota,
+    ibsUfValor,
+    ibsMunAliquota: REFORMA_2026.ibsMunAliquota,
+    ibsMunValor,
   };
 }
 
 /**
  * Grupo IBS/CBS anexado ao payload de emissão. `cClassTrib` é o código de
- * classificação tributária (tabela nacional); "000001" = tributação integral.
+ * classificação tributária (tabela nacional em
+ * dfe-portal.svrs.rs.gov.br/DFE/ClassificacaoTributaria); "000001" =
+ * tributação integral, par do CST 000.
  */
 export interface GrupoIbsCbs extends IbsCbsValores {
+  cst: string;
   cClassTrib: string;
 }
 
@@ -77,8 +100,9 @@ export const CCLASS_TRIB_PADRAO = "000001";
 export function montarGrupoIbsCbs(
   baseCalculo: number,
   cClassTrib: string = CCLASS_TRIB_PADRAO,
+  cst: string = CST_PADRAO,
 ): GrupoIbsCbs {
-  return { ...calcularIbsCbs(baseCalculo), cClassTrib };
+  return { ...calcularIbsCbs(baseCalculo), cClassTrib, cst };
 }
 
 /**

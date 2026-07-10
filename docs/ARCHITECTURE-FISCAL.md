@@ -17,6 +17,16 @@ O projeto acumulou três caminhos de emissão fiscal. Esta é a decisão de qual
 3. Certificados A1 (.pfx) dos clientes: upload via `nfse-operations parse_cert`; nunca armazenar a senha em claro em tabela sem cifragem.
 4. **Reforma tributária**: desde 01/01/2026 os DF-e devem destacar CBS/IBS (NT 2025.002); rejeição a partir de ~03/08/2026 (regime regular). Cobre NFe, NFCe, NFSe e CTe — MDF-e fora. Implementação no Ciclo 1 do plano (`.claude/plans/pivo-state-of-the-art.plan.md`).
 
+## Reforma Tributária — achados da pesquisa (2026-07-09, verificado nas fontes)
+
+- **PlugNotas suporta IBS/CBS em NFe/NFCe** desde 12/08/2025 (schema `ibscbsNfe`, api.json v2.4.2, esquema **pl_010b**): grupo em `itens[].tributos.ibscbs` com `cst`, `classificacao` (=cClassTrib), `baseCalculo`, `uf`/`municipio`/`cbs` — implementado em `src/lib/plugnotas.ts` (`ibsCbsPayloadGroup`).
+- **Calculadora automática RFB**: opcional via cadastro da empresa no PlugNotas (`nfe.config.calculadoraAutomatica.regimeGeral.ativo: true`) — só calcula se o item vier APENAS com NCM+CST+classificacao+baseCalculo. Hoje enviamos calculado (modo manual). Migrar p/ calculadora é opção futura.
+- **⚠️ PlugNotas NÃO emite CT-e** (sem endpoint `/cte` na spec). A edge `plugnotas-cte` e o `CteForm` não funcionam de ponta a ponta — precisa de outro provedor (Componentes Tecnospeed) se CT-e for requisito real de algum cliente.
+- **NFS-e RTC via PlugNotas**: schema próprio (`servico[].ibscbs` c/ finalidadeNFSe/codigoOperacao/valores) — NÃO implementado; via primária de NFS-e é o Emissor Nacional e Simples só destaca em 2027.
+- **Prazos confirmados**: rejeição 1115 em produção a partir de **03/08/2026** (NT 2025.002 v1.40, CRT 3); homologação já rejeita desde 01/07/2026; Simples/MEI: 04/01/2027. Alíquotas LC 214/2025: IBS 0,1% (art. 343, estadual), CBS 0,9% (art. 346); dispensa de recolhimento p/ quem destaca (art. 348 §1º).
+- **Consistência**: desde 02/02/2026, grupo enviado com CST×cClassTrib×alíquotas×somas inconsistentes = rejeição.
+- Tabela cClassTrib oficial: https://dfe-portal.svrs.rs.gov.br/DFE/ClassificacaoTributaria · Exemplos: github.com/tecnospeed/Arquivos_RTC · Validador: dfe-portal.svrs.rs.gov.br/DFE/ValidadorRTC
+
 ## Funções deployadas órfãs (remover)
 
 `asaas-api`, `asaas-webhook`, `ai-classify-personal` estão ACTIVE no projeto mas não existem mais no repo (substituídas por `company-asaas-*`; PF removido no pivô PJ-only `d738400`). São versões pré-hardening → remover no próximo deploy via Lovable.
