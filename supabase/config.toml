@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.agent-collections]
 verify_jwt = false
+
+[functions.agent-anomalies]
+verify_jwt = false

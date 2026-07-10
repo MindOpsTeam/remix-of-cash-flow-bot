@@ -201,6 +201,29 @@ Deno.serve(async (req) => {
     const companyId = whatsappConfig.company_id;
     const companyName = (whatsappConfig.companies as any)?.name || "sua empresa";
 
+    // ── Comandos de agentes: "ações" lista pendentes; "aprovar N"/"recusar N" decide ──
+    const trimmed = textContent.trim();
+    if (/^(ações|acoes|pendências|pendencias)$/i.test(trimmed)) {
+      const reply = await listPendingAgentActions(supabase, companyId);
+      await sendWhatsAppMessage(instanceName, replyJid, reply, evolutionUrl, evolutionKey);
+      return new Response(JSON.stringify({ ok: true, handled: "agent-list" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const approvalMatch = trimmed.match(/^(aprovar|recusar)\s+(\d{1,3})$/i);
+    if (approvalMatch) {
+      const reply = await decideAgentAction(
+        supabase,
+        companyId,
+        approvalMatch[1].toLowerCase() === "aprovar" ? "approved" : "rejected",
+        parseInt(approvalMatch[2], 10),
+      );
+      await sendWhatsAppMessage(instanceName, replyJid, reply, evolutionUrl, evolutionKey);
+      return new Response(JSON.stringify({ ok: true, handled: "agent-decision" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // ── Rodar o assistente CFO ────────────────────────────────────────────────
     await runCFOAssistant({
       text: textContent,
@@ -580,4 +603,60 @@ function splitMessage(text: string, maxLen: number): string[] {
     remaining = remaining.slice(splitIdx).trimStart();
   }
   return chunks;
+}
+
+// ── Aprovação de ações dos agentes pelo grupo ────────────────────────────────
+
+async function fetchPendingActions(supabase: any, companyId: string) {
+  const { data } = await supabase
+    .from("agent_actions")
+    .select("id, title, suggested_message, amount, status")
+    .eq("company_id", companyId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(20);
+  return (data ?? []) as Array<{ id: string; title: string; suggested_message: string | null; amount: number | null; status: string }>;
+}
+
+async function listPendingAgentActions(supabase: any, companyId: string): Promise<string> {
+  const actions = await fetchPendingActions(supabase, companyId);
+  if (actions.length === 0) {
+    return "✅ Nenhuma ação de agente aguardando aprovação.";
+  }
+  const lines = actions.map((a, i) => `*${i + 1}.* ${a.title}`);
+  return (
+    `🤖 *Ações aguardando aprovação:*\n\n${lines.join("\n")}\n\n` +
+    `Responda *aprovar N* ou *recusar N* (ex.: aprovar 1).`
+  );
+}
+
+async function decideAgentAction(
+  supabase: any,
+  companyId: string,
+  status: "approved" | "rejected",
+  num: number,
+): Promise<string> {
+  const actions = await fetchPendingActions(supabase, companyId);
+  const action = actions[num - 1];
+  if (!action) {
+    return `⚠️ Não encontrei a ação nº ${num}. Envie *ações* para ver a lista atual.`;
+  }
+  const { error } = await supabase
+    .from("agent_actions")
+    .update({ status, decided_at: new Date().toISOString() })
+    .eq("id", action.id)
+    .eq("status", "pending");
+  if (error) {
+    return "❌ Erro ao registrar a decisão. Tente novamente.";
+  }
+  if (status === "rejected") {
+    return `🚫 Ação recusada: ${action.title}`;
+  }
+  return (
+    `✅ Aprovada: ${action.title}\n\n` +
+    (action.suggested_message
+      ? `Mensagem pronta para enviar ao cliente:\n\n_${action.suggested_message}_\n\n(copie e envie, ou use o botão WhatsApp na plataforma em Agentes)`
+      : "Conclua a execução na plataforma, em *Inteligência → Agentes*.")
+  );
 }

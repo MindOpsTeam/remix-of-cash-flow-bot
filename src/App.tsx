@@ -20,6 +20,7 @@ const Reports = lazy(() => import("./pages/Reports"));
 const WhatsApp = lazy(() => import("./pages/WhatsAppAgent"));
 const CFODigital = lazy(() => import("./pages/CFODigital"));
 const Agents = lazy(() => import("./pages/Agents"));
+const MonthlyClose = lazy(() => import("./pages/MonthlyClose"));
 const CashFlowForecast = lazy(() => import("./pages/CashFlowForecast"));
 const ExecutiveSummary = lazy(() => import("./pages/ExecutiveSummary"));
 const Simulator = lazy(() => import("./pages/Simulator"));
@@ -130,6 +131,7 @@ const AppRoutes = () => (
       {/* Inteligência */}
       <Route path="/cfo-digital" element={<P><CFODigital /></P>} />
       <Route path="/agents" element={<P><Agents /></P>} />
+      <Route path="/close" element={<P><MonthlyClose /></P>} />
       <Route path="/simulator" element={<P><Simulator /></P>} />
       <Route path="/whatsapp" element={<P><WhatsApp /></P>} />
 

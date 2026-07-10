@@ -30,6 +30,7 @@ import {
   Calendar,
   type LucideIcon,
   Bot,
+  CalendarCheck,
 } from "lucide-react";
 
 // ---------- Types ----------
@@ -124,6 +125,7 @@ const mainNav: NavEntry[] = [
     items: [
       { to: "/cfo-digital", label: "CFO Digital", icon: Brain },
       { to: "/agents", label: "Agentes", icon: Bot },
+      { to: "/close", label: "Fechamento", icon: CalendarCheck },
       { to: "/simulator", label: "Simulador E se?", icon: FlaskConical },
       { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
     ],
