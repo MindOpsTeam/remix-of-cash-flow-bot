@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.plugnotas-status]
 verify_jwt = false
+
+[functions.agent-collections]
+verify_jwt = false
