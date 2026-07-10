@@ -17,6 +17,7 @@ import {
   formatDocument, isValidDocument, mapCte, extractErrorMessage,
   type CteFormData,
 } from "@/lib/plugnotas";
+import { deveDestacar, extractReformaMeta } from "@/lib/plugnotas";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useQueryClient } from "@tanstack/react-query";
@@ -100,7 +101,7 @@ export function CteForm({ emitenteCnpj }: Props) {
     setEmitting(true);
     try {
       const { data: result, error } = await supabase.functions.invoke("plugnotas-cte", {
-        body: { company_id: company.id, operation: "emitir", params: mapCte(data) },
+        body: (() => { const p = mapCte(data, deveDestacar(company.regimeTributario, "cte") ? { cClassTrib: company.cclasstribPadrao ?? undefined } : null); return { company_id: company.id, operation: "emitir", params: p, reforma: extractReformaMeta(p) }; })(),
       });
       if (error) throw new Error(error.message);
       if (result?.ok) {

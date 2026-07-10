@@ -18,6 +18,7 @@ import {
   formatDocument, isValidDocument, mapNfce, extractErrorMessage,
   type NfceFormData, type NfeItem,
 } from "@/lib/plugnotas";
+import { deveDestacar, extractReformaMeta } from "@/lib/plugnotas";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useQueryClient } from "@tanstack/react-query";
@@ -111,9 +112,10 @@ export function NfceForm({ emitenteCnpj }: Props) {
         .single();
       if (invErr) throw new Error("Erro ao criar invoice local: " + invErr.message);
 
-      const payload = mapNfce(data);
+      const reformaOpts = deveDestacar(company.regimeTributario, "nfce") ? { cClassTrib: company.cclasstribPadrao ?? undefined } : null;
+      const payload = mapNfce(data, reformaOpts);
       const { data: result, error } = await supabase.functions.invoke("plugnotas-nfce", {
-        body: { company_id: company.id, operation: "emitir", params: payload, invoice_id: invoice.id },
+        body: { company_id: company.id, operation: "emitir", params: payload, invoice_id: invoice.id, reforma: extractReformaMeta(payload) },
       });
       if (error) throw new Error(error.message);
 

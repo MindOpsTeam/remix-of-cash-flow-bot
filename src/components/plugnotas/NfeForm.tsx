@@ -16,6 +16,7 @@ import {
   formatDocument, isValidDocument, mapNfe, extractErrorMessage,
   type NfeFormData, type NfeItem,
 } from "@/lib/plugnotas";
+import { deveDestacar, extractReformaMeta } from "@/lib/plugnotas";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useQueryClient } from "@tanstack/react-query";
@@ -123,9 +124,10 @@ export function NfeForm({ emitenteCnpj }: Props) {
         .single();
       if (invErr) throw new Error("Erro ao criar invoice local: " + invErr.message);
 
-      const payload = mapNfe(data);
+      const reformaOpts = deveDestacar(company.regimeTributario, "nfe") ? { cClassTrib: company.cclasstribPadrao ?? undefined } : null;
+      const payload = mapNfe(data, reformaOpts);
       const { data: result, error } = await supabase.functions.invoke("plugnotas-nfe", {
-        body: { company_id: company.id, operation: "emitir", params: payload, invoice_id: invoice.id },
+        body: { company_id: company.id, operation: "emitir", params: payload, invoice_id: invoice.id, reforma: extractReformaMeta(payload) },
       });
       if (error) throw new Error(error.message);
 

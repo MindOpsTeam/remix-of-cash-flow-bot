@@ -7,6 +7,10 @@ export interface Company {
   name: string;
   cnpj: string | null;
   orgId: string;
+  /** Regime tributário (Reforma): simples | regular | mei. Null = não configurado. */
+  regimeTributario: "simples" | "regular" | "mei" | null;
+  /** cClassTrib padrão usado no destaque CBS/IBS das emissões. */
+  cclasstribPadrao: string | null;
 }
 
 /** Escopo ativo do dashboard: "all" = visão combinada de todos os CNPJs, ou o id de uma empresa. */
@@ -37,7 +41,25 @@ const CompanyContext = createContext<CompanyContextType>({
 
 interface MemberRow {
   company_id: string;
-  companies: { id: string; name: string; cnpj: string | null; org_id: string } | null;
+  companies: {
+    id: string;
+    name: string;
+    cnpj: string | null;
+    org_id: string;
+    regime_tributario: "simples" | "regular" | "mei" | null;
+    cclasstrib_padrao: string | null;
+  } | null;
+}
+
+function toCompany(c: NonNullable<MemberRow["companies"]>): Company {
+  return {
+    id: c.id,
+    name: c.name,
+    cnpj: c.cnpj,
+    orgId: c.org_id,
+    regimeTributario: c.regime_tributario ?? null,
+    cclasstribPadrao: c.cclasstrib_padrao ?? null,
+  };
 }
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
@@ -62,7 +84,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
     const { data: members, error } = await supabase
       .from("company_members")
-      .select("company_id, companies(id, name, cnpj, org_id)")
+      .select("company_id, companies(id, name, cnpj, org_id, regime_tributario, cclasstrib_padrao)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
@@ -74,7 +96,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     const list: Company[] = rows
       .map((row) => row.companies)
       .filter((c): c is NonNullable<MemberRow["companies"]> => Boolean(c))
-      .map((c) => ({ id: c.id, name: c.name, cnpj: c.cnpj, orgId: c.org_id }));
+      .map(toCompany);
 
     if (list.length > 0) {
       setCompanies(list);
@@ -98,8 +120,8 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     }
 
     if (created) {
-      const c = created as { id: string; name: string; cnpj: string | null; org_id: string };
-      setCompanies([{ id: c.id, name: c.name, cnpj: c.cnpj, orgId: c.org_id }]);
+      const c = created as NonNullable<MemberRow["companies"]>;
+      setCompanies([toCompany(c)]);
     }
     setLoading(false);
   }, [user]);

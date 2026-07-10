@@ -192,6 +192,14 @@ export async function logDocument(
     payload_request?: unknown;
     payload_response?: unknown;
     invoice_id?: string | null;
+    /** Destaque CBS/IBS (Reforma Tributária) calculado na emissão. */
+    reforma?: {
+      cbs_valor?: number;
+      ibs_valor?: number;
+      cbs_aliquota?: number;
+      ibs_aliquota?: number;
+      cclasstrib?: string;
+    } | null;
   },
 ): Promise<string | null> {
   const { data, error } = await supabase
@@ -208,6 +216,11 @@ export async function logDocument(
       payload_request: payload.payload_request ?? null,
       payload_response: payload.payload_response ?? null,
       invoice_id: payload.invoice_id ?? null,
+      cbs_valor: payload.reforma?.cbs_valor ?? null,
+      ibs_valor: payload.reforma?.ibs_valor ?? null,
+      cbs_aliquota: payload.reforma?.cbs_aliquota ?? null,
+      ibs_aliquota: payload.reforma?.ibs_aliquota ?? null,
+      cclasstrib: payload.reforma?.cclasstrib ?? null,
       emitted_at: payload.status === "autorizado" ? new Date().toISOString() : null,
     })
     .select("id")

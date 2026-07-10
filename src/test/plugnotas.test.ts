@@ -155,3 +155,69 @@ describe("extractErrorMessage", () => {
     expect(extractErrorMessage(null)).toBe("Erro desconhecido");
   });
 });
+
+// ---------- Reforma Tributária nos mappers ----------
+
+import { deveDestacar, extractReformaMeta, ibsCbsPayloadGroup } from "@/lib/plugnotas";
+import { montarGrupoIbsCbs } from "@/lib/reforma";
+
+describe("destaque CBS/IBS nos mappers", () => {
+  const nfeReforma: NfeFormData = {
+    emitenteCnpj: "11222333000181",
+    destinatario: tomador,
+    naturezaOperacao: "Venda",
+    itens: [
+      { codigo: "P1", descricao: "Produto 1", ncm: "12345678", cfop: "5102", unidade: "UN", quantidade: 1, valorUnitario: 1000 },
+    ],
+  };
+
+  it("mapNfe com reforma anexa grupo no doc e nos itens", () => {
+    const p = mapNfe(nfeReforma, { cClassTrib: "000001" });
+    expect(p.ibsCbs?.cbs.valor).toBe(9.0);
+    expect(p.ibsCbs?.ibs.valor).toBe(1.0);
+    expect(p.itens[0].tributos?.ibsCbs.cClassTrib).toBe("000001");
+  });
+
+  it("mapNfe sem reforma NÃO anexa grupo (retrocompatível)", () => {
+    const p = mapNfe(nfeReforma) as Record<string, unknown>;
+    expect(p.ibsCbs).toBeUndefined();
+  });
+
+  it("mapNfse e mapCte anexam grupo sobre o valor da operação", () => {
+    const nfse = mapNfse({
+      prestadorCnpj: "11222333000181",
+      tomador,
+      servico: { codigoTributacaoMunicipio: "01", itemListaServico: "01.01", discriminacao: "x", valorServico: 2000 },
+    }, {});
+    expect(nfse.ibsCbs?.cbs.valor).toBe(18.0);
+
+    const cte = mapCte({
+      emitenteCnpj: "11222333000181", naturezaOperacao: "T", modal: "01",
+      remetente: tomador, destinatario: tomador, tomador: "remetente",
+      valorTotal: 500, pesoBruto: 1, origemMunicipio: "1", destinoMunicipio: "2",
+    }, {});
+    expect(cte.ibsCbs?.ibs.valor).toBe(0.5);
+  });
+
+  it("deveDestacar respeita regime e documento", () => {
+    expect(deveDestacar("regular", "nfe", 2026)).toBe(true);
+    expect(deveDestacar("simples", "nfe", 2026)).toBe(false);
+    expect(deveDestacar("regular", "mdfe", 2026)).toBe(false);
+    expect(deveDestacar(null, "nfe", 2026)).toBe(false);
+  });
+
+  it("extractReformaMeta faz o round-trip payload → colunas do banco", () => {
+    const p = mapNfe(nfeReforma, {});
+    const meta = extractReformaMeta(p);
+    expect(meta).toEqual({
+      cbs_valor: 9.0, ibs_valor: 1.0, cbs_aliquota: 0.9, ibs_aliquota: 0.1, cclasstrib: "000001",
+    });
+    expect(extractReformaMeta(mapNfe(nfeReforma))).toBeUndefined();
+  });
+
+  it("ibsCbsPayloadGroup preserva base e alíquotas do grupo", () => {
+    const g = ibsCbsPayloadGroup(montarGrupoIbsCbs(100));
+    expect(g.baseCalculo).toBe(100);
+    expect(g.cbs).toEqual({ aliquota: 0.9, valor: 0.9 });
+  });
+});

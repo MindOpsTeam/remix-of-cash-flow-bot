@@ -44,6 +44,7 @@ Deno.serve(async (req) => {
           payload_request: params,
           payload_response: data,
           invoice_id: invoiceId ?? null,
+          reforma: (body.reforma as { cbs_valor?: number; ibs_valor?: number; cbs_aliquota?: number; ibs_aliquota?: number; cclasstrib?: string } | undefined) ?? null,
         });
         return jsonResponse(res, res.ok ? 200 : res.status, corsHeaders);
       }

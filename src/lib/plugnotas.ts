@@ -7,6 +7,14 @@
  * focados em UX e não em mapeamento.
  */
 
+import {
+  montarGrupoIbsCbs,
+  regimeDestacaEm,
+  docExigeDestaque,
+  type GrupoIbsCbs,
+  type RegimeTributario,
+} from "./reforma";
+
 export type PlugnotasDocType = "nfse" | "nfe" | "nfce" | "cte" | "mdfe";
 
 export const DOC_LABEL: Record<PlugnotasDocType, string> = {
@@ -179,12 +187,74 @@ export interface MdfeFormData {
   observacoes?: string;
 }
 
+// ---------- Reforma Tributária (CBS/IBS) ----------
+
+/**
+ * Opções de destaque CBS/IBS aplicadas pelos mappers.
+ * `deveDestacar` decide a partir do regime da empresa e do tipo de documento.
+ */
+export interface ReformaOpts {
+  cClassTrib?: string;
+}
+
+export function deveDestacar(
+  regime: RegimeTributario | null | undefined,
+  doc: PlugnotasDocType,
+  ano = new Date().getFullYear(),
+): boolean {
+  if (!regime) return false;
+  return docExigeDestaque(doc) && regimeDestacaEm(regime, ano);
+}
+
+/**
+ * Grupo IBS/CBS no formato do payload de emissão (NT 2025.002).
+ * ÚNICO ponto que conhece as chaves do payload — se o PlugNotas nomear
+ * diferente, ajustar apenas aqui.
+ */
+export function ibsCbsPayloadGroup(g: GrupoIbsCbs) {
+  return {
+    cClassTrib: g.cClassTrib,
+    baseCalculo: g.baseCalculo,
+    cbs: { aliquota: g.cbsAliquota, valor: g.cbsValor },
+    ibs: { aliquota: g.ibsAliquota, valor: g.ibsValor },
+  };
+}
+
+/** Metadados de destaque para persistência em plugnotas_documents (snake_case = colunas). */
+export function reformaDbMeta(g: GrupoIbsCbs) {
+  return {
+    cbs_valor: g.cbsValor,
+    ibs_valor: g.ibsValor,
+    cbs_aliquota: g.cbsAliquota,
+    ibs_aliquota: g.ibsAliquota,
+    cclasstrib: g.cClassTrib,
+  };
+}
+
+/**
+ * Extrai do payload já mapeado os metadados de destaque para enviar à edge
+ * function (que persiste em plugnotas_documents). Undefined se não há destaque.
+ */
+export function extractReformaMeta(payload: unknown): ReturnType<typeof reformaDbMeta> | undefined {
+  const g = (payload as { ibsCbs?: ReturnType<typeof ibsCbsPayloadGroup> }).ibsCbs;
+  if (!g) return undefined;
+  return {
+    cbs_valor: g.cbs.valor,
+    ibs_valor: g.ibs.valor,
+    cbs_aliquota: g.cbs.aliquota,
+    ibs_aliquota: g.ibs.aliquota,
+    cclasstrib: g.cClassTrib,
+  };
+}
+
 // ---------- Mappers ----------
 
 function digits(s: string) { return s.replace(/\D/g, ""); }
 
-export function mapNfse(d: NfseFormData) {
+export function mapNfse(d: NfseFormData, reforma?: ReformaOpts | null) {
+  const grupo = reforma ? montarGrupoIbsCbs(d.servico.valorServico, reforma.cClassTrib) : null;
   return {
+    ...(grupo && { ibsCbs: ibsCbsPayloadGroup(grupo) }),
     idIntegracao: newIdIntegracao("nfse"),
     prestador: {
       cpfCnpj: digits(d.prestadorCnpj),
@@ -212,10 +282,12 @@ export function mapNfse(d: NfseFormData) {
   };
 }
 
-export function mapNfe(d: NfeFormData) {
+export function mapNfe(d: NfeFormData, reforma?: ReformaOpts | null) {
   const total = d.itens.reduce((s, it) => s + it.quantidade * it.valorUnitario, 0);
+  const grupoTotal = reforma ? montarGrupoIbsCbs(total, reforma.cClassTrib) : null;
   return {
     idIntegracao: newIdIntegracao("nfe"),
+    ...(grupoTotal && { ibsCbs: ibsCbsPayloadGroup(grupoTotal) }),
     natureza: d.naturezaOperacao,
     emitente: { cpfCnpj: digits(d.emitenteCnpj) },
     destinatario: {
@@ -225,25 +297,30 @@ export function mapNfe(d: NfeFormData) {
       ...(d.destinatario.email && { email: d.destinatario.email }),
       ...(d.destinatario.endereco && { endereco: d.destinatario.endereco }),
     },
-    itens: d.itens.map((it, idx) => ({
-      numeroItem: idx + 1,
-      codigo: it.codigo,
-      descricao: it.descricao,
-      ncm: it.ncm,
-      cfop: it.cfop,
-      unidade: it.unidade,
-      quantidade: it.quantidade,
-      valorUnitario: it.valorUnitario,
-      valorTotal: +(it.quantidade * it.valorUnitario).toFixed(2),
-      ...(it.origemTributaria && { origemTributaria: it.origemTributaria }),
-    })),
+    itens: d.itens.map((it, idx) => {
+      const itemTotal = +(it.quantidade * it.valorUnitario).toFixed(2);
+      const grupoItem = reforma ? montarGrupoIbsCbs(itemTotal, reforma.cClassTrib) : null;
+      return {
+        numeroItem: idx + 1,
+        codigo: it.codigo,
+        descricao: it.descricao,
+        ncm: it.ncm,
+        cfop: it.cfop,
+        unidade: it.unidade,
+        quantidade: it.quantidade,
+        valorUnitario: it.valorUnitario,
+        valorTotal: itemTotal,
+        ...(it.origemTributaria && { origemTributaria: it.origemTributaria }),
+        ...(grupoItem && { tributos: { ibsCbs: ibsCbsPayloadGroup(grupoItem) } }),
+      };
+    }),
     totais: { valorTotal: +total.toFixed(2) },
     ...(d.informacoesAdicionais && { informacoesAdicionais: d.informacoesAdicionais }),
   };
 }
 
-export function mapNfce(d: NfceFormData) {
-  const base = mapNfe(d);
+export function mapNfce(d: NfceFormData, reforma?: ReformaOpts | null) {
+  const base = mapNfe(d, reforma);
   return {
     ...base,
     idIntegracao: newIdIntegracao("nfce"),
@@ -255,9 +332,11 @@ export function mapNfce(d: NfceFormData) {
   };
 }
 
-export function mapCte(d: CteFormData) {
+export function mapCte(d: CteFormData, reforma?: ReformaOpts | null) {
+  const grupo = reforma ? montarGrupoIbsCbs(d.valorTotal, reforma.cClassTrib) : null;
   return {
     idIntegracao: newIdIntegracao("cte"),
+    ...(grupo && { ibsCbs: ibsCbsPayloadGroup(grupo) }),
     natureza: d.naturezaOperacao,
     modal: d.modal,
     emitente: { cpfCnpj: digits(d.emitenteCnpj) },
