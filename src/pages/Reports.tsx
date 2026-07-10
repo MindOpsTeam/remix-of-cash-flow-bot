@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { formatCurrency } from "@/lib/utils";
 import { exportReportToPDF } from "@/lib/pdf-export";
 import { toCsv, downloadCsv } from "@/lib/csv-export";
+import { ReformaDestaqueCard } from "@/components/reforma/ReformaDestaqueCard";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
@@ -191,6 +192,8 @@ export default function Reports() {
           </Button>
         </div>
       </div>
+
+      <ReformaDestaqueCard year={selectedYear} month={selectedMonth} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="bg-card border border-border rounded-lg p-5">

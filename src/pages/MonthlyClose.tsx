@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
-  CalendarCheck, CheckCircle2, AlertCircle, Loader2, Lock, ChevronRight,
+  CalendarCheck, CheckCircle2, AlertCircle, Loader2, Lock, ChevronRight, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -147,6 +147,60 @@ export default function MonthlyClose() {
 
   const months = [monthKey(0), monthKey(-1), monthKey(-2), monthKey(-3)];
 
+  // Resolução em lote: classifica com IA os lançamentos sem conta contábil do mês
+  const [classifying, setClassifying] = useState(false);
+  const batchClassify = async () => {
+    if (!company) return;
+    setClassifying(true);
+    try {
+      const { data: pending } = await supabase
+        .from("transactions")
+        .select("id, description, type")
+        .eq("company_id", company.id)
+        .gte("date", start)
+        .lt("date", end)
+        .is("account_id", null)
+        .limit(20);
+
+      if (!pending || pending.length === 0) {
+        toast.info("Nenhum lançamento sem conta neste mês");
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      let resolved = 0;
+      for (const tx of pending) {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-classify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ description: tx.description, type: tx.type, company_id: company.id }),
+          });
+          if (!res.ok) continue;
+          const suggestion = await res.json();
+          if (!suggestion?.account_id) continue;
+          const { error } = await supabase
+            .from("transactions")
+            .update({
+              account_id: suggestion.account_id,
+              cost_center_id: suggestion.cost_center_id ?? undefined,
+            })
+            .eq("id", tx.id);
+          if (!error) resolved++;
+        } catch {
+          // segue para o próximo — lote é best-effort
+        }
+      }
+      toast.success(`${resolved} de ${pending.length} lançamento(s) classificados pela IA`);
+      qc.invalidateQueries({ queryKey: ["close_checklist", company.id, selected] });
+    } finally {
+      setClassifying(false);
+    }
+  };
+
   return (
     <AppLayout>
       <div className="animate-fade-in max-w-3xl">
@@ -160,17 +214,23 @@ export default function MonthlyClose() {
           </p>
         </div>
 
-        <div className="mb-5 flex flex-wrap gap-2">
-          {months.map((m) => (
-            <Button
-              key={m}
-              size="sm"
-              variant={selected === m ? "default" : "outline"}
-              onClick={() => setSelected(m)}
-            >
-              {formatMonth(m)}
-            </Button>
-          ))}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            {months.map((m) => (
+              <Button
+                key={m}
+                size="sm"
+                variant={selected === m ? "default" : "outline"}
+                onClick={() => setSelected(m)}
+              >
+                {formatMonth(m)}
+              </Button>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" className="gap-2" onClick={batchClassify} disabled={classifying}>
+            {classifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Classificar pendentes com IA
+          </Button>
         </div>
 
         {isClosed && (
