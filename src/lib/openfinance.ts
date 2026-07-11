@@ -38,10 +38,13 @@ function isoToDate(iso: string): string {
 }
 
 export function mapPluggyTransaction(t: PluggyTransaction): NormalizedTransaction {
-  // Convenção Pluggy normalizada: CREDIT = entrada (receita), DEBIT = saída (despesa).
-  // Fallback pelo sinal do amount quando type ausente.
+  // O SINAL do amount é a verdade do fluxo (entrou/saiu da conta): negativo =
+  // despesa, positivo = receita. O campo `type` (CREDIT/DEBIT) é ambíguo em
+  // contas de cartão (o sandbox retorna type=CREDIT para compras com amount
+  // negativo), então só é usado como desempate quando amount = 0.
+  const amt = Number(t.amount);
   const direction: "revenue" | "expense" =
-    t.type === "CREDIT" ? "revenue" : t.type === "DEBIT" ? "expense" : t.amount >= 0 ? "revenue" : "expense";
+    amt < 0 ? "expense" : amt > 0 ? "revenue" : t.type === "DEBIT" ? "expense" : "revenue";
   return {
     external_id: t.id,
     account_external_id: t.accountId ?? null,

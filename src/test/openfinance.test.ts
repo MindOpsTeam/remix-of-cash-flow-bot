@@ -9,7 +9,7 @@ import {
 } from "@/lib/openfinance";
 
 describe("mapPluggyTransaction", () => {
-  it("CREDIT vira receita e DEBIT vira despesa, sempre com valor absoluto", () => {
+  it("valor positivo vira receita, negativo vira despesa, sempre com valor absoluto", () => {
     const receita = mapPluggyTransaction({ id: "t1", description: "PIX recebido", amount: 1500, date: "2026-07-10T00:00:00.000Z", type: "CREDIT", accountId: "a1" });
     expect(receita.direction).toBe("revenue");
     expect(receita.amount).toBe(1500);
@@ -19,6 +19,18 @@ describe("mapPluggyTransaction", () => {
     const despesa = mapPluggyTransaction({ id: "t2", description: "Compra", amount: -230.5, date: "2026-07-09T12:00:00.000Z", type: "DEBIT" });
     expect(despesa.direction).toBe("expense");
     expect(despesa.amount).toBe(230.5);
+  });
+
+  it("cartão de crédito: type=CREDIT com amount NEGATIVO (compra) é despesa (o sinal manda)", () => {
+    // Caso real observado no sandbox: SMART FIT / SPOTIFY vêm como type=CREDIT, amount<0
+    const compra = mapPluggyTransaction({ id: "c1", description: "SMART FIT ACADEMIA", amount: -89.9, date: "2026-07-10", type: "CREDIT" });
+    expect(compra.direction).toBe("expense");
+    expect(compra.amount).toBe(89.9);
+  });
+
+  it("desempate por type apenas quando amount = 0", () => {
+    expect(mapPluggyTransaction({ id: "z1", amount: 0, date: "2026-01-01", type: "DEBIT" }).direction).toBe("expense");
+    expect(mapPluggyTransaction({ id: "z2", amount: 0, date: "2026-01-01", type: "CREDIT" }).direction).toBe("revenue");
   });
 
   it("sem type, infere pela direção do sinal", () => {

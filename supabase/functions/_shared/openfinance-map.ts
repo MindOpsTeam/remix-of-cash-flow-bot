@@ -28,8 +28,11 @@ export interface PluggyTransaction {
 }
 
 export function mapPluggyTransaction(t: PluggyTransaction): NormalizedTransaction {
+  // Sinal do amount = verdade do fluxo (negativo=despesa). `type` é ambíguo em
+  // cartão de crédito (type=CREDIT com amount negativo p/ compras), só desempata em 0.
+  const amt = Number(t.amount);
   const direction: "revenue" | "expense" =
-    t.type === "CREDIT" ? "revenue" : t.type === "DEBIT" ? "expense" : t.amount >= 0 ? "revenue" : "expense";
+    amt < 0 ? "expense" : amt > 0 ? "revenue" : t.type === "DEBIT" ? "expense" : "revenue";
   return {
     external_id: t.id,
     account_external_id: t.accountId ?? null,
