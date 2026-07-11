@@ -86,6 +86,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "agent_actions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       api_keys: {
@@ -132,6 +139,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -680,24 +694,39 @@ export type Database = {
       }
       bank_accounts: {
         Row: {
+          account_type: string | null
+          balance: number | null
           bank_name: string | null
           company_id: string
+          connection_id: string | null
           created_at: string
+          external_id: string | null
           id: string
+          last_synced_at: string | null
           name: string
         }
         Insert: {
+          account_type?: string | null
+          balance?: number | null
           bank_name?: string | null
           company_id: string
+          connection_id?: string | null
           created_at?: string
+          external_id?: string | null
           id?: string
+          last_synced_at?: string | null
           name: string
         }
         Update: {
+          account_type?: string | null
+          balance?: number | null
           bank_name?: string | null
           company_id?: string
+          connection_id?: string | null
           created_at?: string
+          external_id?: string | null
           id?: string
+          last_synced_at?: string | null
           name?: string
         }
         Relationships: [
@@ -706,6 +735,172 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_connections: {
+        Row: {
+          company_id: string
+          consent_expires_at: string | null
+          created_at: string
+          external_id: string
+          history_calls_month: number
+          history_calls_reset_at: string
+          id: string
+          institution_image: string | null
+          institution_name: string | null
+          last_synced_at: string | null
+          provider: string
+          status: string
+          status_detail: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          consent_expires_at?: string | null
+          created_at?: string
+          external_id: string
+          history_calls_month?: number
+          history_calls_reset_at?: string
+          id?: string
+          institution_image?: string | null
+          institution_name?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          status?: string
+          status_detail?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          consent_expires_at?: string | null
+          created_at?: string
+          external_id?: string
+          history_calls_month?: number
+          history_calls_reset_at?: string
+          id?: string
+          institution_image?: string | null
+          institution_name?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          status?: string
+          status_detail?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_connections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_connections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      bank_transactions_raw: {
+        Row: {
+          account_external_id: string | null
+          amount: number
+          category: string | null
+          company_id: string
+          connection_id: string | null
+          created_at: string
+          date: string
+          description: string | null
+          direction: string
+          external_id: string
+          id: string
+          payment_method: string | null
+          provider: string
+          raw: Json | null
+          status: string
+          transaction_id: string | null
+        }
+        Insert: {
+          account_external_id?: string | null
+          amount: number
+          category?: string | null
+          company_id: string
+          connection_id?: string | null
+          created_at?: string
+          date: string
+          description?: string | null
+          direction: string
+          external_id: string
+          id?: string
+          payment_method?: string | null
+          provider: string
+          raw?: Json | null
+          status?: string
+          transaction_id?: string | null
+        }
+        Update: {
+          account_external_id?: string | null
+          amount?: number
+          category?: string | null
+          company_id?: string
+          connection_id?: string | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          direction?: string
+          external_id?: string
+          id?: string
+          payment_method?: string | null
+          provider?: string
+          raw?: Json | null
+          status?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_raw_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_raw_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_raw_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "bank_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_raw_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -771,6 +966,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bills_payable_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "bills_payable_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
@@ -821,6 +1023,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "budgets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       chart_of_accounts: {
@@ -867,6 +1076,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chart_of_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "chart_of_accounts_parent_id_fkey"
@@ -1096,6 +1312,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_asaas_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       company_asaas_invoices: {
@@ -1280,6 +1503,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_asaas_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -1475,6 +1705,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_asaas_webhook_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       company_journal_entries: {
@@ -1520,6 +1757,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "company_journal_entries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "company_journal_entries_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: false
@@ -1563,6 +1807,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_members_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -1656,6 +1907,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       cost_centers: {
@@ -1690,6 +1948,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_centers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -1734,6 +1999,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_files_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -1803,6 +2075,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inter_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -1880,6 +2159,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "invoices_contact_id_fkey"
@@ -1980,6 +2266,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "monthly_close_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       nfse_config: {
@@ -2051,6 +2344,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "nfse_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       owner_transactions: {
@@ -2109,6 +2409,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "owner_transactions_pf_account_id_fkey"
@@ -2907,6 +3214,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "plugnotas_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       plugnotas_documents: {
@@ -3000,6 +3314,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "plugnotas_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "plugnotas_documents_invoice_id_fkey"
             columns: ["invoice_id"]
             isOneToOne: false
@@ -3014,6 +3335,7 @@ export type Database = {
           active: boolean
           barcode: string | null
           category: string | null
+          cclasstrib: string | null
           cfop: string | null
           company_id: string
           cost_price: number | null
@@ -3037,6 +3359,7 @@ export type Database = {
           active?: boolean
           barcode?: string | null
           category?: string | null
+          cclasstrib?: string | null
           cfop?: string | null
           company_id: string
           cost_price?: number | null
@@ -3060,6 +3383,7 @@ export type Database = {
           active?: boolean
           barcode?: string | null
           category?: string | null
+          cclasstrib?: string | null
           cfop?: string | null
           company_id?: string
           cost_price?: number | null
@@ -3092,6 +3416,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -3208,6 +3539,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "purchase_orders_contact_id_fkey"
@@ -3384,6 +3722,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sales_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "sales_orders_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
@@ -3442,6 +3787,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "stock_movements_product_id_fkey"
@@ -3506,6 +3858,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_guides_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "tax_guides_invoice_id_fkey"
@@ -3606,6 +3965,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "transactions_cost_center_id_fkey"
             columns: ["cost_center_id"]
             isOneToOne: false
@@ -3618,6 +3984,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_counterparty_company_id_fkey"
+            columns: ["counterparty_company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -3681,6 +4054,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "warehouses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       webhook_logs: {
@@ -3727,6 +4107,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "webhook_logs_transaction_id_fkey"
@@ -3799,6 +4186,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "webhooks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "webhooks_default_account_id_fkey"
             columns: ["default_account_id"]
             isOneToOne: false
@@ -3865,6 +4259,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_configs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       whatsapp_messages: {
@@ -3916,6 +4317,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "whatsapp_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
             foreignKeyName: "whatsapp_messages_config_id_fkey"
             columns: ["config_id"]
             isOneToOne: false
@@ -3960,6 +4368,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_pending_actions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
     }
@@ -3980,6 +4395,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
       }
       v_company_margin_full: {
@@ -3997,6 +4419,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -4017,7 +4446,38 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
         ]
+      }
+      v_group_ap_ar: {
+        Row: {
+          ap_a_vencer: number | null
+          ap_vencido: number | null
+          ar_a_vencer: number | null
+          ar_vencido: number | null
+          company_id: string | null
+        }
+        Insert: {
+          ap_a_vencer?: never
+          ap_vencido?: never
+          ar_a_vencer?: never
+          ar_vencido?: never
+          company_id?: string | null
+        }
+        Update: {
+          ap_a_vencer?: never
+          ap_vencido?: never
+          ar_a_vencer?: never
+          ar_vencido?: never
+          company_id?: string | null
+        }
+        Relationships: []
       }
       v_personal_kpis: {
         Row: {
