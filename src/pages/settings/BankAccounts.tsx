@@ -1,5 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
 import { ArrowLeft, Plus, Pencil, Trash2, Landmark } from "lucide-react";
+import { OpenFinanceConnect } from "@/components/openfinance/OpenFinanceConnect";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -132,6 +133,10 @@ export default function BankAccounts() {
           <Plus className="h-4 w-4" />
           Nova conta
         </Button>
+      </div>
+
+      <div className="mb-6">
+        <OpenFinanceConnect />
       </div>
 
       <div className="max-w-lg">

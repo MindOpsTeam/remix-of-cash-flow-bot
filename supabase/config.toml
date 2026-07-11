@@ -65,3 +65,12 @@ verify_jwt = false
 
 [functions.public-api]
 verify_jwt = false
+
+[functions.openfinance-connect]
+verify_jwt = false
+
+[functions.openfinance-sync]
+verify_jwt = false
+
+[functions.openfinance-webhook]
+verify_jwt = false
