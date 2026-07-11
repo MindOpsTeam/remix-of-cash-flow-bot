@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Open Finance no Brasil — Análise de Provedores</title>
+<style>
+  :root {
+    --navy: #0f2440;
+    --navy-2: #1b3a63;
+    --accent: #2f6df6;
+    --ink: #1c2530;
+    --muted: #5b6675;
+    --line: #dde3ea;
+    --bg-soft: #f4f7fb;
+    --good: #0e7a4e;
+    --warn: #b45309;
+    --bad: #b91c1c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    font-family: "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    font-size: 10.5pt;
+    line-height: 1.55;
+  }
+  @page { size: A4; margin: 0; }
+  .page {
+    width: 210mm; min-height: 297mm;
+    padding: 18mm 17mm 16mm;
+    page-break-after: always;
+    position: relative;
+  }
+  .page:last-child { page-break-after: auto; }
+
+  /* ---------- Capa ---------- */
+  .cover {
+    background: linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 55%, #23508f 100%);
+    color: #fff;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 26mm 22mm;
+  }
+  .cover .kicker {
+    font-size: 9pt; letter-spacing: .28em; text-transform: uppercase;
+    color: #9fc0f5; font-weight: 600;
+  }
+  .cover h1 {
+    font-size: 30pt; line-height: 1.14; font-weight: 700; margin-top: 8mm;
+    letter-spacing: -0.015em;
+  }
+  .cover .sub {
+    margin-top: 7mm; font-size: 12.5pt; color: #cddcf5; max-width: 130mm; line-height: 1.5;
+  }
+  .cover .divider { width: 26mm; height: 1.4mm; background: var(--accent); margin-top: 10mm; }
+  .cover .meta { font-size: 9.5pt; color: #9fb4d4; line-height: 1.9; }
+  .cover .meta strong { color: #fff; font-weight: 600; }
+  .cover .badges { margin-top: 6mm; display: flex; gap: 3mm; flex-wrap: wrap; }
+  .cover .badge {
+    border: 1px solid rgba(255,255,255,.35); border-radius: 999px;
+    padding: 1.4mm 4.5mm; font-size: 8.5pt; color: #dbe7fa;
+  }
+
+  /* ---------- Tipografia interna ---------- */
+  h2 {
+    font-size: 16pt; color: var(--navy); letter-spacing: -0.01em;
+    padding-bottom: 2.5mm; border-bottom: 2.5px solid var(--accent);
+    margin-bottom: 6mm; font-weight: 700;
+  }
+  h2 .num { color: var(--accent); margin-right: 3mm; }
+  h3 { font-size: 12pt; color: var(--navy-2); margin: 6mm 0 2.5mm; font-weight: 700; }
+  h4 { font-size: 10.5pt; color: var(--navy-2); margin: 4mm 0 1.5mm; }
+  p { margin-bottom: 3mm; }
+  ul, ol { margin: 0 0 3.5mm 5.5mm; }
+  li { margin-bottom: 1.6mm; }
+  strong { color: var(--navy); }
+  .muted { color: var(--muted); }
+  .small { font-size: 9pt; }
+
+  .lead {
+    font-size: 11.5pt; color: var(--navy-2); line-height: 1.6;
+    border-left: 3.5px solid var(--accent); padding-left: 5mm; margin-bottom: 6mm;
+  }
+
+  .callout {
+    background: var(--bg-soft); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    border-radius: 2.5mm; padding: 4.5mm 5.5mm; margin: 4.5mm 0;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.good { border-left-color: var(--good); }
+  .callout .title { font-weight: 700; color: var(--navy); margin-bottom: 1.5mm; font-size: 10pt; }
+
+  table { width: 100%; border-collapse: collapse; margin: 3.5mm 0 5mm; font-size: 9.3pt; }
+  th {
+    background: var(--navy); color: #fff; text-align: left;
+    padding: 2.6mm 3mm; font-weight: 600; font-size: 8.8pt;
+    letter-spacing: .02em;
+  }
+  td { padding: 2.5mm 3mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .dense td { padding: 1.8mm 2.5mm; }
+  .dense th { padding: 2mm 2.5mm; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .tag {
+    display: inline-block; border-radius: 999px; padding: .4mm 3mm; font-size: 8pt; font-weight: 700;
+  }
+  .tag.rec { background: #e5f5ec; color: var(--good); }
+  .tag.no { background: #fdeaea; color: var(--bad); }
+  .tag.mid { background: #fef3e2; color: var(--warn); }
+
+  .provider {
+    border: 1px solid var(--line); border-radius: 3mm; padding: 5mm 6mm; margin-bottom: 5mm;
+    page-break-inside: avoid;
+  }
+  .provider .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2mm; }
+  .provider .name { font-size: 12.5pt; font-weight: 700; color: var(--navy); }
+  .provider .price { font-size: 10pt; font-weight: 700; color: var(--accent); text-align: right; }
+  .provider .facts { display: flex; flex-wrap: wrap; gap: 2mm; margin: 2mm 0 3mm; }
+  .provider .fact {
+    background: var(--bg-soft); border: 1px solid var(--line); border-radius: 999px;
+    padding: 1mm 3.5mm; font-size: 8.3pt; color: var(--muted);
+  }
+
+  .score { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; margin: 5mm 0; }
+  .score .card {
+    border: 1px solid var(--line); border-radius: 3mm; padding: 5mm;
+    text-align: center;
+  }
+  .score .card .big { font-size: 17pt; font-weight: 700; color: var(--navy); }
+  .score .card .lbl { font-size: 8.5pt; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 1mm; }
+
+  .footer {
+    position: absolute; bottom: 8mm; left: 17mm; right: 17mm;
+    display: flex; justify-content: space-between;
+    font-size: 8pt; color: var(--muted);
+    border-top: 1px solid var(--line); padding-top: 2.5mm;
+  }
+
+  .flow { display: flex; align-items: stretch; gap: 2.5mm; margin: 4mm 0; }
+  .flow .step {
+    flex: 1; background: var(--bg-soft); border: 1px solid var(--line);
+    border-radius: 2.5mm; padding: 3.5mm 3mm; font-size: 8.6pt; text-align: center;
+  }
+  .flow .step .n {
+    display: inline-block; width: 6mm; height: 6mm; line-height: 6mm; border-radius: 50%;
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 8.5pt; margin-bottom: 1.6mm;
+  }
+  .flow .arrow { align-self: center; color: var(--accent); font-weight: 700; }
+
+  .toc td { border-bottom: 1px dotted var(--line); background: transparent !important; }
+  .toc .pg { text-align: right; color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- ============ CAPA ============ -->
+<section class="page cover">
+  <div>
+    <div class="kicker">Relatório técnico &nbsp;·&nbsp; Conectividade bancária</div>
+    <h1>Open Finance no Brasil<br>Análise de Provedores e<br>Estratégia de Integração</h1>
+    <p class="sub">Avaliação das rotas de conectividade bancária multi-instituição para a plataforma financeira: agregadores regulados, participação direta no Open Finance Brasil e integrações banco a banco.</p>
+    <div class="divider"></div>
+    <div class="badges">
+      <span class="badge">5 provedores avaliados</span>
+      <span class="badge">3 rotas comparadas</span>
+      <span class="badge">Base regulatória verificada (BCB)</span>
+      <span class="badge">Fontes primárias 2025–2026</span>
+    </div>
+  </div>
+  <div class="meta">
+    <strong>FinanceAI — ERP Financeiro com Agentes de IA</strong><br>
+    Julho de 2026 &nbsp;·&nbsp; Documento para decisão executiva<br>
+    Elaborado a partir de pesquisa em fontes primárias (portais oficiais, normativos BCB, documentação técnica dos provedores)
+  </div>
+</section>
+
+<!-- ============ SUMÁRIO + EXECUTIVO ============ -->
+<section class="page">
+  <h2><span class="num">—</span>Sumário executivo</h2>
+
+  <p class="lead">Para conectar a plataforma aos principais bancos do país, a rota de <strong>agregador regulado</strong> (Pluggy, Tecnospeed, Iniciador, Belvo) é a única que combina cobertura completa, prazo de semanas e custo previsível. A participação direta no Open Finance exige tornar-se instituição autorizada pelo Banco Central (2–3 anos); a integração banco a banco jamais alcança cobertura total, pois Caixa e Bradesco não oferecem API pública de extrato PJ.</p>
+
+  <div class="score">
+    <div class="card">
+      <div class="big">R$ 540–2.500</div>
+      <div class="lbl">custo mensal · rota agregador</div>
+    </div>
+    <div class="card">
+      <div class="big">2–4 semanas</div>
+      <div class="lbl">prazo até produção</div>
+    </div>
+    <div class="card">
+      <div class="big">~R$ 25</div>
+      <div class="lbl">custo por CNPJ com 100 conexões</div>
+    </div>
+  </div>
+
+  <div class="callout good">
+    <div class="title">Recomendação</div>
+    Conduzir <strong>prova de conceito dupla</strong>: Pluggy (sandbox gratuito, trial de produção de 14 dias, fornecedora de Conta Azul, Nibo e TOTVS) em paralelo à Tecnospeed PlugBank (custo de entrada reportado ~4× menor e sinergia com o contrato PlugNotas já existente). A integração direta com o Banco Inter, já em produção, permanece — custo zero.
+  </div>
+
+  <h3>Conteúdo</h3>
+  <table class="toc">
+    <tr><td>1. Contexto e problema</td><td class="pg">3</td></tr>
+    <tr><td>2. Como funciona o acesso ao Open Finance (base regulatória)</td><td class="pg">3</td></tr>
+    <tr><td>3. Rota A — Agregadores regulados: perfis completos</td><td class="pg">4</td></tr>
+    <tr><td>4. Rota B — Participação direta no Open Finance Brasil</td><td class="pg">6</td></tr>
+    <tr><td>5. Rota C — Integrações banco a banco</td><td class="pg">7</td></tr>
+    <tr><td>6. Comparativo consolidado das três rotas</td><td class="pg">8</td></tr>
+    <tr><td>7. Restrições técnicas da rede e economia unitária</td><td class="pg">9</td></tr>
+    <tr><td>8. Arquitetura de implementação proposta</td><td class="pg">10</td></tr>
+    <tr><td>9. Plano de ação e próximos passos</td><td class="pg">10</td></tr>
+    <tr><td>Fontes consultadas</td><td class="pg">10</td></tr>
+  </table>
+
+  <div class="footer"><span>Open Finance no Brasil — Análise de Provedores</span><span>FinanceAI · Julho 2026 · pág. 2</span></div>
+</section>
+
+<!-- ============ CONTEXTO + REGULATÓRIO ============ -->
+<section class="page">
+  <h2><span class="num">1</span>Contexto e problema</h2>
+  <p>A plataforma possui hoje <strong>uma única integração bancária direta (Banco Inter</strong>, via API com certificado mTLS) e importação manual de extratos OFX/CSV. O benchmark competitivo — Conta Azul Pro — oferece conexão regulada via Open Finance com <strong>10 bancos</strong> (Sicoob, Nubank, Banco do Brasil, Bradesco, Inter, C6, Itaú, Santander, Sicredi e Caixa), com importação diária de extrato e conciliação automática, comunicada como economia de "até 20 horas por mês".</p>
+  <p>A conectividade bancária multi-instituição é o principal degrau funcional entre a plataforma e os líderes do segmento: alimenta a conciliação automática, o fluxo de caixa em tempo real e os agentes de IA (cobrança, fechamento, alertas) com dados bancários frescos de todos os bancos onde o cliente opera.</p>
+
+  <h2 style="margin-top:8mm"><span class="num">2</span>Como funciona o acesso ao Open Finance</h2>
+  <p>O Open Finance Brasil é o ecossistema regulado pelo Banco Central (Resolução Conjunta nº 1/2020) em que instituições compartilham dados de clientes mediante consentimento. Três pontos definem quem pode acessar:</p>
+  <ul>
+    <li><strong>Somente instituições autorizadas pelo BCB participam do ecossistema</strong> (Art. 1º e 6º). O cadastro no Diretório de Participantes exige comprovação da autorização. Uma empresa de software, por si só, não ingressa.</li>
+    <li><strong>O Art. 36 prevê a figura da parceria</strong>: um participante autorizado (o agregador) coleta os dados com consentimento e os disponibiliza ao parceiro não regulado, respondendo perante o regulador. É por essa via que praticamente todo SaaS brasileiro — incluindo os líderes de mercado — consome Open Finance hoje.</li>
+    <li><strong>Atenção regulatória</strong>: o Banco Central sinalizou a intenção de regulamentar as parcerias (figura da "integradora", modelo 1x1x1, vedação de repasse a terceiros). Ainda não é norma; é um risco a monitorar que afeta igualmente todos os concorrentes que usam agregador.</li>
+  </ul>
+
+  <div class="callout">
+    <div class="title">Tradução prática</div>
+    Existem exatamente três rotas: <strong>(A)</strong> contratar um agregador autorizado — semanas; <strong>(B)</strong> tornar-se instituição autorizada e participar diretamente — anos; <strong>(C)</strong> ignorar o Open Finance e integrar banco a banco via APIs comerciais — cobertura para sempre incompleta.
+  </div>
+
+  <div class="footer"><span>Open Finance no Brasil — Análise de Provedores</span><span>FinanceAI · Julho 2026 · pág. 3</span></div>
+</section>
+
+<!-- ============ ROTA A: PROVEDORES ============ -->
+<section class="page">
+  <h2><span class="num">3</span>Rota A — Agregadores regulados <span class="tag rec" style="vertical-align:middle">RECOMENDADA</span></h2>
+
+  <div class="provider">
+    <div class="head">
+      <span class="name">Pluggy <span class="tag rec">melhor produto</span></span>
+      <span class="price">a partir de R$ 2.500/mês</span>
+    </div>
+    <div class="facts">
+      <span class="fact">pluggy.ai</span><span class="fact">ITP autorizada BCB (Res. 80/2021)</span><span class="fact">Diretório OFB</span><span class="fact">ISO 27001</span><span class="fact">sandbox gratuito</span><span class="fact">trial produção 14 dias</span>
+    </div>
+    <ul>
+      <li><strong>Cobertura:</strong> 300+ conectores (regulados via Open Finance + diretos para instituições fora do ecossistema, na mesma API). Contexto <strong>pessoa jurídica confirmado</strong> nos 12 maiores: Itaú, BB, Bradesco, Santander, Caixa, Sicoob, Sicredi, Inter, C6, Nubank, Safra, BTG.</li>
+      <li><strong>Produto:</strong> contas, transações, investimentos e empréstimos; categorização automática e detecção de recorrência; webhooks de atualização; widget <em>Pluggy Connect</em> pronto para o fluxo de consentimento; pagamentos Pix/ITP (incl. Pix Automático) como módulo adicional (a partir de R$ 500/mês).</li>
+      <li><strong>Modelo comercial:</strong> mínimo mensal + excedente cobrado por chamada de API (não por conta conectada). Piso confirmado de ~R$ 2.500/mês mesmo em negociação (relato de mercado).</li>
+      <li><strong>Prova social decisiva:</strong> é a fornecedora de <strong>Conta Azul, Nibo, TOTVS, Contabilizei, Granatum, F360, Kamino e MarketUP</strong> — exatamente o segmento de ERP/contabilidade PME.</li>
+      <li><strong>Ponto de atenção:</strong> o status page registra atrasos ocasionais de sincronização causados pelas instituições transmissoras (Nubank, Inter, Santander) — a interface do produto deve exibir "última atualização" para gerenciar expectativa.</li>
+    </ul>
+  </div>
+
+  <div class="provider">
+    <div class="head">
+      <span class="name">Tecnospeed PlugBank <span class="tag rec">melhor custo de entrada</span></span>
+      <span class="price">~R$ 1.500 setup + R$ 540/mês*</span>
+    </div>
+    <div class="facts">
+      <span class="fact">tecnospeed.com.br</span><span class="fact">casa do PlugNotas (fornecedor fiscal já contratado)</span><span class="fact">DNA de software houses</span>
+    </div>
+    <ul>
+      <li>Preço de entrada reportado por integrador (*relato público em comunidade técnica; requer confirmação comercial) — cerca de <strong>4× mais barato</strong> que o piso da Pluggy.</li>
+      <li>Vantagem estratégica: <strong>mesmo fornecedor do PlugNotas</strong>, já contratado para emissão fiscal — sinergia de contrato, suporte e billing.</li>
+      <li>Pendência: <strong>validar em POC a cobertura PJ real</strong> (quais bancos, via Open Finance regulado ou conexões diretas) e os SLAs. É a incógnita a resolver antes da decisão final.</li>
+    </ul>
+  </div>
+
+  <div class="footer"><span>Open Finance no Brasil — Análise de Provedores</span><span>FinanceAI · Julho 2026 · pág. 4</span></div>
+</section>
+
+<section class="page">
+  <h2><span class="num">3</span>Rota A — Agregadores regulados <span class="muted" style="font-size:10pt;font-weight:400">(continuação)</span></h2>
+
+  <div class="provider">
+    <div class="head">
+      <span class="name">Iniciador</span>
+      <span class="price">sob consulta</span>
+    </div>
+    <div class="facts">
+      <span class="fact">iniciador.com.br</span><span class="fact">IP autorizada BCB</span><span class="fact">líder em ITP/Pix</span>
+    </div>
+    <ul>
+      <li>Produto de dados bancários PF/PJ ("100+ instituições, uma integração") além da iniciação de pagamentos onde é referência.</li>
+      <li>Argumento comercial: integração em ~2 dias e produção em ~1 semana (claim do fornecedor). Boa carta na manga se as duas primeiras opções falharem em preço ou cobertura.</li>
+    </ul>
+  </div>
+
+  <div class="provider">
+    <div class="head">
+      <span class="name">Belvo</span>
+      <span class="price">US$ 1.000+/mês</span>
+    </div>
+    <div class="facts">
+      <span class="fact">belvo.com</span><span class="fact">IP/ITP autorizada BCB (2022)</span><span class="fact">~15M consentimentos</span><span class="fact">multi-país (BR/MX/CO)</span>
+    </div>
+    <ul>
+      <li>Operação bancária brasileira 100% via Open Finance regulado (sem scraping); ~28 instituições, das quais ~24 com divisão Business/PJ — <strong>cobertura menor que a Pluggy</strong> na cauda longa.</li>
+      <li>Plano de entrada "Launch" a US$ 1.000/mês; propostas reais reportadas em ~R$ 6 mil/mês. Sem vantagem para operação exclusivamente brasileira; relevante se houver expansão LATAM.</li>
+      <li>Saúde financeira: captou US$ 15 milhões em abril/2025.</li>
+    </ul>
+  </div>
+
+  <div class="provider">
+    <div class="head">
+      <span class="name">Klavi &nbsp;·&nbsp; Celcoin/Finansystech &nbsp;·&nbsp; (Quanto)</span>
+      <span class="price">enterprise / sob consulta</span>
+    </div>
+    <ul>
+      <li><strong>Klavi</strong> (IP regulada, Series A de US$ 15M): dados PF e PJ, mas foco comercial em crédito e risco (clientes: Vivo, Renner, 99) — aderência baixa ao caso de conciliação de ERP.</li>
+      <li><strong>Celcoin/Finansystech</strong>: IP consolidada que adquiriu a Finansystech; posiciona-se em dados PJ com preço por transação. Alternativa robusta de segunda rodada.</li>
+      <li><strong>Quanto</strong>: encerrou operação (~2022); domínio inativo. Descartada.</li>
+    </ul>
+  </div>
+
+  <div class="footer"><span>Open Finance no Brasil — Análise de Provedores</span><span>FinanceAI · Julho 2026 · pág. 5</span></div>
+</section>
+
+<!-- ============ ROTAS B e C ============ -->
+<section class="page">
+  <h2><span class="num">4</span>Rota B — Participação direta no OFB <span class="tag no" style="vertical-align:middle">DESCARTADA</span></h2>
+  <p>É o "estado da arte" — e é o que a Conta Azul possui. Porém a Conta Azul é uma <strong>Instituição de Pagamento autorizada pelo Banco Central</strong> desde outubro/2024. Para uma empresa de software não regulada, o caminho exige:</p>
+  <ul>
+    <li><strong>Licenciamento no BCB</strong> como IP, SCD ou figura equivalente: processo de 1–2 anos, capital mínimo, estrutura de compliance, PLD/FT e auditoria contínuas;</li>
+    <li><strong>Certificação técnica FAPI/DCR</strong> obrigatória e certificados digitais BRCAC/BRSEAL (ICP-Brasil) para o Diretório de Participantes;</li>
+    <li><strong>Custeio compartilhado da estrutura</strong> do Open Finance, rateado por faixa de patrimônio (IN BCB 485/2024) — a estrutura já consumiu mais de R$ 124 milhões dos participantes.</li>
+  </ul>
+  <div class="callout warn">
+    <div class="title">Veredito</div>
+    Prazo realista de <strong>2 a 3 anos</strong> e investimento de centenas de milhares de reais. Só se justifica se a tese do produto evoluir para fintech completa (conta própria, float, crédito) — uma decisão de empresa, não de funcionalidade. Reavaliar apenas nesse cenário.
+  </div>
+
+  <div class="footer"><span>Open Finance no Brasil — Análise de Provedores</span><span>FinanceAI · Julho 2026 · pág. 6</span></div>
+</section>
+
+<section class="page">
+  <h2><span class="num">5</span>Rota C — Banco a banco <span class="tag no" style="vertical-align:middle">DESCARTADA COMO ROTA PRINCIPAL</span></h2>
+  <p>Replicar o modelo da integração atual com o Inter para os demais bancos, via APIs comerciais próprias de cada um:</p>
+  <table>
+    <tr><th>Banco</th><th>Extrato PJ via API</th><th>Contratação</th><th>Observação</th></tr>
+    <tr><td><strong>Banco do Brasil</strong></td><td>Sim (API Extratos)</td><td>Sandbox self-service; produção via gerente</td><td>Certificado A1; viável</td></tr>
+    <tr><td><strong>Sicoob</strong></td><td>Sim (Conta Corrente)</td><td>Self-service — o mais aberto</td><td>Cert. A1 <em>do cooperado</em>, rotação anual por cliente</td></tr>
+    <tr><td><strong>Santander</strong></td><td>Sim (Saldo e Extrato v6)</td><td>Parcial</td><td>Credenciais da conta PJ + cert. A1</td></tr>
+    <tr><td><strong>Itaú</strong></td><td>Existe</td><td>Somente via gerente + contrato de parceria</td><td>Atrito alto</td></tr>
+    <tr><td><strong>Bradesco</strong></td><td>Ambíguo</td><td>Integração contratada (D-1)</td><td>Catálogo anuncia, prática difere</td></tr>
+    <tr><td><strong>Caixa</strong></td><td><strong>Não</strong></td><td>—</td><td>Portal só boleto/Pix</td></tr>
+    <tr><td><strong>C6</strong></td><td>Anunciado ("em breve")</td><td>Programa de software houses</td><td>2ª etapa do programa</td></tr>
+  </table>
+  <div class="callout warn">
+    <div class="title">Veredito</div>
+    Cobertura trava em <strong>~60–70%</strong> (Caixa e Bradesco não fecham; Itaú só via gerente), cada banco tem OAuth/mTLS/homologação próprios (~2–4 semanas de desenvolvimento cada) e o atrito de ativação recai sobre o cliente final (certificado A1 por CNPJ, negociação com gerente). Escala mal em um produto multi-tenant. <strong>A integração Inter existente permanece</strong> (custo zero, já amortizada); não expandir a rota.
+  </div>
+
+  <div class="footer"><span>Open Finance no Brasil — Análise de Provedores</span><span>FinanceAI · Julho 2026 · pág. 7</span></div>
+</section>
+
+<!-- ============ COMPARATIVO + LIMITES ============ -->
+<section class="page">
+  <h2><span class="num">6</span>Comparativo consolidado</h2>
+  <table class="dense" style="font-size:8.5pt">
+    <tr>
+      <th style="width:20%">Critério</th>
+      <th>A · Agregador regulado</th>
+      <th>B · Participação direta</th>
+      <th>C · Banco a banco</th>
+    </tr>
+    <tr><td><strong>Custo inicial</strong></td><td>R$ 0 (sandbox gratuito)</td><td>Licença BCB + certificação (centenas de milhares de R$)</td><td>~R$ 0 por banco (certificados A1 ~R$ 200–500/ano)</td></tr>
+    <tr><td><strong>Custo recorrente</strong></td><td>R$ 540/mês (PlugBank*) a R$ 2.500/mês (Pluggy); US$ 1.000+ (Belvo)</td><td>Custeio rateado da estrutura + compliance contínuo</td><td>Baixo em R$; alto em manutenção (certificados por cliente, quebras de API)</td></tr>
+    <tr><td><strong>Esforço de desenvolvimento</strong></td><td>Baixo — 1 API + widget + webhooks (semanas)</td><td>Altíssimo — FAPI, DCR, consentimento, Diretório</td><td>Médio-alto — 2–4 semanas por banco, 6+ integrações distintas</td></tr>
+    <tr><td><strong>Cobertura PJ</strong></td><td><strong>Todos os grandes bancos</strong> (Pluggy 300+; Belvo ~24 PJ)</td><td>Total (é a própria rede)</td><td>~60–70% — sem Caixa; Bradesco incerto; Itaú via gerente</td></tr>
+    <tr><td><strong>Prazo até produção</strong></td><td><strong>Semanas</strong> (trial Pluggy 14 dias; Iniciador ~1 semana)</td><td>2–3 anos</td><td>1–3 meses por leva de bancos</td></tr>
+    <tr><td><strong>Requisito regulatório</strong></td><td>Nenhum (parceria Art. 36)</td><td>Ser IP/SCD autorizada BCB</td><td>Nenhum (contratos comerciais)</td></tr>
+    <tr><td><strong>Riscos principais</strong></td><td>Lock-in de fornecedor; BC revisando regras de parceria; limites de consumo da rede</td><td>Custo/prazo incompatíveis com SaaS</td><td>Cobertura eternamente incompleta; atrito no onboarding</td></tr>
+    <tr><td><strong>Veredito</strong></td><td><span class="tag rec">RECOMENDADA</span></td><td><span class="tag no">DESCARTADA</span></td><td><span class="tag mid">MANTER SÓ O INTER</span></td></tr>
+  </table>
+  <p class="small muted">* Valor de entrada do PlugBank reportado publicamente por integrador; sujeito a confirmação comercial.</p>
+
+  <div class="footer"><span>Open Finance no Brasil — Análise de Provedores</span><span>FinanceAI · Julho 2026 · pág. 8</span></div>
+</section>
+
+<section class="page">
+  <h2><span class="num">7</span>Restrições técnicas da rede (valem para qualquer rota)</h2>
+  <p>O ecossistema Open Finance impõe <strong>limites operacionais de consumo por CNPJ conectado, por mês</strong> — herdados por qualquer agregador:</p>
+  <ul>
+    <li><strong>Histórico de transações (12 meses): 8 chamadas/mês</strong> — o histórico completo deve ser puxado uma única vez, no onboarding da conexão;</li>
+    <li>Transações recentes: 240 chamadas/mês — sincronização incremental via webhook + agenda;</li>
+    <li>Saldos: 420 chamadas/mês.</li>
+  </ul>
+  <div class="callout">
+    <div class="title">Implicação de arquitetura</div>
+    O motor de sincronização deve ser <strong>"histórico 1×, incrementais por evento"</strong>, com contador de chamadas por conexão e indicador de "última atualização" na interface — padrão adotado pelos líderes do mercado para gerenciar atrasos das instituições transmissoras.
+  </div>
+
+  <h3>Economia unitária projetada (rota agregador)</h3>
+  <table>
+    <tr><th>Cenário</th><th>PlugBank (R$ 540/mês)*</th><th>Pluggy (R$ 2.500/mês)</th></tr>
+    <tr><td>20 CNPJs conectados</td><td>R$ 27,00 / CNPJ / mês</td><td>R$ 125,00 / CNPJ / mês</td></tr>
+    <tr><td>100 CNPJs conectados</td><td>R$ 5,40 / CNPJ / mês</td><td>R$ 25,00 / CNPJ / mês</td></tr>
+    <tr><td>500 CNPJs conectados</td><td>R$ 1,08 / CNPJ / mês</td><td>R$ 5,00 / CNPJ / mês</td></tr>
+  </table>
+  <p class="small muted">Custo do mínimo mensal diluído por conexão ativa; excedentes por chamada de API não incluídos (mitigados pela arquitetura de sincronização incremental da seção 8). *Valor PlugBank sujeito a confirmação comercial.</p>
+
+  <div class="footer"><span>Open Finance no Brasil — Análise de Provedores</span><span>FinanceAI · Julho 2026 · pág. 9</span></div>
+</section>
+
+<!-- ============ ARQUITETURA + PLANO ============ -->
+<section class="page">
+  <h2><span class="num">8</span>Arquitetura de implementação proposta</h2>
+  <p>Fluxo validado contra a documentação técnica oficial do provedor líder (Pluggy); o desenho é equivalente nos demais agregadores:</p>
+
+  <div class="flow">
+    <div class="step"><span class="n">1</span><br><strong>Conexão</strong><br>Backend gera token de conexão; cliente abre o widget do provedor</div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="n">2</span><br><strong>Consentimento</strong><br>Cliente autentica no banco e autoriza via Open Finance</div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="n">3</span><br><strong>Sincronização</strong><br>Histórico 1× + webhooks de novas transações</div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="n">4</span><br><strong>Conciliação</strong><br>IA classifica e casa com lançamentos; motor de matching existente</div>
+    <div class="arrow">→</div>
+    <div class="step"><span class="n">5</span><br><strong>Aprovação</strong><br>Divergências viram ações do agente, aprovadas pelo gestor</div>
+  </div>
+
+  <p>Componentes sobre a infraestrutura atual (Supabase + edge functions), reaproveitando os motores já em produção:</p>
+  <ul>
+    <li><strong>Banco de dados</strong> (migração aditiva): tabela de conexões bancárias por empresa (provedor, instituição, status, última sincronização, contador de chamadas), vínculo com contas bancárias existentes e área de staging com deduplicação por identificador externo;</li>
+    <li><strong>Serviço de conexão</strong>: autenticado, cria o token do widget e registra a conexão;</li>
+    <li><strong>Serviço de webhook</strong>: valida assinatura do provedor, ingere transações incrementais e agenda o fallback diário respeitando os limites da rede;</li>
+    <li><strong>Conciliação assistida</strong>: transações ingeridas passam pela classificação automática de IA e pelo motor de conciliação já existente; divergências entram na fila de aprovação dos agentes (padrão da plataforma: nada é executado sem aprovação humana);</li>
+    <li><strong>Interface</strong>: botão "Conectar banco (Open Finance)" nas configurações de contas bancárias, com status da conexão e horário da última atualização.</li>
+  </ul>
+  <p><strong>Estimativa de esforço:</strong> 1–2 semanas de desenvolvimento após a liberação do ambiente (sandbox/contrato).</p>
+
+  <h2 style="margin-top:8mm"><span class="num">9</span>Plano de ação</h2>
+  <table>
+    <tr><th style="width:8%">#</th><th>Ação</th><th style="width:22%">Responsável</th><th style="width:18%">Prazo sugerido</th></tr>
+    <tr><td>1</td><td>Criar conta sandbox na Pluggy (gratuita, self-service) e solicitar proposta comercial com trial de produção</td><td>Negócio</td><td>Semana 1</td></tr>
+    <tr><td>2</td><td>Solicitar proposta do PlugBank à Tecnospeed, aproveitando o relacionamento PlugNotas; exigir matriz de cobertura PJ por banco</td><td>Negócio</td><td>Semana 1</td></tr>
+    <tr><td>3</td><td>POC técnica nos dois sandboxes: conexão, extrato PJ, webhooks, qualidade de categorização</td><td>Engenharia</td><td>Semanas 2–3</td></tr>
+    <tr><td>4</td><td>Decisão pelo fornecedor (critérios: cobertura PJ real, custo total a 100/500 CNPJs, SLA, contrato)</td><td>Negócio + Engenharia</td><td>Semana 3</td></tr>
+    <tr><td>5</td><td>Implementação em produção (arquitetura da seção 8) + piloto com 5–10 clientes</td><td>Engenharia</td><td>Semanas 4–5</td></tr>
+  </table>
+
+  <h3>Fontes consultadas</h3>
+  <p class="small muted">
+    pluggy.ai (pricing, open-finance, security) · docs.pluggy.ai (cobertura de instituições) · belvo.com/plans-and-pricing · developers.belvo.com (instituições PJ e limites de consumo da rede) · iniciador.com.br/produtos/dados-bancarios · klavi.ai · tecnospeed.com.br · openfinancebrasil.org.br (onboarding, regras de custeio) · Resolução Conjunta BCB/CMN nº 1/2020 (Arts. 1º, 6º e 36) · Resolução BCB nº 80/2021 · IN BCB nº 485/2024 · portais de desenvolvedores: BB, Sicoob, Santander, Itaú · Finsiders (consentimentos Belvo; BC e a regulamentação de parcerias) · TabNews (relatos públicos de pricing de integradores) · contaazul.com (benchmark de cobertura Open Finance).<br><br>
+    <em>Valores e condições comerciais refletem informações públicas em julho/2026 e devem ser confirmados em proposta formal. Este documento não constitui aconselhamento jurídico ou regulatório.</em>
+  </p>
+
+  <div class="footer"><span>Open Finance no Brasil — Análise de Provedores</span><span>FinanceAI · Julho 2026 · pág. 10</span></div>
+</section>
+
+</body>
+</html>
