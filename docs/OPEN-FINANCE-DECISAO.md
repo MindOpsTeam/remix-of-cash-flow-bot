@@ -44,5 +44,26 @@ Componentes no nosso stack (espelha o padrão inter-banking/asaas):
 
 Estimativa: ~1-2 semanas de dev depois do contrato/sandbox aprovado. Bloqueio externo: criar conta Pluggy (dashboard.pluggy.ai) e/ou falar com Tecnospeed — precisa do usuário.
 
+## ✅ Implementado (2026-07-11)
+
+A integração Pluggy foi construída de ponta a ponta (provider-agnóstica, Belvo plugável depois):
+
+**Produto** (commit ba54aa8):
+- Migration `bank_connections` + `bank_transactions_raw` (staging c/ dedupe) + colunas em `bank_accounts` — **aplicada em produção**.
+- Edges `openfinance-connect` (token do widget + register+sync inicial), `openfinance-sync` (incremental + import p/ `transactions`), `openfinance-webhook` (ingest por evento). Guard do limite OFB (8 chamadas de histórico/CNPJ/mês) embutido.
+- UI: componente **"Conectar banco (Open Finance)"** em Configurações → Contas Bancárias, com o widget oficial `react-pluggy-connect`, cards de status por conexão, botão sincronizar e badge de "N transações para revisar". Graceful quando as credenciais ainda não estão configuradas.
+- `src/lib/openfinance.ts` provider-agnóstico (Pluggy + Belvo) + 7 testes unitários.
+
+**MCP servers** (commit 4f3886e): `mcp-servers/pluggy` e `mcp-servers/belvo`, 10 ferramentas cada, registrados no Claude Code como `pluggy-api` e `belvo-api` (✔ conectados). Sandbox-ready.
+
+### Sandbox — SIM, existe e é grátis
+- **Pluggy**: sandbox self-service em dashboard.pluggy.ai. Conector 2 ("Pluggy Bank"), credenciais `user-ok`/`password-ok` simulam conexão OK (o widget aceita `includeSandbox`). Trial de produção 14 dias.
+- **Belvo**: `https://sandbox.belvo.com`, instituição de teste `erebor_br_retail`.
+
+### Como ATIVAR (passos do usuário — bloqueio externo)
+1. Criar app no dashboard.pluggy.ai → copiar CLIENT_ID e CLIENT_SECRET.
+2. Adicionar como **secrets do projeto Supabase/Lovable**: `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET`. A partir daí o botão "Conectar banco" acende sozinho.
+3. (MCPs) preencher as mesmas credenciais em `~/.claude.json` nos servidores `pluggy-api`/`belvo-api`.
+
 ## Fontes
-pluggy.ai/pricing · pluggy.ai/open-finance · docs.pluggy.ai (coverage) · belvo.com/plans-and-pricing · developers.belvo.com (instituições PJ, limites de retrieval) · openfinancebrasil.org.br/onboarding · Res. Conjunta 1/2020 (Art. 36) · IN BCB 485/2024 (custeio) · TabNews (relatos de pricing Pluggy/Belvo/Tecnospeed) · portais dev BB/Sicoob/Santander/Itaú · Finsiders (BC regulamentando parcerias).
+pluggy.ai/pricing · pluggy.ai/open-finance · docs.pluggy.ai (OpenAPI oficial) · belvo.com/plans-and-pricing · developers.belvo.com (instituições PJ, limites de retrieval) · openfinancebrasil.org.br/onboarding · Res. Conjunta 1/2020 (Art. 36) · IN BCB 485/2024 (custeio) · TabNews (relatos de pricing Pluggy/Belvo/Tecnospeed) · portais dev BB/Sicoob/Santander/Itaú · Finsiders (BC regulamentando parcerias).
