@@ -23,18 +23,32 @@ interface IbgeMunicipio {
   microrregiao?: { mesorregiao?: { UF?: { sigla?: string; regiao?: { sigla?: string } } } };
 }
 
+// O prefixo de 2 dígitos do código IBGE é o código da UF — fallback robusto para
+// municípios novos cujo aninhamento microrregiao/mesorregiao vem vazio na API.
+const UF_BY_CODE: Record<string, [string, string]> = {
+  "11": ["RO", "N"], "12": ["AC", "N"], "13": ["AM", "N"], "14": ["RR", "N"],
+  "15": ["PA", "N"], "16": ["AP", "N"], "17": ["TO", "N"], "21": ["MA", "NE"],
+  "22": ["PI", "NE"], "23": ["CE", "NE"], "24": ["RN", "NE"], "25": ["PB", "NE"],
+  "26": ["PE", "NE"], "27": ["AL", "NE"], "28": ["SE", "NE"], "29": ["BA", "NE"],
+  "31": ["MG", "SE"], "32": ["ES", "SE"], "33": ["RJ", "SE"], "35": ["SP", "SE"],
+  "41": ["PR", "S"], "42": ["SC", "S"], "43": ["RS", "S"], "50": ["MS", "CO"],
+  "51": ["MT", "CO"], "52": ["GO", "CO"], "53": ["DF", "CO"],
+};
+
 async function syncMunicipalities(supabase: SupabaseAny): Promise<number> {
   const res = await fetch("https://servicodados.ibge.gov.br/api/v1/localidades/municipios");
   if (!res.ok) throw new Error(`IBGE ${res.status}`);
   const data = (await res.json()) as IbgeMunicipio[];
 
   const rows = data.map((m) => {
+    const code = String(m.id);
     const uf = m.microrregiao?.mesorregiao?.UF;
+    const fallback = UF_BY_CODE[code.slice(0, 2)] ?? ["", null as string | null];
     return {
-      code_ibge: String(m.id),
+      code_ibge: code,
       name: m.nome,
-      uf: uf?.sigla ?? "",
-      region: uf?.regiao?.sigla ?? null,
+      uf: uf?.sigla || fallback[0],
+      region: uf?.regiao?.sigla || fallback[1],
       updated_at: new Date().toISOString(),
     };
   });
