@@ -20,7 +20,6 @@ import {
   ScanLine,
   Scale,
   ChevronDown,
-  Plug,
   Users,
   Package,
   ShoppingCart,
@@ -32,7 +31,27 @@ import {
   Bot,
   CalendarCheck,
   Target,
+  Compass,
+  Briefcase,
+  Zap,
+  Landmark,
+  Link2,
+  Database,
+  Check,
 } from "lucide-react";
+
+// ---------- Personas (níveis de decisão do usuário do ERP) ----------
+
+type Persona = "estrategico" | "tatico" | "operacional" | "completo";
+
+const PERSONAS: { key: Persona; label: string; hint: string }[] = [
+  { key: "completo", label: "Completo", hint: "todas as áreas" },
+  { key: "estrategico", label: "Estratégico", hint: "visão e decisão" },
+  { key: "tatico", label: "Tático", hint: "gestão e controle" },
+  { key: "operacional", label: "Operacional", hint: "execução do dia a dia" },
+];
+
+const PERSONA_STORAGE_KEY = "cfo:nav-persona";
 
 // ---------- Types ----------
 
@@ -46,107 +65,93 @@ interface NavGroup {
   key: string;
   label: string;
   icon: LucideIcon;
+  /** Perfis que enxergam esta seção (além de "completo", que vê tudo). */
+  personas: Exclude<Persona, "completo">[];
   items: NavItem[];
 }
 
-type NavEntry = NavItem | NavGroup;
+// ---------- Navigation structure (por nível de decisão) ----------
 
-function isGroup(entry: NavEntry): entry is NavGroup {
-  return "items" in entry;
-}
+const painel: NavItem = { to: "/dashboard", label: "Painel", icon: LayoutDashboard };
 
-// ---------- Navigation structure ----------
-
-const mainNav: NavEntry[] = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+const sections: NavGroup[] = [
   {
-    key: "finance",
-    label: "Financeiro",
-    icon: ArrowLeftRight,
+    key: "visao",
+    label: "Visão",
+    icon: Compass,
+    personas: ["estrategico", "tatico"],
+    items: [
+      { to: "/dre", label: "DRE", icon: FileBarChart2 },
+      { to: "/budget", label: "Orçamento × Realizado", icon: Target },
+      { to: "/forecast", label: "Previsão de Caixa", icon: TrendingUp },
+      { to: "/summary", label: "Resumo Executivo", icon: FileText },
+    ],
+  },
+  {
+    key: "inteligencia",
+    label: "Inteligência",
+    icon: Brain,
+    personas: ["estrategico", "tatico"],
+    items: [
+      { to: "/cfo-digital", label: "CFO Digital", icon: Brain },
+      { to: "/agents", label: "Agentes", icon: Bot },
+      { to: "/simulator", label: "Simulador “E se?”", icon: FlaskConical },
+      { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
+    ],
+  },
+  {
+    key: "gestao",
+    label: "Gestão",
+    icon: Briefcase,
+    personas: ["tatico"],
+    items: [
+      { to: "/close", label: "Fechamento Mensal", icon: CalendarCheck },
+      { to: "/fiscal/contas-a-pagar", label: "Contas a Pagar", icon: Receipt },
+      { to: "/reports", label: "Relatórios", icon: PieChart },
+      { to: "/fiscal/impostos", label: "Calendário de Impostos", icon: Calendar },
+      { to: "/settings/consolidation", label: "Consolidação do Grupo", icon: Scale },
+    ],
+  },
+  {
+    key: "operacao",
+    label: "Operação",
+    icon: Zap,
+    personas: ["operacional"],
     items: [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
       { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },
-      { to: "/inter", label: "Banco Inter", icon: ArrowLeftRight },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
+      { to: "/fiscal", label: "Notas Fiscais", icon: FileCheck },
+      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
+      { to: "/inter", label: "Conciliação Bancária", icon: Landmark },
+      { to: "/settings/bank-accounts", label: "Bancos & Open Finance", icon: Link2 },
     ],
   },
   {
     key: "cadastros",
     label: "Cadastros",
-    icon: Users,
+    icon: Database,
+    personas: ["operacional"],
     items: [
       { to: "/contacts", label: "Clientes / Fornecedores", icon: Users },
       { to: "/products", label: "Produtos / Serviços", icon: Package },
-    ],
-  },
-  {
-    key: "sales",
-    label: "Vendas",
-    icon: ShoppingCart,
-    items: [
-      { to: "/sales", label: "Pedidos / Orçamentos", icon: ShoppingCart },
-    ],
-  },
-  {
-    key: "fiscal",
-    label: "Fiscal",
-    icon: FileCheck,
-    items: [
-      { to: "/fiscal", label: "Notas Fiscais", icon: FileCheck },
-      { to: "/fiscal/impostos", label: "Calendário Impostos", icon: Calendar },
-      { to: "/fiscal/contas-a-pagar", label: "Contas a Pagar", icon: Receipt },
-      { to: "/fiscal/arquivos", label: "Arquivos Fiscais", icon: FileText },
-      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
-    ],
-  },
-  {
-    key: "purchases",
-    label: "Compras",
-    icon: ShoppingBag,
-    items: [
-      { to: "/purchases", label: "Pedidos de Compra", icon: ShoppingBag },
+      { to: "/sales", label: "Vendas", icon: ShoppingCart },
+      { to: "/purchases", label: "Compras", icon: ShoppingBag },
       { to: "/stock", label: "Estoque", icon: Warehouse },
-    ],
-  },
-  {
-    key: "analysis",
-    label: "Análise",
-    icon: PieChart,
-    items: [
-      { to: "/dre", label: "DRE", icon: FileBarChart2 },
-      { to: "/budget", label: "Orçamento", icon: Target },
-      { to: "/reports", label: "Relatórios", icon: PieChart },
-      { to: "/forecast", label: "Previsão Fluxo", icon: TrendingUp },
-      { to: "/summary", label: "Resumo Executivo", icon: FileText },
-    ],
-  },
-  {
-    key: "ai",
-    label: "Inteligência",
-    icon: Brain,
-    items: [
-      { to: "/cfo-digital", label: "CFO Digital", icon: Brain },
-      { to: "/agents", label: "Agentes", icon: Bot },
-      { to: "/close", label: "Fechamento", icon: CalendarCheck },
-      { to: "/simulator", label: "Simulador E se?", icon: FlaskConical },
-      { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
-    ],
-  },
-  {
-    key: "integrations",
-    label: "Integrações",
-    icon: Plug,
-    items: [
-      { to: "/settings/integrations", label: "Configurar", icon: Plug },
     ],
   },
 ];
 
 // ---------- Helpers ----------
 
-function getActiveGroup(nav: NavEntry[], pathname: string): string | null {
+function visibleSections(persona: Persona): NavGroup[] {
+  if (persona === "completo") return sections;
+  return sections.filter((s) => s.personas.includes(persona));
+}
+
+function getActiveGroup(nav: NavGroup[], pathname: string): string | null {
   for (const entry of nav) {
-    if (isGroup(entry) && entry.items.some((i) => pathname === i.to || pathname.startsWith(i.to + "/"))) {
+    if (entry.items.some((i) => pathname === i.to || pathname.startsWith(i.to + "/"))) {
       return entry.key;
     }
   }
@@ -217,7 +222,7 @@ function NavGroupSection({
       </button>
       <div
         className={`overflow-hidden transition-all duration-200 ${
-          isOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          isOpen ? "max-h-[28rem] opacity-100" : "max-h-0 opacity-0"
         }`}
       >
         <div className="ml-3 pl-3 border-l border-sidebar-border space-y-0.5 mt-0.5 mb-1">
@@ -235,6 +240,48 @@ function NavGroupSection({
   );
 }
 
+function PersonaSelector({ persona, onChange }: { persona: Persona; onChange: (p: Persona) => void }) {
+  const [open, setOpen] = useState(false);
+  const current = PERSONAS.find((p) => p.key === persona) ?? PERSONAS[0];
+
+  return (
+    <div className="relative px-3 mb-2">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-left transition-colors hover:bg-sidebar-accent"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-wider text-sidebar-muted">Perfil</div>
+          <div className="text-[13px] font-medium text-sidebar-foreground truncate">{current.label}</div>
+        </div>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-sidebar-muted transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={1.5} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-3 right-3 z-20 mt-1 overflow-hidden rounded-md border border-sidebar-border bg-sidebar shadow-lg">
+            {PERSONAS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => { onChange(p.key); setOpen(false); }}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-sidebar-accent ${
+                  p.key === persona ? "text-sidebar-primary" : "text-sidebar-foreground"
+                }`}
+              >
+                <div className="flex-1">
+                  <div className="font-medium">{p.label}</div>
+                  <div className="text-[11px] text-sidebar-muted">{p.hint}</div>
+                </div>
+                {p.key === persona && <Check className="h-4 w-4 shrink-0" strokeWidth={2} />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ---------- Sidebar content (shared between desktop and mobile) ----------
 
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
@@ -242,19 +289,33 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { signOut } = useAuth();
   const { company } = useCompany();
 
-  // Track which groups are open
+  const [persona, setPersona] = useState<Persona>(() => {
+    if (typeof window === "undefined") return "completo";
+    return (localStorage.getItem(PERSONA_STORAGE_KEY) as Persona) || "completo";
+  });
+
+  const nav = visibleSections(persona);
+
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
-    const active = getActiveGroup(mainNav, location.pathname);
+    const active = getActiveGroup(sections, location.pathname);
     return new Set(active ? [active] : []);
   });
 
-  // Auto-open group when route changes
+  // Auto-abre a seção da rota atual
   useEffect(() => {
-    const active = getActiveGroup(mainNav, location.pathname);
+    const active = getActiveGroup(sections, location.pathname);
     if (active && !openGroups.has(active)) {
       setOpenGroups((prev) => new Set([...prev, active]));
     }
   }, [location.pathname]);
+
+  const changePersona = (p: Persona) => {
+    setPersona(p);
+    try { localStorage.setItem(PERSONA_STORAGE_KEY, p); } catch { /* ignore */ }
+    // Ao trocar de perfil, abre a primeira seção visível para orientar
+    const first = visibleSections(p)[0];
+    if (first) setOpenGroups(new Set([first.key]));
+  };
 
   const toggleGroup = (key: string) => {
     setOpenGroups((prev) => {
@@ -268,7 +329,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       {/* Logo */}
-      <div className="p-5 pb-4">
+      <div className="p-5 pb-3">
         <div className="flex items-center gap-3">
           <img src={logo} alt="FinanceAI" className="h-8 w-8 rounded-lg" />
           <div>
@@ -278,27 +339,26 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
+      {/* Seletor de perfil */}
+      <PersonaSelector persona={persona} onChange={changePersona} />
+
       {/* Navigation */}
       <nav className="flex-1 min-h-0 px-3 space-y-0.5 overflow-y-auto">
-        {mainNav.map((entry) =>
-          isGroup(entry) ? (
-            <NavGroupSection
-              key={entry.key}
-              group={entry}
-              pathname={location.pathname}
-              isOpen={openGroups.has(entry.key)}
-              onToggle={() => toggleGroup(entry.key)}
-              onNavigate={onNavigate}
-            />
-          ) : (
-            <NavLink
-              key={entry.to}
-              item={entry}
-              isActive={location.pathname === entry.to}
-              onClick={onNavigate}
-            />
-          ),
-        )}
+        <NavLink
+          item={painel}
+          isActive={location.pathname === painel.to}
+          onClick={onNavigate}
+        />
+        {nav.map((group) => (
+          <NavGroupSection
+            key={group.key}
+            group={group}
+            pathname={location.pathname}
+            isOpen={openGroups.has(group.key)}
+            onToggle={() => toggleGroup(group.key)}
+            onNavigate={onNavigate}
+          />
+        ))}
       </nav>
 
       {/* Settings — fixed at bottom */}
@@ -306,7 +366,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-3 py-2">
         <NavLink
           item={{ to: "/settings", label: "Configurações", icon: Settings }}
-          isActive={location.pathname.startsWith("/settings")}
+          isActive={location.pathname.startsWith("/settings") && !location.pathname.startsWith("/settings/consolidation") && !location.pathname.startsWith("/settings/bank-accounts")}
           onClick={onNavigate}
         />
       </div>
