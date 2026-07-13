@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.openfinance-webhook]
 verify_jwt = false
+
+[functions.tax-rates-sync]
+verify_jwt = false
