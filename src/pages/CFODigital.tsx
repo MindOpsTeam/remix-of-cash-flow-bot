@@ -1,3 +1,4 @@
+import { edgeAuthHeaders, edgeUrl } from "@/lib/edge";
 import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { useCompany } from "@/hooks/useCompany";
@@ -58,13 +59,9 @@ export default function CFODigital() {
     };
 
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cfo-digital`;
-      const resp = await fetch(url, {
+      const resp = await fetch(edgeUrl("cfo-digital"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
+        headers: await edgeAuthHeaders(),
         body: JSON.stringify({
           question: userMessage || undefined,
           company_id: company.id,

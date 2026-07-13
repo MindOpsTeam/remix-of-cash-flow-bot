@@ -8,7 +8,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  FileCheck, Search, FileText, Download, Plus, ExternalLink, Layers,
+  FileCheck, Search, FileText, Plus, ExternalLink, Layers,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -142,9 +142,6 @@ export default function FiscalPage() {
               {Object.entries(typeLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm">
-            <Download className="h-3.5 w-3.5 mr-1.5" /> Exportar CSV
-          </Button>
         </div>
 
         {/* List */}

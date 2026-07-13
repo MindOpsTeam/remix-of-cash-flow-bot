@@ -1,3 +1,4 @@
+import { edgeAuthHeaders, edgeUrl } from "@/lib/edge";
 import { KPICard } from "@/components/KPICard";
 import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,13 +23,9 @@ export function CFODashboard({ data }: CFODashboardProps) {
     const fetchTip = async () => {
       setTipLoading(true);
       try {
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cfo-digital`;
-        const resp = await fetch(url, {
+        const resp = await fetch(edgeUrl("cfo-digital"), {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+          headers: await edgeAuthHeaders(),
           body: JSON.stringify({
             question: "Dê 3 insights rápidos e acionáveis sobre a saúde financeira da empresa em no máximo 3 frases curtas. Sem introdução.",
             company_id: company.id,

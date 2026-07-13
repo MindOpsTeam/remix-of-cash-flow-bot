@@ -1,3 +1,4 @@
+import { edgeAuthHeaders, edgeUrl } from "@/lib/edge";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -60,13 +61,9 @@ export function useDocumentScanner() {
     setResult(null);
     try {
       const base64 = await fileToBase64(file);
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ocr-document`;
-      const res = await fetch(url, {
+      const res = await fetch(edgeUrl("ocr-document"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
+        headers: await edgeAuthHeaders(),
         body: JSON.stringify({
           image_base64: base64,
           mimetype: file.type || "image/jpeg",
@@ -101,13 +98,9 @@ export function useDocumentScanner() {
     for (const file of files) {
       try {
         const base64 = await fileToBase64(file);
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ocr-document`;
-        const res = await fetch(url, {
+        const res = await fetch(edgeUrl("ocr-document"), {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+          headers: await edgeAuthHeaders(),
           body: JSON.stringify({
             image_base64: base64,
             mimetype: file.type || "image/jpeg",

@@ -836,9 +836,9 @@ export default function WhatsApp() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
             <div className="bg-card border border-border rounded-lg p-5">
               <ArrowDownLeft className="h-5 w-5 text-revenue mb-3" />
-              <h3 className="text-sm font-semibold text-foreground mb-1">Lançamento Automático</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-1">Aprovação no grupo</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Envie "Despesa R$ 150 Almoço" no grupo e o sistema cria o lançamento automaticamente.
+                Aprove as ações dos agentes de IA (cobrança, alertas) respondendo "aprovar 1" no grupo.
               </p>
             </div>
             <div className="bg-card border border-border rounded-lg p-5">

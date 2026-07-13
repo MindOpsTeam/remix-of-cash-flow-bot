@@ -33,10 +33,14 @@ const paymentMethods = [
 ];
 
 export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFormProps) {
-  const { company, companies } = useCompany();
+  const { company, companies, scope } = useCompany();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  // CNPJ-alvo da escrita: no escopo combinado o lançamento NÃO pode cair
+  // silenciosamente no primeiro CNPJ — o usuário escolhe explicitamente.
+  const [targetCompanyId, setTargetCompanyId] = useState<string>(company?.id ?? "");
+  useEffect(() => { if (company?.id && !targetCompanyId) setTargetCompanyId(company.id); }, [company?.id]);
   const [classifying, setClassifying] = useState(false);
   const [accounts, setAccounts] = useState<{ id: string; name: string; code: string | null; type: string }[]>([]);
   const [costCenters, setCostCenters] = useState<{ id: string; name: string; category: string }[]>([]);
@@ -87,7 +91,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
           "Content-Type": "application/json",
           Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ description, type: form.type, company_id: company.id }),
+        body: JSON.stringify({ description, type: form.type, company_id: targetCompanyId || company.id }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -141,7 +145,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
 
     setLoading(true);
     const { error } = await supabase.from("transactions").insert({
-      company_id: company.id, user_id: user.id, date: form.date,
+      company_id: targetCompanyId || company.id, user_id: user.id, date: form.date,
       description: form.description.trim(), amount, type: form.type,
       account_id: form.account_id, cost_center_id: form.cost_center_id,
       bank_account_id: form.bank_account_id || null, payment_method: form.payment_method || null,
@@ -175,6 +179,18 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          {scope === "all" && companies.length > 1 && (
+            <div className="rounded-md border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/5 p-3">
+              <Label className="text-xs">Empresa de destino *</Label>
+              <Select value={targetCompanyId} onValueChange={setTargetCompanyId}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="Escolha o CNPJ" /></SelectTrigger>
+                <SelectContent>
+                  {companies.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-[11px] text-muted-foreground">Você está na visão combinada — confirme em qual CNPJ o lançamento será gravado.</p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Tipo *</Label>

@@ -289,8 +289,8 @@ export default function OwnerTransactions() {
             </div>
             <div className="bg-muted/50 rounded-md p-3 text-xs text-muted-foreground">
               <ArrowLeftRight className="h-3.5 w-3.5 inline mr-1.5" />
-              Esta movimentação cria automaticamente um lançamento na conta{" "}
-              <strong>pessoal</strong> e outro na conta da <strong>empresa</strong>.
+              Registra a movimentação e o lançamento correspondente na{" "}
+              <strong>empresa (PJ)</strong>, com a direção correta (retirada/dividendo saem; aporte entra).
             </div>
             <Button
               onClick={handleSubmit}

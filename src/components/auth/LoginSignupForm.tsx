@@ -347,9 +347,6 @@ const LoginSignupForm = () => {
                 />
                 <Lock size={20} />
               </div>
-              <div className="lsf-forgot">
-                <a href="#">Esqueceu a senha?</a>
-              </div>
               <button type="submit" className="lsf-btn" disabled={loading}>
                 {loading ? "Aguarde..." : "Entrar"}
               </button>
