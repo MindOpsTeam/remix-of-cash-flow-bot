@@ -2275,6 +2275,30 @@ export type Database = {
           },
         ]
       }
+      municipalities: {
+        Row: {
+          code_ibge: string
+          name: string
+          region: string | null
+          uf: string
+          updated_at: string
+        }
+        Insert: {
+          code_ibge: string
+          name: string
+          region?: string | null
+          uf: string
+          updated_at?: string
+        }
+        Update: {
+          code_ibge?: string
+          name?: string
+          region?: string | null
+          uf?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       nfse_config: {
         Row: {
           active: boolean
@@ -3874,6 +3898,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tax_rates: {
+        Row: {
+          confidence: string
+          ente_code: string
+          id: string
+          item_code: string | null
+          notes: string | null
+          rate: number
+          source: string
+          tax: string
+          updated_at: string
+          version: string | null
+          vigencia_fim: string | null
+          vigencia_inicio: string
+        }
+        Insert: {
+          confidence?: string
+          ente_code: string
+          id?: string
+          item_code?: string | null
+          notes?: string | null
+          rate: number
+          source: string
+          tax: string
+          updated_at?: string
+          version?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio: string
+        }
+        Update: {
+          confidence?: string
+          ente_code?: string
+          id?: string
+          item_code?: string | null
+          notes?: string | null
+          rate?: number
+          source?: string
+          tax?: string
+          updated_at?: string
+          version?: string | null
+          vigencia_fim?: string | null
+          vigencia_inicio?: string
+        }
+        Relationships: []
       }
       transactions: {
         Row: {
