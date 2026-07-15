@@ -91,4 +91,19 @@ npm run lint && npm test && npm run build
 - [ ] Recebimento vira **1** receita classificada no DRE (loop fechado, sem duplicar com Open Finance).
 - [ ] Invariantes do DRE preservados; testes verdes; verificado em sandbox.
 
-> Referência do cliente: **Sittax** (crawl em andamento) — folga fiscal/contábil; incorporar aprendizados na seção fiscal/estratégia após o crawl.
+## Referência do cliente: Sittax (crawl 15/07) — leitura estratégica
+
+**O que é:** ecossistema SaaS **fiscal/tributário para CONTADORES** (B2B2B, +6 mil escritórios, +275 mil empresas), fundada 2019, Goiânia. 5 módulos: **Simples** (apuração PGDAS + DAS via SERPRO, Fator R, monofásicos, risco de exclusão, SPED/Livros), **Recupera** (créditos PIS/COFINS/ICMS 60 meses **com retificação automática no e-CAC** via RPA — a "última milha"), **ST** (ICMS-ST/DIFAL, MVA, NCM×CEST×CFOP 27 UF), **Token** (cofre de certificados A1), **Monitora** (CND/e-CAC/DTE/DET/DJE, malha fina). **RT** = simulador da Reforma (compara Simples × Híbrido × Normal a partir de XML+PGDAS reais, ano a ano 2027-2033) + IA especialista como lead-magnet. Sales-led, preço sob consulta, **suporte ativo + manutenção pesada** (motor de 22 mi de regras + RPA em portais do governo).
+
+**Sittax é COMPLEMENTAR, não concorrente:** ela é profundidade de **compliance fiscal**; o FinanceAI é **gestão financeira/gerencial** (fluxo de caixa, DRE, AR/AP, agente CFO). Não competem no Contas a Receber.
+
+**Por que o cliente (contador) deu como referência — e o que aprender (NÃO clonar):**
+- **Posicionamento "automação = nova receita pro contador"** — vender cada módulo como honorário recorrente. Framing adaptável.
+- **Canal contador (B2B2B)** — telas/relatórios "para o contador entregar ao cliente dele". Se o comprador é escritório, desenhar para ele.
+- **Grounding em documento real** (XML/PGDAS/extrato) em vez de digitação — mesma filosofia do nosso agente CFO; aplicar a forecast e simulação.
+- **Rastreabilidade** — todo número com base legal/memória de cálculo. Ganha confiança.
+- **Reforma como cunha comercial AGORA** — o **simulador de regime (Simples×Híbrido×Normal, 2027-2033)** é a maior sobreposição com o que JÁ construímos (lib/reforma, tax_rates, Calculadora grátis da RFB) E com a oportunidade Que Coffee/Renato. Demanda validada por 3 frentes.
+
+**Ressalva (nossa constraint "as is, sem suporte"):** Sittax é o oposto — sales-led, suporte ativo, RPA que quebra quando o portal muda. Inspirar no **posicionamento/UX/Reforma/IA**, NÃO no fardo de manter motor de regras + robôs de portal.
+
+**Implicação para este plano:** Contas a Receber/Contratos (pedido explícito do Thiago p/ o negócio dele) segue de pé. MAS a referência Sittax sugere elevar em paralelo a prioridade do **simulador de Reforma por regime** — é o que fala com um contador e reaproveita nossa base fiscal + a oportunidade de franquias. Decisão do dono: fazer AR primeiro (pedido do cliente) ou puxar o simulador de Reforma (cunha comercial de maior alcance).
