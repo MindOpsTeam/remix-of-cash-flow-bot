@@ -84,7 +84,9 @@ Deno.serve(async (req) => {
         .select("id, description, amount, date, type, source, status")
         .eq("company_id", company_id)
         .eq("type", type)
-        .in("source", ["manual", "whatsapp"])
+        // "receivable" incluído: um crédito do extrato/OF concilia com a receita já
+        // lançada pela baixa do contas a receber, em vez de gerar uma 2ª receita.
+        .in("source", ["manual", "whatsapp", "receivable"])
         .neq("status", "reconciled")
         .gte("date", startDate.toISOString().split("T")[0])
         .lte("date", endDate.toISOString().split("T")[0]);
@@ -160,7 +162,9 @@ Deno.serve(async (req) => {
         .from("transactions")
         .select("id, description, amount, date, type, source, status")
         .eq("company_id", company_id)
-        .in("source", ["manual", "whatsapp"])
+        // inclui "receivable" p/ o crédito do extrato conciliar com a receita já
+        // lançada na baixa do contas a receber (anti-duplicidade com Open Finance).
+        .in("source", ["manual", "whatsapp", "receivable"])
         .neq("status", "reconciled")
         .order("date", { ascending: false })
         .limit(200);

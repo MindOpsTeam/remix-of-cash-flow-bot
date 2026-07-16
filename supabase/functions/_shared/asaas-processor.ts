@@ -56,6 +56,9 @@ export async function processEvent(
           raw_payload: p,
       }, { onConflict: conflictKey });
 
+      // Fecha o loop: espelha em receivables e, no recebimento, lança receita no DRE.
+      await syncReceivableFromPayment(supabase, companyId, p);
+
       return { table: `${tablePrefix}payments`, processed: true };
     }
 
@@ -197,6 +200,156 @@ export async function processEvent(
 
     default:
       return null;
+  }
+}
+
+/** Status Asaas que representam dinheiro efetivamente recebido. */
+function isPaidStatus(status: string): boolean {
+  return status === "RECEIVED" || status === "CONFIRMED" || status === "RECEIVED_IN_CASH";
+}
+
+/** Escolhe um user_id da empresa p/ atribuir o lançamento automático (user_id é NOT NULL). */
+async function resolveCompanyUserId(supabase: SupabaseClient, companyId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from("company_members")
+    .select("user_id, role")
+    .eq("company_id", companyId);
+  if (!data || data.length === 0) return null;
+  const pick =
+    data.find((m: Record<string, unknown>) => m.role === "owner") ||
+    data.find((m: Record<string, unknown>) => m.role === "admin") ||
+    data[0];
+  return (pick.user_id as string) ?? null;
+}
+
+/**
+ * Espelha um pagamento Asaas em `receivables` e, quando pago, cria UM lançamento
+ * de receita classificado (type=revenue, status=confirmed, account/cost herdados do
+ * contrato) e o linka de volta. Idempotente por external_id = asaas payment id —
+ * é também a chave anti-duplicidade com o extrato do Open Finance.
+ */
+async function syncReceivableFromPayment(
+  supabase: SupabaseClient,
+  companyId: string,
+  p: Record<string, unknown>,
+): Promise<void> {
+  const asaasPaymentId = p.id as string;
+  if (!asaasPaymentId) return;
+  const status = (p.status as string) || "";
+  const paid = isPaidStatus(status);
+
+  // Herda classificação/cliente do contrato pela assinatura (external_reference = contract.id).
+  let contract: Record<string, unknown> | null = null;
+  const subId = (p.subscription as string) || null;
+  if (subId) {
+    const { data } = await supabase
+      .from("contracts")
+      .select("id, contact_id, account_id, cost_center_id")
+      .eq("company_id", companyId)
+      .eq("asaas_subscription_id", subId)
+      .maybeSingle();
+    contract = data ?? null;
+  }
+  const contactId = (contract?.contact_id as string) ?? null;
+  const accountId = (contract?.account_id as string) ?? null;
+  const costCenterId = (contract?.cost_center_id as string) ?? null;
+
+  const value = (p.value as number) ?? 0;
+  const dueDate = (p.dueDate as string) || null;
+  const description = (p.description as string) || "Cobrança Asaas";
+  const boletoUrl = (p.bankSlipUrl as string) || null;
+  const payUrl = (p.invoiceUrl as string) || null; // link de pagamento (boleto/pix)
+  const paymentDate =
+    (p.paymentDate as string) || (p.confirmedDate as string) || (p.creditDate as string) || null;
+  const receivableStatus = paid ? "recebido" : status === "OVERDUE" ? "vencido" : "a_receber";
+
+  // Upsert do receivable (dedupe por company_id + asaas_payment_id).
+  const { data: existing } = await supabase
+    .from("receivables")
+    .select("id, transaction_id")
+    .eq("company_id", companyId)
+    .eq("asaas_payment_id", asaasPaymentId)
+    .maybeSingle();
+
+  let receivableId = existing?.id as string | undefined;
+  let linkedTx = existing?.transaction_id as string | null | undefined;
+
+  if (!receivableId) {
+    const { data: ins } = await supabase
+      .from("receivables")
+      .insert({
+        company_id: companyId,
+        contact_id: contactId,
+        contract_id: (contract?.id as string) ?? null,
+        description,
+        amount: value,
+        due_date: dueDate,
+        status: receivableStatus,
+        source: "asaas",
+        asaas_payment_id: asaasPaymentId,
+        boleto_url: boletoUrl,
+        pix_url: payUrl,
+        payment_date: paid ? paymentDate : null,
+        account_id: accountId,
+        cost_center_id: costCenterId,
+      })
+      .select("id, transaction_id")
+      .single();
+    receivableId = ins?.id as string | undefined;
+    linkedTx = ins?.transaction_id as string | null | undefined;
+  } else {
+    await supabase
+      .from("receivables")
+      .update({
+        status: receivableStatus,
+        boleto_url: boletoUrl,
+        pix_url: payUrl,
+        payment_date: paid ? paymentDate : null,
+      })
+      .eq("id", receivableId);
+  }
+
+  if (!paid || !receivableId || linkedTx) return; // nada a lançar / já lançado
+
+  // Anti-duplicidade forte: se já existe lançamento com este external_id, só re-linka.
+  const { data: dupTx } = await supabase
+    .from("transactions")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("external_id", asaasPaymentId)
+    .eq("source", "receivable")
+    .maybeSingle();
+  if (dupTx?.id) {
+    await supabase.from("receivables").update({ transaction_id: dupTx.id }).eq("id", receivableId);
+    return;
+  }
+
+  // Sem classificação (cobrança avulsa fora de contrato) NÃO vira receita automática —
+  // fica como "recebido" aguardando classificação manual, pra não poluir o DRE.
+  if (!accountId || !costCenterId) return;
+
+  const userId = await resolveCompanyUserId(supabase, companyId);
+  if (!userId) return;
+
+  const { data: tx } = await supabase
+    .from("transactions")
+    .insert({
+      company_id: companyId,
+      user_id: userId,
+      date: paymentDate || dueDate,
+      description,
+      amount: value,
+      type: "revenue",
+      account_id: accountId,
+      cost_center_id: costCenterId,
+      status: "confirmed",
+      source: "receivable",
+      external_id: asaasPaymentId,
+    })
+    .select("id")
+    .single();
+  if (tx?.id) {
+    await supabase.from("receivables").update({ transaction_id: tx.id }).eq("id", receivableId);
   }
 }
 
