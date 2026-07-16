@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 
     const validationError = validate(
       validateRequired(body, ["action", "company_id"]),
-      validateEnum(action, "action", ["test-connection", "create-webhook", "reactivate-webhook", "get-webhook-status", "sync-payments", "sync-transfers", "sync-bills", "sync-subscriptions"]),
+      validateEnum(action, "action", ["test-connection", "create-webhook", "reactivate-webhook", "get-webhook-status", "sync-payments", "sync-transfers", "sync-bills", "sync-subscriptions", "create-customer", "create-subscription", "create-payment"]),
       validateUUID(company_id, "company_id"),
     );
     if (validationError) {
@@ -346,6 +346,120 @@ Deno.serve(async (req) => {
           offset += limit;
         }
         result = { synced: totalSynced };
+        break;
+      }
+
+      // ---- Escrita no Asaas (Contratos / Contas a Receber) ----
+      // Erro de credencial/validação do Asaas volta 200 com ok:false + details,
+      // pro front tratar sem quebrar (mesma filosofia do test-connection).
+      case "create-customer": {
+        const customer = body.customer as Record<string, unknown> | undefined;
+        if (!customer || !customer.name || !customer.cpfCnpj) {
+          return new Response(
+            JSON.stringify({ error: "customer.name e customer.cpfCnpj são obrigatórios" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const externalReference =
+          (customer.externalReference as string) || (body.external_reference as string) || undefined;
+
+        // find-or-create por externalReference (evita cliente duplicado no Asaas)
+        if (externalReference) {
+          const findResp = await fetch(
+            `${baseUrl}/v3/customers?externalReference=${encodeURIComponent(externalReference)}`,
+            { headers: asaasHeaders }
+          );
+          const found = await findResp.json() as { data?: Record<string, unknown>[] };
+          if (found.data && found.data.length > 0) {
+            result = found.data[0];
+            break;
+          }
+        }
+
+        const resp = await fetch(`${baseUrl}/v3/customers`, {
+          method: "POST",
+          headers: asaasHeaders,
+          body: JSON.stringify({ ...customer, externalReference }),
+        });
+        result = await resp.json();
+        if (!resp.ok) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Asaas API error", asaas_status: resp.status, details: result }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        break;
+      }
+
+      case "create-subscription": {
+        const sub = body.subscription as Record<string, unknown> | undefined;
+        if (!sub || !sub.customer || !sub.value || !sub.nextDueDate) {
+          return new Response(
+            JSON.stringify({ error: "subscription.customer, value e nextDueDate são obrigatórios" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const payload: Record<string, unknown> = {
+          customer: sub.customer,
+          billingType: sub.billingType || "BOLETO",
+          value: sub.value,
+          nextDueDate: sub.nextDueDate,
+          cycle: sub.cycle || "MONTHLY",
+          description: sub.description || undefined,
+          externalReference: sub.externalReference || undefined,
+          endDate: sub.endDate || undefined,
+          maxPayments: sub.maxPayments || undefined,
+        };
+        const resp = await fetch(`${baseUrl}/v3/subscriptions`, {
+          method: "POST",
+          headers: asaasHeaders,
+          body: JSON.stringify(payload),
+        });
+        result = await resp.json();
+        if (!resp.ok) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Asaas API error", asaas_status: resp.status, details: result }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        // espelha a assinatura recém-criada na tabela local
+        const s = result as Record<string, unknown>;
+        if (s.id) {
+          await serviceClient
+            .from("company_asaas_subscriptions")
+            .upsert(mapSubscriptionData(company_id as string, s), { onConflict: "company_id,asaas_id" });
+        }
+        break;
+      }
+
+      case "create-payment": {
+        const pay = body.payment as Record<string, unknown> | undefined;
+        if (!pay || !pay.customer || !pay.value || !pay.dueDate) {
+          return new Response(
+            JSON.stringify({ error: "payment.customer, value e dueDate são obrigatórios" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const payload: Record<string, unknown> = {
+          customer: pay.customer,
+          billingType: pay.billingType || "BOLETO",
+          value: pay.value,
+          dueDate: pay.dueDate,
+          description: pay.description || undefined,
+          externalReference: pay.externalReference || undefined,
+        };
+        const resp = await fetch(`${baseUrl}/v3/payments`, {
+          method: "POST",
+          headers: asaasHeaders,
+          body: JSON.stringify(payload),
+        });
+        result = await resp.json();
+        if (!resp.ok) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Asaas API error", asaas_status: resp.status, details: result }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
         break;
       }
 

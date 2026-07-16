@@ -137,6 +137,7 @@ const sections: NavGroup[] = [
     personas: ["operacional"],
     items: [
       { to: "/contacts", label: "Clientes / Fornecedores", icon: Users },
+      { to: "/contracts", label: "Contratos", icon: FileSignature },
       { to: "/products", label: "Produtos / Serviços", icon: Package },
       { to: "/sales", label: "Vendas", icon: ShoppingCart },
       { to: "/purchases", label: "Compras", icon: ShoppingBag },

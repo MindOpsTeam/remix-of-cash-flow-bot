@@ -46,6 +46,7 @@ const CompanyBills = lazy(() => import("./pages/CompanyBills"));
 const DocumentScanner = lazy(() => import("./pages/DocumentScanner"));
 const OwnerTransactions = lazy(() => import("./pages/OwnerTransactions"));
 const ReceivablesPage = lazy(() => import("./pages/Receivables"));
+const ContractsPage = lazy(() => import("./pages/Contracts"));
 
 // Cadastros (ERP)
 const ContactsPage = lazy(() => import("./pages/Contacts"));
@@ -105,6 +106,7 @@ const AppRoutes = () => (
       <Route path="/transactions" element={<P><Transactions /></P>} />
       <Route path="/transfers" element={<P><CompanyTransfers /></P>} />
       <Route path="/receivables" element={<P><ReceivablesPage /></P>} />
+      <Route path="/contracts" element={<P><ContractsPage /></P>} />
       <Route path="/bills" element={<Navigate to="/fiscal/contas-a-pagar" replace />} />
       <Route path="/documents" element={<P><DocumentScanner /></P>} />
       <Route path="/owner-transactions" element={<P><OwnerTransactions /></P>} />
