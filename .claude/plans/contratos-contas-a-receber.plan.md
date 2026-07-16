@@ -86,10 +86,19 @@ npm run lint && npm test && npm run build
 | Escopo: Conta Azul tem NF automática junto | Média | v1 = cobrança/boleto; emitir NFS-e no recebimento fica p/ fase 4 (já temos emissão) |
 
 ## Acceptance
-- [ ] Contas a Receber funciona (manual + de contrato), com vencidos e baixa.
-- [ ] Contrato gera boleto recorrente via Asaas e envia ao cliente.
-- [ ] Recebimento vira **1** receita classificada no DRE (loop fechado, sem duplicar com Open Finance).
-- [ ] Invariantes do DRE preservados; testes verdes; verificado em sandbox.
+- [x] Contas a Receber funciona (manual + de contrato), com vencidos e baixa.
+- [x] Contrato gera boleto recorrente via Asaas e envia ao cliente (assinatura nativa; create-customer/create-subscription).
+- [x] Recebimento vira **1** receita classificada no DRE (loop fechado, sem duplicar com Open Finance).
+- [x] Invariantes do DRE preservados; testes verdes; verificado em sandbox.
+
+## Resultado (PDCA 5 ciclos, 16/07)
+Implementado e2e nos commits 336b853→de025cb. E2E real em sandbox (tenant criado+destruído via SQL):
+- webhook `PAYMENT_RECEIVED` → receivable `recebido` + **1** receita classificada no DRE = R$500;
+- `PAYMENT_CONFIRMED` duplicado → **idempotente** (segue R$500, dedupe por `external_id`);
+- cobrança avulsa sem contrato → receivable `recebido` **sem** transaction (não polui o DRE);
+- cron `contracts-billing` → gera receivable p/ contrato manual e avança `next_due_date`, sem afetar nenhuma empresa real.
+71 testes verdes · build ok · lint limpo · 4 edges deployadas via `send_prompt execute:true`.
+Pendência única: **Publish do frontend no Lovable** (`lovable_deploy` 403 — usuário clica Publish; preview já atualizado via gitsync).
 
 ## Referência do cliente: Sittax (crawl 15/07) — leitura estratégica
 
