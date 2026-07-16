@@ -1916,6 +1916,105 @@ export type Database = {
           },
         ]
       }
+      contracts: {
+        Row: {
+          account_id: string | null
+          amount: number
+          asaas_customer_id: string | null
+          asaas_subscription_id: string | null
+          billing_day: number
+          company_id: string
+          contact_id: string | null
+          cost_center_id: string | null
+          created_at: string
+          cycle: string
+          description: string
+          end_date: string | null
+          id: string
+          next_due_date: string | null
+          payment_method: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
+          billing_day?: number
+          company_id: string
+          contact_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          cycle?: string
+          description: string
+          end_date?: string | null
+          id?: string
+          next_due_date?: string | null
+          payment_method?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
+          billing_day?: number
+          company_id?: string
+          contact_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          cycle?: string
+          description?: string
+          end_date?: string | null
+          id?: string
+          next_due_date?: string | null
+          payment_method?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contracts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_centers: {
         Row: {
           active: boolean
@@ -3576,6 +3675,119 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receivables: {
+        Row: {
+          account_id: string | null
+          amount: number
+          asaas_payment_id: string | null
+          boleto_url: string | null
+          company_id: string
+          contact_id: string | null
+          contract_id: string | null
+          cost_center_id: string | null
+          created_at: string
+          description: string
+          due_date: string
+          id: string
+          payment_date: string | null
+          pix_url: string | null
+          source: string
+          status: string
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          asaas_payment_id?: string | null
+          boleto_url?: string | null
+          company_id: string
+          contact_id?: string | null
+          contract_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          description: string
+          due_date: string
+          id?: string
+          payment_date?: string | null
+          pix_url?: string | null
+          source?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          asaas_payment_id?: string | null
+          boleto_url?: string | null
+          company_id?: string
+          contact_id?: string | null
+          contract_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string
+          id?: string
+          payment_date?: string | null
+          pix_url?: string | null
+          source?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receivables_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receivables_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receivables_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "receivables_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receivables_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receivables_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receivables_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
