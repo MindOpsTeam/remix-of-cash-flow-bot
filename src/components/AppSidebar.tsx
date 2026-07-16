@@ -38,6 +38,8 @@ import {
   Link2,
   Database,
   Check,
+  HandCoins,
+  FileSignature,
 } from "lucide-react";
 
 // ---------- Personas (níveis de decisão do usuário do ERP) ----------
@@ -107,6 +109,7 @@ const sections: NavGroup[] = [
     items: [
       { to: "/close", label: "Fechamento Mensal", icon: CalendarCheck },
       { to: "/fiscal/contas-a-pagar", label: "Contas a Pagar", icon: Receipt },
+      { to: "/receivables", label: "Contas a Receber", icon: HandCoins },
       { to: "/reports", label: "Relatórios", icon: PieChart },
       { to: "/fiscal/impostos", label: "Calendário de Impostos", icon: Calendar },
       { to: "/settings/consolidation", label: "Consolidação do Grupo", icon: Scale },

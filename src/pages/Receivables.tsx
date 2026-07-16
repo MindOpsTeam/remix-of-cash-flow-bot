@@ -1,0 +1,166 @@
+import { useState } from "react";
+import { AppLayout } from "@/components/AppLayout";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check, Ban, ExternalLink } from "lucide-react";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import { useReceivables, type Receivable, type ReceivableInput } from "@/hooks/useReceivables";
+import { ReceivableFormDialog } from "@/components/receivables/ReceivableFormDialog";
+import { DeleteConfirmDialog } from "@/components/fiscal/DeleteConfirmDialog";
+
+const statusConfig: Record<string, { label: string; className: string }> = {
+  a_receber: { label: "A receber", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  vencido: { label: "Vencido", className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  recebido: { label: "Recebido", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  cancelado: { label: "Cancelado", className: "bg-muted text-muted-foreground" },
+};
+
+const sourceLabel: Record<string, string> = { manual: "Manual", contrato: "Contrato", asaas: "Asaas" };
+
+export default function Receivables() {
+  const { receivables, isLoading, createReceivable, updateReceivable, markAsReceived, cancelReceivable, deleteReceivable } = useReceivables();
+  const [formOpen, setFormOpen] = useState(false);
+  const [editItem, setEditItem] = useState<(ReceivableInput & { id: string }) | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const totals = {
+    aReceber: receivables.filter((r) => r.status === "a_receber").reduce((s, r) => s + Number(r.amount), 0),
+    vencido: receivables.filter((r) => r.status === "vencido").reduce((s, r) => s + Number(r.amount), 0),
+    recebido: receivables.filter((r) => r.status === "recebido").reduce((s, r) => s + Number(r.amount), 0),
+  };
+
+  const openLink = (r: Receivable) => {
+    const url = r.boleto_url || r.pix_url;
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Contas a Receber</h1>
+            <p className="text-sm text-muted-foreground mt-1">Cobranças manuais, de contratos e do Asaas — a baixa vira receita no DRE</p>
+          </div>
+          <Button size="sm" className="gap-2" onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4" /> Nova conta
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {([
+            { label: "A receber", value: totals.aReceber, className: "bg-amber-100 dark:bg-amber-900/30", iconClass: "text-amber-600", Icon: Clock },
+            { label: "Vencido", value: totals.vencido, className: "bg-red-100 dark:bg-red-900/30", iconClass: "text-red-600", Icon: AlertTriangle },
+            { label: "Recebido", value: totals.recebido, className: "bg-emerald-100 dark:bg-emerald-900/30", iconClass: "text-emerald-600", Icon: CheckCircle2 },
+          ] as const).map(({ label, value, className, iconClass, Icon }) => (
+            <Card key={label}><CardContent className="p-4 flex items-center gap-3">
+              <div className={`h-9 w-9 rounded-lg ${className} flex items-center justify-center`}><Icon className={`h-4 w-4 ${iconClass}`} /></div>
+              <div><p className="text-xs text-muted-foreground">{label}</p><p className="text-lg font-semibold tabular-nums">{formatCurrency(value)}</p></div>
+            </CardContent></Card>
+          ))}
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="p-4 space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+            ) : receivables.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                <FileText className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">Nenhuma conta a receber cadastrada</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/30">
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Descrição</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Origem</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Vencimento</th>
+                      <th className="text-right px-4 py-3 font-medium text-muted-foreground">Valor</th>
+                      <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="w-10 px-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receivables.map((r) => (
+                      <tr key={r.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                        <td className="px-4 py-3 font-medium">{r.description}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{sourceLabel[r.source] ?? r.source}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{formatDate(r.due_date)}</td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCurrency(Number(r.amount))}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium ${statusConfig[r.status]?.className ?? ""}`}>
+                            {statusConfig[r.status]?.label ?? r.status}
+                          </span>
+                        </td>
+                        <td className="px-2 py-3">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {r.status !== "recebido" && r.status !== "cancelado" && (
+                                <DropdownMenuItem onClick={() => markAsReceived.mutate(r)}>
+                                  <Check className="h-4 w-4 mr-2" /> Dar baixa (receber)
+                                </DropdownMenuItem>
+                              )}
+                              {(r.boleto_url || r.pix_url) && (
+                                <DropdownMenuItem onClick={() => openLink(r)}>
+                                  <ExternalLink className="h-4 w-4 mr-2" /> Abrir boleto/Pix
+                                </DropdownMenuItem>
+                              )}
+                              {r.source === "manual" && r.status !== "recebido" && (
+                                <DropdownMenuItem onClick={() => setEditItem({ id: r.id, description: r.description, amount: Number(r.amount), due_date: r.due_date, account_id: r.account_id ?? "", cost_center_id: r.cost_center_id ?? "", contact_id: r.contact_id })}>
+                                  <Pencil className="h-4 w-4 mr-2" /> Editar
+                                </DropdownMenuItem>
+                              )}
+                              {r.status !== "recebido" && r.status !== "cancelado" && (
+                                <DropdownMenuItem onClick={() => cancelReceivable.mutate(r.id)}>
+                                  <Ban className="h-4 w-4 mr-2" /> Cancelar
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(r.id)}>
+                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <ReceivableFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSubmit={(data) => createReceivable.mutate(data)}
+        isPending={createReceivable.isPending}
+      />
+
+      {editItem && (
+        <ReceivableFormDialog
+          open={true}
+          onOpenChange={(o) => { if (!o) setEditItem(null); }}
+          initialData={editItem}
+          onSubmit={(data) => updateReceivable.mutate({ id: editItem.id, ...data })}
+          isPending={updateReceivable.isPending}
+        />
+      )}
+
+      <DeleteConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(o) => { if (!o) setDeleteId(null); }}
+        onConfirm={() => { if (deleteId) { deleteReceivable.mutate(deleteId); setDeleteId(null); } }}
+        description="A conta a receber será removida permanentemente."
+      />
+    </AppLayout>
+  );
+}
