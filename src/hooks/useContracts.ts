@@ -4,6 +4,17 @@ import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { nextDueDate } from "@/lib/receivables";
 
+// contracts/receivables ainda não estão nos tipos gerados do Supabase.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
+/** Envelope de resposta das actions de escrita do Asaas (company-asaas-api). */
+type AsaasInvoke = {
+  ok?: boolean;
+  data?: { id?: string; nextDueDate?: string };
+  details?: unknown;
+} | null;
+
 export interface Contract {
   id: string;
   company_id: string;
@@ -51,7 +62,7 @@ export function useContracts() {
     queryKey: qk,
     enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("contracts")
         .select("*")
         .eq("company_id", companyId!)
@@ -71,7 +82,7 @@ export function useContracts() {
       const nextDue = nextDueDate(input.billing_day);
 
       // 1) Contrato sempre é criado (fonte da verdade), independente do Asaas.
-      const { data: contract, error } = await (supabase as any)
+      const { data: contract, error } = await db
         .from("contracts")
         .insert({
           company_id: companyId!,
@@ -95,7 +106,7 @@ export function useContracts() {
       if (!input.auto_billing) return { outcome: "manual" };
 
       // 2) Cobrança automática via Asaas (assinatura nativa → boleto mensal enviado ao cliente).
-      const { data: contact } = await (supabase as any)
+      const { data: contact } = await db
         .from("contacts")
         .select("name, document, email, phone, whatsapp")
         .eq("id", input.contact_id)
@@ -117,10 +128,11 @@ export function useContracts() {
           },
         },
       });
-      if (customerRes.error || (customerRes.data as any)?.ok === false || !(customerRes.data as any)?.data?.id) {
-        return { outcome: "sem_integracao", detail: JSON.stringify((customerRes.data as any)?.details ?? customerRes.error) };
+      const custData = customerRes.data as AsaasInvoke;
+      if (customerRes.error || custData?.ok === false || !custData?.data?.id) {
+        return { outcome: "sem_integracao", detail: JSON.stringify(custData?.details ?? customerRes.error) };
       }
-      const customerId = (customerRes.data as any).data.id as string;
+      const customerId = custData.data.id;
 
       const subRes = await supabase.functions.invoke("company-asaas-api", {
         body: {
@@ -138,12 +150,13 @@ export function useContracts() {
           },
         },
       });
-      if (subRes.error || (subRes.data as any)?.ok === false || !(subRes.data as any)?.data?.id) {
-        await (supabase as any).from("contracts").update({ asaas_customer_id: customerId }).eq("id", contract.id);
-        return { outcome: "erro", detail: JSON.stringify((subRes.data as any)?.details ?? subRes.error) };
+      const subData = subRes.data as AsaasInvoke;
+      if (subRes.error || subData?.ok === false || !subData?.data?.id) {
+        await db.from("contracts").update({ asaas_customer_id: customerId }).eq("id", contract.id);
+        return { outcome: "erro", detail: JSON.stringify(subData?.details ?? subRes.error) };
       }
-      const sub = (subRes.data as any).data;
-      await (supabase as any)
+      const sub = subData.data;
+      await db
         .from("contracts")
         .update({
           asaas_customer_id: customerId,
@@ -166,7 +179,7 @@ export function useContracts() {
 
   const setStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "active" | "paused" | "ended" }) => {
-      const { error } = await (supabase as any).from("contracts").update({ status }).eq("id", id);
+      const { error } = await db.from("contracts").update({ status }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { invalidate(); toast.success("Contrato atualizado"); },
@@ -175,7 +188,7 @@ export function useContracts() {
 
   const deleteContract = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("contracts").delete().eq("id", id);
+      const { error } = await db.from("contracts").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => { invalidate(); toast.success("Contrato removido"); },

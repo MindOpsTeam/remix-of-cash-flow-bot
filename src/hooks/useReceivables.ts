@@ -5,6 +5,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { effectiveStatus } from "@/lib/receivables";
 
+// contracts/receivables ainda não estão nos tipos gerados do Supabase (Lovable os
+// regenera no build). Um único cast concentrado evita `any` espalhado pelo arquivo.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
 export interface Receivable {
   id: string;
   company_id: string;
@@ -46,7 +51,7 @@ export function useReceivables() {
     queryKey: qk,
     enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await db
         .from("receivables")
         .select("*")
         .eq("company_id", companyId!)
@@ -59,7 +64,7 @@ export function useReceivables() {
 
   const createReceivable = useMutation({
     mutationFn: async (input: ReceivableInput) => {
-      const { error } = await (supabase as any).from("receivables").insert({
+      const { error } = await db.from("receivables").insert({
         company_id: companyId!,
         contact_id: input.contact_id ?? null,
         description: input.description,
@@ -81,7 +86,7 @@ export function useReceivables() {
 
   const updateReceivable = useMutation({
     mutationFn: async ({ id, ...fields }: Partial<ReceivableInput> & { id: string }) => {
-      const { error } = await (supabase as any).from("receivables").update(fields).eq("id", id);
+      const { error } = await db.from("receivables").update(fields).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -103,7 +108,7 @@ export function useReceivables() {
       if (!user) throw new Error("Sessão expirada");
       const today = new Date().toISOString().split("T")[0];
 
-      const { data: tx, error: txErr } = await (supabase as any)
+      const { data: tx, error: txErr } = await db
         .from("transactions")
         .insert({
           company_id: r.company_id,
@@ -121,7 +126,7 @@ export function useReceivables() {
         .single();
       if (txErr) throw txErr;
 
-      const { error } = await (supabase as any)
+      const { error } = await db
         .from("receivables")
         .update({ status: "recebido", payment_date: today, transaction_id: tx.id })
         .eq("id", r.id);
@@ -137,7 +142,7 @@ export function useReceivables() {
 
   const cancelReceivable = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await db
         .from("receivables")
         .update({ status: "cancelado" })
         .eq("id", id);
@@ -152,7 +157,7 @@ export function useReceivables() {
 
   const deleteReceivable = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from("receivables").delete().eq("id", id);
+      const { error } = await db.from("receivables").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
