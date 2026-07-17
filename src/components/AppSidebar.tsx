@@ -40,6 +40,8 @@ import {
   Check,
   HandCoins,
   FileSignature,
+  Calculator,
+  FolderArchive,
 } from "lucide-react";
 
 // ---------- Personas (níveis de decisão do usuário do ERP) ----------
@@ -111,8 +113,19 @@ const sections: NavGroup[] = [
       { to: "/fiscal/contas-a-pagar", label: "Contas a Pagar", icon: Receipt },
       { to: "/receivables", label: "Contas a Receber", icon: HandCoins },
       { to: "/reports", label: "Relatórios", icon: PieChart },
-      { to: "/fiscal/impostos", label: "Calendário de Impostos", icon: Calendar },
       { to: "/settings/consolidation", label: "Consolidação do Grupo", icon: Scale },
+    ],
+  },
+  {
+    key: "contabil",
+    label: "Contábil",
+    icon: Calculator,
+    personas: ["estrategico", "tatico"],
+    items: [
+      { to: "/reforma", label: "Simulador da Reforma", icon: Scale },
+      { to: "/fiscal", label: "Notas Fiscais", icon: FileCheck },
+      { to: "/fiscal/impostos", label: "Calendário de Impostos", icon: Calendar },
+      { to: "/fiscal/arquivos", label: "Arquivos Fiscais", icon: FolderArchive },
     ],
   },
   {
@@ -124,7 +137,6 @@ const sections: NavGroup[] = [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
       { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
-      { to: "/fiscal", label: "Notas Fiscais", icon: FileCheck },
       { to: "/documents", label: "Scanner OCR", icon: ScanLine },
       { to: "/inter", label: "Conciliação Bancária", icon: Landmark },
       { to: "/settings/bank-accounts", label: "Bancos & Open Finance", icon: Link2 },

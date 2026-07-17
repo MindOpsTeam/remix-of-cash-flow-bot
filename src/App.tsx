@@ -63,6 +63,7 @@ const NfseEmitPage = lazy(() => import("./pages/NfseEmit"));
 const TaxCalendarPage = lazy(() => import("./pages/fiscal/TaxCalendar"));
 const BillsPayablePage = lazy(() => import("./pages/fiscal/BillsPayable"));
 const FiscalFilesPage = lazy(() => import("./pages/fiscal/FiscalFiles"));
+const ReformaSimulatorPage = lazy(() => import("./pages/ReformaSimulator"));
 
 const queryClient = new QueryClient();
 
@@ -126,6 +127,7 @@ const AppRoutes = () => (
       <Route path="/fiscal/nfse/emit" element={<P><NfseEmitPage /></P>} />
       <Route path="/fiscal/plugnotas/emit" element={<P><PlugnotasEmitPage /></P>} />
       <Route path="/fiscal/impostos" element={<P><TaxCalendarPage /></P>} />
+      <Route path="/reforma" element={<P><ReformaSimulatorPage /></P>} />
       <Route path="/fiscal/contas-a-pagar" element={<P><BillsPayablePage /></P>} />
       <Route path="/fiscal/arquivos" element={<P><FiscalFilesPage /></P>} />
 
