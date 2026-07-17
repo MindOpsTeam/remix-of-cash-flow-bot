@@ -153,6 +153,8 @@ export interface RegimeSimInput {
   /** Custos/insumos creditáveis de CBS/IBS no ano (base de crédito). */
   insumosCreditaveis: number;
   perfilCliente: PerfilCliente;
+  /** Redução de alíquota do IVA (0 = integral, 0.6 = paga 40%, 1 = zero). Ver reforma-rates. */
+  reducaoIva?: number;
 }
 
 export type NomeRegime = "simples" | "hibrido" | "normal";
@@ -189,11 +191,13 @@ function round4(n: number): number {
   return Math.round((n + Number.EPSILON) * 10000) / 10000;
 }
 
-/** IVA (CBS+IBS) recolhido sobre o valor agregado no ano (por fora). */
-function ivaSobreValorAgregado(valorAgregado: number, ano: number): number {
+/** IVA (CBS+IBS) recolhido sobre o valor agregado no ano (por fora), com redução
+ * setorial opcional (0 = integral, 0.6 = paga 40%, 1 = alíquota zero). */
+function ivaSobreValorAgregado(valorAgregado: number, ano: number, reducao = 0): number {
   const cbs = (IVA_REF.cbs / 100) * cbsFracao(ano);
   const ibs = (IVA_REF.ibs / 100) * ibsFracao(ano);
-  return valorAgregado * (cbs + ibs);
+  const fator = 1 - Math.min(Math.max(reducao, 0), 1);
+  return valorAgregado * (cbs + ibs) * fator;
 }
 
 /** ISS legado sobre o faturamento (serviços) no ano. */
@@ -218,7 +222,7 @@ function calcHibrido(input: RegimeSimInput, anexo: AnexoSimples, ano: number): n
   const dasReduzido =
     input.faturamentoAnual * (efetiva / 100) * (1 - FRACAO_INDIRETA_DAS[anexo]);
   const va = Math.max(input.faturamentoAnual - input.insumosCreditaveis, 0);
-  const iva = ivaSobreValorAgregado(va, ano);
+  const iva = ivaSobreValorAgregado(va, ano, input.reducaoIva ?? 0);
   return round2(dasReduzido + iva);
 }
 
@@ -226,7 +230,7 @@ function calcHibrido(input: RegimeSimInput, anexo: AnexoSimples, ano: number): n
 function calcNormal(input: RegimeSimInput, ano: number): number {
   const R = input.faturamentoAnual;
   const va = Math.max(R - input.insumosCreditaveis, 0);
-  const iva = ivaSobreValorAgregado(va, ano);
+  const iva = ivaSobreValorAgregado(va, ano, input.reducaoIva ?? 0);
   const iss = issLegado(R, ano, input.atividade);
 
   // Presunção do lucro: serviços 32%, comércio 8%.
@@ -242,7 +246,7 @@ function calcNormal(input: RegimeSimInput, ano: number): number {
 /** Crédito de CBS/IBS gerado ao cliente ao recolher por fora (sobre o VA). */
 function creditoAoCliente(input: RegimeSimInput, ano: number): number {
   const va = Math.max(input.faturamentoAnual - input.insumosCreditaveis, 0);
-  return round2(ivaSobreValorAgregado(va, ano));
+  return round2(ivaSobreValorAgregado(va, ano, input.reducaoIva ?? 0));
 }
 
 // ───────────────────────── Orquestração ──────────────────────────────────────

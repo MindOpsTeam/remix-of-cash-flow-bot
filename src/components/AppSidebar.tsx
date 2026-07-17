@@ -123,6 +123,7 @@ const sections: NavGroup[] = [
     personas: ["estrategico", "tatico"],
     items: [
       { to: "/reforma", label: "Simulador da Reforma", icon: Scale },
+      { to: "/reforma/impacto", label: "Cadeia de crédito B2B", icon: Link2 },
       { to: "/fiscal", label: "Notas Fiscais", icon: FileCheck },
       { to: "/fiscal/impostos", label: "Calendário de Impostos", icon: Calendar },
       { to: "/fiscal/arquivos", label: "Arquivos Fiscais", icon: FolderArchive },

@@ -15,6 +15,10 @@ import {
   simularRegimes, NOME_REGIME_LABEL, IVA_REF_TOTAL,
   type RegimeSimInput, type NomeRegime, type Atividade, type PerfilCliente, type AnexoSimples,
 } from "@/lib/reforma-simulator";
+import { REDUCOES_IVA, reducaoPorKey } from "@/lib/reforma-rates";
+import { useReformaCarteira } from "@/hooks/useReformaCarteira";
+import { Button } from "@/components/ui/button";
+import { Database } from "lucide-react";
 
 const REGIME_COLOR: Record<NomeRegime, string> = {
   simples: "hsl(var(--primary))",
@@ -28,6 +32,7 @@ function fmt(v: number): string {
 
 export default function ReformaSimulator() {
   const { company } = useCompany();
+  const { data: carteira } = useReformaCarteira();
 
   const [faturamento, setFaturamento] = useState("300000");
   const [atividade, setAtividade] = useState<Atividade>("servico");
@@ -35,6 +40,7 @@ export default function ReformaSimulator() {
   const [folha, setFolha] = useState("90000");
   const [insumos, setInsumos] = useState("30000");
   const [perfil, setPerfil] = useState<PerfilCliente>("B2B");
+  const [reducaoKey, setReducaoKey] = useState("integral");
   const [prefilled, setPrefilled] = useState(false);
 
   // Pré-preenche o faturamento com a receita confirmada dos últimos 12 meses (DRE).
@@ -63,7 +69,8 @@ export default function ReformaSimulator() {
     folhaAnual: parseFloat(folha) || 0,
     insumosCreditaveis: parseFloat(insumos) || 0,
     perfilCliente: perfil,
-  }), [faturamento, atividade, anexo, folha, insumos, perfil]);
+    reducaoIva: reducaoPorKey(reducaoKey),
+  }), [faturamento, atividade, anexo, folha, insumos, perfil, reducaoKey]);
 
   const sim = useMemo(() => simularRegimes(input), [input]);
 
@@ -76,6 +83,14 @@ export default function ReformaSimulator() {
 
   const recLabel = NOME_REGIME_LABEL[sim.recomendado];
   const geraCredito = sim.recomendado !== "simples";
+
+  const applyCarteira = () => {
+    if (!carteira?.temDados) return;
+    setFaturamento(String(carteira.faturamentoAno));
+    setInsumos(String(carteira.insumosAno));
+    setPerfil(carteira.pctB2B >= 0.6 ? "B2B" : carteira.pctB2B <= 0.2 ? "B2C" : "misto");
+    setPrefilled(true);
+  };
 
   return (
     <AppLayout>
@@ -90,6 +105,25 @@ export default function ReformaSimulator() {
             <p className="text-sm text-muted-foreground">Simples × Híbrido × Regime Normal na transição 2027-2033 (CBS/IBS)</p>
           </div>
         </div>
+
+        {carteira?.temDados && (
+          <Card className="border-primary/30 bg-primary/[0.03]">
+            <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+                  <Database className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Carteira real detectada — sem digitar nada</p>
+                  <p className="text-xs text-muted-foreground">
+                    {carteira.clientes.length} cliente{carteira.clientes.length > 1 ? "s" : ""} · faturamento {formatCurrency(carteira.faturamentoAno)}/ano · {Math.round(carteira.pctB2B * 100)}% B2B
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" onClick={applyCarteira}>Usar dados da carteira</Button>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
           {/* Inputs */}
@@ -143,6 +177,16 @@ export default function ReformaSimulator() {
                     <SelectItem value="misto">Misto</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Regime de alíquota (setor)</Label>
+                <Select value={reducaoKey} onValueChange={setReducaoKey}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {REDUCOES_IVA.map((r) => <SelectItem key={r.key} value={r.key}>{r.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">{REDUCOES_IVA.find((r) => r.key === reducaoKey)?.hint}</p>
               </div>
             </CardContent>
           </Card>

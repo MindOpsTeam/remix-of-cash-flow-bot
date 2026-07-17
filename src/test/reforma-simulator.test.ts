@@ -106,4 +106,25 @@ describe("simularRegimes", () => {
       expect(["simples", "hibrido", "normal"]).toContain(a.melhor);
     }
   });
+
+  it("redução setorial de 60% baixa Híbrido/Normal e o crédito, sem mexer no Simples", () => {
+    const base: RegimeSimInput = {
+      faturamentoAnual: 600_000, atividade: "servico", folhaAnual: 200_000,
+      insumosCreditaveis: 50_000, perfilCliente: "B2B",
+    };
+    const integral = simularRegimes(base);
+    const reduzido = simularRegimes({ ...base, reducaoIva: 0.6 });
+    expect(reduzido.totais.hibrido).toBeLessThan(integral.totais.hibrido);
+    expect(reduzido.totais.normal).toBeLessThan(integral.totais.normal);
+    expect(reduzido.totais.simples).toBe(integral.totais.simples); // DAS não usa alíquota IVA
+    expect(reduzido.creditoAoClienteMedioAno).toBeLessThan(integral.creditoAoClienteMedioAno);
+  });
+
+  it("alíquota zero (reducao=1) zera o IVA e o crédito ao cliente", () => {
+    const r = simularRegimes({
+      faturamentoAnual: 300_000, atividade: "servico", folhaAnual: 90_000,
+      insumosCreditaveis: 0, perfilCliente: "B2B", reducaoIva: 1,
+    });
+    expect(r.creditoAoClienteMedioAno).toBe(0);
+  });
 });
