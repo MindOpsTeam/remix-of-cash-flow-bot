@@ -126,6 +126,8 @@
 ---
 
 ## 7. Fases
+
+> **Status (17/07, commits 8953096+):** Fases 0-2 IMPLEMENTADAS e e2e-validadas (PDCA 5 ciclos). `reforma-rates` (reduções 60/30/zero) + `reducaoIva` no simulador; `useReformaCarteira` (zero-digitação sobre receivables+contracts, B2B/B2C via person_type); `/reforma` modo carteira; `lib/reforma-credito` + `/reforma/impacto` (cadeia de crédito B2B). 98 testes, agregação SQL bate com o lib, DRE intacto (read-only). **Falta:** Fase 3 (caixa/split payment no Open Finance + reprecificação), Fase 4 (parecer white-label), Fase 5 (motor local RFB + sync SVRS). Publish do frontend gated.
 - **Fase 0 — Fundação de regras (versionada):** migration + `tax-rates-sync` semeando reduções/frações; seed curado (confidence=estimado); testes. *Sem risco ao DRE.*
 - **Fase 1 — Zero-digitação:** `useReformaCarteira` (agrega dado real) + `/reforma` modo carteira. Já entrega o que Conta Azul não faz (dado real, sem digitar).
 - **Fase 2 — Cadeia de crédito B2B (a tela-assinatura):** `lib/reforma-credito` + `/reforma/impacto`. O vetor mais citado e menos quantificado do mercado.

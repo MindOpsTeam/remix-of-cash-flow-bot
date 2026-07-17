@@ -51,7 +51,7 @@ export function useReformaCarteira() {
       const cid = companyId as string; // enabled: !!companyId garante em runtime
       const desde = doze();
       const [rec, con, cts, bills] = await Promise.all([
-        db.from("receivables").select("contact_id, amount, status, due_date")
+        db.from("receivables").select("contact_id, amount, status, due_date, contract_id")
           .eq("company_id", cid).neq("status", "cancelado").gte("due_date", desde),
         db.from("contracts").select("contact_id, amount, cycle, status")
           .eq("company_id", cid).eq("status", "active"),
@@ -64,11 +64,12 @@ export function useReformaCarteira() {
         contatos.set(c.id, { name: c.name, person_type: c.person_type, document: c.document });
       }
 
-      // receita realizada/esperada por cliente (receivables) e recorrente (contracts)
-      const porRec = new Map<string, number>();
-      for (const r of (rec.data ?? []) as Array<{ contact_id: string | null; amount: number }>) {
-        if (!r.contact_id) continue;
-        porRec.set(r.contact_id, (porRec.get(r.contact_id) ?? 0) + Number(r.amount));
+      // Contratos anualizados (recorrente) + recebíveis AVULSOS (sem contrato).
+      // Recebíveis de contrato têm contract_id e já entram via porCon — não duplicar.
+      const porRecAvulso = new Map<string, number>();
+      for (const r of (rec.data ?? []) as Array<{ contact_id: string | null; amount: number; contract_id: string | null }>) {
+        if (!r.contact_id || r.contract_id) continue;
+        porRecAvulso.set(r.contact_id, (porRecAvulso.get(r.contact_id) ?? 0) + Number(r.amount));
       }
       const porCon = new Map<string, number>();
       for (const c of (con.data ?? []) as Array<{ contact_id: string | null; amount: number; cycle: string }>) {
@@ -77,11 +78,10 @@ export function useReformaCarteira() {
         porCon.set(c.contact_id, (porCon.get(c.contact_id) ?? 0) + anual);
       }
 
-      const ids = new Set<string>([...porRec.keys(), ...porCon.keys()]);
+      const ids = new Set<string>([...porRecAvulso.keys(), ...porCon.keys()]);
       const clientes: ClienteCarteira[] = [];
       for (const id of ids) {
-        // o contrato (recorrente anualizado) é a verdade quando existe; senão, os receivables
-        const receitaAno = Math.max(porRec.get(id) ?? 0, porCon.get(id) ?? 0);
+        const receitaAno = (porCon.get(id) ?? 0) + (porRecAvulso.get(id) ?? 0);
         if (receitaAno <= 0) continue;
         const info = contatos.get(id);
         const doc = (info?.document ?? "").replace(/\D/g, "");

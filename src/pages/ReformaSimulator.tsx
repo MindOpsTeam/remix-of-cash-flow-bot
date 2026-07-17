@@ -19,6 +19,7 @@ import { REDUCOES_IVA, reducaoPorKey } from "@/lib/reforma-rates";
 import { useReformaCarteira } from "@/hooks/useReformaCarteira";
 import { Button } from "@/components/ui/button";
 import { Database } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const REGIME_COLOR: Record<NomeRegime, string> = {
   simples: "hsl(var(--primary))",
@@ -213,6 +214,8 @@ export default function ReformaSimulator() {
                         {geraCredito
                           ? <>Recolhendo CBS/IBS por fora, você gera <strong className="text-foreground tabular-nums">~{fmt(sim.creditoAoClienteMedioAno)}/ano</strong> de crédito ao seu cliente PJ — vantagem competitiva que o Simples padrão não entrega.</>
                           : <>Atenção B2B: no Simples padrão o CBS/IBS embutido <strong>não vira crédito</strong> para o cliente PJ (~{fmt(sim.creditoAoClienteMedioAno)}/ano). Avalie o <strong>Híbrido</strong> se seus clientes exigirem crédito.</>}
+                        {" "}
+                        <Link to="/reforma/impacto" className="text-primary hover:underline">Ver por cliente →</Link>
                       </p>
                     )}
                   </div>
