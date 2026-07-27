@@ -18,10 +18,6 @@ export interface BillPayable {
   requested_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
-  is_recurring: boolean;
-  recurrence_group_id: string | null;
-  recurrence_index: number | null;
-  recurrence_total: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -34,19 +30,7 @@ export type BillInput = {
   status?: string;
   source?: string;
   contact_id?: string | null;
-  is_recurring?: boolean;
-  recurrence_months?: number;
 };
-
-function addMonths(isoDate: string, months: number): string {
-  const [y, m, d] = isoDate.split("-").map(Number);
-  const target = new Date(Date.UTC(y, m - 1 + months, 1));
-  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
-  const day = Math.min(d, lastDay);
-  const mm = String(target.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(day).padStart(2, "0");
-  return `${target.getUTCFullYear()}-${mm}-${dd}`;
-}
 
 function computeStatus(bill: { status: string; vencimento: string }): string {
   if (bill.status === "pago") return "pago";
@@ -94,35 +78,25 @@ export function useBillsPayable() {
 
   const createBill = useMutation({
     mutationFn: async (input: BillInput) => {
+      // Acima da alçada do criador → entra aguardando aprovação
       const needsApproval = approvalLimit != null && Number(input.valor) > approvalLimit;
-      const isRecurring = !!input.is_recurring;
-      const total = isRecurring ? Math.max(1, input.recurrence_months ?? 12) : 1;
-      const groupId = isRecurring ? crypto.randomUUID() : null;
-
-      const rows = Array.from({ length: total }, (_, i) => ({
-        fornecedor: input.fornecedor,
-        descricao: input.descricao ?? null,
-        valor: input.valor,
-        vencimento: addMonths(input.vencimento, i),
-        contact_id: input.contact_id ?? null,
+      const { error } = await (supabase as any).from("bills_payable").insert({
+        ...input,
         company_id: companyId!,
         source: input.source ?? "manual",
         approval_status: needsApproval ? "awaiting_approval" : "approved",
         requested_by: user?.id ?? null,
-        is_recurring: isRecurring,
-        recurrence_group_id: groupId,
-        recurrence_index: isRecurring ? i + 1 : null,
-        recurrence_total: isRecurring ? total : null,
-      }));
-
-      const { error } = await (supabase as any).from("bills_payable").insert(rows);
+      });
       if (error) throw error;
-      return { needsApproval, isRecurring, total };
+      return needsApproval;
     },
-    onSuccess: ({ needsApproval, isRecurring, total }) => {
+    onSuccess: (needsApproval) => {
       queryClient.invalidateQueries({ queryKey: qk });
-      const base = isRecurring ? `Recorrência criada — ${total} parcelas mensais` : "Conta adicionada";
-      toast.success(needsApproval ? `${base} (acima da alçada, aguardando aprovação)` : base);
+      toast.success(
+        needsApproval
+          ? "Conta criada — acima da sua alçada, aguardando aprovação"
+          : "Conta adicionada",
+      );
     },
     onError: (e: Error) => toast.error("Erro ao criar conta: " + e.message),
   });
