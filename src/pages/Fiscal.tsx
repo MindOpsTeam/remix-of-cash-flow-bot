@@ -8,10 +8,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  FileCheck, Search, FileText, Plus, ExternalLink, Layers,
+  FileCheck, Search, FileText, Plus, ExternalLink,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useIntegrationsStatus } from "@/hooks/useIntegrationsStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 
@@ -45,11 +46,36 @@ const statusColors: Record<string, string> = {
   denied: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
 };
 
+const EMISSORES = [
+  {
+    chave: "nfse" as const,
+    nome: "NFS-e Nacional",
+    descricao: "Padrão da Receita, com certificado A1. Municípios já migrados para o padrão nacional.",
+    emitir: "/fiscal/nfse/emit",
+    configurar: "/settings/integrations/nfse",
+  },
+  {
+    chave: "plugnotas" as const,
+    nome: "PlugNotas",
+    descricao: "NF-e, NFS-e, NFC-e, CT-e e MDF-e. Cobre municípios fora do padrão nacional.",
+    emitir: "/fiscal/plugnotas/emit",
+    configurar: "/settings/integrations/plugnotas",
+  },
+  {
+    chave: "focus" as const,
+    nome: "Focus NFe",
+    descricao: "Todos os documentos numa API só, com ambiente de teste e busca do tomador por CNPJ.",
+    emitir: "/fiscal/focus/emit",
+    configurar: "/settings/integrations/focus",
+  },
+];
+
 export default function FiscalPage() {
   const { company } = useCompany();
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
 
+  const { data: statusIntegracoes } = useIntegrationsStatus();
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["invoices", company?.id],
     queryFn: async () => {
@@ -84,17 +110,43 @@ export default function FiscalPage() {
             <p className="text-sm text-muted-foreground mt-1">Notas fiscais emitidas e recebidas</p>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/fiscal/plugnotas/emit">
-              <Button variant="outline">
-                <Layers className="h-4 w-4 mr-1.5" /> Emitir via PlugNotas
-              </Button>
-            </Link>
             <Link to="/fiscal/nfse/emit">
               <Button>
-                <Plus className="h-4 w-4 mr-1.5" /> Emitir NFS-e
+                <Plus className="h-4 w-4 mr-1.5" /> Emitir nota
               </Button>
             </Link>
           </div>
+        </div>
+
+        {/* Emissores: a plataforma tem três caminhos e todos precisam aparecer */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          {EMISSORES.map((e) => {
+            const st = statusIntegracoes?.[e.chave];
+            return (
+              <Card key={e.chave} className={st?.configurado ? "border-primary/30" : undefined}>
+                <CardContent className="py-4 px-4 flex flex-col gap-2 h-full">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{e.nome}</span>
+                    {st?.configurado ? (
+                      <Badge className="text-[10px] gap-1">
+                        {st.detalhe ? `Pronto · ${st.detalhe}` : "Pronto"}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        Não configurado
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground flex-1">{e.descricao}</p>
+                  <Link to={st?.configurado ? e.emitir : e.configurar}>
+                    <Button size="sm" variant={st?.configurado ? "default" : "outline"} className="w-full">
+                      {st?.configurado ? "Emitir" : "Configurar"}
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Info Banner */}

@@ -135,8 +135,15 @@ export default function BankAccounts() {
         </Button>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-6 space-y-2">
         <OpenFinanceConnect />
+        <p className="text-xs text-muted-foreground">
+          Credenciais da Pluggy, ambiente e bancos já conectados ficam em{" "}
+          <Link to="/settings/integrations/openfinance" className="underline hover:text-foreground">
+            Integrações &gt; Open Finance
+          </Link>
+          .
+        </p>
       </div>
 
       <div className="max-w-lg">

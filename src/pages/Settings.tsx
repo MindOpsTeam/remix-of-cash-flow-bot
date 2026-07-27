@@ -55,7 +55,7 @@ const sections = [
   {
     icon: Plug,
     title: "Integrações",
-    description: "Asaas, Banco Inter e outros serviços conectados",
+    description: "Open Finance, emissores de nota fiscal, cobrança e banco",
     to: "/settings/integrations",
     available: true,
   },

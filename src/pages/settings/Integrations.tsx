@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useIntegrationsStatus } from "@/hooks/useIntegrationsStatus";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ const integrationCards = [
     icon: Shield,
     iconBg: "bg-primary/10",
     iconColor: "text-primary",
+    key: "asaas" as const,
     title: "Asaas — Empresa",
     description: "Cobranças, transferências e notas fiscais da conta empresarial Asaas",
     to: "/settings/integrations/asaas",
@@ -26,6 +28,7 @@ const integrationCards = [
     icon: Landmark,
     iconBg: "bg-orange-500/10",
     iconColor: "text-orange-500",
+    key: "inter" as const,
     title: "Banco Inter — Empresa",
     description: "Sincronize extrato e saldo via API oficial (OAuth2 + mTLS)",
     to: "/settings/integrations/inter",
@@ -34,6 +37,7 @@ const integrationCards = [
     icon: FileText,
     iconBg: "bg-emerald-500/10",
     iconColor: "text-emerald-500",
+    key: "nfse" as const,
     title: "NFS-e Nacional",
     description: "Emissao de NFS-e via API ADN da Receita Federal (certificado A1)",
     to: "/settings/integrations/nfse",
@@ -42,6 +46,7 @@ const integrationCards = [
     icon: Layers,
     iconBg: "bg-sky-500/10",
     iconColor: "text-sky-500",
+    key: "plugnotas" as const,
     title: "PlugNotas",
     description: "NFe, NFSe, NFCe, CTe e MDFe via API REST (alternativa ao NFS-e Nacional)",
     to: "/settings/integrations/plugnotas",
@@ -50,6 +55,7 @@ const integrationCards = [
     icon: Receipt,
     iconBg: "bg-violet-500/10",
     iconColor: "text-violet-500",
+    key: "focus" as const,
     title: "Focus NFe",
     description: "NFe, NFCe, NFSe, NFSe Nacional, CTe e MDFe numa API só (com ambiente de teste)",
     to: "/settings/integrations/focus",
@@ -58,6 +64,7 @@ const integrationCards = [
     icon: Landmark,
     iconBg: "bg-teal-500/10",
     iconColor: "text-teal-500",
+    key: "openfinance" as const,
     title: "Open Finance",
     description: "Extrato, cartão, investimentos e crédito direto do banco via Pluggy",
     to: "/settings/integrations/openfinance",
@@ -92,6 +99,8 @@ interface CostCenter { id: string; name: string }
 
 export default function IntegrationsPage() {
   const { company } = useCompany();
+  const { data: statusIntegracoes } = useIntegrationsStatus();
+  const conectados = Object.values(statusIntegracoes ?? {}).filter((s) => s.configurado).length;
   const [webhooks, setWebhooks] = useState<WebhookConfig[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
@@ -207,21 +216,40 @@ export default function IntegrationsPage() {
         <p className="text-sm text-muted-foreground mt-1 mb-6">
           Conecte as contas da empresa para automatizar o financeiro
         </p>
+        <p className="text-sm mt-1">
+          <span className="font-medium text-foreground">{conectados}</span>
+          <span className="text-muted-foreground"> de {integrationCards.length} serviços conectados nesta empresa</span>
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          {integrationCards.map((item) => (
-            <Link key={item.title} to={item.to} className="block">
-              <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-card-hover transition-all cursor-pointer">
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`p-2 rounded-lg ${item.iconBg}`}>
-                    <item.icon className={`h-5 w-5 ${item.iconColor}`} />
+          {integrationCards.map((item) => {
+            const st = statusIntegracoes?.[item.key];
+            return (
+              <Link key={item.title} to={item.to} className="block">
+                <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-card-hover transition-all cursor-pointer h-full">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`p-2 rounded-lg ${item.iconBg}`}>
+                      <item.icon className={`h-5 w-5 ${item.iconColor}`} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {st?.configurado ? (
+                        <Badge className="gap-1 text-[10px]">
+                          <CheckCircle2 className="h-3 w-3" />
+                          {st.detalhe ? `Conectado · ${st.detalhe}` : "Conectado"}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          Não configurado
+                        </Badge>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
                 </div>
-                <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
-                <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
 
