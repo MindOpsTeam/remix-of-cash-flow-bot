@@ -41,6 +41,7 @@ const InterIntegrationPage = lazy(() => import("./pages/settings/InterIntegratio
 const InterBankingPage = lazy(() => import("./pages/InterBanking"));
 const NfseIntegrationPage = lazy(() => import("./pages/settings/NfseIntegration"));
 const PlugnotasIntegrationPage = lazy(() => import("./pages/settings/PlugnotasIntegration"));
+const FocusIntegrationPage = lazy(() => import("./pages/settings/FocusIntegration"));
 const PlugnotasEmitPage = lazy(() => import("./pages/PlugnotasEmit"));
 const CompanyTransfers = lazy(() => import("./pages/CompanyTransfers"));
 const CompanyBills = lazy(() => import("./pages/CompanyBills"));
@@ -170,6 +171,7 @@ const AppRoutes = () => (
       <Route path="/settings/integrations/inter" element={<P><InterIntegrationPage /></P>} />
       <Route path="/settings/integrations/nfse" element={<P><NfseIntegrationPage /></P>} />
       <Route path="/settings/integrations/plugnotas" element={<P><PlugnotasIntegrationPage /></P>} />
+      <Route path="/settings/integrations/focus" element={<P><FocusIntegrationPage /></P>} />
       <Route path="/settings/preferences" element={<P><PreferencesPage /></P>} />
 
       <Route path="*" element={<NotFound />} />

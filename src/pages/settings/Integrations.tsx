@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock, FileText, Layers } from "lucide-react";
+import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock, FileText, Layers, Receipt } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +45,14 @@ const integrationCards = [
     title: "PlugNotas",
     description: "NFe, NFSe, NFCe, CTe e MDFe via API REST (alternativa ao NFS-e Nacional)",
     to: "/settings/integrations/plugnotas",
+  },
+  {
+    icon: Receipt,
+    iconBg: "bg-violet-500/10",
+    iconColor: "text-violet-500",
+    title: "Focus NFe",
+    description: "NFe, NFCe, NFSe, NFSe Nacional, CTe e MDFe numa API só (com ambiente de teste)",
+    to: "/settings/integrations/focus",
   },
 ];
 

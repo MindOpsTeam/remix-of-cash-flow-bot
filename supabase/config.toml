@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.tax-rates-sync]
 verify_jwt = false
+
+[functions.focus-nfe]
+verify_jwt = false
