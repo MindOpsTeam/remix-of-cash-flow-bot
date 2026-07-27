@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "sdk_version": "0.24.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://oxymhnddzamsjxwfglud.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "financeai-mcp",
+      "version": "0.1.0",
+      "title": "FinanceAI"
+    },
+    "tools": [
+      {
+        "name": "list_companies",
+        "title": "List companies (CNPJs)",
+        "description": "List all companies (CNPJs) the signed-in user belongs to, with id, org_id, name and CNPJ.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_transactions",
+        "title": "List company transactions",
+        "description": "List PJ (empresa) financial transactions for a given company_id. Optional date range (ISO YYYY-MM-DD) and limit (max 200). Requires the caller to be a member of the company.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "company_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Company UUID (see list_companies)."
+            },
+            "from": {
+              "type": "string",
+              "description": "Start date, inclusive, ISO YYYY-MM-DD."
+            },
+            "to": {
+              "type": "string",
+              "description": "End date, inclusive, ISO YYYY-MM-DD."
+            },
+            "limit": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Max rows to return (default 50, cap 200)."
+            }
+          },
+          "required": [
+            "company_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_transaction",
+        "title": "Create company transaction",
+        "description": "Register a new manual PJ (empresa) transaction. Type must be 'revenue' or 'expense'. Amount is BRL, always positive. Date is ISO YYYY-MM-DD.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "company_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Company UUID (see list_companies)."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "revenue",
+                "expense"
+              ],
+              "description": "revenue = receita, expense = despesa."
+            },
+            "amount": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Amount in BRL, positive."
+            },
+            "date": {
+              "type": "string",
+              "description": "Transaction date, ISO YYYY-MM-DD."
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Human-readable description."
+            },
+            "account_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Chart-of-accounts UUID (optional)."
+            },
+            "bank_account_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Bank account UUID (optional)."
+            },
+            "cost_center_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Cost center UUID (optional)."
+            }
+          },
+          "required": [
+            "company_id",
+            "type",
+            "amount",
+            "date",
+            "description"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_receivables",
+        "title": "List accounts receivable",
+        "description": "List receivables (contas a receber) for a company. Optional status filter and limit (max 200).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "company_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Company UUID."
+            },
+            "status": {
+              "type": "string",
+              "description": "Optional status filter (e.g. 'pending', 'received')."
+            },
+            "limit": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Max rows (default 50, cap 200)."
+            }
+          },
+          "required": [
+            "company_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_bills_payable",
+        "title": "List accounts payable",
+        "description": "List bills payable (contas a pagar) for a company. Optional status filter and limit (max 200).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "company_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Company UUID."
+            },
+            "status": {
+              "type": "string",
+              "description": "Optional status filter (e.g. 'pending', 'paid')."
+            },
+            "limit": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "description": "Max rows (default 50, cap 200)."
+            }
+          },
+          "required": [
+            "company_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "cash_summary",
+        "title": "Cash summary (revenue vs expense)",
+        "description": "Summary of a company's revenue, expenses and net cash flow in a date range. Dates ISO YYYY-MM-DD.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "company_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Company UUID."
+            },
+            "from": {
+              "type": "string",
+              "description": "Start date, inclusive."
+            },
+            "to": {
+              "type": "string",
+              "description": "End date, inclusive."
+            }
+          },
+          "required": [
+            "company_id",
+            "from",
+            "to"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

@@ -11,6 +11,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 // Eagerly loaded (used on first render / small)
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import OAuthConsent from "./pages/OAuthConsent";
 
 // Lazy-loaded pages (code-split per route)
 const Index = lazy(() => import("./pages/Index"));
@@ -85,10 +86,17 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function isSafeRelative(next: string | null): next is string {
+  return !!next && next.startsWith("/") && !next.startsWith("//");
+}
+
 function PublicRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return null;
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) {
+    const next = new URLSearchParams(window.location.search).get("next");
+    return <Navigate to={isSafeRelative(next) ? next : "/dashboard"} replace />;
+  }
   return <>{children}</>;
 }
 
@@ -100,6 +108,7 @@ const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
     <Routes>
       <Route path="/" element={<PublicRoute><Auth /></PublicRoute>} />
+      <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
 
       {/* Dashboard */}
       <Route path="/dashboard" element={<P><Index /></P>} />
