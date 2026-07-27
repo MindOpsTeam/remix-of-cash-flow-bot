@@ -43,6 +43,7 @@ const NfseIntegrationPage = lazy(() => import("./pages/settings/NfseIntegration"
 const PlugnotasIntegrationPage = lazy(() => import("./pages/settings/PlugnotasIntegration"));
 const FocusIntegrationPage = lazy(() => import("./pages/settings/FocusIntegration"));
 const PlugnotasEmitPage = lazy(() => import("./pages/PlugnotasEmit"));
+const FocusEmitPage = lazy(() => import("./pages/FocusEmit"));
 const CompanyTransfers = lazy(() => import("./pages/CompanyTransfers"));
 const CompanyBills = lazy(() => import("./pages/CompanyBills"));
 const DocumentScanner = lazy(() => import("./pages/DocumentScanner"));
@@ -137,6 +138,7 @@ const AppRoutes = () => (
       <Route path="/fiscal" element={<P><FiscalPage /></P>} />
       <Route path="/fiscal/nfse/emit" element={<P><NfseEmitPage /></P>} />
       <Route path="/fiscal/plugnotas/emit" element={<P><PlugnotasEmitPage /></P>} />
+      <Route path="/fiscal/focus/emit" element={<P><FocusEmitPage /></P>} />
       <Route path="/fiscal/impostos" element={<P><TaxCalendarPage /></P>} />
       <Route path="/reforma" element={<P><ReformaSimulatorPage /></P>} />
       <Route path="/reforma/impacto" element={<P><ReformaImpactoPage /></P>} />

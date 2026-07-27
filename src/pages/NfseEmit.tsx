@@ -127,6 +127,25 @@ export default function NfseEmitPage() {
 
   const plugnotasAvailable = plugnotasConfig?.active && plugnotasConfig?.enabled_nfse;
 
+  // Focus NFe: terceiro provedor possível para a mesma NFS-e
+  const { data: focusConfig } = useQuery({
+    queryKey: ["focus_config", company?.id],
+    enabled: !!company?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("focus_config" as never)
+        .select("active, enabled_nfse, environment, token_homologacao_preview, token_producao_preview")
+        .eq("company_id", company!.id)
+        .maybeSingle();
+      return data as {
+        active: boolean; enabled_nfse: boolean; environment: string;
+        token_homologacao_preview: string | null; token_producao_preview: string | null;
+      } | null;
+    },
+  });
+  const focusAvailable = !!focusConfig?.active && !!focusConfig?.enabled_nfse &&
+    !!(focusConfig?.environment === "producao" ? focusConfig?.token_producao_preview : focusConfig?.token_homologacao_preview);
+
   // Load contacts for autocomplete
   const { data: contacts = [] } = useQuery({
     queryKey: ["contacts", company?.id],
@@ -246,6 +265,31 @@ export default function NfseEmitPage() {
               <Link to="/fiscal/plugnotas/emit">
                 <Button size="sm" variant="outline" className="shrink-0">
                   Emitir via PlugNotas
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Focus NFe como provedor alternativo */}
+        {focusAvailable && (
+          <Card className="border-violet-200 bg-violet-50 dark:bg-violet-900/10 dark:border-violet-800">
+            <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
+              <div className="flex items-start gap-2">
+                <Layers className="h-4 w-4 text-violet-600 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-violet-900 dark:text-violet-300">
+                    Focus NFe também está habilitada para NFS-e nessa empresa
+                    {focusConfig?.environment === "homologacao" && " (ambiente de teste)"}
+                  </p>
+                  <p className="text-[11px] text-violet-700 dark:text-violet-400/80 mt-0.5">
+                    Busca o tomador pelo CNPJ e devolve PDF e XML na mesma tela.
+                  </p>
+                </div>
+              </div>
+              <Link to="/fiscal/focus/emit">
+                <Button size="sm" variant="outline" className="shrink-0">
+                  Emitir via Focus
                 </Button>
               </Link>
             </CardContent>
