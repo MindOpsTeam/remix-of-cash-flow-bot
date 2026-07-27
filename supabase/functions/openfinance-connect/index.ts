@@ -51,6 +51,20 @@ Deno.serve(async (req) => {
     const forbidden = await assertMembership(supabase, user.id, companyId, corsHeaders);
     if (forbidden) return forbidden;
 
+    // O interruptor "Integração ativa" da tela precisa valer no servidor também,
+    // senão é promessa de UI que o backend ignora.
+    if (action === "token" || action === "register") {
+      const { data: cfg } = await service
+        .from("openfinance_config")
+        .select("active")
+        .eq("company_id", companyId)
+        .eq("provider", "pluggy")
+        .maybeSingle();
+      if (cfg && cfg.active === false) {
+        return jsonResp({ error: "Integração de Open Finance desativada para esta empresa." }, 400, corsHeaders);
+      }
+    }
+
     if (action === "token") {
       let apiKey: string;
       try {
