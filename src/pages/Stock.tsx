@@ -113,10 +113,30 @@ export default function StockPage() {
         }
       }
 
+      // Todo movimento pertence a um depósito. A empresa não precisa cadastrar
+      // nada antes: se ainda não tem nenhum, criamos o principal na hora.
+      let depositoId: string | null = null;
+      const { data: depositos } = await supabase
+        .from("warehouses")
+        .select("id")
+        .eq("company_id", company.id)
+        .limit(1);
+      if (depositos && depositos.length > 0) {
+        depositoId = depositos[0].id;
+      } else {
+        const { data: novoDeposito } = await supabase
+          .from("warehouses")
+          .insert({ company_id: company.id, name: "Depósito principal" })
+          .select("id")
+          .single();
+        depositoId = novoDeposito?.id ?? null;
+      }
+
       // Insert movement
       const { error: moveError } = await supabase.from("stock_movements").insert({
         company_id: company.id,
         product_id: moveProductId,
+        warehouse_id: depositoId,
         type: moveType,
         quantity: moveType === "out" ? -Math.abs(qty) : qty,
         unit_cost: moveCost ? parseFloat(moveCost) : null,

@@ -42,6 +42,7 @@ import {
   FileSignature,
   Calculator,
   FolderArchive,
+  BookOpenCheck,
 } from "lucide-react";
 
 // ---------- Personas (níveis de decisão do usuário do ERP) ----------
@@ -126,6 +127,7 @@ const sections: NavGroup[] = [
       { to: "/reforma/impacto", label: "Cadeia de crédito B2B", icon: Link2 },
       { to: "/fiscal", label: "Notas Fiscais", icon: FileCheck },
       { to: "/fiscal/impostos", label: "Calendário de Impostos", icon: Calendar },
+      { to: "/auditoria", label: "Auditoria", icon: BookOpenCheck },
       { to: "/fiscal/arquivos", label: "Arquivos Fiscais", icon: FolderArchive },
     ],
   },

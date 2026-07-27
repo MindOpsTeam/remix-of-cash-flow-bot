@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_KEY = "pj_preferences";
 
@@ -32,6 +33,8 @@ const defaults: PJPreferences = {
 
 export default function Preferences() {
   const { toast } = useToast();
+  // O que estava só no navegador passa a viver na conta: trocar de máquina não
+  // pode zerar a configuração. O localStorage vira só ponte de migração.
   const [prefs, setPrefs] = useState<PJPreferences>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -40,14 +43,52 @@ export default function Preferences() {
       return defaults;
     }
   });
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: sessao } = await supabase.auth.getUser();
+      const uid = sessao.user?.id;
+      if (!uid) return setCarregando(false);
+      const { data } = await supabase
+        .from("user_preferences" as never)
+        .select("prefs")
+        .eq("user_id", uid)
+        .maybeSingle();
+      const doBanco = (data as { prefs?: Partial<PJPreferences> } | null)?.prefs;
+      if (doBanco && Object.keys(doBanco).length > 0) {
+        setPrefs((atual) => ({ ...atual, ...doBanco }));
+      }
+      setCarregando(false);
+    })();
+  }, []);
 
   const set = <K extends keyof PJPreferences>(key: K, value: PJPreferences[K]) => {
     setPrefs((prev) => ({ ...prev, [key]: value }));
   };
 
-  const save = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-    toast({ title: "Preferências salvas", description: "Suas configurações foram atualizadas." });
+  const save = async () => {
+    setSalvando(true);
+    try {
+      const { data: sessao } = await supabase.auth.getUser();
+      const uid = sessao.user?.id;
+      if (!uid) throw new Error("Sessão expirada. Entre de novo.");
+      const { error } = await supabase
+        .from("user_preferences" as never)
+        .upsert({ user_id: uid, prefs } as never, { onConflict: "user_id" } as never);
+      if (error) throw error;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+      toast({ title: "Preferências salvas", description: "Valem em qualquer dispositivo onde você entrar." });
+    } catch (e) {
+      toast({
+        title: "Não consegui salvar",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
@@ -58,7 +99,7 @@ export default function Preferences() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Preferências</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Personalize o comportamento do sistema</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Personalize o comportamento do sistema. Vale em qualquer dispositivo onde você entrar.</p>
         </div>
       </div>
 
@@ -201,9 +242,9 @@ export default function Preferences() {
           </div>
         </section>
 
-        <Button onClick={save} className="gap-2">
+        <Button onClick={save} className="gap-2" disabled={salvando || carregando}>
           <Save className="h-4 w-4" />
-          Salvar preferências
+          {salvando ? "Salvando..." : carregando ? "Carregando..." : "Salvar preferências"}
         </Button>
 
       </div>

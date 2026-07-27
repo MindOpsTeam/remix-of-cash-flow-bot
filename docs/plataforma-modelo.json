@@ -6,13 +6,13 @@
   "repo": "MindOpsTeam/remix-of-cash-flow-bot"
  },
  "resumo": {
-  "tabelas": 74,
-  "fks": 99,
-  "rotas": 51,
+  "tabelas": 50,
+  "fks": 86,
+  "rotas": 52,
   "edge_functions": 33,
   "rpcs_usadas": 6,
-  "tabelas_com_dados": 39,
-  "linhas_totais": 8959
+  "tabelas_com_dados": 30,
+  "linhas_totais": 8894
  },
  "tabelas": {
   "agent_actions": {
@@ -58,110 +58,6 @@
     "edge:index.ts",
     "ui:ApiKeys.tsx"
    ]
-  },
-  "asaas_anticipations": {
-   "policies": 1,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [
-    "ui:useAsaasTransfers.ts"
-   ],
-   "escrito_por": []
-  },
-  "asaas_bills": {
-   "policies": 1,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "asaas_config": {
-   "policies": 1,
-   "linhas": 1,
-   "tem_company_id": false,
-   "triggers": 2,
-   "rls": true,
-   "fks": [
-    {
-     "de": "asaas_config",
-     "coluna": "user_id",
-     "para": "users"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "asaas_invoices": {
-   "policies": 1,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "asaas_payments": {
-   "policies": 1,
-   "linhas": 3,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [
-    {
-     "de": "asaas_payments",
-     "coluna": "user_id",
-     "para": "users"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "asaas_subscriptions": {
-   "policies": 1,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [
-    "ui:useAsaasSubscriptions.ts"
-   ],
-   "escrito_por": []
-  },
-  "asaas_transfers": {
-   "policies": 1,
-   "linhas": 1,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [
-    "ui:useAsaasTransfers.ts"
-   ],
-   "escrito_por": []
-  },
-  "asaas_webhook_events": {
-   "policies": 1,
-   "linhas": 16,
-   "tem_company_id": false,
-   "triggers": 0,
-   "rls": true,
-   "fks": [
-    {
-     "de": "asaas_webhook_events",
-     "coluna": "user_id",
-     "para": "users"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
   },
   "bank_accounts": {
    "policies": 4,
@@ -358,7 +254,13 @@
    "tem_company_id": true,
    "triggers": 1,
    "rls": true,
-   "fks": [],
+   "fks": [
+    {
+     "de": "company_asaas_anticipations",
+     "coluna": "company_id",
+     "para": "companies"
+    }
+   ],
    "lido_por": [
     "ui:useCompanyAsaasTransfers.ts"
    ],
@@ -370,7 +272,13 @@
    "tem_company_id": true,
    "triggers": 1,
    "rls": true,
-   "fks": [],
+   "fks": [
+    {
+     "de": "company_asaas_bills",
+     "coluna": "company_id",
+     "para": "companies"
+    }
+   ],
    "lido_por": [
     "ui:useCompanyAsaasBills.ts"
    ],
@@ -406,7 +314,13 @@
    "tem_company_id": true,
    "triggers": 1,
    "rls": true,
-   "fks": [],
+   "fks": [
+    {
+     "de": "company_asaas_invoices",
+     "coluna": "company_id",
+     "para": "companies"
+    }
+   ],
    "lido_por": [
     "ui:useCompanyAsaasBills.ts"
    ],
@@ -439,7 +353,13 @@
    "tem_company_id": true,
    "triggers": 1,
    "rls": true,
-   "fks": [],
+   "fks": [
+    {
+     "de": "company_asaas_subscriptions",
+     "coluna": "company_id",
+     "para": "companies"
+    }
+   ],
    "lido_por": [
     "ui:useCompanyAsaasSubscriptions.ts"
    ],
@@ -453,7 +373,13 @@
    "tem_company_id": true,
    "triggers": 1,
    "rls": true,
-   "fks": [],
+   "fks": [
+    {
+     "de": "company_asaas_transfers",
+     "coluna": "company_id",
+     "para": "companies"
+    }
+   ],
    "lido_por": [
     "ui:useCompanyAsaasTransfers.ts"
    ],
@@ -497,7 +423,9 @@
      "para": "transactions"
     }
    ],
-   "lido_por": [],
+   "lido_por": [
+    "ui:Auditoria.tsx"
+   ],
    "escrito_por": []
   },
   "company_members": {
@@ -746,22 +674,6 @@
     "ui:useDocumentScanner.ts"
    ]
   },
-  "journal_entries": {
-   "policies": 1,
-   "linhas": 14,
-   "tem_company_id": false,
-   "triggers": 0,
-   "rls": true,
-   "fks": [
-    {
-     "de": "journal_entries",
-     "coluna": "transaction_id",
-     "para": "personal_transactions"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
-  },
   "monthly_close": {
    "policies": 1,
    "linhas": 0,
@@ -831,6 +743,7 @@
     }
    ],
    "lido_por": [
+    "edge:index.ts",
     "ui:OpenFinanceIntegration.tsx"
    ],
    "escrito_por": [
@@ -848,16 +761,6 @@
      "de": "owner_transactions",
      "coluna": "company_id",
      "para": "companies"
-    },
-    {
-     "de": "owner_transactions",
-     "coluna": "pf_account_id",
-     "para": "personal_accounts"
-    },
-    {
-     "de": "owner_transactions",
-     "coluna": "pf_transaction_id",
-     "para": "personal_transactions"
     },
     {
      "de": "owner_transactions",
@@ -882,211 +785,6 @@
    "escrito_por": [
     "edge:index.ts"
    ]
-  },
-  "personal_accounts": {
-   "policies": 4,
-   "linhas": 1,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_ai_conversations": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_alerts": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 0,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_budgets": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [
-    {
-     "de": "personal_budgets",
-     "coluna": "category_id",
-     "para": "personal_categories"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_categories": {
-   "policies": 4,
-   "linhas": 14,
-   "tem_company_id": false,
-   "triggers": 0,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_category_rules": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 0,
-   "rls": true,
-   "fks": [
-    {
-     "de": "personal_category_rules",
-     "coluna": "category_id",
-     "para": "personal_categories"
-    },
-    {
-     "de": "personal_category_rules",
-     "coluna": "subcategory_id",
-     "para": "personal_subcategories"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_control_charts": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 0,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_credit_cards": {
-   "policies": 4,
-   "linhas": 1,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_goals": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_import_sessions": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 0,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_reconciliation": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 1,
-   "rls": true,
-   "fks": [],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_subcategories": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 0,
-   "rls": true,
-   "fks": [
-    {
-     "de": "personal_subcategories",
-     "coluna": "category_id",
-     "para": "personal_categories"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_transactions": {
-   "policies": 4,
-   "linhas": 14,
-   "tem_company_id": false,
-   "triggers": 3,
-   "rls": true,
-   "fks": [
-    {
-     "de": "personal_transactions",
-     "coluna": "account_id",
-     "para": "personal_accounts"
-    },
-    {
-     "de": "personal_transactions",
-     "coluna": "category_id",
-     "para": "personal_categories"
-    },
-    {
-     "de": "personal_transactions",
-     "coluna": "credit_card_id",
-     "para": "personal_credit_cards"
-    },
-    {
-     "de": "personal_transactions",
-     "coluna": "import_session_id",
-     "para": "personal_import_sessions"
-    },
-    {
-     "de": "personal_transactions",
-     "coluna": "reconciled_with_id",
-     "para": "personal_transactions"
-    },
-    {
-     "de": "personal_transactions",
-     "coluna": "subcategory_id",
-     "para": "personal_subcategories"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
-  },
-  "personal_transfers": {
-   "policies": 4,
-   "linhas": 0,
-   "tem_company_id": false,
-   "triggers": 2,
-   "rls": true,
-   "fks": [
-    {
-     "de": "personal_transfers",
-     "coluna": "from_account_id",
-     "para": "personal_accounts"
-    },
-    {
-     "de": "personal_transfers",
-     "coluna": "to_account_id",
-     "para": "personal_accounts"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
   },
   "plugnotas_config": {
    "policies": 5,
@@ -1276,8 +974,16 @@
    "tem_company_id": true,
    "triggers": 0,
    "rls": true,
-   "fks": [],
-   "lido_por": [],
+   "fks": [
+    {
+     "de": "reconciliation_log",
+     "coluna": "company_id",
+     "para": "companies"
+    }
+   ],
+   "lido_por": [
+    "ui:Auditoria.tsx"
+   ],
    "escrito_por": [
     "edge:index.ts"
    ]
@@ -1473,8 +1179,12 @@
    "triggers": 1,
    "rls": true,
    "fks": [],
-   "lido_por": [],
-   "escrito_por": []
+   "lido_por": [
+    "ui:Preferences.tsx"
+   ],
+   "escrito_por": [
+    "ui:Preferences.tsx"
+   ]
   },
   "warehouses": {
    "policies": 4,
@@ -1489,8 +1199,12 @@
      "para": "companies"
     }
    ],
-   "lido_por": [],
-   "escrito_por": []
+   "lido_por": [
+    "ui:Stock.tsx"
+   ],
+   "escrito_por": [
+    "ui:Stock.tsx"
+   ]
   },
   "webhook_logs": {
    "policies": 2,
@@ -1601,28 +1315,13 @@
    "escrito_por": [
     "edge:index.ts"
    ]
-  },
-  "whatsapp_pending_actions": {
-   "policies": 2,
-   "linhas": 0,
-   "tem_company_id": true,
-   "triggers": 0,
-   "rls": true,
-   "fks": [
-    {
-     "de": "whatsapp_pending_actions",
-     "coluna": "company_id",
-     "para": "companies"
-    }
-   ],
-   "lido_por": [],
-   "escrito_por": []
   }
  },
  "rotas": [
   "/",
   "/.lovable/oauth/consent",
   "/agents",
+  "/auditoria",
   "/bills",
   "/budget",
   "/cfo-digital",
@@ -1676,6 +1375,7 @@
   "/",
   "/.lovable/oauth/consent",
   "/agents",
+  "/auditoria",
   "/bills",
   "/budget",
   "/cfo-digital",
@@ -1875,230 +1575,5 @@
    "ui:OpenFinanceIntegration.tsx"
   ]
  },
- "achados": [
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "asaas_config",
-   "descricao": "nenhum código lê nem escreve (1 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "asaas_payments",
-   "descricao": "nenhum código lê nem escreve (3 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "asaas_webhook_events",
-   "descricao": "nenhum código lê nem escreve (16 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "company_journal_entries",
-   "descricao": "nenhum código lê nem escreve (34 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "journal_entries",
-   "descricao": "nenhum código lê nem escreve (14 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_accounts",
-   "descricao": "nenhum código lê nem escreve (1 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_categories",
-   "descricao": "nenhum código lê nem escreve (14 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_credit_cards",
-   "descricao": "nenhum código lê nem escreve (1 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_transactions",
-   "descricao": "nenhum código lê nem escreve (14 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "sumidouro",
-   "alvo": "reconciliation_log",
-   "descricao": "dado entra e nunca é lido: escrita sem leitura em lugar nenhum",
-   "evidencia": "escrito por edge:index.ts"
-  },
-  {
-   "severidade": "ALTA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "user_preferences",
-   "descricao": "nenhum código lê nem escreve (1 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "MEDIA",
-   "tipo": "fk_ausente",
-   "alvo": "company_asaas_anticipations",
-   "descricao": "tem company_id mas sem chave estrangeira para companies: aceita empresa inexistente e não cascateia na exclusão",
-   "evidencia": ""
-  },
-  {
-   "severidade": "MEDIA",
-   "tipo": "fk_ausente",
-   "alvo": "company_asaas_bills",
-   "descricao": "tem company_id mas sem chave estrangeira para companies: aceita empresa inexistente e não cascateia na exclusão",
-   "evidencia": ""
-  },
-  {
-   "severidade": "MEDIA",
-   "tipo": "fk_ausente",
-   "alvo": "company_asaas_invoices",
-   "descricao": "tem company_id mas sem chave estrangeira para companies: aceita empresa inexistente e não cascateia na exclusão",
-   "evidencia": ""
-  },
-  {
-   "severidade": "MEDIA",
-   "tipo": "fk_ausente",
-   "alvo": "company_asaas_subscriptions",
-   "descricao": "tem company_id mas sem chave estrangeira para companies: aceita empresa inexistente e não cascateia na exclusão",
-   "evidencia": ""
-  },
-  {
-   "severidade": "MEDIA",
-   "tipo": "fk_ausente",
-   "alvo": "company_asaas_transfers",
-   "descricao": "tem company_id mas sem chave estrangeira para companies: aceita empresa inexistente e não cascateia na exclusão",
-   "evidencia": ""
-  },
-  {
-   "severidade": "MEDIA",
-   "tipo": "fk_ausente",
-   "alvo": "reconciliation_log",
-   "descricao": "tem company_id mas sem chave estrangeira para companies: aceita empresa inexistente e não cascateia na exclusão",
-   "evidencia": ""
-  },
-  {
-   "severidade": "MEDIA",
-   "tipo": "familia_duplicada",
-   "alvo": "asaas_* vs company_asaas_*",
-   "descricao": "8 tabelas legadas (por usuário) convivem com 8 novas (por empresa)",
-   "evidencia": "legado com dados: asaas_config(1), asaas_payments(3), asaas_transfers(1), asaas_webhook_events(16)"
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "asaas_bills",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "asaas_invoices",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_ai_conversations",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_alerts",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_budgets",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_category_rules",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_control_charts",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_goals",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_import_sessions",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_reconciliation",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_subcategories",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "personal_transfers",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "warehouses",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  },
-  {
-   "severidade": "BAIXA",
-   "tipo": "tabela_sem_uso",
-   "alvo": "whatsapp_pending_actions",
-   "descricao": "nenhum código lê nem escreve (0 linhas no banco)",
-   "evidencia": ""
-  }
- ]
+ "achados": []
 }
