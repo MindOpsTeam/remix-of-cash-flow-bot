@@ -145,7 +145,7 @@ function LinkCompanyForm({ disabled, onLinked }: { disabled: boolean; onLinked: 
     setSaving(true);
     const { error } = await supabase.rpc("create_company_for_user", {
       company_name: name.trim(),
-      company_cnpj: cnpj.replace(/\D/g, "") || null,
+      company_cnpj: cnpj.replace(/\D/g, "") || undefined,
     });
     setSaving(false);
     if (error) {
