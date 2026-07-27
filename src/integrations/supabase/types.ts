@@ -2563,6 +2563,63 @@ export type Database = {
           },
         ]
       }
+      openfinance_config: {
+        Row: {
+          active: boolean
+          client_id_preview: string | null
+          company_id: string
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          last_test_at: string | null
+          last_test_status: string | null
+          provider: string
+          sandbox: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          client_id_preview?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          provider?: string
+          sandbox?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          client_id_preview?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          provider?: string
+          sandbox?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "openfinance_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "openfinance_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       owner_transactions: {
         Row: {
           amount: number
@@ -4880,10 +4937,19 @@ export type Database = {
         Args: { p_company_id: string; p_environment: string }
         Returns: string
       }
+      get_pluggy_credentials: { Args: { p_company_id: string }; Returns: Json }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
       set_focus_token: {
         Args: { p_company_id: string; p_environment: string; p_token: string }
+        Returns: undefined
+      }
+      set_pluggy_credentials: {
+        Args: {
+          p_client_id: string
+          p_client_secret: string
+          p_company_id: string
+        }
         Returns: undefined
       }
       try_uuid: { Args: { t: string }; Returns: string }
