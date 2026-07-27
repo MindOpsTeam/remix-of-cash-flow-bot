@@ -73,14 +73,27 @@ Deno.serve(async (req) => {
     let workerBody: Record<string, unknown> = {};
 
     if (operation === "emit") {
-      // Atomically reserve the next DPS number to prevent race conditions
-      const { data: reserved, error: reserveErr } = await supabase
+      // Reserva atômica do número da DPS. A função é SECURITY DEFINER e NÃO
+      // valida dono, por isso não é executável pelo papel `authenticated`; a
+      // membresia já foi provada acima, ao carregar nfse_config sob RLS.
+      const admin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { auth: { persistSession: false, autoRefreshToken: false } },
+      );
+      const { data: reserved, error: reserveErr } = await admin
         .rpc("reserve_next_dps_number", { config_id: config.id });
 
-      const numeroDps = reserved ?? config.proximo_numero_dps;
-      if (reserveErr) {
-        console.error("Failed to reserve DPS number, using current:", reserveErr.message);
+      // Falhar aqui é obrigatório: sem reserva o número não incrementa e a
+      // próxima emissão repetiria a mesma DPS, que a SEFAZ rejeita.
+      if (reserveErr || reserved === null || reserved === undefined) {
+        console.error("Falha ao reservar número da DPS:", reserveErr?.message);
+        return new Response(
+          JSON.stringify({ error: "Nao foi possivel reservar o numero da DPS. Emissao abortada." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
+      const numeroDps = reserved;
 
       workerPath = "/emit";
       workerBody = {
