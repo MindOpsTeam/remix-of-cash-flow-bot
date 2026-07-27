@@ -916,6 +916,10 @@ export type Database = {
           descricao: string | null
           fornecedor: string
           id: string
+          is_recurring: boolean
+          recurrence_group_id: string | null
+          recurrence_index: number | null
+          recurrence_total: number | null
           requested_by: string | null
           source: string
           status: string
@@ -933,6 +937,10 @@ export type Database = {
           descricao?: string | null
           fornecedor: string
           id?: string
+          is_recurring?: boolean
+          recurrence_group_id?: string | null
+          recurrence_index?: number | null
+          recurrence_total?: number | null
           requested_by?: string | null
           source?: string
           status?: string
@@ -950,6 +958,10 @@ export type Database = {
           descricao?: string | null
           fornecedor?: string
           id?: string
+          is_recurring?: boolean
+          recurrence_group_id?: string | null
+          recurrence_index?: number | null
+          recurrence_total?: number | null
           requested_by?: string | null
           source?: string
           status?: string
