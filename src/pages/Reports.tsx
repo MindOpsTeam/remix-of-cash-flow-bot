@@ -182,7 +182,7 @@ export default function Reports() {
                 ["Categoria", "Valor"],
                 [
                   ...categoryData.map((c) => [c.name, c.value] as [string, number]),
-                  ...costCenterData.map((c) => [`Centro de custo: ${c.name}`, c.value] as [string, number]),
+                  ...costCenterData.map((c) => [`Centro de custo: ${c.name}`, c.receita - c.despesa] as [string, number]),
                 ],
               );
               downloadCsv(`relatorio-${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}.csv`, csv);
