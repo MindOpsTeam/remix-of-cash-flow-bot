@@ -2120,6 +2120,81 @@ export type Database = {
           },
         ]
       }
+      focus_config: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          enabled_cte: boolean
+          enabled_mdfe: boolean
+          enabled_nfce: boolean
+          enabled_nfe: boolean
+          enabled_nfse: boolean
+          environment: string
+          id: string
+          last_emission_at: string | null
+          last_test_at: string | null
+          last_test_status: string | null
+          serie_padrao: string | null
+          token_homologacao_preview: string | null
+          token_producao_preview: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          enabled_cte?: boolean
+          enabled_mdfe?: boolean
+          enabled_nfce?: boolean
+          enabled_nfe?: boolean
+          enabled_nfse?: boolean
+          environment?: string
+          id?: string
+          last_emission_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          serie_padrao?: string | null
+          token_homologacao_preview?: string | null
+          token_producao_preview?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          enabled_cte?: boolean
+          enabled_mdfe?: boolean
+          enabled_nfce?: boolean
+          enabled_nfe?: boolean
+          enabled_nfse?: boolean
+          environment?: string
+          id?: string
+          last_emission_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          serie_padrao?: string | null
+          token_homologacao_preview?: string | null
+          token_producao_preview?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "focus_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "focus_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       inter_config: {
         Row: {
           account_number: string | null
@@ -4801,8 +4876,16 @@ export type Database = {
         Returns: Json
       }
       gen_org_id: { Args: never; Returns: string }
+      get_focus_token: {
+        Args: { p_company_id: string; p_environment: string }
+        Returns: string
+      }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
+      set_focus_token: {
+        Args: { p_company_id: string; p_environment: string; p_token: string }
+        Returns: undefined
+      }
       try_uuid: { Args: { t: string }; Returns: string }
     }
     Enums: {
