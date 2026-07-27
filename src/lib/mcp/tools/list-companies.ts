@@ -26,7 +26,7 @@ export default defineTool({
       .eq("user_id", ctx.getUserId());
     if (mErr) return { content: [{ type: "text", text: mErr.message }], isError: true };
 
-    const ids = (members ?? []).map((m: any) => m.company_id);
+    const ids = (members ?? []).map((m: { company_id: string }) => m.company_id);
     if (ids.length === 0)
       return {
         content: [{ type: "text", text: "Nenhuma empresa vinculada a este usuário." }],

@@ -28,7 +28,9 @@ export default defineTool({
     const capped = Math.min(Math.max(limit ?? 50, 1), 200);
     let q = db(ctx)
       .from("transactions")
-      .select("id, date, type, description, amount, account_id, category, cost_center_id")
+      .select(
+        "id, date, type, description, amount, status, source, account_id, cost_center_id, is_intercompany",
+      )
       .eq("company_id", company_id)
       .order("date", { ascending: false })
       .limit(capped);

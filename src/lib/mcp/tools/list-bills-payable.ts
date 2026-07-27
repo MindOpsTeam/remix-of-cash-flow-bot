@@ -12,7 +12,8 @@ function db(ctx: ToolContext) {
 export default defineTool({
   name: "list_bills_payable",
   title: "List accounts payable",
-  description: "List bills payable (contas a pagar) for a company. Optional status filter and limit (max 200).",
+  description:
+    "List bills payable (contas a pagar) for a company, ordered by due date (column 'vencimento'). Optional status filter and limit (max 200).",
   inputSchema: {
     company_id: z.string().uuid().describe("Company UUID."),
     status: z.string().optional().describe("Optional status filter (e.g. 'pending', 'paid')."),
@@ -28,7 +29,7 @@ export default defineTool({
       .from("bills_payable")
       .select("*")
       .eq("company_id", company_id)
-      .order("due_date", { ascending: true })
+      .order("vencimento", { ascending: true })
       .limit(capped);
     if (status) q = q.eq("status", status);
 

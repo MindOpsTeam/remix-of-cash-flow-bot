@@ -66,7 +66,9 @@ var list_transactions_default = defineTool2({
     if (!ctx.isAuthenticated())
       return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
     const capped = Math.min(Math.max(limit ?? 50, 1), 200);
-    let q = db2(ctx).from("transactions").select("id, date, type, description, amount, account_id, category, cost_center_id").eq("company_id", company_id).order("date", { ascending: false }).limit(capped);
+    let q = db2(ctx).from("transactions").select(
+      "id, date, type, description, amount, status, source, account_id, cost_center_id, is_intercompany"
+    ).eq("company_id", company_id).order("date", { ascending: false }).limit(capped);
     if (from) q = q.gte("date", from);
     if (to) q = q.lte("date", to);
     const { data, error } = await q;
@@ -91,7 +93,7 @@ function db3(ctx) {
 var create_transaction_default = defineTool3({
   name: "create_transaction",
   title: "Create company transaction",
-  description: "Register a new manual PJ (empresa) transaction. Type must be 'revenue' or 'expense'. Amount is BRL, always positive. Date is ISO YYYY-MM-DD.",
+  description: "Register a new manual PJ (empresa) transaction. Type must be 'revenue' or 'expense'. Amount is BRL, always positive. Date is ISO YYYY-MM-DD. The entry is created as status='confirmed' and source='mcp', so it counts in the DRE exactly like a manual entry typed in the app.",
   inputSchema: {
     company_id: z2.string().uuid().describe("Company UUID (see list_companies)."),
     type: z2.enum(["revenue", "expense"]).describe("revenue = receita, expense = despesa."),
@@ -108,13 +110,18 @@ var create_transaction_default = defineTool3({
       return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
     const { data, error } = await db3(ctx).from("transactions").insert({
       company_id: input.company_id,
+      // NOT NULL na tabela e exigido pela policy de INSERT (user_id = auth.uid()).
+      user_id: ctx.getUserId(),
       type: input.type,
       amount: input.amount,
       date: input.date,
       description: input.description,
       account_id: input.account_id ?? null,
       bank_account_id: input.bank_account_id ?? null,
-      cost_center_id: input.cost_center_id ?? null
+      cost_center_id: input.cost_center_id ?? null,
+      // Mesma régua do lançamento manual da UI: só status='confirmed' entra no DRE.
+      status: "confirmed",
+      source: "mcp"
     }).select().single();
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     return {
@@ -172,7 +179,7 @@ function db5(ctx) {
 var list_bills_payable_default = defineTool5({
   name: "list_bills_payable",
   title: "List accounts payable",
-  description: "List bills payable (contas a pagar) for a company. Optional status filter and limit (max 200).",
+  description: "List bills payable (contas a pagar) for a company, ordered by due date (column 'vencimento'). Optional status filter and limit (max 200).",
   inputSchema: {
     company_id: z4.string().uuid().describe("Company UUID."),
     status: z4.string().optional().describe("Optional status filter (e.g. 'pending', 'paid')."),
@@ -183,7 +190,7 @@ var list_bills_payable_default = defineTool5({
     if (!ctx.isAuthenticated())
       return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
     const capped = Math.min(Math.max(limit ?? 50, 1), 200);
-    let q = db5(ctx).from("bills_payable").select("*").eq("company_id", company_id).order("due_date", { ascending: true }).limit(capped);
+    let q = db5(ctx).from("bills_payable").select("*").eq("company_id", company_id).order("vencimento", { ascending: true }).limit(capped);
     if (status) q = q.eq("status", status);
     const { data, error } = await q;
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
@@ -207,7 +214,7 @@ function db6(ctx) {
 var cash_summary_default = defineTool6({
   name: "cash_summary",
   title: "Cash summary (revenue vs expense)",
-  description: "Summary of a company's revenue, expenses and net cash flow in a date range. Dates ISO YYYY-MM-DD.",
+  description: "Summary of a company's revenue, expenses and net result in a date range. Dates ISO YYYY-MM-DD. Uses the same rule as the app's DRE: only confirmed entries, intercompany transfers excluded \u2014 so the numbers match what the user sees on screen.",
   inputSchema: {
     company_id: z5.string().uuid().describe("Company UUID."),
     from: z5.string().describe("Start date, inclusive."),
@@ -217,7 +224,7 @@ var cash_summary_default = defineTool6({
   handler: async ({ company_id, from, to }, ctx) => {
     if (!ctx.isAuthenticated())
       return { content: [{ type: "text", text: "N\xE3o autenticado" }], isError: true };
-    const { data, error } = await db6(ctx).from("transactions").select("type, amount").eq("company_id", company_id).gte("date", from).lte("date", to);
+    const { data, error } = await db6(ctx).from("transactions").select("type, amount").eq("company_id", company_id).eq("status", "confirmed").eq("is_intercompany", false).gte("date", from).lte("date", to);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     const rows = data ?? [];
     let revenue = 0;

@@ -13,7 +13,7 @@ export default defineTool({
   name: "cash_summary",
   title: "Cash summary (revenue vs expense)",
   description:
-    "Summary of a company's revenue, expenses and net cash flow in a date range. Dates ISO YYYY-MM-DD.",
+    "Summary of a company's revenue, expenses and net result in a date range. Dates ISO YYYY-MM-DD. Uses the same rule as the app's DRE: only confirmed entries, intercompany transfers excluded — so the numbers match what the user sees on screen.",
   inputSchema: {
     company_id: z.string().uuid().describe("Company UUID."),
     from: z.string().describe("Start date, inclusive."),
@@ -28,6 +28,10 @@ export default defineTool({
       .from("transactions")
       .select("type, amount")
       .eq("company_id", company_id)
+      // Régua do DRE: só lançamento confirmado conta, e transferência entre
+      // empresas do grupo não é receita/despesa (igual à v_company_margin).
+      .eq("status", "confirmed")
+      .eq("is_intercompany", false)
       .gte("date", from)
       .lte("date", to);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
