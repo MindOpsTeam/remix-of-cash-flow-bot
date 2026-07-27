@@ -916,6 +916,10 @@ export type Database = {
           descricao: string | null
           fornecedor: string
           id: string
+          is_recurring: boolean
+          recurrence_group_id: string | null
+          recurrence_index: number | null
+          recurrence_total: number | null
           requested_by: string | null
           source: string
           status: string
@@ -933,6 +937,10 @@ export type Database = {
           descricao?: string | null
           fornecedor: string
           id?: string
+          is_recurring?: boolean
+          recurrence_group_id?: string | null
+          recurrence_index?: number | null
+          recurrence_total?: number | null
           requested_by?: string | null
           source?: string
           status?: string
@@ -950,6 +958,10 @@ export type Database = {
           descricao?: string | null
           fornecedor?: string
           id?: string
+          is_recurring?: boolean
+          recurrence_group_id?: string | null
+          recurrence_index?: number | null
+          recurrence_total?: number | null
           requested_by?: string | null
           source?: string
           status?: string
@@ -4791,6 +4803,7 @@ export type Database = {
       gen_org_id: { Args: never; Returns: string }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
+      try_uuid: { Args: { t: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
