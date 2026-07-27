@@ -19,6 +19,12 @@ const LoginSignupForm = () => {
 
   const navigate = useNavigate();
 
+  const nextParam = (() => {
+    if (typeof window === "undefined") return null;
+    const n = new URLSearchParams(window.location.search).get("next");
+    return n && n.startsWith("/") && !n.startsWith("//") ? n : null;
+  })();
+
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -29,7 +35,7 @@ const LoginSignupForm = () => {
     if (error) {
       toast.error(error.message);
     } else {
-      navigate("/dashboard");
+      navigate(nextParam ?? "/dashboard");
     }
     setLoading(false);
   };
@@ -41,7 +47,7 @@ const LoginSignupForm = () => {
       email: regEmail,
       password: regPassword,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: window.location.origin + (nextParam ?? ""),
         data: regName ? { full_name: regName } : undefined,
       },
     });
