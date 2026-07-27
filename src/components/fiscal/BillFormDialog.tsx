@@ -3,8 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Repeat } from "lucide-react";
 import type { BillInput } from "@/hooks/useBillsPayable";
 
 interface Props {
@@ -21,21 +19,12 @@ export function BillFormDialog({ open, onOpenChange, onSubmit, initialData, isPe
   const [descricao, setDescricao] = useState(initialData?.descricao ?? "");
   const [vencimento, setVencimento] = useState(initialData?.vencimento ?? "");
   const [valor, setValor] = useState(initialData?.valor?.toString() ?? "");
-  const [isRecurring, setIsRecurring] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!fornecedor || !vencimento || !valor) return;
-    onSubmit({
-      fornecedor,
-      descricao: descricao || null,
-      vencimento,
-      valor: parseFloat(valor),
-      ...(isEdit ? {} : { is_recurring: isRecurring, recurrence_months: isRecurring ? 12 : undefined }),
-    });
-    if (!isEdit) {
-      setFornecedor(""); setDescricao(""); setVencimento(""); setValor(""); setIsRecurring(false);
-    }
+    onSubmit({ fornecedor, descricao: descricao || null, vencimento, valor: parseFloat(valor) });
+    if (!isEdit) { setFornecedor(""); setDescricao(""); setVencimento(""); setValor(""); }
     onOpenChange(false);
   };
 
@@ -55,40 +44,16 @@ export function BillFormDialog({ open, onOpenChange, onSubmit, initialData, isPe
             <Input value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descrição (opcional)" />
           </div>
           <div className="space-y-2">
-            <Label>{isRecurring && !isEdit ? "Primeiro vencimento" : "Vencimento"}</Label>
+            <Label>Vencimento</Label>
             <Input type="date" value={vencimento} onChange={e => setVencimento(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label>Valor (R$)</Label>
             <Input type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)} />
           </div>
-
-          {!isEdit && (
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <Checkbox
-                  checked={isRecurring}
-                  onCheckedChange={(v) => setIsRecurring(v === true)}
-                  className="mt-0.5"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Repeat className="h-3.5 w-3.5 text-primary" />
-                    Pagamento recorrente
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Gera 12 parcelas mensais automaticamente a partir do vencimento informado.
-                  </p>
-                </div>
-              </label>
-            </div>
-          )}
-
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={isPending}>
-              {isEdit ? "Salvar" : (isRecurring ? "Adicionar 12 parcelas" : "Adicionar")}
-            </Button>
+            <Button type="submit" disabled={isPending}>{isEdit ? "Salvar" : "Adicionar"}</Button>
           </div>
         </form>
       </DialogContent>

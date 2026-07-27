@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check, Repeat } from "lucide-react";
+import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useBillsPayable, type BillInput } from "@/hooks/useBillsPayable";
 import { BillFormDialog } from "@/components/fiscal/BillFormDialog";
@@ -80,20 +80,7 @@ export default function BillsPayable() {
                     {bills.map(b => (
                       <tr key={b.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3 font-medium">{b.fornecedor}</td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <span>{b.descricao ?? "—"}</span>
-                            {b.is_recurring && (
-                              <span
-                                title={b.recurrence_total ? `Parcela ${b.recurrence_index}/${b.recurrence_total}` : "Recorrente"}
-                                className="inline-flex items-center gap-1 rounded-sm bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary"
-                              >
-                                <Repeat className="h-3 w-3" />
-                                {b.recurrence_total ? `${b.recurrence_index}/${b.recurrence_total}` : "Recorrente"}
-                              </span>
-                            )}
-                          </div>
-                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{b.descricao ?? "—"}</td>
                         <td className="px-4 py-3 text-muted-foreground">{formatDate(b.vencimento)}</td>
                         <td className="px-4 py-3 text-right tabular-nums font-medium">{formatCurrency(b.valor)}</td>
                         <td className="px-4 py-3 text-center">

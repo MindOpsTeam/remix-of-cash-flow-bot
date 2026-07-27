@@ -4803,6 +4803,7 @@ export type Database = {
       gen_org_id: { Args: never; Returns: string }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
+      try_uuid: { Args: { t: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
