@@ -74,7 +74,7 @@
       {
         "name": "create_transaction",
         "title": "Create company transaction",
-        "description": "Register a new manual PJ (empresa) transaction. Type must be 'revenue' or 'expense'. Amount is BRL, always positive. Date is ISO YYYY-MM-DD.",
+        "description": "Register a new manual PJ (empresa) transaction. Type must be 'revenue' or 'expense'. Amount is BRL, always positive. Date is ISO YYYY-MM-DD. The entry is created as status='confirmed' and source='mcp', so it counts in the DRE exactly like a manual entry typed in the app.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
@@ -176,7 +176,7 @@
       {
         "name": "list_bills_payable",
         "title": "List accounts payable",
-        "description": "List bills payable (contas a pagar) for a company. Optional status filter and limit (max 200).",
+        "description": "List bills payable (contas a pagar) for a company, ordered by due date (column 'vencimento'). Optional status filter and limit (max 200).",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
@@ -211,7 +211,7 @@
       {
         "name": "cash_summary",
         "title": "Cash summary (revenue vs expense)",
-        "description": "Summary of a company's revenue, expenses and net cash flow in a date range. Dates ISO YYYY-MM-DD.",
+        "description": "Summary of a company's revenue, expenses and net result in a date range. Dates ISO YYYY-MM-DD. Uses the same rule as the app's DRE: only confirmed entries, intercompany transfers excluded — so the numbers match what the user sees on screen.",
         "annotations": {
           "readOnlyHint": true,
           "idempotentHint": true,
