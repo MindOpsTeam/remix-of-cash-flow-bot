@@ -40,7 +40,7 @@ describe("mcp/create_transaction", () => {
   it("bloqueia chamada não autenticada", async () => {
     setNextFixtures({});
     const tool = await loadTool();
-    const res: any = await tool.handler(baseInput, makeCtx({ authenticated: false }));
+    const res: any = await tool.handler(baseInput as any, makeCtx({ authenticated: false }));
 
     expect(res.isError).toBe(true);
     expect(getLastCalls()).toEqual([]);
@@ -92,7 +92,7 @@ describe("mcp/create_transaction", () => {
       },
     });
     const tool = await loadTool();
-    const res: any = await tool.handler(baseInput, makeCtx());
+    const res: any = await tool.handler(baseInput as any, makeCtx());
 
     expect(res.isError).toBe(true);
     expect(res.content[0].text).toMatch(/row-level security/i);

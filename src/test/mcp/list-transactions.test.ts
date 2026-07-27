@@ -31,7 +31,7 @@ describe("mcp/list_transactions", () => {
   it("bloqueia chamada não autenticada e não toca no DB", async () => {
     setNextFixtures({});
     const tool = await loadTool();
-    const res: any = await tool.handler({ company_id: COMPANY }, makeCtx({ authenticated: false }));
+    const res: any = await tool.handler({ company_id: COMPANY } as any, makeCtx({ authenticated: false }));
 
     expect(res.isError).toBe(true);
     expect(res.content[0].text).toMatch(/autenticado/i);
@@ -49,7 +49,7 @@ describe("mcp/list_transactions", () => {
       },
     });
     const tool = await loadTool();
-    const res: any = await tool.handler({ company_id: COMPANY }, makeCtx());
+    const res: any = await tool.handler({ company_id: COMPANY } as any, makeCtx());
 
     expect(res.isError).toBeUndefined();
     expect(res.structuredContent.transactions).toHaveLength(1);
@@ -65,7 +65,7 @@ describe("mcp/list_transactions", () => {
     setNextFixtures({ transactions: { select: { data: [], error: null } } });
     const tool = await loadTool();
     await tool.handler(
-      { company_id: COMPANY, from: "2026-01-01", to: "2026-01-31", limit: 9999 },
+      { company_id: COMPANY, from: "2026-01-01", to: "2026-01-31", limit: 9999 } as any,
       makeCtx(),
     );
 
@@ -84,7 +84,7 @@ describe("mcp/list_transactions", () => {
     // Simula a resposta que RLS produz: array vazio, sem `error`.
     setNextFixtures({ transactions: { select: { data: [], error: null } } });
     const tool = await loadTool();
-    const res: any = await tool.handler({ company_id: COMPANY }, makeCtx());
+    const res: any = await tool.handler({ company_id: COMPANY } as any, makeCtx());
 
     expect(res.isError).toBeUndefined();
     expect(res.structuredContent.transactions).toEqual([]);
@@ -95,7 +95,7 @@ describe("mcp/list_transactions", () => {
       transactions: { select: { data: null, error: { message: "boom", code: "42501" } } },
     });
     const tool = await loadTool();
-    const res: any = await tool.handler({ company_id: COMPANY }, makeCtx());
+    const res: any = await tool.handler({ company_id: COMPANY } as any, makeCtx());
 
     expect(res.isError).toBe(true);
     expect(res.content[0].text).toBe("boom");
