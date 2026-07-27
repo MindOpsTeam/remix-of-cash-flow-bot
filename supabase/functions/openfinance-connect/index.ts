@@ -9,7 +9,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
-import { pluggyAuth, createConnectToken } from "../_shared/pluggy.ts";
+import { pluggyAuth, createConnectToken, pluggyCredsForCompany } from "../_shared/pluggy.ts";
 import { syncPluggyConnection } from "../_shared/openfinance-sync.ts";
 
 Deno.serve(async (req) => {
@@ -27,10 +27,23 @@ Deno.serve(async (req) => {
     const action = body.action as string;
 
     if (action === "status") {
+      // Com company_id, responde pela credencial DAQUELA empresa (Vault, com
+      // fallback no env). Sem, responde só se existe credencial global.
+      const cid = body.company_id as string | undefined;
+      if (cid) {
+        const forbid = await assertMembership(supabase, user.id, cid, corsHeaders);
+        if (forbid) return forbid;
+        const creds = await pluggyCredsForCompany(service, cid);
+        return jsonResp(
+          { configured: creds.origem !== "ausente", origem: creds.origem },
+          200,
+          corsHeaders,
+        );
+      }
       const configured = Boolean(
         Deno.env.get("PLUGGY_CLIENT_ID") && Deno.env.get("PLUGGY_CLIENT_SECRET"),
       );
-      return jsonResp({ configured }, 200, corsHeaders);
+      return jsonResp({ configured, origem: configured ? "env" : "ausente" }, 200, corsHeaders);
     }
 
     const companyId = body.company_id as string | undefined;
@@ -41,7 +54,7 @@ Deno.serve(async (req) => {
     if (action === "token") {
       let apiKey: string;
       try {
-        apiKey = await pluggyAuth();
+        apiKey = await pluggyAuth(await pluggyCredsForCompany(service, companyId));
       } catch (e) {
         if (e instanceof Error && e.message === "PLUGGY_NOT_CONFIGURED") {
           return jsonResp({ error: "PLUGGY_NOT_CONFIGURED" }, 503, corsHeaders);

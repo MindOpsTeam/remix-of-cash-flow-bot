@@ -5,7 +5,7 @@
  */
 
 import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
-import { pluggyAuth, listAccounts, listTransactions, getItem } from "./pluggy.ts";
+import { pluggyAuth, listAccounts, listTransactions, getItem, pluggyCredsForCompany } from "./pluggy.ts";
 import {
   mapPluggyTransaction,
   normalizePluggyStatus,
@@ -36,7 +36,8 @@ export async function syncPluggyConnection(
   },
   opts: { initial?: boolean } = {},
 ): Promise<SyncResult> {
-  const apiKey = await pluggyAuth();
+  // Credencial da empresa dona da conexão (Vault), com fallback no env.
+  const apiKey = await pluggyAuth(await pluggyCredsForCompany(supabase, connection.company_id));
 
   // Status do item
   const item = await getItem(apiKey, connection.external_id);

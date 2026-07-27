@@ -54,6 +54,14 @@ const integrationCards = [
     description: "NFe, NFCe, NFSe, NFSe Nacional, CTe e MDFe numa API só (com ambiente de teste)",
     to: "/settings/integrations/focus",
   },
+  {
+    icon: Landmark,
+    iconBg: "bg-teal-500/10",
+    iconColor: "text-teal-500",
+    title: "Open Finance",
+    description: "Extrato, cartão, investimentos e crédito direto do banco via Pluggy",
+    to: "/settings/integrations/openfinance",
+  },
 ];
 
 interface WebhookConfig {

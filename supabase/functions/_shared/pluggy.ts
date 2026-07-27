@@ -25,10 +25,41 @@ export interface PluggyItem {
   consentExpiresAt?: string | null;
 }
 
+export interface PluggyCreds {
+  clientId?: string | null;
+  clientSecret?: string | null;
+}
+
+/**
+ * Credenciais da Pluggy DA EMPRESA: o par fica no Vault, escrito pela tela de
+ * configurações (RPC set_pluggy_credentials) e lido aqui pelo service_role.
+ * O env secret continua valendo como fallback, para não derrubar quem já estava
+ * conectado antes de existir a tela.
+ */
+export async function pluggyCredsForCompany(
+  service: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> },
+  companyId: string,
+): Promise<PluggyCreds & { origem: "vault" | "env" | "ausente" }> {
+  let doCofre: { client_id?: string; client_secret?: string } | null = null;
+  try {
+    const { data } = await service.rpc("get_pluggy_credentials", { p_company_id: companyId });
+    doCofre = (data ?? null) as { client_id?: string; client_secret?: string } | null;
+  } catch (_) {
+    doCofre = null; // cofre indisponível não pode derrubar a integração
+  }
+  if (doCofre?.client_id && doCofre?.client_secret) {
+    return { clientId: doCofre.client_id, clientSecret: doCofre.client_secret, origem: "vault" };
+  }
+  const envId = Deno.env.get("PLUGGY_CLIENT_ID");
+  const envSecret = Deno.env.get("PLUGGY_CLIENT_SECRET");
+  if (envId && envSecret) return { clientId: envId, clientSecret: envSecret, origem: "env" };
+  return { clientId: null, clientSecret: null, origem: "ausente" };
+}
+
 /** Gera a API Key de curta duração a partir do par client id/secret. */
-export async function pluggyAuth(): Promise<string> {
-  const clientId = Deno.env.get("PLUGGY_CLIENT_ID");
-  const clientSecret = Deno.env.get("PLUGGY_CLIENT_SECRET");
+export async function pluggyAuth(creds?: PluggyCreds): Promise<string> {
+  const clientId = creds?.clientId || Deno.env.get("PLUGGY_CLIENT_ID");
+  const clientSecret = creds?.clientSecret || Deno.env.get("PLUGGY_CLIENT_SECRET");
   if (!clientId || !clientSecret) {
     throw new Error("PLUGGY_NOT_CONFIGURED");
   }
