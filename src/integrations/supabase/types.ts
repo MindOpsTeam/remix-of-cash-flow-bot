@@ -669,6 +669,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bills_payable_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "bills_payable_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
@@ -2068,6 +2075,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contracts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "contracts_cost_center_id_fkey"
             columns: ["cost_center_id"]
             isOneToOne: false
@@ -2467,6 +2481,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
           },
           {
             foreignKeyName: "invoices_sales_order_id_fkey"
@@ -3242,6 +3263,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "purchase_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       receivables: {
@@ -3352,6 +3380,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receivables_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
           },
           {
             foreignKeyName: "receivables_contract_id_fkey"
@@ -3528,6 +3563,7 @@ export type Database = {
           payment_method: string | null
           payment_terms: number | null
           salesperson: string | null
+          salesperson_id: string | null
           shipping: number | null
           status: string
           subtotal: number
@@ -3552,6 +3588,7 @@ export type Database = {
           payment_method?: string | null
           payment_terms?: number | null
           salesperson?: string | null
+          salesperson_id?: string | null
           shipping?: number | null
           status?: string
           subtotal?: number
@@ -3576,6 +3613,7 @@ export type Database = {
           payment_method?: string | null
           payment_terms?: number | null
           salesperson?: string | null
+          salesperson_id?: string | null
           shipping?: number | null
           status?: string
           subtotal?: number
@@ -3611,6 +3649,131 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "sales_orders_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespeople"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_targets: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          mes: string
+          meta: number
+          salesperson_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          mes: string
+          meta: number
+          salesperson_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          mes?: string
+          meta?: number
+          salesperson_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_targets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_targets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "sales_targets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "sales_targets_salesperson_id_fkey"
+            columns: ["salesperson_id"]
+            isOneToOne: false
+            referencedRelation: "salespeople"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salespeople: {
+        Row: {
+          active: boolean
+          comissao_padrao: number
+          company_id: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          comissao_padrao?: number
+          company_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          comissao_padrao?: number
+          company_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salespeople_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salespeople_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "salespeople_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
           },
         ]
       }
@@ -3892,6 +4055,7 @@ export type Database = {
           bank_account_id: string | null
           company_id: string
           competencia_date: string | null
+          contact_id: string | null
           cost_center_id: string | null
           counterparty_company_id: string | null
           created_at: string
@@ -3915,6 +4079,7 @@ export type Database = {
           bank_account_id?: string | null
           company_id: string
           competencia_date?: string | null
+          contact_id?: string | null
           cost_center_id?: string | null
           counterparty_company_id?: string | null
           created_at?: string
@@ -3938,6 +4103,7 @@ export type Database = {
           bank_account_id?: string | null
           company_id?: string
           competencia_date?: string | null
+          contact_id?: string | null
           cost_center_id?: string | null
           counterparty_company_id?: string | null
           created_at?: string
@@ -3989,6 +4155,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
           },
           {
             foreignKeyName: "transactions_cost_center_id_fkey"
@@ -4477,6 +4657,52 @@ export type Database = {
           },
         ]
       }
+      v_cliente_360: {
+        Row: {
+          atraso_medio_dias: number | null
+          company_id: string | null
+          contact_id: string | null
+          credit_limit: number | null
+          default_payment_terms: number | null
+          document: string | null
+          em_aberto: number | null
+          faturado: number | null
+          name: string | null
+          pedidos: number | null
+          recebido: number | null
+          ticket_medio: number | null
+          titulos: number | null
+          type: string | null
+          ultimo_pedido_em: string | null
+          ultimo_vencimento: string | null
+          uso_do_limite_pct: number | null
+          vencido: number | null
+          whatsapp: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       v_company_margin: {
         Row: {
           company_id: string | null
@@ -4586,6 +4812,13 @@ export type Database = {
             referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contracts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       v_dre_linhas: {
@@ -4690,6 +4923,20 @@ export type Database = {
         }
         Relationships: []
       }
+      v_meta_vendedor: {
+        Row: {
+          atingimento_pct: number | null
+          comissao: number | null
+          company_id: string | null
+          mes: string | null
+          meta: number | null
+          pedidos: number | null
+          salesperson_id: string | null
+          vendedor: string | null
+          vendido: number | null
+        }
+        Relationships: []
+      }
       v_produtos_pendencia_fiscal: {
         Row: {
           account_id: string | null
@@ -4776,7 +5023,16 @@ export type Database = {
         Args: { p_ate: string; p_de: string; p_indice: string }
         Returns: number
       }
+      brl: { Args: { p_valor: number }; Returns: string }
+      carregar_cclasstrib: {
+        Args: { p_linhas: Json; p_versao: string }
+        Returns: Json
+      }
       chamar_funcao_agendada: { Args: { p_slug: string }; Returns: number }
+      checar_credito: {
+        Args: { p_contact_id: string; p_valor: number }
+        Returns: Json
+      }
       create_company_for_user: {
         Args: { company_cnpj?: string; company_name: string }
         Returns: Json
@@ -4788,6 +5044,10 @@ export type Database = {
           p_primeiro_vencimento?: string
           p_sales_order_id: string
         }
+        Returns: Json
+      }
+      fechar_comissao: {
+        Args: { p_company_id: string; p_mes: string; p_vencimento?: string }
         Returns: Json
       }
       fechar_mes: {
