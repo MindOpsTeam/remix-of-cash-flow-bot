@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.sugerir-fiscal]
 verify_jwt = false
+
+[functions.indices-sync]
+verify_jwt = false
