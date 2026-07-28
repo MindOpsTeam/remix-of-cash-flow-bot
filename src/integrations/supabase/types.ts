@@ -95,6 +95,115 @@ export type Database = {
           },
         ]
       }
+      ai_classification_feedback: {
+        Row: {
+          aceito: boolean
+          company_id: string
+          created_at: string
+          descricao: string | null
+          final_account_id: string | null
+          id: string
+          origem: string
+          sugerido_account_id: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          aceito: boolean
+          company_id: string
+          created_at?: string
+          descricao?: string | null
+          final_account_id?: string | null
+          id?: string
+          origem?: string
+          sugerido_account_id?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          aceito?: boolean
+          company_id?: string
+          created_at?: string
+          descricao?: string | null
+          final_account_id?: string | null
+          id?: string
+          origem?: string
+          sugerido_account_id?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_classification_feedback_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_classification_feedback_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "ai_classification_feedback_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage: {
+        Row: {
+          company_id: string | null
+          completion_tokens: number | null
+          created_at: string
+          custo_centavos: number | null
+          funcao: string
+          id: string
+          modelo: string | null
+          prompt_tokens: number | null
+          sucesso: boolean
+        }
+        Insert: {
+          company_id?: string | null
+          completion_tokens?: number | null
+          created_at?: string
+          custo_centavos?: number | null
+          funcao: string
+          id?: string
+          modelo?: string | null
+          prompt_tokens?: number | null
+          sucesso?: boolean
+        }
+        Update: {
+          company_id?: string | null
+          completion_tokens?: number | null
+          created_at?: string
+          custo_centavos?: number | null
+          funcao?: string
+          id?: string
+          modelo?: string | null
+          prompt_tokens?: number | null
+          sucesso?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           company_id: string
@@ -374,6 +483,7 @@ export type Database = {
           fornecedor: string
           id: string
           is_recurring: boolean
+          purchase_order_id: string | null
           recurrence_group_id: string | null
           recurrence_index: number | null
           recurrence_total: number | null
@@ -395,6 +505,7 @@ export type Database = {
           fornecedor: string
           id?: string
           is_recurring?: boolean
+          purchase_order_id?: string | null
           recurrence_group_id?: string | null
           recurrence_index?: number | null
           recurrence_total?: number | null
@@ -416,6 +527,7 @@ export type Database = {
           fornecedor?: string
           id?: string
           is_recurring?: boolean
+          purchase_order_id?: string | null
           recurrence_group_id?: string | null
           recurrence_index?: number | null
           recurrence_total?: number | null
@@ -446,6 +558,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bills_payable_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
             referencedColumns: ["id"]
           },
         ]
@@ -558,6 +677,68 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classification_rules: {
+        Row: {
+          account_id: string | null
+          acertos: number
+          company_id: string
+          cost_center_id: string | null
+          created_at: string
+          id: string
+          origem: string
+          padrao: string
+        }
+        Insert: {
+          account_id?: string | null
+          acertos?: number
+          company_id: string
+          cost_center_id?: string | null
+          created_at?: string
+          id?: string
+          origem?: string
+          padrao: string
+        }
+        Update: {
+          account_id?: string | null
+          acertos?: number
+          company_id?: string
+          cost_center_id?: string | null
+          created_at?: string
+          id?: string
+          origem?: string
+          padrao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classification_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classification_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "classification_rules_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
             referencedColumns: ["id"]
           },
         ]
@@ -2370,6 +2551,7 @@ export type Database = {
         Row: {
           account_id: string | null
           active: boolean
+          average_cost: number | null
           barcode: string | null
           category: string | null
           cclasstrib: string | null
@@ -2394,6 +2576,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           active?: boolean
+          average_cost?: number | null
           barcode?: string | null
           category?: string | null
           cclasstrib?: string | null
@@ -2418,6 +2601,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           active?: boolean
+          average_cost?: number | null
           barcode?: string | null
           category?: string | null
           cclasstrib?: string | null
@@ -3660,6 +3844,18 @@ export type Database = {
       }
       get_pluggy_credentials: { Args: { p_company_id: string }; Returns: Json }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
+      registrar_movimento_estoque: {
+        Args: {
+          p_company_id: string
+          p_custo_unitario?: number
+          p_observacao?: string
+          p_product_id: string
+          p_quantidade: number
+          p_tipo: string
+          p_warehouse_id?: string
+        }
+        Returns: Json
+      }
       reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
       set_focus_token: {
         Args: { p_company_id: string; p_environment: string; p_token: string }
