@@ -95,6 +95,51 @@ export type Database = {
           },
         ]
       }
+      agent_rules: {
+        Row: {
+          agent: string
+          ativo: boolean
+          company_id: string
+          config: Json
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          agent: string
+          ativo?: boolean
+          company_id: string
+          config?: Json
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          agent?: string
+          ativo?: boolean
+          company_id?: string
+          config?: Json
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_rules_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       ai_classification_feedback: {
         Row: {
           aceito: boolean
