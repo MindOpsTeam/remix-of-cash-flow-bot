@@ -7,19 +7,15 @@ import { exportDREtoPDF } from "@/lib/pdf-export";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { FileDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { FileDown, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-
-interface DRELine {
-  label: string;
-  value: number;
-  level: number;
-  isTotal?: boolean;
-}
+import { montarDRE, montarSerieMensal, type DRELine, type LinhaView, type LinhaMes } from "@/lib/dre";
 
 export default function DRE() {
   const { company } = useCompany();
   const [lines, setLines] = useState<DRELine[]>([]);
+  const [naoClassificado, setNaoClassificado] = useState(0);
   const [monthlyData, setMonthlyData] = useState<{ month: string; receitas: number; despesas: number; lucro: number }[]>([]);
 
   // Period selector
@@ -51,94 +47,52 @@ export default function DRE() {
     const startOfMonth = new Date(selectedYear, selectedMonth, 1).toISOString().split("T")[0];
     const endOfMonth = new Date(selectedYear, selectedMonth + 1, 0).toISOString().split("T")[0];
 
-    const { data: allAccounts } = await supabase
-      .from("chart_of_accounts")
-      .select("id, name, code, type")
+    // A régua vive na view. Aqui só se ordena e se dá nome às linhas: se a
+    // regra de receita/custo/despesa aparecesse de novo neste arquivo, seriam
+    // duas cópias da mesma regra e elas voltariam a divergir.
+    // O cast existe porque src/integrations/supabase/types.ts é regerado pelo
+    // Lovable, dono do projeto Supabase, e ainda não conhece esta view. O
+    // formato está fixado em LinhaView e é o mesmo declarado na migration.
+    const { data: linhasView } = await supabase
+      .from("v_dre_linhas" as never)
+      .select("account_id, account_code, account_name, type, grupo, total")
       .eq("company_id", company.id)
-      .order("code");
+      .gte("mes", startOfMonth)
+      .lte("mes", endOfMonth);
 
-    const { data: transactions } = await supabase
-      .from("transactions")
-      .select("amount, type, account_id, date, chart_of_accounts(name, code)")
-      .eq("company_id", company.id)
-      .in("status", ["confirmed", "reconciled"])
-      .gte("date", startOfMonth)
-      .lte("date", endOfMonth);
+    const resultado = montarDRE((linhasView ?? []) as unknown as LinhaView[]);
+    setLines(resultado.linhas);
+    setNaoClassificado(resultado.naoClassificado);
 
-    if (!allAccounts) return;
-
-    const txTotals: Record<string, number> = {};
-    for (const t of (transactions || [])) {
-      const key = t.account_id || "unclassified";
-      txTotals[key] = (txTotals[key] || 0) + Number(t.amount);
-    }
-
-    const revenues = allAccounts.filter((a) => a.type === "revenue").map((a) => ({
-      name: a.code ? `${a.code} – ${a.name}` : a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
-    }));
-    const costs = allAccounts.filter((a) => a.type === "expense" && (a.code || "").startsWith("4")).map((a) => ({
-      name: a.code ? `${a.code} – ${a.name}` : a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
-    }));
-    const expenses = allAccounts.filter((a) => a.type === "expense" && !(a.code || "").startsWith("4")).map((a) => ({
-      name: a.code ? `${a.code} – ${a.name}` : a.name, code: a.code || "0", amount: txTotals[a.id] || 0,
-    }));
-
-    const totalRevenue = revenues.reduce((s, r) => s + r.amount, 0);
-    const totalCosts = costs.reduce((s, c) => s + c.amount, 0);
-    const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-    const grossProfit = totalRevenue - totalCosts;
-    const netProfit = grossProfit - totalExpenses;
-
-    const dreLines: DRELine[] = [
-      { label: "Receita Bruta", value: totalRevenue, level: 0, isTotal: true },
-      ...revenues.map((r) => ({ label: r.name, value: r.amount, level: 1 })),
-      { label: "(-) Custos", value: -totalCosts, level: 0 },
-      ...costs.map((c) => ({ label: c.name, value: -c.amount, level: 1 })),
-      { label: "Lucro Bruto", value: grossProfit, level: 0, isTotal: true },
-      { label: "(-) Despesas Operacionais", value: -totalExpenses, level: 0 },
-      ...expenses.map((e) => ({ label: e.name, value: -e.amount, level: 1 })),
-      { label: "Lucro Líquido", value: netProfit, level: 0, isTotal: true },
-    ];
-
-    setLines(dreLines);
-
-    // Build last 6 months chart with a single query
+    // Últimos 6 meses, da MESMA view da tabela, para o gráfico e o Lucro
+    // Líquido ao lado não contarem coisas diferentes.
     const chartStart = new Date(selectedYear, selectedMonth - 5, 1).toISOString().split("T")[0];
-    const chartEnd = endOfMonth;
 
-    const { data: chartTx } = await supabase
-      .from("transactions")
-      .select("amount, type, date")
+    const { data: serieView } = await supabase
+      .from("v_dre_linhas" as never)
+      .select("mes, grupo, total")
       .eq("company_id", company.id)
-      .in("status", ["confirmed", "reconciled"])
-      .gte("date", chartStart)
-      .lte("date", chartEnd);
+      .gte("mes", chartStart)
+      .lte("mes", endOfMonth);
 
-    const monthBuckets: Record<string, { receitas: number; despesas: number }> = {};
+    const chaves: string[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(selectedYear, selectedMonth - i, 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      monthBuckets[key] = { receitas: 0, despesas: 0 };
+      chaves.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     }
 
-    for (const t of (chartTx || [])) {
-      const key = t.date.substring(0, 7); // "YYYY-MM"
-      if (monthBuckets[key]) {
-        if (t.type === "revenue") monthBuckets[key].receitas += Number(t.amount);
-        else monthBuckets[key].despesas += Number(t.amount);
-      }
-    }
-
-    const chartData = Object.entries(monthBuckets).map(([key, vals]) => {
-      const [y, m] = key.split("-").map(Number);
-      return {
-        month: new Date(y, m - 1).toLocaleDateString("pt-BR", { month: "short" }),
-        receitas: vals.receitas,
-        despesas: vals.despesas,
-        lucro: vals.receitas - vals.despesas,
-      };
-    });
-    setMonthlyData(chartData);
+    const serie = montarSerieMensal((serieView ?? []) as unknown as LinhaMes[], chaves);
+    setMonthlyData(
+      serie.map((p) => {
+        const [y, m] = p.chave.split("-").map(Number);
+        return {
+          month: new Date(y, m - 1).toLocaleDateString("pt-BR", { month: "short" }),
+          receitas: p.receitas,
+          despesas: p.despesas,
+          lucro: p.lucro,
+        };
+      }),
+    );
   }, [company, selectedYear, selectedMonth]);
 
   useEffect(() => { buildDRE(); }, [buildDRE]);
@@ -216,17 +170,38 @@ export default function DRE() {
               </thead>
               <tbody>
                 {lines.map((line, i) => (
-                  <tr key={i} className={`border-b border-border/50 ${line.isTotal ? "bg-accent/30" : ""}`}>
+                  <tr
+                    key={i}
+                    className={`border-b border-border/50 ${line.isTotal ? "bg-accent/30" : ""} ${line.alerta ? "bg-amber-500/10" : ""}`}
+                  >
                     <td className={`py-2.5 ${line.level === 1 ? "pl-6 text-muted-foreground" : ""} ${line.isTotal ? "font-semibold text-foreground" : ""}`}>
                       {line.label}
                     </td>
-                    <td className={`text-right py-2.5 tabular-nums ${line.isTotal ? "font-semibold" : ""} ${line.value >= 0 ? "text-revenue" : "text-expense"}`}>
+                    <td
+                      className={`text-right py-2.5 tabular-nums ${line.isTotal ? "font-semibold" : ""} ${
+                        line.alerta ? "text-amber-600 dark:text-amber-500" : line.value >= 0 ? "text-revenue" : "text-expense"
+                      }`}
+                    >
                       {formatCurrency(line.value)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          )}
+
+          {naoClassificado > 0 && (
+            <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500 mt-0.5" />
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">{formatCurrency(naoClassificado)}</span> em lançamentos
+                ainda sem conta contábil. Esse valor não entra no lucro acima. Classifique em{" "}
+                <Link to="/transactions" className="underline underline-offset-2 hover:text-foreground">
+                  Lançamentos
+                </Link>{" "}
+                para o resultado ficar completo.
+              </p>
+            </div>
           )}
         </div>
 
