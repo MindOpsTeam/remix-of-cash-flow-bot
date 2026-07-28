@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { ConfiguracaoAgentes } from "@/components/agentes/ConfiguracaoAgentes";
 import { useAuth } from "@/hooks/useAuth";
 
 interface AgentAction {
@@ -196,10 +197,13 @@ export default function Agents() {
               Ações propostas pelos agentes de IA — nada é executado sem a sua aprovação.
             </p>
           </div>
-          <Button onClick={handleScan} disabled={scanning} variant="outline" className="gap-2">
-            {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Varrer cobranças agora
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <ConfiguracaoAgentes />
+            <Button onClick={handleScan} disabled={scanning} variant="outline" className="gap-2">
+              {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Varrer cobranças agora
+            </Button>
+          </div>
         </div>
 
         <div className="mb-4 flex gap-2">

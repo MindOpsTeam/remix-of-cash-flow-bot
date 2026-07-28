@@ -1,8 +1,15 @@
 /**
  * Agente de Alertas — detecção de anomalias em lançamentos.
- * Regra: transação dos últimos 7 dias com valor > 3× a média da mesma conta
- * contábil (ou do mesmo tipo, sem conta) nos 90 dias anteriores, e acima de
- * R$ 500. Cria ação em agent_actions (agent='alerts') para revisão humana.
+ *
+ * Regra: lançamento da janela recente com valor acima de N vezes a média da
+ * mesma conta contábil (ou do mesmo tipo, quando não há conta) no histórico
+ * anterior, e acima de um piso em reais. Cria ação em agent_actions para
+ * revisão humana.
+ *
+ * Os quatro números vinham fixos no código: 3 vezes, R$ 500, 7 dias, 90 dias.
+ * Isso é palpite nosso valendo igual para 131 empresas, e "fora da curva" para
+ * uma clínica não é o mesmo que para uma distribuidora. Agora vêm de
+ * `agent_rules`, com esses mesmos valores como PADRÃO e não como lei.
  *
  * POST /agent-anomalies
  *  - Cron: header X-Cron-Secret (todas as empresas)
@@ -12,11 +19,7 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
-
-const FATOR_ANOMALIA = 3;
-const VALOR_MINIMO = 500;
-const JANELA_DIAS = 7;
-const BASELINE_DIAS = 90;
+import { lerRegras } from "../_shared/agentes.ts";
 
 interface TxRow {
   id: string;
@@ -30,7 +33,14 @@ interface TxRow {
 async function scanCompany(
   supabase: SupabaseClient,
   companyId: string,
-): Promise<{ created: number; scanned: number }> {
+): Promise<{ created: number; scanned: number; desligado?: boolean }> {
+  const regras = await lerRegras(() =>
+    supabase.from("agent_rules").select("agent, ativo, config").eq("company_id", companyId));
+  if (!regras.ativo.anomalies) return { created: 0, scanned: 0, desligado: true };
+
+  const { fator: FATOR_ANOMALIA, valor_minimo: VALOR_MINIMO,
+          janela_dias: JANELA_DIAS, baseline_dias: BASELINE_DIAS } = regras.anomalia;
+
   const now = new Date();
   const windowStart = new Date(now.getTime() - JANELA_DIAS * 86400000).toISOString().split("T")[0];
   const baselineStart = new Date(now.getTime() - (JANELA_DIAS + BASELINE_DIAS) * 86400000)
@@ -117,7 +127,7 @@ Deno.serve(async (req) => {
   if (cronSecret && providedCron === cronSecret) {
     try {
       const { data: companies } = await service.from("companies").select("id");
-      const results: Record<string, { created: number; scanned: number }> = {};
+      const results: Record<string, { created: number; scanned: number; desligado?: boolean }> = {};
       for (const c of companies ?? []) {
         try {
           results[c.id] = await scanCompany(service, c.id);
