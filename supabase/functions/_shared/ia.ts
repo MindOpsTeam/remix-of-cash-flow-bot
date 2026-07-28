@@ -177,9 +177,21 @@ export async function chamarModelo<T>(
   }
 }
 
+/**
+ * Cliente Supabase visto de forma mínima: só precisamos de `.from().insert()`.
+ *
+ * Declarado com assinatura de MÉTODO, e não de propriedade, de propósito. Como
+ * propriedade (`insert: (v) => ...`) o TypeScript checa o parâmetro de forma
+ * estritamente contravariante e um SupabaseClient real deixa de ser aceito;
+ * como método, a checagem é bivariante e o cliente real encaixa.
+ */
+interface ClienteParaMedicao {
+  from(tabela: string): { insert(valores: Record<string, unknown>): PromiseLike<unknown> };
+}
+
 /** Registra o consumo. Nunca derruba a operação principal se falhar. */
 export async function registrarUso(
-  supabase: { from: (t: string) => { insert: (v: unknown) => Promise<unknown> } },
+  supabase: ClienteParaMedicao,
   companyId: string | null,
   funcao: string,
   r: { modelo: string; promptTokens: number; completionTokens: number; custoCentavos: number; erro: string | null },

@@ -1,6 +1,8 @@
 import { corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { parseJsonBody, validate, validateRequired, validateUUID } from "../_shared/validate.ts";
+import { projetarCaixa, type Compromisso, type MesHistorico } from "../_shared/forecast.ts";
+import { chamarModelo, registrarUso } from "../_shared/ia.ts";
 
 Deno.serve(async (req) => {
   const preflight = corsPreflightResponse(req);
