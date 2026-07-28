@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import type { AsaasSubscription } from "@/hooks/useAsaasSubscriptions";
+import type { AsaasSubscription } from "@/types/asaas";
 
 export function useCompanyAsaasSubscriptions() {
   const { company } = useCompany();

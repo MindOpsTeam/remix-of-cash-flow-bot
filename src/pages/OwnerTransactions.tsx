@@ -38,7 +38,6 @@ const emptyForm: OwnerTransactionFormData = {
   amount: 0,
   date: new Date().toISOString().split("T")[0],
   description: "",
-  pf_account_id: null,
   pj_bank_account_id: null,
 };
 

@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpDown, ExternalLink } from "lucide-react";
-import type { AsaasTransfer } from "@/hooks/useAsaasTransfers";
+import type { AsaasTransfer } from "@/types/asaas";
 
 function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);

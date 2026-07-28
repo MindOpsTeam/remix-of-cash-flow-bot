@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Repeat, CalendarClock } from "lucide-react";
-import type { AsaasSubscription } from "@/hooks/useAsaasSubscriptions";
+import type { AsaasSubscription } from "@/types/asaas";
 
 function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);

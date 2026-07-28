@@ -25,9 +25,7 @@ export interface OwnerTransaction {
   description: string | null;
   company_id: string;
   user_id: string;
-  pf_account_id: string | null;
   pj_bank_account_id: string | null;
-  pf_transaction_id: string | null;
   pj_transaction_id: string | null;
   status: string;
   created_at: string;
@@ -38,7 +36,6 @@ export interface OwnerTransactionFormData {
   amount: number;
   date: string;
   description?: string;
-  pf_account_id?: string | null;
   pj_bank_account_id?: string | null;
 }
 

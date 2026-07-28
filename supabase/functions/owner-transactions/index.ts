@@ -99,7 +99,6 @@ Deno.serve(async (req) => {
     const description = (body.description as string) || TYPE_LABELS[transactionType] || transactionType;
     const companyId = body.company_id as string;
     const userId = user.id; // do JWT — nunca do body
-    const pfAccountId = (body.pf_account_id as string) || null;
     const pjBankAccountId = (body.pj_bank_account_id as string) || null;
 
     if (amount <= 0) {
@@ -117,7 +116,7 @@ Deno.serve(async (req) => {
     // 0. Idempotency: check for duplicate within 5 minutes
     const { data: existingTx } = await supabase
       .from("owner_transactions")
-      .select("id, pj_transaction_id, pf_transaction_id")
+      .select("id, pj_transaction_id")
       .eq("user_id", userId)
       .eq("company_id", companyId)
       .eq("transaction_type", transactionType)
@@ -133,7 +132,6 @@ Deno.serve(async (req) => {
         data: {
           id: existingTx.id,
           pj_transaction_id: existingTx.pj_transaction_id,
-          pf_transaction_id: existingTx.pf_transaction_id,
         },
         deduplicated: true,
       }, 200, corsHeaders);
@@ -149,7 +147,6 @@ Deno.serve(async (req) => {
         description,
         company_id: companyId,
         user_id: userId,
-        pf_account_id: pfAccountId,
         pj_bank_account_id: pjBankAccountId,
         status: "confirmed",
       })
