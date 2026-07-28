@@ -382,7 +382,9 @@ O que este conselho pediu, e o que aconteceu depois. Cada linha aponta o commit.
 
 ### O que sobrou do documento
 
-**A tabela oficial de cClassTrib**, e é o único item que sobra. `cclasstrib_codigos` foi criada e nasce VAZIA, porque o conselho foi explícito em que ela deve vir da planilha versionada e nunca ser escrita à mão. Enquanto isso, a IA se recusa a propor cClassTrib e a resposta declara `tabela_oficial: false`. O bloqueio de 3 de agosto está **medido e visível**, e sai do lugar assim que a planilha for carregada. Issue #20.
+**A tabela oficial de cClassTrib: resolvida.** Ficou pendente por um motivo bobo, que só caiu a ficha quando o Guilherme perguntou onde ela ficava: **ela não está numa planilha para baixar**. O SVRS a publica no Portal da Conformidade Fácil embutida na própria página, num array JavaScript. Procurar por "planilha da NT" no portal da NF-e e no gov.br nunca ia achar.
+
+Os 164 códigos foram carregados, e quem busca é o **banco**, via pg_net, não eu copiando e colando: o dado não passa por intermediário e a migration declara a origem. `sugerir-fiscal` passou a devolver `tabela_oficial: true` com os códigos conferidos, e o painel de bloqueio de 3 de agosto esvazia conforme os produtos são classificados. `8c2feff`
 
 **Os índices, ao contrário, deixaram de ser pendência.** Eu tinha decidido pedir o percentual ao usuário usando o mesmo argumento do cClassTrib, e a conclusão estava preguiçosa: o Banco Central publica IPCA, IGP-M e INPC numa API pública e gratuita. Buscar na fonte não é inventar. `indices_economicos` guarda a série com procedência e data, e o acumulado é composto, não somado. `ba52c7c`
 
