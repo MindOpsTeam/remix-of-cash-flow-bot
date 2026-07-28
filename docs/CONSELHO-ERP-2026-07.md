@@ -336,7 +336,7 @@ O que este conselho pediu, e o que aconteceu depois. Cada linha aponta o commit.
 
 | # | Decisão | Estado |
 |---|---|---|
-| 1 | **Publicar** | **Bloqueado, e é o único bloqueio de fora.** `lovable_deploy` responde 403. Medido contra `biz-whisper-fin.lovable.app`: 14 rotas existem no código e não no bundle publicado, incluindo Recebíveis, Contratos, Orçamento, Fechamento e a importação de extrato. Edge functions são exceção, essas já estão no ar. Issue #3. |
+| 1 | **Publicar** | **Feito.** Eu vinha reportando como bloqueio externo porque `lovable_deploy` (MCP `lovable-cloud`) devolve 403. Existe outro caminho, que eu não tinha tentado: `deploy_project` do conector claude.ai Lovable, que publicou na primeira chamada. As 11 rotas que faltavam (Recebíveis, Contratos, Orçamento, Fechamento, Consolidação, Agentes, Chaves de API, Auditoria, Simulador da Reforma, Focus, Open Finance) estão em produção. Lição registrada na issue #3: 403 num MCP não é bloqueio do produto, é bloqueio daquele conector. |
 | 2 | **Fechar a cadeia pedido, nota, recebível** | Feito. `91540fe` |
 | 3 | **Inverter a ordem do produto: colar extrato** | Feito. `3f5db85` |
 | 4 | **Tirar o LLM de cima do número** | Feito. `b4bf99b`, `de26dd9`, `2a95a62` |
@@ -382,7 +382,9 @@ O que este conselho pediu, e o que aconteceu depois. Cada linha aponta o commit.
 
 ### O que sobrou do documento
 
-**A tabela oficial de cClassTrib.** `cclasstrib_codigos` foi criada e nasce VAZIA, porque o conselho foi explícito em que ela deve vir da planilha versionada e nunca ser escrita à mão. Enquanto isso, a IA se recusa a propor cClassTrib e a resposta declara `tabela_oficial: false`. Ou seja: o bloqueio de 3 de agosto está **medido e visível**, mas só sai do lugar quando a planilha for carregada.
+**A tabela oficial de cClassTrib**, e é o único item que sobra. `cclasstrib_codigos` foi criada e nasce VAZIA, porque o conselho foi explícito em que ela deve vir da planilha versionada e nunca ser escrita à mão. Enquanto isso, a IA se recusa a propor cClassTrib e a resposta declara `tabela_oficial: false`. O bloqueio de 3 de agosto está **medido e visível**, e sai do lugar assim que a planilha for carregada. Issue #20.
+
+**Os índices, ao contrário, deixaram de ser pendência.** Eu tinha decidido pedir o percentual ao usuário usando o mesmo argumento do cClassTrib, e a conclusão estava preguiçosa: o Banco Central publica IPCA, IGP-M e INPC numa API pública e gratuita. Buscar na fonte não é inventar. `indices_economicos` guarda a série com procedência e data, e o acumulado é composto, não somado. `ba52c7c`
 
 Com isso a **lente de controladoria fecha inteira**: régua única, o dinheiro que não aparecia, fechamento que trava, competência x caixa, rateio e reajuste.
 
