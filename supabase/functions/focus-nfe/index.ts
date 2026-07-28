@@ -191,6 +191,47 @@ Deno.serve(async (req: Request) => {
       .eq("company_id", companyId);
   } else if (action === "emitir" && r.ok) {
     await supabase.from("focus_config").update({ last_emission_at: new Date().toISOString() }).eq("company_id", companyId);
+
+    // A nota TEM que existir dentro da plataforma, senão a emissão vira evento
+    // fantasma: sai na prefeitura e não aparece em /fiscal nem no fiscal do
+    // contador. A emissão é assíncrona, então nasce em processamento e a
+    // consulta promove para autorizada.
+    const resp = (r.data ?? {}) as Record<string, unknown>;
+    const servico = ((body.dados as Record<string, unknown>)?.servico ?? {}) as Record<string, unknown>;
+    const statusFocus = String(resp.status ?? "processando_autorizacao");
+    await supabase.from("invoices").insert({
+      company_id: companyId,
+      type: tipo,
+      status: statusFocus === "autorizado" ? "authorized" : "processing",
+      number: resp.numero ? String(resp.numero) : null,
+      issue_date: new Date().toISOString().split("T")[0],
+      total: Number(servico.valor_servicos ?? 0),
+      contact_id: (body.contactId as string | undefined) ?? null,
+      sales_order_id: (body.salesOrderId as string | undefined) ?? null,
+      cbs_valor: servico.cbs_valor != null ? Number(servico.cbs_valor) : null,
+      ibs_valor:
+        servico.ibs_uf_valor != null || servico.ibs_mun_valor != null
+          ? Number(servico.ibs_uf_valor ?? 0) + Number(servico.ibs_mun_valor ?? 0)
+          : null,
+      cclasstrib: (servico.ibs_cbs_classificacao_tributaria as string | undefined) ?? null,
+      notes: `Focus NFe · referência ${referencia}`,
+      xml_content: JSON.stringify(resp),
+    });
+  } else if (action === "consultar" && r.ok) {
+    // Promove a nota quando a prefeitura autoriza.
+    const resp = (r.data ?? {}) as Record<string, unknown>;
+    if (String(resp.status ?? "") === "autorizado") {
+      await supabase
+        .from("invoices")
+        .update({
+          status: "authorized",
+          number: resp.numero ? String(resp.numero) : null,
+          access_key: (resp.codigo_verificacao as string | undefined) ?? null,
+          xml_content: JSON.stringify(resp),
+        })
+        .eq("company_id", companyId)
+        .eq("notes", `Focus NFe · referência ${referencia}`);
+    }
   }
 
   return jsonResp({ ok: r.ok, status: r.status, ambiente, data: r.data }, r.ok ? 200 : 400, corsHeaders);

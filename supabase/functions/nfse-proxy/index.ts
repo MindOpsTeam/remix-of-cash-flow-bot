@@ -176,7 +176,10 @@ Deno.serve(async (req) => {
         number: workerData.idDPS || String(config.proximo_numero_dps),
         issue_date: new Date().toISOString().split("T")[0],
         total: data?.valores?.valorServicos || 0,
-        contact_id: null,
+        // Antes ia null fixo: a nota nascia órfã de cliente e ninguém
+        // conseguia responder "esta nota é de quem?".
+        contact_id: (body.contactId as string | undefined) ?? null,
+        sales_order_id: (body.salesOrderId as string | undefined) ?? null,
         xml_content: JSON.stringify(workerData),
       });
     }
