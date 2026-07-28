@@ -15,7 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  ShoppingCart, Plus, Pencil, Trash2, Search, FileText, Eye, Receipt,
+  ShoppingCart, Plus, Pencil, Trash2, Search, FileText, Eye, Receipt, Link2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -383,6 +383,31 @@ export default function SalesOrdersPage() {
                 </div>
                 <p className="text-sm font-semibold font-mono">{fmt(Number(o.total))}</p>
                 <div className="flex items-center gap-1">
+                  {o.status === "quote" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Gerar link de aceite para o cliente"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const { data, error } = await supabase.rpc("gerar_link_proposta" as never, {
+                          p_sales_order_id: o.id,
+                          p_dias_validade: 15,
+                        } as never);
+                        if (error) { toast.error("Não consegui gerar: " + error.message); return; }
+                        const { token, validade } = data as unknown as { token: string; validade: string };
+                        const url = `${window.location.origin}/proposta/${token}`;
+                        await navigator.clipboard.writeText(url).catch(() => undefined);
+                        toast.success("Link copiado. Válido até " +
+                          new Date(validade + "T00:00:00").toLocaleDateString("pt-BR") + ".", {
+                          description: url,
+                        });
+                      }}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   {(o.status === "confirmed" || o.status === "delivered") && (
                     <FaturarPedido
                       pedidoId={o.id}

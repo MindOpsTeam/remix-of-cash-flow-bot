@@ -60,6 +60,7 @@ const ProductsPage = lazy(() => import("./pages/Products"));
 // Vendas & Compras
 const SalesOrdersPage = lazy(() => import("./pages/SalesOrders"));
 const SalespeoplePage = lazy(() => import("./pages/Salespeople"));
+const PropostaPublicaPage = lazy(() => import("./pages/PropostaPublica"));
 const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 
 // Estoque & Fiscal
@@ -114,6 +115,10 @@ const AppRoutes = () => (
     <Routes>
       <Route path="/" element={<PublicRoute><Auth /></PublicRoute>} />
       <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+
+      {/* Proposta que o cliente abre: pública de propósito, o token da URL é a
+          credencial e as funções do banco só devolvem o que o comprador vê. */}
+      <Route path="/proposta/:token" element={<PropostaPublicaPage />} />
 
       {/* Dashboard */}
       <Route path="/dashboard" element={<P><Index /></P>} />
