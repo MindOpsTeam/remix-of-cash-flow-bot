@@ -3781,6 +3781,43 @@ export type Database = {
           },
         ]
       }
+      v_dre_linhas: {
+        Row: {
+          account_code: string | null
+          account_id: string | null
+          account_name: string | null
+          company_id: string | null
+          grupo: string | null
+          is_intercompany: boolean | null
+          lancamentos: number | null
+          mes: string | null
+          total: number | null
+          type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       v_group_account_totals: {
         Row: {
           company_id: string | null
