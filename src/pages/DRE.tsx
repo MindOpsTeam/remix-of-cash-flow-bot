@@ -61,7 +61,7 @@ export default function DRE() {
       .from("transactions")
       .select("amount, type, account_id, date, chart_of_accounts(name, code)")
       .eq("company_id", company.id)
-      .eq("status", "confirmed")
+      .in("status", ["confirmed", "reconciled"])
       .gte("date", startOfMonth)
       .lte("date", endOfMonth);
 
@@ -110,7 +110,7 @@ export default function DRE() {
       .from("transactions")
       .select("amount, type, date")
       .eq("company_id", company.id)
-      .eq("status", "confirmed")
+      .in("status", ["confirmed", "reconciled"])
       .gte("date", chartStart)
       .lte("date", chartEnd);
 

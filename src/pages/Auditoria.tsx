@@ -82,6 +82,21 @@ export default function Auditoria() {
     },
   });
 
+  // Universo de lançamentos do período, para saber quais não geraram partida.
+  const { data: lancamentos = [] } = useQuery({
+    queryKey: ["transactions_auditoria", company?.id],
+    enabled: !!company?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("transactions")
+        .select("id")
+        .eq("company_id", company!.id)
+        .in("status", ["confirmed", "reconciled"])
+        .limit(1000);
+      return (data as { id: string }[] | null) ?? [];
+    },
+  });
+
   const filtro = busca.trim().toLowerCase();
   const corte = periodo === "tudo" ? null : new Date(Date.now() - Number(periodo) * 86400000);
   const partidasFiltradas = partidas
@@ -93,12 +108,13 @@ export default function Auditoria() {
 
   const totalMovimentado = partidasFiltradas.reduce((s, p) => s + Number(p.amount || 0), 0);
 
-  // Em partida dobrada toda linha precisa ter os DOIS lados. Linha sem conta de
-  // débito ou sem conta de crédito não fecha, e é isso que o auditor precisa
-  // enxergar na hora. Comparar a soma dos valores consigo mesma não provaria
-  // nada, porque o mesmo valor alimenta os dois lados por construção.
-  const semContrapartida = partidasFiltradas.filter((p) => !p.debit_account || !p.credit_account);
-  const fecha = semContrapartida.length === 0;
+  // Checagem que mede algo de verdade: a partida é gravada por gatilho AFTER
+  // INSERT, então lançamento EDITADO ou criado antes do gatilho fica sem
+  // contrapartida. Procurar linha sem conta de débito não servia: as duas
+  // colunas são NOT NULL no banco, logo aquele teste nunca podia falhar.
+  const idsComPartida = new Set(partidas.map((p) => p.transaction_id).filter(Boolean));
+  const semPartida = (lancamentos ?? []).filter((t) => !idsComPartida.has(t.id));
+  const fecha = semPartida.length === 0;
 
   return (
     <AppLayout>
@@ -154,8 +170,8 @@ export default function Auditoria() {
               {partidasFiltradas.length > 0 && (
                 <Badge variant={fecha ? "secondary" : "destructive"} className="gap-1">
                   {fecha
-                    ? "Toda partida tem os dois lados"
-                    : `${semContrapartida.length} partida(s) sem contrapartida`}
+                    ? "Todo lançamento tem partida"
+                    : `${semPartida.length} lançamento(s) sem partida contábil`}
                 </Badge>
               )}
             </div>
