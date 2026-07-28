@@ -11,11 +11,13 @@ import { FileDown, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { montarDRE, montarSerieMensal, type DRELine, type LinhaView, type LinhaMes } from "@/lib/dre";
+import { ImportarExtrato } from "@/components/importar/ImportarExtrato";
 
 export default function DRE() {
   const { company } = useCompany();
   const [lines, setLines] = useState<DRELine[]>([]);
   const [naoClassificado, setNaoClassificado] = useState(0);
+  const [temMovimento, setTemMovimento] = useState(false);
   const [monthlyData, setMonthlyData] = useState<{ month: string; receitas: number; despesas: number; lucro: number }[]>([]);
 
   // Period selector
@@ -50,26 +52,27 @@ export default function DRE() {
     // A régua vive na view. Aqui só se ordena e se dá nome às linhas: se a
     // regra de receita/custo/despesa aparecesse de novo neste arquivo, seriam
     // duas cópias da mesma regra e elas voltariam a divergir.
-    // O cast existe porque src/integrations/supabase/types.ts é regerado pelo
-    // Lovable, dono do projeto Supabase, e ainda não conhece esta view. O
-    // formato está fixado em LinhaView e é o mesmo declarado na migration.
     const { data: linhasView } = await supabase
-      .from("v_dre_linhas" as never)
+      .from("v_dre_linhas")
       .select("account_id, account_code, account_name, type, grupo, total")
       .eq("company_id", company.id)
       .gte("mes", startOfMonth)
       .lte("mes", endOfMonth);
 
-    const resultado = montarDRE((linhasView ?? []) as unknown as LinhaView[]);
+    const linhasDoMes = (linhasView ?? []) as unknown as LinhaView[];
+    const resultado = montarDRE(linhasDoMes);
     setLines(resultado.linhas);
     setNaoClassificado(resultado.naoClassificado);
+    // montarDRE sempre devolve o esqueleto do DRE, inclusive zerado, então
+    // `lines.length` não serve mais para saber se o mês tem movimento.
+    setTemMovimento(linhasDoMes.length > 0);
 
     // Últimos 6 meses, da MESMA view da tabela, para o gráfico e o Lucro
     // Líquido ao lado não contarem coisas diferentes.
     const chartStart = new Date(selectedYear, selectedMonth - 5, 1).toISOString().split("T")[0];
 
     const { data: serieView } = await supabase
-      .from("v_dre_linhas" as never)
+      .from("v_dre_linhas")
       .select("mes, grupo, total")
       .eq("company_id", company.id)
       .gte("mes", chartStart)
@@ -120,7 +123,7 @@ export default function DRE() {
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Demonstração do Resultado</h1>
           <p className="text-sm text-muted-foreground mt-1 capitalize">
-            {monthLabel} — Baseado nas contas contábeis
+            {monthLabel} — Lançamentos confirmados e conciliados
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -143,7 +146,7 @@ export default function DRE() {
           <Button
             variant="outline"
             className="gap-2"
-            disabled={lines.length === 0}
+            disabled={!temMovimento}
             onClick={() => {
               exportDREtoPDF(lines, company?.name || "Empresa", monthLabel);
             }}
@@ -155,10 +158,15 @@ export default function DRE() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 bg-card border border-border rounded-lg p-5 overflow-x-auto">
-          {lines.length === 0 ? (
+          {!temMovimento ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground text-sm">Nenhum lançamento confirmado neste mês.</p>
-              <p className="text-muted-foreground text-xs mt-1">Crie lançamentos na tela de Lançamentos para gerar a DRE.</p>
+              <p className="text-muted-foreground text-xs mt-1">
+                Cole o extrato do banco e o resultado aparece aqui em seguida.
+              </p>
+              <div className="flex justify-center mt-4">
+                <ImportarExtrato onImportado={buildDRE} />
+              </div>
             </div>
           ) : (
             <table className="w-full text-sm">
