@@ -169,3 +169,62 @@ A **LC 227/2026** inseriu o art. 341-G, VI na LC 214/2025, criando multa de 150 
 A multa é na software house, não no cliente. Um ERP que emitir NF-e sem o grupo IBS/CBS depois de 3 de agosto cai literalmente na hipótese. Isso muda a natureza da correção que fizemos hoje: não era melhoria de produto, era exposição legal nossa.
 
 Dois pontos operacionais da mesma pesquisa: para NFS-e o layout exigido é o da **NT004 mais o `tpRetPisCofins` da NT007**, e não a NT009; e a tabela oficial de `cClassTrib` tem **164 códigos** com colunas que dizem quais grupos XML são obrigatórios em cada documento, o que significa que a validação deve ser **carregada da planilha versionada**, nunca escrita à mão no código.
+
+---
+
+## Lente: contabilidade e fiscal, benchmark do contador
+
+### O achado mais acionável de todo o conselho
+
+**O Fisco publica uma API pública e gratuita com a tabela tributária e um validador.** Portal Conformidade Fácil (SVRS/ENCAT), autenticação por certificado ICP-Brasil, anunciado em outubro de 2025:
+
+- Portal: `https://dfe-portal.svrs.rs.gov.br/Cff`
+- API: `https://cff.svrs.rs.gov.br/api/v1/consultas/classTrib`
+
+Entrega as tabelas `cClassTrib`, `cCredPres` e `indOp`, um assistente de classificação por NCM e um **validador RTC** para NF-e, NFC-e, CT-e, BP-e, NF3e e NFCom.
+
+Consumir isso direto elimina a manutenção manual da tabela tributária, que é exatamente o trabalho que a Systax cobra caro para fazer, e permite validar o XML **antes** de transmitir. Nós já temos `tax_rates` e `municipalities`: plugar essa fonte é o caminho mais curto entre onde estamos e conformidade de verdade.
+
+### A mudança estrutural que ninguém no nosso porte está preparado para
+
+**Apuração assistida, a partir de janeiro de 2027.** O Fisco consolida débitos e créditos a partir dos documentos fiscais (art. 46 da LC 214/2025) e entrega uma **proposta pré-preenchida**. O prazo de validação é o dia 15 do mês seguinte, ou dia 20 para quem entrega DeRE. **Silêncio equivale a aceitação, com efeito de confissão de dívida.**
+
+Isso inverte a profissão: o contador deixa de montar a apuração e passa a **auditar a apuração do Fisco dentro de prazo fatal**. Software sem caixa de entrada da proposta fiscal, sem contador de prazo e sem trilha de contestação vira gargalo de risco para o escritório.
+
+A TOTVS já integra oficialmente a etapa 2 do piloto do sistema de apuração assistida do IBS. A ROIT lançou em maio um produto inteiro só para isso, tratando a apuração como conciliação entre cinco fontes da verdade: ERP, banco, Receita, Comitê Gestor e documentos fiscais. É a arquitetura correta, e quase ninguém tem.
+
+### A régua mínima do contador para trocar de sistema
+
+Sem estes, ele não abre a demonstração:
+
+1. **ECD e ECF com recuperação do período anterior.** Não é "gerar SPED", é gerar a ECD, recuperar a ECD dentro da ECF e recuperar a ECF anterior antes de validar.
+2. **Plano de contas referencial** amarrado à empresa, com partida dobrada e rateio por centro de custo.
+3. **Captura automática de XML de entrada direto da SEFAZ**, sem depender do cliente enviar. É o diferencial que todos os sistemas de escritório vendem em primeira linha.
+4. **Nota Técnica em dia, com data.** Atraso de layout do fornecedor não é inconveniente, é parada de faturamento do cliente do contador.
+5. **Folha, eSocial, DCTFWeb e EFD-Reinf no mesmo sistema.**
+
+Nós temos, hoje, a partida dobrada (a tela de auditoria criada nesta rodada) e emissão. **Não temos ECD, ECF, plano referencial, captura automática de XML nem folha.** Isso define com precisão o que somos: um ERP financeiro que conversa com o contador, não um sistema contábil. Vender como sistema contábil seria mentir, e o contador descobre na primeira pergunta.
+
+### O que copiar, em ordem de retorno
+
+**Cronograma público datado, como o do Omie.** Enquanto TOTVS, Domínio e Contmatic dizem "estamos prontos", o Omie publica data por entrega, com marca de concluído no que saiu e previsão no que falta. Custa quase nada de engenharia, mata ansiedade do cliente e vira ativo de vendas. É o maior retorno de confiança do benchmark inteiro.
+
+**Assistente de exceções da Sankhya.** Em vez de pedir que o usuário classifique o catálogo do zero, o sistema lê os documentos fiscais que a empresa **já emitiu**, extrai os NCM e NBS realmente usados e sugere a classificação. Transforma projeto de meses em revisão. O padrão vale para qualquer migração, não só para a Reforma.
+
+**Robô de diagnóstico gratuito da Senior.** Uma ferramenta que varre a base do cliente e devolve o status de parametrização. É qualificação de lead disfarçada de utilidade, e o cliente chega com o gap mapeado.
+
+**Simulador de transição dentro do módulo fiscal, exportável em PDF (Alterdata).** O nosso já existe e é bom. A diferença é que o deles gera o PDF que o contador manda para o cliente, e isso vira venda de honorário consultivo.
+
+### Referência de preço da camada fiscal
+
+A Focus NFe é a única com preço público do benchmark: R$ 89,90 por mês para um CNPJ com 100 notas, e R$ 548 para CNPJs ilimitados com 4.000 notas, sem fidelidade. Nenhum dos ERPs grandes ou sistemas de escritório publica preço.
+
+---
+
+## Síntese: as cinco decisões que este conselho pede
+
+1. **Publicar.** Nada disso existe para o cliente enquanto a produção estiver parada em junho.
+2. **Fechar a cadeia pedido, nota, recebível.** Duas colunas e um botão "Faturar" transformam três ilhas em processo.
+3. **Inverter a ordem do produto.** Usar, ver resultado, depois configurar. Colar extrato é o maior retorno por linha de código do backlog.
+4. **Tirar o LLM de cima do número.** A previsão de caixa precisa ser cálculo, com o modelo apenas narrando a causa.
+5. **Assumir o que somos.** ERP financeiro com fiscal forte que conversa com o contador. Não sistema contábil, não WMS. E aí, dentro desse recorte, ser o melhor: conciliação a três vias, crédito de CBS/IBS visível, e pagamento com lastro fiscal.
