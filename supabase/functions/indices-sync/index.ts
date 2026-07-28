@@ -22,6 +22,11 @@ const SERIES: Record<string, number> = { ipca: 433, igpm: 189, inpc: 188 };
 /** Quantos meses trazer. 36 cobre a janela de reajuste com folga e é barato. */
 const MESES = 36;
 
+/** dd/MM/yyyy, que é o formato que o SGS aceita nos parâmetros. */
+function dataBr(d: Date): string {
+  return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}`;
+}
+
 interface PontoBcb {
   data: string;
   valor: string;
@@ -35,11 +40,24 @@ function paraIso(dataBr: string): string | null {
 }
 
 async function sincronizar(indice: string, serie: number) {
-  const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${serie}/dados/ultimos/${MESES}?formato=json`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  // Endpoint com intervalo de datas, que é a forma documentada. A variante
+  // `/ultimos/N` funciona do desktop e devolve 400 a partir da edge, sem corpo
+  // que explique. Como o número aqui é dado fiscal, é melhor usar o caminho
+  // documentado do que descobrir a regra do WAF por tentativa.
+  const ate = new Date();
+  const de = new Date(Date.UTC(ate.getUTCFullYear(), ate.getUTCMonth() - MESES, 1));
+  const url =
+    `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${serie}/dados` +
+    `?formato=json&dataInicial=${encodeURIComponent(dataBr(de))}&dataFinal=${encodeURIComponent(dataBr(ate))}`;
+
+  const res = await fetch(url);
 
   if (!res.ok) {
-    return { indice, ok: false, erro: `BCB devolveu ${res.status}`, linhas: 0 };
+    // O corpo entra no erro: "BCB devolveu 400" sozinho não diz se foi
+    // parâmetro, bloqueio ou indisponibilidade, e sem isso a próxima falha
+    // custa a mesma investigação de novo.
+    const corpo = await res.text().catch(() => "");
+    return { indice, ok: false, erro: `BCB devolveu ${res.status}: ${corpo.slice(0, 160)}`, linhas: 0 };
   }
 
   const dados = (await res.json()) as PontoBcb[];
