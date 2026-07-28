@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { ReajustesPendentes } from "@/components/contratos/ReajustesPendentes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,6 +32,8 @@ export default function Contracts() {
   return (
     <AppLayout>
       <div className="space-y-6">
+        <ReajustesPendentes />
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-foreground">Contratos</h1>
