@@ -3908,6 +3908,10 @@ export type Database = {
         Args: { company_cnpj?: string; company_name: string }
         Returns: Json
       }
+      fechar_mes: {
+        Args: { p_company_id: string; p_mes: string }
+        Returns: Json
+      }
       gen_org_id: { Args: never; Returns: string }
       get_focus_token: {
         Args: { p_company_id: string; p_environment: string }
@@ -3915,6 +3919,14 @@ export type Database = {
       }
       get_pluggy_credentials: { Args: { p_company_id: string }; Returns: Json }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
+      mes_esta_fechado: {
+        Args: { p_company_id: string; p_data: string }
+        Returns: boolean
+      }
+      reabrir_mes: {
+        Args: { p_company_id: string; p_mes: string; p_motivo: string }
+        Returns: undefined
+      }
       registrar_movimento_estoque: {
         Args: {
           p_company_id: string
