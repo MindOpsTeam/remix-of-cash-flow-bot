@@ -168,7 +168,11 @@ Devolva um item para CADA número recebido, usando o id exato de uma conta da li
         ],
         {
           modelo: "google/gemini-2.5-flash-lite",
-          maxTokens: Math.min(4000, 120 + pendentes.length * 60),
+          // O item em si custa ~45 tokens. O resto é folga para o raciocínio do
+          // modelo, que sai do MESMO orçamento: com o teto justo ele gasta tudo
+          // pensando e devolve vazio, cobrando pela chamada e classificando
+          // nada. Foi exatamente o que aconteceu no primeiro teste real.
+          maxTokens: Math.min(16000, 600 + pendentes.length * 90),
           schema: {
             type: "object",
             additionalProperties: false,
