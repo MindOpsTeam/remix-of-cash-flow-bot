@@ -3731,6 +3731,40 @@ export type Database = {
       }
     }
     Views: {
+      v_centro_custo_mes: {
+        Row: {
+          centro_nome: string | null
+          company_id: string | null
+          cost_center_id: string | null
+          lancamentos: number | null
+          mes: string | null
+          total: number | null
+          type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "transactions_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_company_margin: {
         Row: {
           company_id: string | null
