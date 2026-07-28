@@ -365,6 +365,15 @@ O que este conselho pediu, e o que aconteceu depois. Cada linha aponta o commit.
 - **Hooks consultando tabelas que não existem mais.** `useAsaasSubscriptions` e `useAsaasTransfers` liam `asaas_*`, que viraram `company_asaas_*`. Eram armadilha armada e derrubavam o type-check do projeto. `a1e044f`.
 - **`deno check` não rodava em edge function.** Foi assim que um import faltando em `ai-forecast` chegou à produção como erro 500 e o usuário viu antes de mim. Existe `npm run check:edge`. `2a95a62`.
 
+### Segunda rodada, mesma data
+
+- **Agentes com régua e com o que fazer.** `agent_actions` tinha zero linhas porque o agente de cobrança lia somente `company_asaas_payments`, vazia em produção. Agora lê `receivables`, e as regras vivem em `agent_rules` por empresa, com tela. Verificado ponta a ponta: lembrete no dia 3, cobrança nos 7 de atraso, silêncio nos 4 dias por estar fora da régua, e o WhatsApp do contato preenchido. Trocando a régua para `[4]` e o tom para direto, a ação apareceu e o texto mudou junto. `a9b0639`
+- **Pedido de venda vira dinheiro.** `faturar_pedido()` gera os recebíveis com parcelamento numa transação só, e `NfseEmit` passou a ler o `sales_order_id` que a tela de pedidos sempre mandou e ele sempre descartou. R$ 1.000 em 3x deu 333,34 + 333,33 + 333,33. `91540fe`
+- **Produto que pode emitir nota depois de 3 de agosto.** Painel com contagem regressiva sobre `v_produtos_pendencia_fiscal`, e `sugerir-fiscal` propondo NCM e cClassTrib para o lote, com o humano confirmando. Verificado: camiseta de algodão virou NCM 61091000, café torrado 09012100, serviço sem NCM, e "Item diversos" foi **recusado** por descrição genérica em vez de chutado. `c167e51`
+- **Lançar escrevendo.** "paguei 350 de energia ontem" vira lançamento, com valor e data saindo de código puro e a IA só escolhendo a conta. `406b156`
+
 ### O que sobrou do documento
 
-Deduções de receita e DRE configurável; competência x caixa; rateio por centro de custo; reajuste de contrato; eventos de ativação; omnibox de lançamento em linguagem natural; e a régua mínima do contador para troca de sistema. A parte comercial ganhou plano próprio em `docs/PLANO-COMERCIAL-2026-07.md`.
+**A tabela oficial de cClassTrib.** `cclasstrib_codigos` foi criada e nasce VAZIA, porque o conselho foi explícito em que ela deve vir da planilha versionada e nunca ser escrita à mão. Enquanto isso, a IA se recusa a propor cClassTrib e a resposta declara `tabela_oficial: false`. Ou seja: o bloqueio de 3 de agosto está **medido e visível**, mas só sai do lugar quando a planilha for carregada.
+
+Também em aberto: deduções de receita e DRE configurável; competência x caixa; rateio por centro de custo; reajuste de contrato; eventos de ativação; e a régua mínima do contador para troca de sistema. A parte comercial ganhou plano próprio em `docs/PLANO-COMERCIAL-2026-07.md`.
