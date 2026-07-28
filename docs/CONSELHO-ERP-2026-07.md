@@ -377,10 +377,13 @@ O que este conselho pediu, e o que aconteceu depois. Cada linha aponta o commit.
 - **Competência x caixa.** `transactions.competencia_date` opcional (nulo = igual ao caixa), `v_dre_linhas` devolvendo os dois meses, seletor Caixa | Competência no DRE, `fechar_mes` apurando pelo regime da empresa e a trava do fechamento olhando as duas datas. Verificado: lançamento com caixa em setembro e competência em julho foi recusado com julho fechado. `1a542f0`
 - **Rateio por centro de custo.** `transaction_allocations` mais `ratear_lancamento()`, tudo ou nada, com a soma conferida contra o valor. 10.000 em três fecha exato em 3.334 + 3.333 + 3.333, e um rateio somando 90% é recusado. `v_centro_custo_mes` enxerga o rateio. `1a542f0`
 - **Agendamentos versionados.** Os cinco jobs do pg_cron existiam só no banco. Pior: o `CRON_SECRET` estava em texto claro dentro de `cron.job.command`. Foi para o Vault e o agendamento guarda só o nome da função. `1a542f0`
+- **Reajuste de contrato.** `contract_adjustments` com o histórico e `reajustar_contrato()` aplicando numa transação só, agendando o próximo aniversário a partir da vigência e não de hoje. O sistema não busca IPCA nem IGP-M: avisa no aniversário e pede o acumulado do período, que é o número que o contador passa. Verificado: 1.000,00 com 4,5% virou 1.045,00, histórico gravado, próximo aniversário em 2027-07-01. `e985cec`
 - **Achado de borda:** a trava do fechamento impedia até apagar a empresa, porque o CASCADE chega em `transactions`. Cliente que fechasse um mês nunca mais poderia ser removido. Corrigido junto.
 
 ### O que sobrou do documento
 
 **A tabela oficial de cClassTrib.** `cclasstrib_codigos` foi criada e nasce VAZIA, porque o conselho foi explícito em que ela deve vir da planilha versionada e nunca ser escrita à mão. Enquanto isso, a IA se recusa a propor cClassTrib e a resposta declara `tabela_oficial: false`. Ou seja: o bloqueio de 3 de agosto está **medido e visível**, mas só sai do lugar quando a planilha for carregada.
 
-Também em aberto: **reajuste de contrato** (`contracts.amount` é fixo, sem índice nem aniversário, então contrato de recorrência perde margem sozinho todo ano), deduções de receita e DRE configurável, eventos de ativação, e a régua mínima do contador para troca de sistema. A parte comercial ganhou plano próprio em `docs/PLANO-COMERCIAL-2026-07.md`.
+Com isso a **lente de controladoria fecha inteira**: régua única, o dinheiro que não aparecia, fechamento que trava, competência x caixa, rateio e reajuste.
+
+Continuam em aberto, e são os últimos: deduções de receita com DRE configurável, tabela de eventos de ativação, e a régua mínima do contador para troca de sistema. A parte comercial ganhou plano próprio em `docs/PLANO-COMERCIAL-2026-07.md`.
