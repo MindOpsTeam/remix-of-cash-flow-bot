@@ -2265,6 +2265,30 @@ export type Database = {
           },
         ]
       }
+      indices_economicos: {
+        Row: {
+          atualizado_em: string
+          fonte: string
+          indice: string
+          mes: string
+          variacao_pct: number
+        }
+        Insert: {
+          atualizado_em?: string
+          fonte?: string
+          indice: string
+          mes: string
+          variacao_pct: number
+        }
+        Update: {
+          atualizado_em?: string
+          fonte?: string
+          indice?: string
+          mes?: string
+          variacao_pct?: number
+        }
+        Relationships: []
+      }
       inter_config: {
         Row: {
           account_number: string | null
@@ -4528,6 +4552,7 @@ export type Database = {
           id: string | null
           indice_reajuste: string | null
           percentual_reajuste: number | null
+          percentual_sugerido: number | null
           proximo_reajuste: string | null
           ultimo_reajuste_em: string | null
           valor_atual: number | null
@@ -4747,6 +4772,10 @@ export type Database = {
       }
     }
     Functions: {
+      acumulado_indice: {
+        Args: { p_ate: string; p_de: string; p_indice: string }
+        Returns: number
+      }
       chamar_funcao_agendada: { Args: { p_slug: string }; Returns: number }
       create_company_for_user: {
         Args: { company_cnpj?: string; company_name: string }
