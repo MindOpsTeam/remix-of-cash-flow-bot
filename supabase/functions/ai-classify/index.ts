@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { parseJsonBody, validate, validateRequired, validateString, validateEnum, validateUUID, sanitizeForPrompt } from "../_shared/validate.ts";
+import { chamarModelo, registrarUso, normalizarDescricao } from "../_shared/ia.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -81,6 +82,39 @@ Deno.serve(async (req) => {
     );
     const centers = centersRes.data || [];
 
+    const idsContas = new Set(accounts.map((a: { id: string }) => a.id));
+    const idsCentros = new Set(centers.map((c: { id: string }) => c.id));
+    const descricaoNormalizada = normalizarDescricao(description as string);
+
+    // ── CAMINHO 1: REGRA APRENDIDA. Zero token, resposta estável.
+    // O boleto de energia chega igual todo mês. Depois que um humano classificou
+    // uma vez, o modelo não precisa ser chamado nunca mais para aquele padrão.
+    if (descricaoNormalizada) {
+      const { data: regra } = await adminClient
+        .from("classification_rules")
+        .select("id, account_id, cost_center_id, acertos")
+        .eq("company_id", company_id)
+        .eq("padrao", descricaoNormalizada)
+        .maybeSingle();
+
+      if (regra?.account_id && idsContas.has(regra.account_id)) {
+        await adminClient
+          .from("classification_rules")
+          .update({ acertos: (regra.acertos ?? 0) + 1 })
+          .eq("id", regra.id);
+        return new Response(
+          JSON.stringify({
+            account_id: regra.account_id,
+            cost_center_id: idsCentros.has(regra.cost_center_id) ? regra.cost_center_id : null,
+            confidence: "high",
+            origem: "regra",
+            explicacao: "Você já classificou um lançamento parecido antes.",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableApiKey) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
@@ -89,77 +123,91 @@ Deno.serve(async (req) => {
       });
     }
 
-    const accountsList = accounts.map((a: any) => `${a.code} ${a.name} [id:${a.id}]`).join("\n");
-    const centersList = centers.map((c: any) => `${c.name} (${c.category}) [id:${c.id}]`).join("\n");
+    const accountsList = accounts.map((a: { code: string; name: string; id: string }) => `${a.code} ${a.name} [id:${a.id}]`).join("\n");
+    const centersList = centers.map((c: { name: string; category: string; id: string }) => `${c.name} (${c.category}) [id:${c.id}]`).join("\n");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${lovableApiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
-        messages: [
-          {
-            role: "system",
-            content: `Você é um classificador financeiro. Dado a descrição de um lançamento, sugira a conta contábil e o centro de custo mais adequados.
+    // ── CAMINHO 2: MODELO, mas ensinado com o histórico DA PRÓPRIA EMPRESA.
+    // Mandar só o plano de contas é pedir chute. Mandar como esta empresa já
+    // classificou lançamentos parecidos é pedir consistência.
+    const { data: exemplos } = await adminClient
+      .from("transactions")
+      .select("description, account_id")
+      .eq("company_id", company_id)
+      .not("account_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(40);
 
-Contas contábeis disponíveis:
+    const historico = (exemplos ?? [])
+      .filter((e: { account_id: string }) => idsContas.has(e.account_id))
+      .slice(0, 20)
+      .map((e: { description: string; account_id: string }) => `"${e.description}" -> ${e.account_id}`)
+      .join("\n");
+
+    const resposta = await chamarModelo<{
+      account_id: string | null;
+      cost_center_id: string | null;
+      confidence: "high" | "medium" | "low";
+      explicacao: string;
+    }>(
+      lovableApiKey,
+      [
+        {
+          role: "system",
+          content: `Você classifica lançamentos financeiros de uma empresa brasileira.
+
+Contas contábeis desta empresa:
 ${accountsList}
 
-Centros de custo disponíveis:
+Centros de custo:
 ${centersList}
+${historico ? `\nComo ESTA empresa já classificou antes (siga o padrão dela):\n${historico}` : ""}
 
-Responda APENAS com JSON válido no formato:
-{"account_id": "uuid", "cost_center_id": "uuid", "confidence": "high|medium|low"}
-
-Escolha a classificação mais provável. Se não tiver certeza, use confidence "low".`,
+Devolva o id EXATO de uma das contas listadas. Se nenhuma servir, devolva account_id nulo com confidence "low". Nunca invente id. A explicação tem no máximo uma frase curta, em português, dizendo por que escolheu.`,
+        },
+        {
+          role: "user",
+          content: `Tipo: ${type === "revenue" ? "Receita" : "Despesa"}\nDescrição: ${sanitizeForPrompt(description as string)}`,
+        },
+      ],
+      {
+        modelo: "google/gemini-2.5-flash-lite",
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["account_id", "cost_center_id", "confidence", "explicacao"],
+          properties: {
+            account_id: { type: ["string", "null"] },
+            cost_center_id: { type: ["string", "null"] },
+            confidence: { type: "string", enum: ["high", "medium", "low"] },
+            explicacao: { type: "string" },
           },
-          {
-            role: "user",
-            content: `Tipo: ${type === "revenue" ? "Receita" : "Despesa"}\nDescrição: ${sanitizeForPrompt(description as string)}`,
-          },
-        ],
-        temperature: 0.1,
-      }),
-    });
+        },
+      },
+    );
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("AI error:", response.status, errText);
-      return new Response(JSON.stringify({ error: "AI classification failed" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    await registrarUso(adminClient, company_id as string, "ai-classify", resposta);
+
+    if (!resposta.dados) {
+      // Falha de IA não pode virar "não sei" silencioso: quem chamou precisa
+      // saber que foi erro, para oferecer classificação manual.
+      return new Response(
+        JSON.stringify({ account_id: null, cost_center_id: null, confidence: "low", erro: resposta.erro }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    const result = await response.json();
-    const content = result.choices?.[0]?.message?.content || "";
-
-    const jsonMatch = content.match(/\{[^}]+\}/);
-    if (!jsonMatch) {
-      return new Response(JSON.stringify({ account_id: null, cost_center_id: null, confidence: "low" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // O modelo devolve id. Antes isso ia direto para o insert: um UUID
+    // alucinado virava lançamento numa conta que não existe na empresa.
+    const c = resposta.dados;
+    if (c.account_id && !idsContas.has(c.account_id)) {
+      c.account_id = null;
+      c.confidence = "low";
+    }
+    if (c.cost_center_id && !idsCentros.has(c.cost_center_id)) {
+      c.cost_center_id = null;
     }
 
-    const classification = JSON.parse(jsonMatch[0]);
-
-    // O modelo devolve id de conta e de centro de custo. Antes isso ia direto
-    // para o insert: um UUID alucinado virava lançamento classificado numa
-    // conta que não existe na empresa. Só passa o que estava na lista enviada.
-    const idsContas = new Set((accounts ?? []).map((a: { id: string }) => a.id));
-    const idsCentros = new Set((costCenters ?? []).map((c: { id: string }) => c.id));
-    if (classification.account_id && !idsContas.has(classification.account_id)) {
-      classification.account_id = null;
-      classification.confidence = "low";
-    }
-    if (classification.cost_center_id && !idsCentros.has(classification.cost_center_id)) {
-      classification.cost_center_id = null;
-    }
-
-    return new Response(JSON.stringify(classification), {
+    return new Response(JSON.stringify({ ...c, origem: "ia" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
