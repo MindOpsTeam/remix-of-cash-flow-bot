@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { AppLayout } from "@/components/AppLayout";
+import { FaturarPedido } from "@/components/vendas/FaturarPedido";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -363,6 +364,16 @@ export default function SalesOrdersPage() {
                 </div>
                 <p className="text-sm font-semibold font-mono">{fmt(Number(o.total))}</p>
                 <div className="flex items-center gap-1">
+                  {(o.status === "confirmed" || o.status === "delivered") && (
+                    <FaturarPedido
+                      pedidoId={o.id}
+                      numero={o.order_number}
+                      total={Number(o.total)}
+                      clienteNome={o.contact?.name ?? null}
+                      vencimentoPedido={o.due_date ?? null}
+                      onFaturado={() => queryClient.invalidateQueries({ queryKey: ["sales_orders", company?.id] })}
+                    />
+                  )}
                   {(o.status === "confirmed" || o.status === "delivered") && (
                     <Button
                       variant="ghost"

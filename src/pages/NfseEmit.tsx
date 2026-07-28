@@ -190,6 +190,11 @@ export default function NfseEmitPage() {
         body: {
           operation: "emit",
           companyId: company!.id,
+          // A tela de pedidos manda sales_order_id na URL e este arquivo
+          // descartava o parâmetro, então invoices.sales_order_id era sempre
+          // nulo e a nota nunca sabia de qual pedido tinha nascido. nfse-proxy
+          // já aceitava salesOrderId; faltava alguém mandar.
+          salesOrderId: searchParams.get("sales_order_id") ?? undefined,
           data: {
             tomador: {
               cpfCnpj: form.tomadorCpfCnpj.replace(/\D/g, ""),
