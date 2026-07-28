@@ -826,6 +826,7 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          regime_apuracao: string
           regime_tributario: string | null
           updated_at: string
         }
@@ -836,6 +837,7 @@ export type Database = {
           id?: string
           name: string
           org_id?: string
+          regime_apuracao?: string
           regime_tributario?: string | null
           updated_at?: string
         }
@@ -846,6 +848,7 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          regime_apuracao?: string
           regime_tributario?: string | null
           updated_at?: string
         }
@@ -1716,6 +1719,67 @@ export type Database = {
           },
         ]
       }
+      contract_adjustments: {
+        Row: {
+          aplicado_por: string | null
+          company_id: string
+          contract_id: string
+          created_at: string
+          id: string
+          indice: string | null
+          percentual: number
+          valor_anterior: number
+          valor_novo: number
+          vigencia: string
+        }
+        Insert: {
+          aplicado_por?: string | null
+          company_id: string
+          contract_id: string
+          created_at?: string
+          id?: string
+          indice?: string | null
+          percentual: number
+          valor_anterior: number
+          valor_novo: number
+          vigencia: string
+        }
+        Update: {
+          aplicado_por?: string | null
+          company_id?: string
+          contract_id?: string
+          created_at?: string
+          id?: string
+          indice?: string | null
+          percentual?: number
+          valor_anterior?: number
+          valor_novo?: number
+          vigencia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_adjustments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_adjustments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contract_adjustments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           account_id: string | null
@@ -1731,10 +1795,14 @@ export type Database = {
           description: string
           end_date: string | null
           id: string
+          indice_reajuste: string | null
           next_due_date: string | null
           payment_method: string
+          percentual_reajuste: number | null
+          proximo_reajuste: string | null
           start_date: string
           status: string
+          ultimo_reajuste_em: string | null
           updated_at: string
         }
         Insert: {
@@ -1751,10 +1819,14 @@ export type Database = {
           description: string
           end_date?: string | null
           id?: string
+          indice_reajuste?: string | null
           next_due_date?: string | null
           payment_method?: string
+          percentual_reajuste?: number | null
+          proximo_reajuste?: string | null
           start_date?: string
           status?: string
+          ultimo_reajuste_em?: string | null
           updated_at?: string
         }
         Update: {
@@ -1771,10 +1843,14 @@ export type Database = {
           description?: string
           end_date?: string | null
           id?: string
+          indice_reajuste?: string | null
           next_due_date?: string | null
           payment_method?: string
+          percentual_reajuste?: number | null
+          proximo_reajuste?: string | null
           start_date?: string
           status?: string
+          ultimo_reajuste_em?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3400,6 +3476,65 @@ export type Database = {
         }
         Relationships: []
       }
+      transaction_allocations: {
+        Row: {
+          company_id: string
+          cost_center_id: string
+          created_at: string
+          id: string
+          percentual: number
+          transaction_id: string
+          valor: number
+        }
+        Insert: {
+          company_id: string
+          cost_center_id: string
+          created_at?: string
+          id?: string
+          percentual: number
+          transaction_id: string
+          valor: number
+        }
+        Update: {
+          company_id?: string
+          cost_center_id?: string
+          created_at?: string
+          id?: string
+          percentual?: number
+          transaction_id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_allocations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_allocations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "transaction_allocations_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_allocations_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           account_id: string | null
@@ -3407,6 +3542,7 @@ export type Database = {
           attachment_url: string | null
           bank_account_id: string | null
           company_id: string
+          competencia_date: string | null
           cost_center_id: string | null
           counterparty_company_id: string | null
           created_at: string
@@ -3429,6 +3565,7 @@ export type Database = {
           attachment_url?: string | null
           bank_account_id?: string | null
           company_id: string
+          competencia_date?: string | null
           cost_center_id?: string | null
           counterparty_company_id?: string | null
           created_at?: string
@@ -3451,6 +3588,7 @@ export type Database = {
           attachment_url?: string | null
           bank_account_id?: string | null
           company_id?: string
+          competencia_date?: string | null
           cost_center_id?: string | null
           counterparty_company_id?: string | null
           created_at?: string
@@ -3887,13 +4025,6 @@ export type Database = {
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
           },
-          {
-            foreignKeyName: "transactions_cost_center_id_fkey"
-            columns: ["cost_center_id"]
-            isOneToOne: false
-            referencedRelation: "cost_centers"
-            referencedColumns: ["id"]
-          },
         ]
       }
       v_company_margin: {
@@ -3956,6 +4087,7 @@ export type Database = {
           is_intercompany: boolean | null
           lancamentos: number | null
           mes: string | null
+          mes_competencia: string | null
           total: number | null
           type: string | null
         }
@@ -4108,6 +4240,7 @@ export type Database = {
       }
     }
     Functions: {
+      chamar_funcao_agendada: { Args: { p_slug: string }; Returns: number }
       create_company_for_user: {
         Args: { company_cnpj?: string; company_name: string }
         Returns: Json
@@ -4135,6 +4268,10 @@ export type Database = {
       mes_esta_fechado: {
         Args: { p_company_id: string; p_data: string }
         Returns: boolean
+      }
+      ratear_lancamento: {
+        Args: { p_rateio: Json; p_transaction_id: string }
+        Returns: Json
       }
       reabrir_mes: {
         Args: { p_company_id: string; p_mes: string; p_motivo: string }
