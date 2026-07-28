@@ -386,4 +386,13 @@ O que este conselho pediu, e o que aconteceu depois. Cada linha aponta o commit.
 
 Com isso a **lente de controladoria fecha inteira**: régua única, o dinheiro que não aparecia, fechamento que trava, competência x caixa, rateio e reajuste.
 
-Continuam em aberto, e são os últimos: deduções de receita com DRE configurável, tabela de eventos de ativação, e a régua mínima do contador para troca de sistema. A parte comercial ganhou plano próprio em `docs/PLANO-COMERCIAL-2026-07.md`.
+### Quarta rodada: os dois últimos implementáveis
+
+- **Deduções de receita.** O DRE ia de Receita Bruta direto para Custos: não existia Receita Líquida. Para empresa do Simples, que paga imposto sobre faturamento, isso infla a receita e desloca toda margem calculada em cima dela. `chart_of_accounts.deducao` marca a conta redutora, a régua testa `deducao` ANTES do tipo do lançamento (imposto sobre venda costuma ser lançado como despesa), e a margem da tela passou a sair da líquida. `27a33f3`
+- **Ativação medida.** O conselho descreveu o produto com um número que ninguém conseguia consultar. `v_ativacao_empresa` mede sozinha, derivada do dado existente e não de eventos que alguém precise lembrar de disparar. O retrato de hoje bate com o do conselho: **121 nunca lançaram, 8 experimentaram, 2 usando, 0 ativa**. `27a33f3`
+
+### A régua do contador: não-objetivo declarado
+
+ECD, ECF, plano referencial, captura automática de XML e folha **não vão ser construídos**, e isso é decisão do próprio documento, não omissão: *"Isso define com precisão o que somos: um ERP financeiro que conversa com o contador, não um sistema contábil. Vender como sistema contábil seria mentir, e o contador descobre na primeira pergunta."*
+
+O que resta do documento, portanto, não é implementação: é **decisão comercial**. O cronograma público datado do Omie, o assistente de exceções da Sankhya, o robô de diagnóstico da Senior e o PDF do simulador da Alterdata são itens de posicionamento e vendas, não de engenharia pendente. A parte comercial ganhou plano próprio em `docs/PLANO-COMERCIAL-2026-07.md`.
