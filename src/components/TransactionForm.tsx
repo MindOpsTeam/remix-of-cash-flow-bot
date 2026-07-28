@@ -48,6 +48,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split("T")[0],
+    competencia_date: "",
     description: "",
     amount: "",
     type: "expense" as "revenue" | "expense",
@@ -146,6 +147,9 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     setLoading(true);
     const { error } = await supabase.from("transactions").insert({
       company_id: targetCompanyId || company.id, user_id: user.id, date: form.date,
+      // Vazio significa "igual ao caixa". Guardar a data repetida obrigaria o
+      // usuário a manter duas datas em sincronia sem ganhar nada com isso.
+      competencia_date: form.competencia_date || null,
       description: form.description.trim(), amount, type: form.type,
       account_id: form.account_id, cost_center_id: form.cost_center_id,
       bank_account_id: form.bank_account_id || null, payment_method: form.payment_method || null,
@@ -157,7 +161,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
     if (error) { toast.error("Erro ao salvar: " + error.message); }
     else {
       toast.success("Lançamento criado com sucesso!");
-      setForm({ date: new Date().toISOString().split("T")[0], description: "", amount: "", type: "expense", account_id: "", cost_center_id: "", bank_account_id: "", payment_method: "", project: "", is_intercompany: false, counterparty_company_id: "" });
+      setForm({ date: new Date().toISOString().split("T")[0], competencia_date: "", description: "", amount: "", type: "expense", account_id: "", cost_center_id: "", bank_account_id: "", payment_method: "", project: "", is_intercompany: false, counterparty_company_id: "" });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       onSuccess();
       onOpenChange(false);
@@ -203,8 +207,21 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
               </Select>
             </div>
             <div>
-              <Label>Data *</Label>
+              <Label>Data do caixa *</Label>
               <Input type="date" value={form.date} onChange={(e) => update("date", e.target.value)} required className="mt-1" />
+            </div>
+            <div>
+              <Label>Competência</Label>
+              <Input
+                type="date"
+                value={form.competencia_date}
+                onChange={(e) => update("competencia_date", e.target.value)}
+                className="mt-1"
+                placeholder="igual ao caixa"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Quando o fato aconteceu. Vazio usa a data do caixa.
+              </p>
             </div>
           </div>
 

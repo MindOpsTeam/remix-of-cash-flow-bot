@@ -18,6 +18,10 @@ export default function DRE() {
   const [lines, setLines] = useState<DRELine[]>([]);
   const [naoClassificado, setNaoClassificado] = useState(0);
   const [temMovimento, setTemMovimento] = useState(false);
+  // Caixa é quando o dinheiro andou; competência é quando o fato aconteceu. O
+  // dono lê por caixa, o contador fecha por competência, e a mesma tela precisa
+  // servir aos dois. A régua não muda: muda só qual coluna de mês é filtrada.
+  const [regime, setRegime] = useState<"caixa" | "competencia">("caixa");
   const [monthlyData, setMonthlyData] = useState<{ month: string; receitas: number; despesas: number; lucro: number }[]>([]);
 
   // Period selector
@@ -52,12 +56,14 @@ export default function DRE() {
     // A régua vive na view. Aqui só se ordena e se dá nome às linhas: se a
     // regra de receita/custo/despesa aparecesse de novo neste arquivo, seriam
     // duas cópias da mesma regra e elas voltariam a divergir.
+    const colunaMes = regime === "competencia" ? "mes_competencia" : "mes";
+
     const { data: linhasView } = await supabase
       .from("v_dre_linhas")
       .select("account_id, account_code, account_name, type, grupo, total")
       .eq("company_id", company.id)
-      .gte("mes", startOfMonth)
-      .lte("mes", endOfMonth);
+      .gte(colunaMes, startOfMonth)
+      .lte(colunaMes, endOfMonth);
 
     const linhasDoMes = (linhasView ?? []) as unknown as LinhaView[];
     const resultado = montarDRE(linhasDoMes);
@@ -73,10 +79,10 @@ export default function DRE() {
 
     const { data: serieView } = await supabase
       .from("v_dre_linhas")
-      .select("mes, grupo, total")
+      .select(`mes:${colunaMes}, grupo, total`)
       .eq("company_id", company.id)
-      .gte("mes", chartStart)
-      .lte("mes", endOfMonth);
+      .gte(colunaMes, chartStart)
+      .lte(colunaMes, endOfMonth);
 
     const chaves: string[] = [];
     for (let i = 5; i >= 0; i--) {
@@ -96,7 +102,7 @@ export default function DRE() {
         };
       }),
     );
-  }, [company, selectedYear, selectedMonth]);
+  }, [company, selectedYear, selectedMonth, regime]);
 
   useEffect(() => { buildDRE(); }, [buildDRE]);
 
@@ -123,10 +129,24 @@ export default function DRE() {
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Demonstração do Resultado</h1>
           <p className="text-sm text-muted-foreground mt-1 capitalize">
-            {monthLabel} — Lançamentos confirmados e conciliados
+            {monthLabel} — {regime === "competencia" ? "por competência" : "por caixa"}, confirmados e conciliados
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+            {(["caixa", "competencia"] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setRegime(r)}
+                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                  regime === r ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+                title={r === "caixa" ? "Quando o dinheiro entrou ou saiu" : "Quando o fato aconteceu"}
+              >
+                {r === "caixa" ? "Caixa" : "Competência"}
+              </button>
+            ))}
+          </div>
           {/* Period selector */}
           <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-1">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goToPrevMonth}>

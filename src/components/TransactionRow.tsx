@@ -2,6 +2,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Building2, Pencil, Trash2 } from "lucide-react";
+import { RatearLancamento } from "@/components/lancamentos/RatearLancamento";
 
 const sourceIcons: Record<string, React.ReactNode> = {
   whatsapp: <MessageSquare className="h-3 w-3" />,
@@ -73,6 +74,11 @@ export function TransactionRow({ transaction, onEdit, onDelete }: TransactionRow
           {isRevenue ? "+" : "-"} {formatCurrency(transaction.amount)}
         </span>
         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <RatearLancamento
+            transactionId={transaction.id}
+            descricao={transaction.description}
+            valor={Number(transaction.amount)}
+          />
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit?.(transaction)}>
             <Pencil className="h-3 w-3" />
           </Button>
