@@ -145,6 +145,20 @@ Escolha a classificação mais provável. Se não tiver certeza, use confidence 
     }
 
     const classification = JSON.parse(jsonMatch[0]);
+
+    // O modelo devolve id de conta e de centro de custo. Antes isso ia direto
+    // para o insert: um UUID alucinado virava lançamento classificado numa
+    // conta que não existe na empresa. Só passa o que estava na lista enviada.
+    const idsContas = new Set((accounts ?? []).map((a: { id: string }) => a.id));
+    const idsCentros = new Set((costCenters ?? []).map((c: { id: string }) => c.id));
+    if (classification.account_id && !idsContas.has(classification.account_id)) {
+      classification.account_id = null;
+      classification.confidence = "low";
+    }
+    if (classification.cost_center_id && !idsCentros.has(classification.cost_center_id)) {
+      classification.cost_center_id = null;
+    }
+
     return new Response(JSON.stringify(classification), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

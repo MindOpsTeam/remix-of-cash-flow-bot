@@ -104,61 +104,20 @@ export default function StockPage() {
       const qty = parseFloat(moveQty);
       if (!qty || !moveProductId) throw new Error("Produto e quantidade são obrigatórios");
 
-      // Validate stock availability for outbound movements
-      if (moveType === "out") {
-        const product = products.find((p) => p.id === moveProductId);
-        const currentStock = product?.current_stock ?? 0;
-        if (Math.abs(qty) > currentStock) {
-          throw new Error(`Estoque insuficiente. Disponível: ${currentStock} ${product?.unit || "un"}`);
-        }
-      }
-
-      // Todo movimento pertence a um depósito. A empresa não precisa cadastrar
-      // nada antes: se ainda não tem nenhum, criamos o principal na hora.
-      let depositoId: string | null = null;
-      const { data: depositos } = await supabase
-        .from("warehouses")
-        .select("id")
-        .eq("company_id", company.id)
-        .limit(1);
-      if (depositos && depositos.length > 0) {
-        depositoId = depositos[0].id;
-      } else {
-        const { data: novoDeposito } = await supabase
-          .from("warehouses")
-          .insert({ company_id: company.id, name: "Depósito principal" })
-          .select("id")
-          .single();
-        depositoId = novoDeposito?.id ?? null;
-      }
-
-      // Insert movement
-      const { error: moveError } = await supabase.from("stock_movements").insert({
-        company_id: company.id,
-        product_id: moveProductId,
-        warehouse_id: depositoId,
-        type: moveType,
-        quantity: moveType === "out" ? -Math.abs(qty) : qty,
-        unit_cost: moveCost ? parseFloat(moveCost) : null,
-        notes: moveNotes.trim() || null,
-        user_id: user.id,
-        reference_type: "manual",
-      });
-      if (moveError) throw moveError;
-
-      // Update product stock
-      const product = products.find((p) => p.id === moveProductId);
-      const currentStock = product?.current_stock ?? 0;
-      let newStock = currentStock;
-      if (moveType === "in") newStock += Math.abs(qty);
-      else if (moveType === "out") newStock -= Math.abs(qty);
-      else newStock = qty; // adjustment = set absolute
-
-      const { error: updateError } = await supabase
-        .from("products")
-        .update({ current_stock: newStock })
-        .eq("id", moveProductId);
-      if (updateError) throw updateError;
+      // Tudo numa transação só no banco: a RPC trava a linha do produto, grava
+      // o DELTA no razão (no ajuste, a diferença até o alvo, não o valor alvo) e
+      // recalcula o custo médio móvel. Antes isso era feito no cliente, lendo o
+      // saldo do cache: dois usuários ao mesmo tempo perdiam movimento, e o
+      // ajuste gravava o número absoluto como se fosse a variação.
+      const { error: rpcError } = await supabase.rpc("registrar_movimento_estoque" as never, {
+        p_company_id: company.id,
+        p_product_id: moveProductId,
+        p_tipo: moveType,
+        p_quantidade: qty,
+        p_custo_unitario: moveCost ? parseFloat(moveCost) : null,
+        p_observacao: moveNotes.trim() || null,
+      } as never);
+      if (rpcError) throw rpcError;
     },
     onSuccess: () => {
       toast.success("Movimentação registrada!");

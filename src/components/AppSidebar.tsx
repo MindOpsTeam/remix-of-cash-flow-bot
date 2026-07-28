@@ -135,7 +135,9 @@ const sections: NavGroup[] = [
     key: "operacao",
     label: "Operação",
     icon: Zap,
-    personas: ["operacional"],
+    // Lançamentos mora aqui. Deixar só "operacional" removia da navegação do
+    // dono da empresa a única tela que registra dinheiro.
+    personas: ["operacional", "tatico", "estrategico"],
     items: [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
       { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },

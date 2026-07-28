@@ -46,9 +46,14 @@ function ActionCard({ action, onDecide }: {
   const isPending = action.status === "pending";
   const isApproved = action.status === "approved";
 
-  const whatsappHref = action.suggested_message
-    ? `https://wa.me/${(action.contact_whatsapp ?? "").replace(/\D/g, "")}?text=${encodeURIComponent(action.suggested_message)}`
-    : null;
+  // Sem telefone não existe link de WhatsApp: montar wa.me/ vazio abria uma
+  // conversa sem destinatário e o botão marcava a ação como enviada. Enquanto
+  // o agente não trouxer o contato, o caminho honesto é copiar a mensagem.
+  const telefone = (action.contact_whatsapp ?? "").replace(/\D/g, "");
+  const whatsappHref =
+    action.suggested_message && telefone.length >= 10
+      ? `https://wa.me/${telefone}?text=${encodeURIComponent(action.suggested_message)}`
+      : null;
 
   return (
     <div className="rounded-lg border border-border bg-card p-4">
@@ -95,13 +100,24 @@ function ActionCard({ action, onDecide }: {
 
       {isApproved && (
         <div className="flex flex-wrap gap-2">
-          {whatsappHref && (
+          {whatsappHref ? (
             <a href={whatsappHref} target="_blank" rel="noopener noreferrer">
               <Button size="sm" className="gap-1" onClick={() => onDecide(action.id, "executed")}>
                 <MessageCircle className="h-4 w-4" /> Enviar no WhatsApp
               </Button>
             </a>
-          )}
+          ) : action.suggested_message ? (
+            <Button
+              size="sm"
+              className="gap-1"
+              onClick={() => {
+                navigator.clipboard.writeText(action.suggested_message ?? "");
+                toast.success("Mensagem copiada. Cole no WhatsApp do cliente.");
+              }}
+            >
+              <MessageCircle className="h-4 w-4" /> Copiar mensagem
+            </Button>
+          ) : null}
           <Button size="sm" variant="outline" className="gap-1" onClick={() => onDecide(action.id, "executed")}>
             <Check className="h-4 w-4" /> Marcar como enviada
           </Button>

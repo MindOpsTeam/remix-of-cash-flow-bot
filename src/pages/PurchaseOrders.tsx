@@ -67,6 +67,24 @@ export default function PurchaseOrdersPage() {
   const { company } = useCompany();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // A alçada de aprovação vale para QUALQUER caminho que compromete dinheiro.
+  // Antes, o título nascido de um pedido de compra caía no default 'approved'
+  // do banco e furava o limite que o lançamento manual respeita.
+  const { data: alcada } = useQuery({
+    queryKey: ["approval_limit_po", company?.id, user?.id],
+    enabled: !!company?.id && !!user?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("company_members")
+        .select("approval_limit")
+        .eq("company_id", company!.id)
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      return (data as { approval_limit: number | null } | null) ?? null;
+    },
+  });
+  const limiteAprovacao = alcada?.approval_limit ?? null;
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -200,7 +218,12 @@ export default function PurchaseOrdersPage() {
           descricao: `Pedido de compra #${result.orderId?.slice(0, 8) || ""}`,
           source: "purchase_order",
           status: "pendente",
-        });
+          purchase_order_id: result.orderId ?? null,
+          approval_status:
+            limiteAprovacao != null && Number(totalVal) > limiteAprovacao
+              ? "awaiting_approval"
+              : "approved",
+        } as never);
         if (!billError) {
           toast.success("Conta a pagar gerada automaticamente!");
           queryClient.invalidateQueries({ queryKey: ["bills_payable"] });

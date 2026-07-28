@@ -32,10 +32,9 @@ function useOnboarding() {
       .maybeSingle()
       .then(async ({ data }) => {
         if (data && !(data as { onboarding_completed: boolean }).onboarding_completed) {
-          await (supabase as any)
-            .from("company_members")
-            .update({ onboarding_completed: true })
-            .eq("id", data.id);
+          // NÃO marcar como concluído aqui. Marcar na abertura fazia abandono na
+          // primeira etapa virar conclusão: quem fechasse a aba ou desse refresh
+          // nunca mais via o onboarding. Quem conclui é o próprio wizard.
           setMemberId(data.id);
           setShowOnboarding(true);
         }

@@ -101,3 +101,71 @@ E o gatilho de troca de sistema em 2026 e 2027 é a Reforma. Quem não entregar 
 ## Estado de preenchimento
 
 Este documento é atualizado conforme as demais lentes retornam. Lentes concluídas: vendas e faturamento, pesquisa de order-to-cash, mercado e preço. Em andamento: controladoria, tesouraria, suprimentos, experiência e ativação, inteligência artificial. Refeitas após falha: contabilidade e fiscal, contas a receber.
+
+---
+
+## Lente: suprimentos, compras e estoque
+
+### Verificado no código
+
+**Buraco de controle interno, corrigido.** `PurchaseOrders.tsx` criava o título em `bills_payable` **sem passar `approval_status`**, caindo no default `approved` do banco. O caminho manual (`useBillsPayable`) respeita `company_members.approval_limit`. Ou seja: qualquer membro comprometia a empresa com qualquer valor criando um pedido e marcando confirmado. Corrigido, o título agora herda o estado de aprovação e aponta para o pedido pela nova FK `bills_payable.purchase_order_id`.
+
+**O razão de estoque mentia.** No ajuste, a tela gravava a quantidade **absoluta** como se fosse variação: estoque 80 ajustado para 50 registrava +50, quando o delta real era -30. Reprocessar o histórico nunca reproduziria o saldo. E o saldo era calculado no cliente, a partir do cache, com dois round-trips não atômicos: dois usuários simultâneos perdiam movimento.
+
+Corrigido com a RPC `registrar_movimento_estoque`, que trava a linha do produto, grava sempre o **delta**, recusa saída maior que o saldo e calcula **custo médio móvel** (`products.average_cost`, coluna nova, semeada pelo custo cadastrado). Verificado em produção com tenant temporário: ajuste de 80 para 50 gravou `-30`, e saída de 5.000 sobre saldo 100 foi recusada.
+
+### A decisão que o especialista recomenda
+
+**Cortar o estoque, construir a espinha compra-para-pagamento, integrar o armazém.** O argumento não é logístico, é financeiro: o CMV hoje é classificação de caixa (`DRE.tsx`, despesa em conta 4.x), então **a margem bruta, que é o número de vitrine do produto, está errada para qualquer cliente que carrega estoque**. A correção é uma camada de custeio de três colunas, não um WMS.
+
+Números que sustentam: Katana cobra US$ 299/mês e vende reposição por IA como produto separado de US$ 249; Cin7 começa em US$ 349. Quem faz só isso cobra mais que nós inteiros. E a própria Omie terceiriza cotação e alçada para um app de terceiro.
+
+---
+
+## Lente: experiência e ativação
+
+### O número que explica o produto
+
+O sistema criou **2.877 linhas de configuração** (plano de contas, centros de custo, contas bancárias) para sustentar **34 lançamentos reais**. Oitenta e cinco linhas de andaime para cada linha de valor. A mediana dos 115 usuários **nunca lançou nada**.
+
+E o que nunca aconteceu em 130 empresas: nenhuma conexão bancária, nenhuma conciliação, nenhum recebível, nenhum orçamento, nenhum fechamento. Vinte das cinquenta tabelas estão zeradas.
+
+### Verificado e corrigido
+
+**O onboarding se autodestruía.** `Index.tsx` marcava `onboarding_completed = true` **na abertura do wizard**, dentro do mesmo bloco que detectou que ele não tinha sido feito. Fechar a aba na primeira etapa era indistinguível de concluir, e o modal não pode ser fechado. Uma chance por usuário, gasta antes de começar. Corrigido: quem conclui é o wizard, que já fazia isso.
+
+**A persona escondia a única tela que importa.** O grupo Operação, onde vive Lançamentos, estava visível só para a persona `operacional`. O dono da empresa, que se identifica como estratégico e é o comprador do produto, tinha a tela de registrar dinheiro removida da navegação. Corrigido para as três personas.
+
+### O que aceito como diagnóstico
+
+A ordem do produto está invertida: **configurar, integrar, declarar pronto, nunca usar**. O certo é **usar, ver resultado, então configurar o que acelera**. Duas consequências práticas: a etapa de integrações do onboarding pede seis credenciais de API a um dono de PME na primeira sessão (o banco mostra o resultado: 3,8% configuraram Asaas, 1,5% o Inter), e não existe importação de nada, só exportação. Colar extrato num campo de texto é a feature de maior retorno por linha de código do backlog inteiro.
+
+---
+
+## Lente: inteligência artificial
+
+### Verificado e corrigido
+
+**O classificador aceitava conta inventada.** `ai-classify` devolvia o `account_id` do modelo sem conferir se ele estava na lista enviada. UUID alucinado ia direto para o insert. Corrigido: o que não estava na lista vira nulo e a confiança cai.
+
+**O botão de cobrança abria conversa sem destinatário.** `agent-collections` nunca preenche `contact_whatsapp`, e a tela montava `wa.me/` com string vazia, marcando a ação como enviada no clique. Corrigido: com telefone, link; sem telefone, copiar a mensagem. Nada finge que enviou.
+
+### O diagnóstico mais duro, que aceito
+
+**`ai-forecast` viola a regra da casa.** Ele manda seis linhas de resumo para o modelo e pede que **o modelo devolva o número projetado**, com temperatura 0,3. A mesma pergunta duas vezes dá dois resultados. Um CFO que vê a previsão mudar sozinha deixa de confiar em todas as telas, inclusive nas certas. Média móvel ponderada com sazonalidade resolve em vinte e cinco linhas, com intervalo de confiança real, custo zero e resultado estável. O modelo entra depois, só para narrar a causa.
+
+**E a solução do custo já está construída e desligada.** A função `mcp` do próprio projeto expõe `cash_summary` e `list_transactions`, ferramentas determinísticas prontas. O `cfo-digital` não as chama: ele injeta mil linhas de transação em texto no prompt a cada turno e pede ao modelo que some. Ligar as ferramentas resolve custo e alucinação na mesma mudança.
+
+### A fronteira do dinheiro
+
+Para quando os MCPs de pagamento forem ligados, a regra proposta é boa e fica registrada: aprova-se um **hash** de beneficiário mais documento mais valor, não um texto; beneficiário novo exige dois aprovadores independentemente do valor; janela de arrependimento de trinta minutos antes de executar; e teto agregado por dia, não só por transação. Alteração de chave Pix de fornecedor conhecido nunca executa sozinha, porque é o golpe mais comum contra PME brasileira.
+
+---
+
+## Risco jurídico que a pesquisa fiscal trouxe
+
+A **LC 227/2026** inseriu o art. 341-G, VI na LC 214/2025, criando multa de 150 UPF por equipamento para quem **desenvolve, fornece ou instala software** que emita documento fiscal fora dos requisitos da legislação.
+
+A multa é na software house, não no cliente. Um ERP que emitir NF-e sem o grupo IBS/CBS depois de 3 de agosto cai literalmente na hipótese. Isso muda a natureza da correção que fizemos hoje: não era melhoria de produto, era exposição legal nossa.
+
+Dois pontos operacionais da mesma pesquisa: para NFS-e o layout exigido é o da **NT004 mais o `tpRetPisCofins` da NT007**, e não a NT009; e a tabela oficial de `cClassTrib` tem **164 códigos** com colunas que dizem quais grupos XML são obrigatórios em cada documento, o que significa que a validação deve ser **carregada da planilha versionada**, nunca escrita à mão no código.
