@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.classificar-lote]
 verify_jwt = false
+
+[functions.sugerir-fiscal]
+verify_jwt = false

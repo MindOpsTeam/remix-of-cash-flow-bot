@@ -22,6 +22,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
+import { ProntoParaAgosto } from "@/components/produtos/ProntoParaAgosto";
 
 interface Product {
   id: string;
@@ -65,6 +66,9 @@ const emptyForm = {
   cost_price: "",
   ncm: "",
   cclasstrib: "",
+  cfop: "",
+  tax_origin: "",
+  account_id: "",
   track_stock: false,
   min_stock: "",
   category: "",
@@ -73,6 +77,22 @@ const emptyForm = {
 export default function ProductsPage() {
   const { company } = useCompany();
   const queryClient = useQueryClient();
+
+  // Só contas de receita: produto vendido cai em receita, e oferecer o plano de
+  // contas inteiro aqui é convite para classificar venda como despesa.
+  const { data: contasReceita = [] } = useQuery({
+    queryKey: ["contas_receita", company?.id],
+    enabled: !!company,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("chart_of_accounts")
+        .select("id, code, name")
+        .eq("company_id", company!.id)
+        .eq("type", "revenue")
+        .order("code");
+      return data ?? [];
+    },
+  });
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -92,7 +112,7 @@ export default function ProductsPage() {
       const to = from + PAGE_SIZE - 1;
       let query = supabase
         .from("products")
-        .select("id, name, description, type, sku, barcode, ncm, cclasstrib, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
+        .select("id, name, description, type, sku, barcode, ncm, cclasstrib, cfop, tax_origin, account_id, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
         .eq("company_id", company.id)
         .eq("active", true);
 
@@ -127,6 +147,12 @@ export default function ProductsPage() {
         cost_price: form.cost_price ? parseFloat(form.cost_price.replace(/\./g, "").replace(",", ".")) : null,
         ncm: form.ncm.trim() || null,
         cclasstrib: form.cclasstrib.trim() || null,
+        cfop: form.cfop.trim() || null,
+        tax_origin: form.tax_origin.trim() || null,
+        // A conta contábil do produto existia no banco desde sempre e a tela
+        // nunca a expôs: 22 de 22 produtos estavam sem ela. É o que faz a venda
+        // nascer classificada em vez de cair no balaio "a classificar" do DRE.
+        account_id: form.account_id || null,
         track_stock: form.track_stock,
         min_stock: form.min_stock ? parseFloat(form.min_stock) : 0,
         category: form.category.trim() || null,
@@ -184,6 +210,9 @@ export default function ProductsPage() {
       cost_price: p.cost_price != null ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(p.cost_price) : "",
       ncm: p.ncm || "",
       cclasstrib: p.cclasstrib || "",
+      cfop: p.cfop || "",
+      tax_origin: p.tax_origin || "",
+      account_id: p.account_id || "",
       track_stock: p.track_stock,
       min_stock: p.min_stock != null ? String(p.min_stock) : "",
       category: p.category || "",
@@ -207,6 +236,8 @@ export default function ProductsPage() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
+        <ProntoParaAgosto />
+
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em] flex items-center gap-2">
@@ -407,8 +438,31 @@ export default function ProductsPage() {
                 <Input className="mt-1 font-mono" value={form.cclasstrib} onChange={(e) => set("cclasstrib", e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000001" />
               </div>
               <div>
+                <Label className="text-xs">CFOP</Label>
+                <Input className="mt-1 font-mono" value={form.cfop} onChange={(e) => set("cfop", e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="5102" />
+              </div>
+              <div>
+                <Label className="text-xs">Origem da mercadoria</Label>
+                <Input className="mt-1 font-mono" value={form.tax_origin} onChange={(e) => set("tax_origin", e.target.value.replace(/\D/g, "").slice(0, 1))} placeholder="0" />
+              </div>
+              <div>
                 <Label className="text-xs">Categoria</Label>
                 <Input className="mt-1" value={form.category} onChange={(e) => set("category", e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Conta contábil da receita</Label>
+                <Select value={form.account_id || "__nenhuma"} onValueChange={(v) => set("account_id", v === "__nenhuma" ? "" : v)}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Escolher conta" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__nenhuma">Nenhuma</SelectItem>
+                    {contasReceita.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.code} {c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Com ela, a venda deste item já entra classificada no resultado.
+                </p>
               </div>
             </div>
 
