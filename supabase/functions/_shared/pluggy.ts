@@ -36,8 +36,21 @@ export interface PluggyCreds {
  * O env secret continua valendo como fallback, para não derrubar quem já estava
  * conectado antes de existir a tela.
  */
+/**
+ * Cliente visto de forma mínima: só se usa `.rpc()`.
+ *
+ * Declarado com assinatura de MÉTODO e devolvendo PromiseLike, e as duas
+ * escolhas são necessárias. Como propriedade (`rpc: (fn) => ...`) o TypeScript
+ * checa o parâmetro de forma estritamente contravariante e recusa o
+ * SupabaseClient real; e o `.rpc()` do supabase-js devolve um builder que é
+ * thenable, não uma Promise, então exigir Promise também recusa.
+ */
+interface ClienteComRpc {
+  rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data: unknown }>;
+}
+
 export async function pluggyCredsForCompany(
-  service: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown }> },
+  service: ClienteComRpc,
   companyId: string,
 ): Promise<PluggyCreds & { origem: "vault" | "env" | "ausente" }> {
   let doCofre: { client_id?: string; client_secret?: string } | null = null;

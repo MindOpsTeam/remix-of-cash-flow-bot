@@ -9,7 +9,7 @@
  * Body: { company_id, operation, params }
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import forge from "https://esm.sh/node-forge@1.3.1";
 
@@ -203,8 +203,26 @@ Deno.serve(async (req) => {
  * or the CNPJ in SubjectAltName OtherName OID 2.16.76.1.3.3.
  * We try CN parsing first (most reliable), then fall back to raw Subject.
  */
+/**
+ * Cliente visto pelo mínimo que estas duas funções usam: `.from().update().eq()`.
+ *
+ * `ReturnType<typeof createClient>` resolvia para a instanciação PADRÃO dos
+ * genéricos (schema `never`), enquanto o cliente realmente criado infere
+ * `"public"`. Daí o "Type 'public' is not assignable to type 'never'" e o
+ * update virando `never`. Descrever só o que se usa, com assinatura de MÉTODO,
+ * casa com o cliente real sem arrastar os genéricos profundos do SupabaseClient
+ * (que estouram em TS2589).
+ */
+interface ClienteParaConfigNfse {
+  from(tabela: string): {
+    update(valores: Record<string, unknown>): {
+      eq(coluna: string, valor: string): PromiseLike<{ error: { message: string } | null }>;
+    };
+  };
+}
+
 async function parseCertAndSave(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ClienteParaConfigNfse,
   config: NfseConfig,
 ): Promise<{ cnpj: string | null; razaoSocial: string | null; expiresAt: string | null; validDays: number | null }> {
   let certInfo: { cnpj: string | null; razaoSocial: string | null; expiresAt: string | null; validDays: number | null };
@@ -306,7 +324,7 @@ function validarDpsLocal(
 }
 
 async function emitirNfse(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ClienteParaConfigNfse,
   config: NfseConfig,
   params: Record<string, unknown>,
 ): Promise<unknown> {

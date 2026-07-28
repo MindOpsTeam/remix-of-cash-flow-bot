@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { parseJsonBody, validate, validateRequired, validateEnum, validateUUID } from "../_shared/validate.ts";
 import { mapTransferData, mapBillData, mapSubscriptionData } from "../_shared/asaas-processor.ts";

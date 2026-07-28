@@ -10,7 +10,7 @@
 // deno-lint-ignore no-explicit-any
 type SupabaseClient = any;
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "./cors.ts";
 
 const PLUGNOTAS_HOSTS = {

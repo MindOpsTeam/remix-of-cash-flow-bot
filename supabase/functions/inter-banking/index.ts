@@ -13,7 +13,7 @@
  * Actions: test | balance | statement | sync
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",

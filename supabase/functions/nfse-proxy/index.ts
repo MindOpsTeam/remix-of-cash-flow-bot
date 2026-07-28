@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 
 const WORKER_URL = Deno.env.get("NFSE_WORKER_URL") || "http://localhost:3000";
 const WORKER_KEY = Deno.env.get("NFSE_WORKER_API_KEY") || "";
