@@ -4,6 +4,7 @@ import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionForm } from "@/components/TransactionForm";
 import { TransactionEditForm } from "@/components/TransactionEditForm";
 import { ImportarExtrato } from "@/components/importar/ImportarExtrato";
+import { LancamentoRapido } from "@/components/lancamentos/LancamentoRapido";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
@@ -135,6 +136,10 @@ export default function Transactions() {
             Novo Lançamento
           </Button>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <LancamentoRapido onLancado={fetchTransactions} />
       </div>
 
       <div className="bg-card border border-border rounded-lg p-5">
