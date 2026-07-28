@@ -90,6 +90,21 @@ O passo que transforma três ilhas em processo. É a decisão nº 2 do conselho.
 
 ---
 
+---
+
+## Estado da implementação, 28/07/2026
+
+| Fase | Estado |
+|---|---|
+| **F0** — o pedido vira dinheiro | **Feito.** `faturar_pedido()` com parcelamento numa transação, índice único contra faturar duas vezes, e `NfseEmit` lendo o `sales_order_id` que a tela de pedidos sempre mandou e ele sempre descartou. `91540fe` |
+| **F1** — produto que se classifica e emite | **Feito**, menos a tabela oficial. `account_id`, `cfop` e `tax_origin` expostos; painel do prazo de 3 de agosto; `sugerir-fiscal` propondo NCM e cClassTrib com o humano confirmando. Falta carregar a planilha da NT, e a carga está pronta em `carregar_cclasstrib()`. `c167e51`, `44f8252` |
+| **F2** — cliente 360 e crédito | **Feito.** `v_cliente_360`, `checar_credito()` avisando antes do clique, `contact_id` em transactions e bills_payable, histórico no topo do cadastro. Avisa e não bloqueia, de propósito. `3153a43` |
+| **F3** — vendedor, comissão e meta | **Feito.** `salespeople` com migração do texto livre, `sales_targets`, `v_meta_vendedor`, `fechar_comissao()` gerando conta a pagar idempotente, e a tela `/salespeople`. `3153a43` |
+| **F4** — proposta que fecha sozinha | **Feito.** Link público com token de 32 bytes e validade, leitura que não expõe custo nem nota interna, aceite registrando quem/quando e confirmando o pedido, token queimado no aceite. `5a1e64b` |
+| **F5** — agentes com regra | **Feito antes das outras**, porque o agente de cobrança era mudo por construção. `a9b0639` |
+
+Fica de fora, por decisão: lista de preços por cliente e política de desconto por perfil, que dependem de saber como o cliente realmente negocia. Sem um usuário real usando F2 e F4, essa modelagem seria chute.
+
 ## Ordem sugerida
 
 **F0 e F1 primeiro, juntas.** F0 destrava o dinheiro e F1 tem prazo legal em 3 de agosto. Depois F5, que é barata e faz os agentes deixarem de ser enfeite. F2, F3 e F4 na sequência, conforme a validação com cliente real.
