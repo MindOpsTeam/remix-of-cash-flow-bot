@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
+import { montarGrupoIbsCbsFocus, regimeDestacaEm, CCLASS_TRIB_PADRAO } from "@/lib/reforma";
 
 interface FocusCfg {
   environment: "homologacao" | "producao";
@@ -70,6 +71,18 @@ export default function FocusEmit() {
   });
 
   const ambiente = cfg?.environment ?? "homologacao";
+
+  // Reforma Tributária: a partir de 03/08/2026 o regime regular tem documento
+  // rejeitado sem o grupo IBS/CBS; o Simples entra em 04/01/2027. A conta é a
+  // mesma que o PlugNotas já usa, só muda o nome do campo.
+  const regime = (company as { regimeTributario?: "simples" | "regular" | "mei" | null } | null)?.regimeTributario ?? "regular";
+  const cclasstrib =
+    (company as { cclasstribPadrao?: string | null } | null)?.cclasstribPadrao || CCLASS_TRIB_PADRAO;
+  const destacaReforma = regimeDestacaEm(regime, new Date().getFullYear());
+  const valorNumerico = parseFloat(valor.replace(/\./g, "").replace(",", ".")) || 0;
+  const grupoReforma = destacaReforma && valorNumerico > 0
+    ? montarGrupoIbsCbsFocus(valorNumerico, cclasstrib)
+    : null;
   const pronto = !!cfg?.active && !!cfg?.enabled_nfse &&
     !!(ambiente === "producao" ? cfg?.token_producao_preview : cfg?.token_homologacao_preview);
 
@@ -115,6 +128,7 @@ export default function FocusEmit() {
             valor_servicos: valorNum,
             item_lista_servico: itemLista || undefined,
             aliquota: aliquota ? parseFloat(aliquota.replace(",", ".")) : undefined,
+            ...(destacaReforma ? montarGrupoIbsCbsFocus(valorNum, cclasstrib) : {}),
           },
         },
       });
@@ -221,6 +235,31 @@ export default function FocusEmit() {
             </p>
           </div>
         </section>
+
+        {grupoReforma && (
+          <section className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-2">
+            <h2 className="font-medium text-sm">Reforma Tributária: o que vai na nota</h2>
+            <div className="grid gap-2 sm:grid-cols-3 text-sm">
+              <div>
+                <span className="text-muted-foreground text-xs block">CBS ({grupoReforma.cbs_aliquota}%)</span>
+                <span className="tabular-nums">{grupoReforma.cbs_valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs block">IBS estadual ({grupoReforma.ibs_uf_aliquota}%)</span>
+                <span className="tabular-nums">{grupoReforma.ibs_uf_valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs block">Classificação</span>
+                <span className="font-mono text-xs">{grupoReforma.ibs_cbs_classificacao_tributaria}</span>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Em 2026 esses valores são só destaque, sem recolhimento. A classificação vem do cadastro da empresa;
+              confirme com seu contador se ela vale para o seu município.{" "}
+              <Link to="/settings/company" className="underline hover:text-foreground">Alterar</Link>
+            </p>
+          </section>
+        )}
 
         <div className="flex flex-wrap gap-3">
           <Button onClick={emitir} disabled={emitindo || !pronto}>

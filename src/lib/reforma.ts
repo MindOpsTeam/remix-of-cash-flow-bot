@@ -106,6 +106,47 @@ export function montarGrupoIbsCbs(
 }
 
 /**
+ * O mesmo destaque, nos nomes de campo que a API da Focus NFe espera na NFS-e
+ * (campos marcados com "(RT)" na doc deles). A conta é a mesma de
+ * `montarGrupoIbsCbs`: uma regra tributária só, dois mapeadores de saída, para
+ * PlugNotas e Focus nunca divergirem no número.
+ *
+ * Prazo que torna isso obrigatório: a partir de 03/08/2026 o documento fiscal
+ * do regime regular é rejeitado sem o grupo IBS/CBS. Simples Nacional entra em
+ * 04/01/2027.
+ */
+export interface GrupoIbsCbsFocus {
+  ibs_cbs_base_calculo: number;
+  ibs_cbs_situacao_tributaria: string;
+  ibs_cbs_classificacao_tributaria: string;
+  cbs_aliquota: number;
+  cbs_valor: number;
+  ibs_uf_aliquota: number;
+  ibs_uf_valor: number;
+  ibs_mun_aliquota: number;
+  ibs_mun_valor: number;
+}
+
+export function montarGrupoIbsCbsFocus(
+  baseCalculo: number,
+  cClassTrib: string = CCLASS_TRIB_PADRAO,
+  cst: string = CST_PADRAO,
+): GrupoIbsCbsFocus {
+  const v = calcularIbsCbs(baseCalculo);
+  return {
+    ibs_cbs_base_calculo: v.baseCalculo,
+    ibs_cbs_situacao_tributaria: cst,
+    ibs_cbs_classificacao_tributaria: cClassTrib,
+    cbs_aliquota: v.cbsAliquota,
+    cbs_valor: v.cbsValor,
+    ibs_uf_aliquota: v.ibsUfAliquota,
+    ibs_uf_valor: v.ibsUfValor,
+    ibs_mun_aliquota: v.ibsMunAliquota,
+    ibs_mun_valor: v.ibsMunValor,
+  };
+}
+
+/**
  * Prontidão da empresa para a Reforma — alimenta o checklist da UI.
  * Cada item pendente vira uma ação no card "Pronto para a Reforma".
  */

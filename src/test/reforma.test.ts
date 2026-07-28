@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   calcularIbsCbs,
   montarGrupoIbsCbs,
+  montarGrupoIbsCbsFocus,
   docExigeDestaque,
   regimeDestacaEm,
   reformaReadiness,
@@ -108,5 +109,27 @@ describe("constantes de vigência", () => {
   it("datas-chave da NT 2025.002 registradas", () => {
     expect(REFORMA_2026.vigenciaDestaque).toBe("2026-01-01");
     expect(REFORMA_2026.inicioRejeicao).toBe("2026-08-03");
+  });
+});
+
+describe("destaque IBS/CBS no formato da Focus NFe", () => {
+  it("usa a mesma conta do mapeador do PlugNotas, só mudando o nome do campo", () => {
+    const plug = montarGrupoIbsCbs(1000);
+    const focus = montarGrupoIbsCbsFocus(1000);
+    expect(focus.ibs_cbs_base_calculo).toBe(plug.baseCalculo);
+    expect(focus.cbs_valor).toBe(plug.cbsValor);
+    expect(focus.ibs_uf_valor).toBe(plug.ibsUfValor);
+    expect(focus.ibs_mun_valor).toBe(plug.ibsMunValor);
+    expect(focus.ibs_cbs_situacao_tributaria).toBe(plug.cst);
+    expect(focus.ibs_cbs_classificacao_tributaria).toBe(plug.cClassTrib);
+  });
+
+  it("aplica as alíquotas do ano-teste sobre a base", () => {
+    const g = montarGrupoIbsCbsFocus(1000);
+    expect(g.cbs_aliquota).toBe(0.9);
+    expect(g.cbs_valor).toBe(9);
+    expect(g.ibs_uf_aliquota).toBe(0.1);
+    expect(g.ibs_uf_valor).toBe(1);
+    expect(g.ibs_mun_valor).toBe(0);
   });
 });
