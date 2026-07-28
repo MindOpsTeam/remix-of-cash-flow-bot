@@ -228,3 +228,57 @@ A Focus NFe é a única com preço público do benchmark: R$ 89,90 por mês para
 3. **Inverter a ordem do produto.** Usar, ver resultado, depois configurar. Colar extrato é o maior retorno por linha de código do backlog.
 4. **Tirar o LLM de cima do número.** A previsão de caixa precisa ser cálculo, com o modelo apenas narrando a causa.
 5. **Assumir o que somos.** ERP financeiro com fiscal forte que conversa com o contador. Não sistema contábil, não WMS. E aí, dentro desse recorte, ser o melhor: conciliação a três vias, crédito de CBS/IBS visível, e pagamento com lastro fiscal.
+
+---
+
+## Lente: controladoria
+
+### A bomba armada, corrigida
+
+`reconcile-transactions` grava `status = 'reconciled'`. A régua do DRE, das views de margem, do realizado do orçamento, da consolidação e da API pública filtrava `status = 'confirmed'`. **Conciliar um lançamento o apagava do resultado.**
+
+Ninguém foi mordido porque a conciliação praticamente não roda: zero conciliados em produção. No dia em que o Open Finance entrar em uso, o faturamento cairia na tela do cliente conforme os lançamentos fossem conciliados, que é justamente o argumento de venda do produto. Corrigido nas duas views e no `DRE.tsx`, mais o índice que faltava em `transactions (company_id, status, date)`.
+
+### Erro meu, corrigido no mesmo commit
+
+O indicador que criei na tela de Auditoria testava se `debit_account` ou `credit_account` eram nulos. **As duas colunas são `NOT NULL`**, então o teste nunca podia falhar: verde garantido por construção, exatamente o que eu tinha criticado horas antes ao consertar a primeira versão dele. Agora compara os lançamentos do período com as partidas existentes e acusa quem ficou sem, que é o risco real, porque o gatilho é `AFTER INSERT` e lançamento editado não regenera a partida.
+
+### O que aceito como diagnóstico, sem ter corrigido
+
+**Quatro números para o mesmo mês.** O DRE classifica pelo tipo da **conta**, enquanto as views classificam pelo tipo do **lançamento**. Um lançamento de despesa numa conta 3.x entra como receita no DRE e como despesa no painel. E 32% dos lançamentos não têm conta: somem da tabela do DRE mas contam no gráfico da mesma tela.
+
+**O fechamento mensal não fecha.** A própria migration admite que é marco gerencial que não bloqueia dado retroativo. E o snapshot grava contagem de pendências, não os números do resultado, então não há como provar depois qual era o lucro quando o mês foi fechado. Zero fechamentos em 131 empresas.
+
+**Não existe competência.** `transactions` tem uma data só. O dono decide por caixa, o contador fecha por competência, e a apuração do Simples pode ser por qualquer um dos dois. Com uma data só o produto não serve direito para nenhum.
+
+**Não existe rateio.** `cost_centers` é lista, não hierarquia, e a relação com o lançamento é um para um. "Aluguel de dez mil, 40% comercial e 60% operacional" é impossível, e numa PME de serviços isso é a controladoria inteira.
+
+### O contexto que reenquadra tudo
+
+**121 das 131 empresas nunca lançaram nada.** Orçamento com zero linhas, fechamento com zero registros, contas mapeadas no grupo zero de 2.098. O dado positivo escondido: 22% dos usuários já têm mais de um CNPJ, o que valida a tese de grupo econômico que é o nosso diferencial. Nenhum deles chegou a usá-la.
+
+Controladoria sem lançamento é apresentação de slides.
+
+---
+
+## Lente: tesouraria e conciliação
+
+### A barra é mais baixa do que o marketing sugere
+
+O Cash 360 do NetSuite é **média móvel com multiplicador manual**, com fórmula publicada, janela de 3 ou 6 meses e horizonte de 3. Não tem variância entre previsto e realizado nem cenário. E a conciliação deles são **quatro regras fixas** com tolerância publicada (valor exato em 2 dias, depois em 89 dias), sem score nenhum: se a regra achar dois candidatos, quem escolhe é o usuário.
+
+Ou seja: previsão determinística a partir de compromissos datados, que é o que a nossa base já tem em `receivables`, `bills_payable` e `contracts`, **já nasce acima do NetSuite**.
+
+### O padrão que vale copiar na conciliação
+
+O SAP não expõe score ao usuário. Ele inverte: o cliente declara duas **acurácias-alvo**, uma para propor (93,3%) e outra para conciliar sozinho (97,8%), e o intervalo entre as duas vira a fila de revisão humana. O dono da PME nunca vê um número de 0 a 100, vê uma escolha de risco em português.
+
+E a máquina de estados deles guarda o que importa: rejeitado pelo humano, auto-conciliado e depois estornado, e aceito manualmente. **Esses três estados são o rótulo que treina a rodada seguinte.** O nosso `reconciliation_log` registra só o caminho feliz.
+
+### Antifraude, para quando os MCPs de pagamento forem ligados
+
+O catálogo do Kyriba é implementável direto sobre o que temos: primeiro pagamento para conta bancária já existente de fornecedor conhecido; **conta bancária compartilhada entre vários fornecedores**; pagamento alterado entre o ERP e o banco; e valor fora do padrão histórico. A resolução usa **três papéis**, não dois: iniciador, aprovador e revisor, com o alerta **oculto para os dois primeiros**.
+
+E a trava que separa alçada de verdade de alçada de fachada, do SAP: **o meio de pagamento só é gerado depois que todas as etapas de aprovação passaram.** Nada de gerar o Pix e depois pedir aprovação.
+
+Ramp e Brex convergem no mesmo controle por caminhos independentes (agente de prevenção de fraude que sinaliza mudança de dado bancário do fornecedor, e lista de favorecidos seguros). Dois produtos chegando na mesma trava é sinal de que ela é a certa.
