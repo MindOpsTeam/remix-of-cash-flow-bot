@@ -128,3 +128,51 @@ describe("série mensal do gráfico", () => {
     expect(serie[0].receitas).toBe(100);
   });
 });
+
+describe("deduções de receita", () => {
+  it("apura receita líquida e calcula o lucro em cima dela", () => {
+    const r = montarDRE([
+      conta("receita", "revenue", "3.1", "Vendas", 10000),
+      conta("deducao", "expense", "3.9", "Simples Nacional", 600),
+      conta("custo", "expense", "4.1", "Custo dos serviços", 3000),
+      conta("despesa", "expense", "5.1", "Aluguel", 1000),
+    ]);
+    expect(r.totalReceita).toBe(10000);
+    expect(r.totalDeducoes).toBe(600);
+    expect(r.receitaLiquida).toBe(9400);
+    // Lucro bruto sai da LÍQUIDA, não da bruta.
+    expect(r.lucroBruto).toBe(6400);
+    expect(r.lucroLiquido).toBe(5400);
+  });
+
+  it("mostra a linha de Receita Líquida entre a bruta e os custos", () => {
+    const r = montarDRE([
+      conta("receita", "revenue", "3.1", "Vendas", 1000),
+      conta("deducao", "expense", "3.9", "ISS retido", 50),
+    ]);
+    const rotulos = r.linhas.map((l) => l.label);
+    expect(rotulos.indexOf("Receita Bruta")).toBeLessThan(rotulos.indexOf("(-) Deduções da Receita"));
+    expect(rotulos.indexOf("(-) Deduções da Receita")).toBeLessThan(rotulos.indexOf("Receita Líquida"));
+    expect(rotulos.indexOf("Receita Líquida")).toBeLessThan(rotulos.indexOf("(-) Custos"));
+  });
+
+  it("não polui o DRE de quem não tem dedução nenhuma", () => {
+    const r = montarDRE([conta("receita", "revenue", "3.1", "Vendas", 1000)]);
+    expect(r.linhas.some((l) => l.label === "Receita Líquida")).toBe(false);
+    expect(r.receitaLiquida).toBe(1000);
+  });
+
+  it("no gráfico, dedução reduz receita em vez de virar não classificado", () => {
+    const [p] = montarSerieMensal(
+      [
+        { mes: "2026-07-01", grupo: "receita", total: 10000 },
+        { mes: "2026-07-01", grupo: "deducao", total: 600 },
+        { mes: "2026-07-01", grupo: "custo", total: 3000 },
+      ],
+      ["2026-07"],
+    );
+    expect(p.receitas).toBe(9400);
+    expect(p.naoClassificado).toBe(0);
+    expect(p.lucro).toBe(6400);
+  });
+});

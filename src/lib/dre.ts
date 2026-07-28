@@ -14,7 +14,7 @@ export interface LinhaView {
   account_code: string | null;
   account_name: string | null;
   type: string;
-  grupo: "receita" | "custo" | "despesa" | "a_classificar";
+  grupo: "receita" | "deducao" | "custo" | "despesa" | "a_classificar";
   total: number;
 }
 
@@ -30,6 +30,9 @@ export interface DRELine {
 export interface ResultadoDRE {
   linhas: DRELine[];
   totalReceita: number;
+  /** Imposto sobre venda, devolução, desconto incondicional. */
+  totalDeducoes: number;
+  receitaLiquida: number;
   totalCustos: number;
   totalDespesas: number;
   lucroBruto: number;
@@ -50,6 +53,7 @@ export interface PontoSerie {
   receitas: number;
   /** Custos e despesas somados: é o que sai do caixa no gráfico. */
   despesas: number;
+
   lucro: number;
   naoClassificado: number;
 }
@@ -76,6 +80,10 @@ export function montarSerieMensal(entrada: readonly LinhaMes[], chaves: readonly
     if (!balde) continue;
     const valor = Number(l.total) || 0;
     if (l.grupo === "receita") balde.receitas += valor;
+    // Dedução REDUZ a receita, não é saída de caixa nem lançamento sem conta.
+    // Sem este ramo ela cairia no `else` e apareceria como não classificado,
+    // fazendo o gráfico e a tabela ao lado divergirem de novo.
+    else if (l.grupo === "deducao") balde.receitas -= valor;
     else if (l.grupo === "custo" || l.grupo === "despesa") balde.despesas += valor;
     else balde.naoClassificado += valor;
   }
@@ -99,14 +107,21 @@ export function montarDRE(entrada: readonly LinhaView[]): ResultadoDRE {
       .sort((a, b) => a.code.localeCompare(b.code));
 
   const receitas = doGrupo("receita");
+  const deducoes = doGrupo("deducao");
   const custos = doGrupo("custo");
   const despesas = doGrupo("despesa");
 
   const somar = (itens: { amount: number }[]) => itens.reduce((s, i) => s + i.amount, 0);
   const totalReceita = somar(receitas);
+  const totalDeducoes = somar(deducoes);
   const totalCustos = somar(custos);
   const totalDespesas = somar(despesas);
-  const lucroBruto = totalReceita - totalCustos;
+
+  // Margem se calcula sobre a receita LÍQUIDA. Numa empresa do Simples, que
+  // paga imposto sobre o faturamento, usar a bruta infla a receita e desloca
+  // toda margem calculada em cima dela.
+  const receitaLiquida = totalReceita - totalDeducoes;
+  const lucroBruto = receitaLiquida - totalCustos;
   const lucroLiquido = lucroBruto - totalDespesas;
 
   // O que não tem conta não entra em receita, custo nem despesa, e por isso
@@ -122,6 +137,15 @@ export function montarDRE(entrada: readonly LinhaView[]): ResultadoDRE {
     linhas: [
       { label: "Receita Bruta", value: totalReceita, level: 0, isTotal: true },
       ...receitas.map((r) => ({ label: r.label, value: r.amount, level: 1 })),
+      // Só aparece quando existe. DRE de prestador sem imposto retido não
+      // precisa carregar uma linha de zero para parecer completo.
+      ...(deducoes.length > 0
+        ? [
+            { label: "(-) Deduções da Receita", value: -totalDeducoes, level: 0 },
+            ...deducoes.map((d) => ({ label: d.label, value: -d.amount, level: 1 })),
+            { label: "Receita Líquida", value: receitaLiquida, level: 0, isTotal: true },
+          ]
+        : []),
       { label: "(-) Custos", value: -totalCustos, level: 0 },
       ...custos.map((c) => ({ label: c.label, value: -c.amount, level: 1 })),
       { label: "Lucro Bruto", value: lucroBruto, level: 0, isTotal: true },
@@ -136,6 +160,8 @@ export function montarDRE(entrada: readonly LinhaView[]): ResultadoDRE {
         : []),
     ],
     totalReceita,
+    totalDeducoes,
+    receitaLiquida,
     totalCustos,
     totalDespesas,
     lucroBruto,

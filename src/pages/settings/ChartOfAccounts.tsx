@@ -5,6 +5,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -20,6 +21,7 @@ interface Account {
   name: string;
   code: string | null;
   type: string;
+  deducao?: boolean;
   editable: boolean;
 }
 
@@ -28,40 +30,42 @@ export default function ChartOfAccountsPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
-  const [form, setForm] = useState({ name: "", code: "", type: "expense" });
+  const [form, setForm] = useState({ name: "", code: "", type: "expense", deducao: false });
 
   const fetch = useCallback(async () => {
     if (!company) return;
     const { data } = await supabase
       .from("chart_of_accounts")
-      .select("id, name, code, type, editable")
+      .select("id, name, code, type, editable, deducao")
       .eq("company_id", company.id)
       .order("code");
-    if (data) setAccounts(data);
+    // Cast enquanto os tipos gerados (regerados pelo Lovable) não conhecem a
+    // coluna `deducao`. O formato está fixado em Account.
+    if (data) setAccounts(data as unknown as Account[]);
   }, [company]);
 
   useEffect(() => { fetch(); }, [fetch]);
 
   const openNew = () => {
     setEditing(null);
-    setForm({ name: "", code: "", type: "expense" });
+    setForm({ name: "", code: "", type: "expense", deducao: false });
     setDialogOpen(true);
   };
 
   const openEdit = (a: Account) => {
     setEditing(a);
-    setForm({ name: a.name, code: a.code || "", type: a.type });
+    setForm({ name: a.name, code: a.code || "", type: a.type, deducao: a.deducao ?? false });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!company || !form.name.trim()) return;
     if (editing) {
-      const { error } = await supabase.from("chart_of_accounts").update({ name: form.name.trim(), code: form.code.trim() || null, type: form.type }).eq("id", editing.id);
+      const { error } = await supabase.from("chart_of_accounts").update({ name: form.name.trim(), code: form.code.trim() || null, type: form.type, deducao: form.deducao }).eq("id", editing.id);
       if (error) { toast.error(error.message); return; }
       toast.success("Conta atualizada!");
     } else {
-      const { error } = await supabase.from("chart_of_accounts").insert({ company_id: company.id, name: form.name.trim(), code: form.code.trim() || null, type: form.type });
+      const { error } = await supabase.from("chart_of_accounts").insert({ company_id: company.id, name: form.name.trim(), code: form.code.trim() || null, type: form.type, deducao: form.deducao });
       if (error) { toast.error(error.message); return; }
       toast.success("Conta criada!");
     }
@@ -145,6 +149,22 @@ export default function ChartOfAccountsPage() {
                 </Select>
               </div>
             </div>
+
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-3">
+              <div>
+                <p className="text-sm font-medium">Conta redutora de receita</p>
+                <p className="text-xs text-muted-foreground">
+                  Imposto sobre venda, devolução ou desconto incondicional. Entra entre a Receita Bruta e a
+                  Receita Líquida do DRE, em vez de virar despesa.
+                </p>
+              </div>
+              <Switch
+                checked={form.deducao}
+                onCheckedChange={(v) => setForm({ ...form, deducao: v })}
+                aria-label="Conta redutora de receita"
+              />
+            </div>
+
             <div className="flex gap-3 pt-2">
               <Button variant="outline" className="flex-1" onClick={() => setDialogOpen(false)}>Cancelar</Button>
               <Button className="flex-1" onClick={handleSave}>{editing ? "Salvar" : "Criar"}</Button>

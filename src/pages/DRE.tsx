@@ -117,7 +117,13 @@ export default function DRE() {
     return () => { supabase.removeChannel(channel); };
   }, [company, buildDRE]);
 
-  const totalRevenue = lines.find((l) => l.label === "Receita Bruta")?.value || 0;
+  // A margem se calcula sobre a receita LÍQUIDA quando há deduções. Usar a
+  // bruta numa empresa do Simples, que paga imposto sobre faturamento, infla a
+  // receita e desloca a margem inteira.
+  const totalRevenue =
+    lines.find((l) => l.label === "Receita Líquida")?.value ??
+    lines.find((l) => l.label === "Receita Bruta")?.value ??
+    0;
   const grossProfit = lines.find((l) => l.label === "Lucro Bruto")?.value || 0;
   const netProfit = lines.find((l) => l.label === "Lucro Líquido")?.value || 0;
   const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
