@@ -2836,8 +2836,12 @@ export type Database = {
           description: string
           due_date: string
           id: string
+          invoice_id: string | null
+          parcela: number | null
+          parcelas_total: number | null
           payment_date: string | null
           pix_url: string | null
+          sales_order_id: string | null
           source: string
           status: string
           transaction_id: string | null
@@ -2856,8 +2860,12 @@ export type Database = {
           description: string
           due_date: string
           id?: string
+          invoice_id?: string | null
+          parcela?: number | null
+          parcelas_total?: number | null
           payment_date?: string | null
           pix_url?: string | null
+          sales_order_id?: string | null
           source?: string
           status?: string
           transaction_id?: string | null
@@ -2876,8 +2884,12 @@ export type Database = {
           description?: string
           due_date?: string
           id?: string
+          invoice_id?: string | null
+          parcela?: number | null
+          parcelas_total?: number | null
           payment_date?: string | null
           pix_url?: string | null
+          sales_order_id?: string | null
           source?: string
           status?: string
           transaction_id?: string | null
@@ -2924,6 +2936,20 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receivables_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receivables_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
           {
@@ -3951,6 +3977,15 @@ export type Database = {
     Functions: {
       create_company_for_user: {
         Args: { company_cnpj?: string; company_name: string }
+        Returns: Json
+      }
+      faturar_pedido: {
+        Args: {
+          p_intervalo_dias?: number
+          p_parcelas?: number
+          p_primeiro_vencimento?: string
+          p_sales_order_id: string
+        }
         Returns: Json
       }
       fechar_mes: {
