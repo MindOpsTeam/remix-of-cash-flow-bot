@@ -282,3 +282,46 @@ O catálogo do Kyriba é implementável direto sobre o que temos: primeiro pagam
 E a trava que separa alçada de verdade de alçada de fachada, do SAP: **o meio de pagamento só é gerado depois que todas as etapas de aprovação passaram.** Nada de gerar o Pix e depois pedir aprovação.
 
 Ramp e Brex convergem no mesmo controle por caminhos independentes (agente de prevenção de fraude que sinaliza mudança de dado bancário do fornecedor, e lista de favorecidos seguros). Dois produtos chegando na mesma trava é sinal de que ela é a certa.
+
+---
+
+## Lente: cobrança e contas a receber no Brasil
+
+### Risco de plataforma que precisa ser decidido antes de escalar
+
+A **política comercial do WhatsApp lista "debt collection" entre os serviços financeiros proibidos**, enquanto a documentação de templates autoriza lembrete de pagamento como categoria utilitária, com exemplo literal. A leitura que o mercado adota, de que cobrança de primeira parte ao próprio cliente é permitida e serviço de cobrança terceirizada não é, **não está escrita em lugar nenhum da Meta**. É risco real, não teórico, e nosso agente de cobrança vive exatamente nessa fronteira.
+
+Dois mecanismos operacionais que mudam o desenho:
+
+- **Template com qualidade vermelha é pausado por 3 horas, depois 6, e na terceira vez desabilitado em definitivo.** O que morre primeiro numa operação de cobrança não é o número, é o template.
+- **Template utilitário entregue dentro de uma janela de atendimento aberta é gratuito.** Isso inverte a otimização: vale mais desenhar para o devedor **responder** do que para enviar barato.
+
+E em São Paulo a Lei 17.334/2021 estendeu o bloqueio "Não Me Ligue" a mensagens de aplicativo, WhatsApp incluído, exigível a partir do trigésimo dia. Quem cobra por WhatsApp em SP precisa consultar a lista.
+
+### A base legal que estávamos prestes a errar
+
+**Cobrar o próprio contratante se apoia em execução de contrato (art. 7º, V da LGPD), não em consentimento nem em legítimo interesse.** Consentimento seria péssimo, porque é revogável a qualquer tempo e travaria a cobrança legítima. Legítimo interesse é residual, para enriquecimento cadastral e score interno, e exige avaliação documentada.
+
+A jurisprudência é consistente: cobrar por WhatsApp é lícito, o ilícito é a **exposição e a reiteração**. O vetor de dano é a identificabilidade da dívida, não o número de destinatários: houve caso de e-mail com mais de 300 cópias que não gerou dano moral porque não continha dado pessoal identificável, e caso de contato com os pais da devedora que gerou.
+
+### O instrumento que a PME brasileira subutiliza
+
+**Protesto vence negativação para o nosso público**, por três motivos concretos: enviar é **gratuito para o credor** e o custo migra para o devedor; não há piso legal de valor (a primeira faixa em São Paulo custa R$ 14,79); e, decisivo, **a negativação caduca em cinco anos, o protesto não tem baixa automática**.
+
+Eficácia publicada: mais de 60% dos títulos resolvidos em até três dias úteis, e 54% de recuperação no setor privado em 2024. O gargalo é operacional, o convênio com a central estadual, não econômico.
+
+### Cadências publicadas, para não inventarmos a nossa
+
+O Asaas entrega de fábrica **D−10, D0 e D+7**, com WhatsApp e voz **desligados**. E o `scheduleOffset` não é livre: aceita apenas 0, 1, 5, 7, 10, 15 e 30. A Iugu é a única que publica a régua em dias: **D+3, D+6, D+9 e expiração em D+10**, ajustável até 120 dias. A Vindi tem o melhor motor de cartão, com quatro camadas, incluindo retentativa nas **datas de vencimento das faturas de cartão do devedor**, para aproveitar renovação de limite.
+
+Detalhe que vale conferir no nosso processador: **`PAYMENT_CONFIRMED` e `PAYMENT_RECEIVED` são eventos diferentes** no Asaas, pago contra saldo disponível. Tratar como sinônimo é erro comum.
+
+### Três premissas do meu briefing estavam erradas
+
+O especialista corrigiu, e vale registrar para não repetirmos:
+
+1. A duplicata escritural **não** vem da Resolução Conjunta 6/2023, que trata de compartilhamento de indícios de fraude. O arcabouço é a Lei 13.775/2018 mais as Resoluções BCB 339/2023 e 540/2025.
+2. O Pix Automático **não** foi criado pela Resolução BCB 376/2024, e sim pela **402/2024**.
+3. **Não existe** prazo de três dias de comunicação prévia no Pix Automático, nem prazo de dez dias no art. 43 do CDC. Os dois são folclore de mercado.
+
+O terceiro item importa para nós: eu poderia ter implementado uma regra inexistente achando que era lei.
