@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import type { Json } from "@/integrations/supabase/types";
 
 /**
  * Configuração dos agentes.
@@ -62,7 +63,7 @@ export function ConfiguracaoAgentes() {
     enabled: !!company,
     queryFn: async () => {
       const { data } = await supabase
-        .from("agent_rules" as never)
+        .from("agent_rules")
         .select("agent, ativo, config")
         .eq("company_id", company!.id);
       return (data ?? []) as unknown as LinhaRegra[];
@@ -91,13 +92,15 @@ export function ConfiguracaoAgentes() {
 
   const salvar = useMutation({
     mutationFn: async () => {
+      // config é jsonb no banco. O cast para Json é o ponto onde a forma
+      // tipada do formulário vira o documento solto que a coluna guarda.
       const linhas = [
-        { company_id: company!.id, agent: "collections", ativo: cobrancaAtiva, config: cobranca },
-        { company_id: company!.id, agent: "anomalies", ativo: anomaliaAtiva, config: anomalia },
+        { company_id: company!.id, agent: "collections", ativo: cobrancaAtiva, config: cobranca as unknown as Json },
+        { company_id: company!.id, agent: "anomalies", ativo: anomaliaAtiva, config: anomalia as unknown as Json },
       ];
       const { error } = await supabase
-        .from("agent_rules" as never)
-        .upsert(linhas as never, { onConflict: "company_id,agent" } as never);
+        .from("agent_rules")
+        .upsert(linhas, { onConflict: "company_id,agent" });
       if (error) throw error;
     },
     onSuccess: () => {
