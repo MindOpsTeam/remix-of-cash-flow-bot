@@ -19,7 +19,20 @@ serve(async (req) => {
       });
     }
 
-    const { question, company_id, messages: clientMessages } = parsed.data;
+    // parseJsonBody devolve o corpo como `unknown` por segurança. Amarrar o
+    // formato aqui, uma vez, é o que faz `deno check` valer alguma coisa neste
+    // arquivo: sem isto, tudo abaixo virava `unknown` e o compilador parava de
+    // proteger o resto da função.
+    const corpo = parsed.data as {
+      question?: unknown;
+      company_id?: unknown;
+      messages?: unknown;
+    };
+    const question = typeof corpo.question === "string" ? corpo.question : "";
+    const company_id = typeof corpo.company_id === "string" ? corpo.company_id : "";
+    const clientMessages = Array.isArray(corpo.messages)
+      ? (corpo.messages as Array<{ role?: unknown; content?: unknown }>)
+      : [];
 
     const validationError = validate(
       validateRequired(parsed.data, ["company_id"]),
@@ -76,9 +89,9 @@ serve(async (req) => {
       { role: "system", content: systemPrompt },
     ];
 
-    if (Array.isArray(clientMessages) && clientMessages.length > 0) {
+    if (clientMessages.length > 0) {
       for (const m of clientMessages) {
-        if (m.role && m.content) {
+        if (typeof m?.role === "string" && typeof m?.content === "string") {
           conversation.push({ role: m.role, content: m.content });
         }
       }
@@ -144,78 +157,87 @@ serve(async (req) => {
 // Helpers
 // ──────────────────────────────────────────────────────
 
+/**
+ * Contexto financeiro do assistente.
+ *
+ * Regra da casa: o modelo NÃO soma. Ele recebe números já apurados e escreve a
+ * frase em volta. Aqui isso vai além de estilo, porque a versão anterior somava
+ * em TypeScript uma amostra de 1000 lançamentos SEM filtro de status:
+ *
+ *   - acima de 1000 lançamentos o total ficava errado em silêncio, e piorava
+ *     conforme o cliente usasse mais o produto;
+ *   - lançamento pendente ou cancelado entrava na conta, então o assistente
+ *     dava um número e o DRE da tela ao lado dava outro.
+ *
+ * Agora tudo vem agregado das views v_dre_linhas e v_centro_custo_mes, que são
+ * as mesmas do DRE. Um número só para a empresa inteira.
+ */
 async function buildFinancialContext(supabase: any, companyId: string): Promise<string> {
-  const [transactionsRes, accountsRes, costCentersRes, bankAccountsRes, recentTxRes] = await Promise.all([
+  const now = new Date();
+  const cm = now.getMonth();
+  const cy = now.getFullYear();
+  const chaveMes = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const inicioJanela = new Date(cy, cm - 5, 1).toISOString().split("T")[0];
+
+  const [dreRes, ccRes, bankAccountsRes, recentTxRes] = await Promise.all([
+    supabase.from("v_dre_linhas").select("mes, grupo, total").eq("company_id", companyId),
     supabase
-      .from("transactions")
-      .select("date, amount, type, cost_center_id")
+      .from("v_centro_custo_mes")
+      .select("mes, centro_nome, type, total")
       .eq("company_id", companyId)
-      .order("date", { ascending: false })
-      .limit(1000),
-    supabase.from("chart_of_accounts").select("name, code, type").eq("company_id", companyId),
-    supabase.from("cost_centers").select("id, name").eq("company_id", companyId),
+      .gte("mes", inicioJanela),
     supabase.from("bank_accounts").select("name, bank_name").eq("company_id", companyId),
-    // Last 30 transactions with full detail for statement queries
+    // Extrato: as últimas 30 com detalhe, para perguntas do tipo "o que entrou
+    // ontem". Este é o único bloco de linha a linha que vai para o modelo.
     supabase
       .from("transactions")
-      .select("date, description, type, amount, chart_of_accounts(name), cost_centers(name)")
+      .select("date, description, type, amount, status, chart_of_accounts(name), cost_centers(name)")
       .eq("company_id", companyId)
+      .in("status", ["confirmed", "reconciled"])
       .order("date", { ascending: false })
       .limit(30),
   ]);
 
-  const transactions = transactionsRes.data || [];
-  const accounts = accountsRes.data || [];
-  const costCenters = costCentersRes.data || [];
+  const linhasDre = (dreRes.data || []) as Array<{ mes: string; grupo: string; total: string | number }>;
+  const linhasCc = (ccRes.data || []) as Array<{ mes: string; centro_nome: string; type: string; total: string | number }>;
   const bankAccounts = bankAccountsRes.data || [];
   const recentTx = recentTxRes.data || [];
 
-  const now = new Date();
-  const cm = now.getMonth();
-  const cy = now.getFullYear();
+  const somar = (filtro: (l: { mes: string; grupo: string }) => boolean) =>
+    linhasDre.filter(filtro).reduce((s, l) => s + Number(l.total), 0);
 
-  const sumByType = (txs: any[], type: string) =>
-    txs.filter((t: any) => t.type === type).reduce((s: number, t: any) => s + Number(t.amount), 0);
+  const mesAtual = chaveMes(now);
+  const mesAnterior = chaveMes(new Date(cy, cm - 1, 1));
+  const doMes = (mes: string) => (l: { mes: string }) => String(l.mes).slice(0, 7) === mes;
 
-  const thisMonth = transactions.filter((t: any) => {
-    const d = new Date(t.date);
-    return d.getMonth() === cm && d.getFullYear() === cy;
-  });
-  const lm = cm === 0 ? 11 : cm - 1;
-  const ly = cm === 0 ? cy - 1 : cy;
-  const lastMonth = transactions.filter((t: any) => {
-    const d = new Date(t.date);
-    return d.getMonth() === lm && d.getFullYear() === ly;
-  });
+  const receitaDe = (mes: string) => somar((l) => doMes(mes)(l) && l.grupo === "receita");
+  const saidaDe = (mes: string) => somar((l) => doMes(mes)(l) && (l.grupo === "custo" || l.grupo === "despesa"));
 
-  const curRev = sumByType(thisMonth, "revenue");
-  const curExp = sumByType(thisMonth, "expense");
-  const prevRev = sumByType(lastMonth, "revenue");
-  const prevExp = sumByType(lastMonth, "expense");
-  const totalRev = sumByType(transactions, "revenue");
-  const totalExp = sumByType(transactions, "expense");
+  const curRev = receitaDe(mesAtual);
+  const curExp = saidaDe(mesAtual);
+  const prevRev = receitaDe(mesAnterior);
+  const prevExp = saidaDe(mesAnterior);
+  const totalRev = somar((l) => l.grupo === "receita");
+  const totalExp = somar((l) => l.grupo === "custo" || l.grupo === "despesa");
 
-  // Cost center breakdown
-  const ccMap = new Map<string, string>();
-  costCenters.forEach((cc: any) => ccMap.set(cc.id, cc.name));
+  // O que ainda não tem conta contábil fica FORA dos números acima, igual ao
+  // DRE. O assistente precisa saber disso para não afirmar um resultado
+  // completo quando ele não é.
+  const naoClassificadoMes = somar((l) => doMes(mesAtual)(l) && l.grupo === "a_classificar");
+  const naoClassificadoTotal = somar((l) => l.grupo === "a_classificar");
+
   const ccTotals = new Map<string, number>();
-  thisMonth
-    .filter((t: any) => t.type === "expense" && t.cost_center_id)
-    .forEach((t: any) => {
-      const name = ccMap.get(t.cost_center_id) || "Outros";
-      ccTotals.set(name, (ccTotals.get(name) || 0) + Number(t.amount));
-    });
+  for (const l of linhasCc) {
+    if (String(l.mes).slice(0, 7) !== mesAtual || l.type !== "expense") continue;
+    ccTotals.set(l.centro_nome, (ccTotals.get(l.centro_nome) || 0) + Number(l.total));
+  }
 
-  // Monthly trends (last 6)
   const trends: string[] = [];
   for (let i = 5; i >= 0; i--) {
     const m = new Date(cy, cm - i, 1);
-    const mTx = transactions.filter((t: any) => {
-      const d = new Date(t.date);
-      return d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear();
-    });
-    const r = sumByType(mTx, "revenue");
-    const e = sumByType(mTx, "expense");
+    const chave = chaveMes(m);
+    const r = receitaDe(chave);
+    const e = saidaDe(chave);
     trends.push(`${m.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" })}: Receita R$ ${r.toFixed(2)} | Despesa R$ ${e.toFixed(2)} | Resultado R$ ${(r - e).toFixed(2)}`);
   }
 
@@ -246,6 +268,11 @@ async function buildFinancialContext(supabase: any, companyId: string): Promise<
 ### Acumulado Total
 - Receitas: R$ ${totalRev.toFixed(2)} | Despesas: R$ ${totalExp.toFixed(2)} | Resultado: R$ ${(totalRev - totalExp).toFixed(2)}
 
+### Lançamentos ainda sem conta contábil
+- Mês atual: R$ ${naoClassificadoMes.toFixed(2)}
+- Acumulado: R$ ${naoClassificadoTotal.toFixed(2)}
+- Este valor NÃO está somado nos resultados acima. Se for maior que zero, avise que o resultado ainda está incompleto e que classificar em Lançamentos fecha a conta.
+
 ### Despesas por Centro de Custo (mês atual)
 ${Array.from(ccTotals.entries()).map(([n, v]) => `- ${n}: R$ ${v.toFixed(2)}`).join("\n") || "- Nenhuma despesa categorizada"}
 
@@ -258,7 +285,9 @@ ${bankAccounts.map((b: any) => `- ${b.name} (${b.bank_name || ""})`).join("\n") 
 ### Últimas 30 Transações (extrato)
 ${detailedTx.join("\n") || "- Nenhuma transação encontrada"}
 
-### Total de Lançamentos: ${transactions.length}
+### Cobertura destes dados
+- Os totais acima vêm do banco já somados, sobre TODOS os lançamentos confirmados ou conciliados da empresa. Não são amostra.
+- O extrato acima são apenas as 30 últimas. Para períodos ou filtros diferentes, oriente o usuário a usar a tela de Lançamentos em vez de estimar.
 `;
 }
 

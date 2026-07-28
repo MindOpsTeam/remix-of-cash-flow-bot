@@ -23,6 +23,7 @@
       "dependencies": [
         "npm:@eslint/js@^9.32.0",
         "npm:@hookform/resolvers@^3.10.0",
+        "npm:@lovable.dev/mcp-js@0.24",
         "npm:@playwright/test@^1.61.1",
         "npm:@radix-ui/react-accordion@^1.2.11",
         "npm:@radix-ui/react-alert-dialog@^1.1.14",
@@ -73,7 +74,7 @@
         "npm:input-otp@^1.4.2",
         "npm:jsdom@^20.0.3",
         "npm:jspdf-autotable@^5.0.7",
-        "npm:jspdf@^4.1.0",
+        "npm:jspdf@^4.2.1",
         "npm:lovable-tagger@^1.1.13",
         "npm:lucide-react@0.462",
         "npm:next-themes@0.3",
