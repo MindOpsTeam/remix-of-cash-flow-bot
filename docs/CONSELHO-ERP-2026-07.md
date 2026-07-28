@@ -325,3 +325,46 @@ O especialista corrigiu, e vale registrar para não repetirmos:
 3. **Não existe** prazo de três dias de comunicação prévia no Pix Automático, nem prazo de dez dias no art. 43 do CDC. Os dois são folclore de mercado.
 
 O terceiro item importa para nós: eu poderia ter implementado uma regra inexistente achando que era lei.
+
+---
+
+## Estado da implementação, 28/07/2026
+
+O que este conselho pediu, e o que aconteceu depois. Cada linha aponta o commit.
+
+### As cinco decisões
+
+| # | Decisão | Estado |
+|---|---|---|
+| 1 | **Publicar** | **Bloqueado, e é o único bloqueio de fora.** `lovable_deploy` responde 403. Medido contra `biz-whisper-fin.lovable.app`: 14 rotas existem no código e não no bundle publicado, incluindo Recebíveis, Contratos, Orçamento, Fechamento e a importação de extrato. Edge functions são exceção, essas já estão no ar. Issue #3. |
+| 2 | **Fechar a cadeia pedido, nota, recebível** | Feito. `91540fe` |
+| 3 | **Inverter a ordem do produto: colar extrato** | Feito. `3f5db85` |
+| 4 | **Tirar o LLM de cima do número** | Feito. `b4bf99b`, `de26dd9`, `2a95a62` |
+| 5 | **Assumir o que somos** | Em curso: a régua única do resultado e o fechamento que trava são a base disso. |
+
+### Lente de inteligência artificial
+
+- **`ai-forecast` violava a regra da casa.** Corrigido: `_shared/forecast.ts` faz média ponderada, desvio, confiança medida e runway, e o modelo só narra, com temperatura 0. `b4bf99b`.
+- **Classificação com regra antes do modelo.** `ai-classify` consulta `classification_rules` primeiro, com custo zero, e usa os últimos 20 lançamentos da própria empresa como exemplo. `classificar-lote` faz o mesmo para até 300 de uma vez, numa chamada só. A correção do humano vira regra. Verificado: mesma descrição com outro número voltou por regra, custo zero. `b4bf99b`, `3f5db85`.
+- **Toda chamada é medida.** `ai_usage` grava tokens, custo e sucesso por empresa e função.
+- **`cfo-digital` não usava as ferramentas determinísticas.** O diagnóstico do conselho estava parcialmente errado: ele não injetava mil linhas no prompt, ele somava mil linhas em TypeScript e mandava 30 ao modelo. Os defeitos reais eram piores: teto de 1000 lançamentos, o que dava total errado em silêncio acima disso, e nenhum filtro de status, o que fazia o assistente discordar do DRE da tela ao lado. Agora lê `v_dre_linhas` e `v_centro_custo_mes`, agregadas no banco, sem teto. `0c86006`.
+- **Agentes sem régua e sem o que fazer.** `agent_actions` tinha zero linhas porque o agente de cobrança lia somente `company_asaas_payments`, tabela vazia em produção. Agora lê `receivables`, e as regras vivem em `agent_rules` por empresa, com tela de configuração. `a9b0639`.
+- **Bug que a camada de IA escondia.** Um lote de 4 lançamentos gastou os 360 tokens de teto pensando e devolveu conteúdo vazio, cobrando pela chamada e classificando nada. `finish_reason` passou a ser lido, com uma repetição quando a causa é orçamento curto. `de26dd9`.
+
+### Lente de controladoria
+
+- **Conciliar apagava o lançamento do resultado.** Corrigido nas views e no DRE. `20260728010000`.
+- **Quatro números para o mesmo mês.** Resolvido: a régua vive só em `v_dre_linhas` e `src/lib/dre.ts` apenas ordena, nomeia e soma. `0eda1c8`.
+- **32% dos lançamentos sumiam do DRE.** Agora aparecem como linha "A classificar", em âmbar, fora do lucro mas visíveis. Medido no dia: R$ 37.814,48 em 11 lançamentos, mais que toda a receita classificada do período. `0eda1c8`.
+- **O fechamento não fechava.** Agora trava no banco e o snapshot guarda o resultado apurado, não contagem de pendências. Reabrir exige motivo e deixa trilha. `2a95a62`.
+- **Competência x caixa** e **rateio**: continuam em aberto, e são as duas maiores dívidas de controladoria que sobraram.
+
+### Achados que não estavam no conselho e apareceram durante a execução
+
+- **Movimentações do sócio estavam quebradas em produção.** `owner-transactions` gravava `pf_account_id`, coluna removida junto com o módulo de finanças pessoais. Toda chamada morria em 42703. `a1e044f`.
+- **Hooks consultando tabelas que não existem mais.** `useAsaasSubscriptions` e `useAsaasTransfers` liam `asaas_*`, que viraram `company_asaas_*`. Eram armadilha armada e derrubavam o type-check do projeto. `a1e044f`.
+- **`deno check` não rodava em edge function.** Foi assim que um import faltando em `ai-forecast` chegou à produção como erro 500 e o usuário viu antes de mim. Existe `npm run check:edge`. `2a95a62`.
+
+### O que sobrou do documento
+
+Deduções de receita e DRE configurável; competência x caixa; rateio por centro de custo; reajuste de contrato; eventos de ativação; omnibox de lançamento em linguagem natural; e a régua mínima do contador para troca de sistema. A parte comercial ganhou plano próprio em `docs/PLANO-COMERCIAL-2026-07.md`.
