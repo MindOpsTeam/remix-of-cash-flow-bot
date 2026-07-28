@@ -665,6 +665,36 @@ export type Database = {
           },
         ]
       }
+      cclasstrib_codigos: {
+        Row: {
+          ativo: boolean
+          codigo: string
+          created_at: string
+          cst_permitidos: string[]
+          descricao: string
+          fonte: string
+          versao: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          codigo: string
+          created_at?: string
+          cst_permitidos?: string[]
+          descricao: string
+          fonte?: string
+          versao?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          codigo?: string
+          created_at?: string
+          cst_permitidos?: string[]
+          descricao?: string
+          fonte?: string
+          versao?: string | null
+        }
+        Relationships: []
+      }
       chart_of_accounts: {
         Row: {
           code: string | null
@@ -2606,6 +2636,9 @@ export type Database = {
           created_at: string
           current_stock: number | null
           description: string | null
+          fiscal_confirmado_em: string | null
+          fiscal_confirmado_por: string | null
+          fiscal_origem: string | null
           id: string
           min_stock: number | null
           name: string
@@ -2631,6 +2664,9 @@ export type Database = {
           created_at?: string
           current_stock?: number | null
           description?: string | null
+          fiscal_confirmado_em?: string | null
+          fiscal_confirmado_por?: string | null
+          fiscal_origem?: string | null
           id?: string
           min_stock?: number | null
           name: string
@@ -2656,6 +2692,9 @@ export type Database = {
           created_at?: string
           current_stock?: number | null
           description?: string | null
+          fiscal_confirmado_em?: string | null
+          fiscal_confirmado_por?: string | null
+          fiscal_origem?: string | null
           id?: string
           min_stock?: number | null
           name?: string
@@ -2736,6 +2775,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_produtos_pendencia_fiscal"
             referencedColumns: ["id"]
           },
         ]
@@ -3058,6 +3104,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sales_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_produtos_pendencia_fiscal"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sales_orders: {
@@ -3220,6 +3273,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_produtos_pendencia_fiscal"
             referencedColumns: ["id"]
           },
           {
@@ -3972,6 +4032,79 @@ export type Database = {
           company_id?: string | null
         }
         Relationships: []
+      }
+      v_produtos_pendencia_fiscal: {
+        Row: {
+          account_id: string | null
+          bloqueia_emissao: boolean | null
+          cclasstrib: string | null
+          company_id: string | null
+          falta_cclasstrib: boolean | null
+          falta_conta: boolean | null
+          falta_ncm: boolean | null
+          fiscal_confirmado_em: string | null
+          fiscal_origem: string | null
+          id: string | null
+          name: string | null
+          ncm: string | null
+          sku: string | null
+          type: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          bloqueia_emissao?: never
+          cclasstrib?: string | null
+          company_id?: string | null
+          falta_cclasstrib?: never
+          falta_conta?: never
+          falta_ncm?: never
+          fiscal_confirmado_em?: string | null
+          fiscal_origem?: string | null
+          id?: string | null
+          name?: string | null
+          ncm?: string | null
+          sku?: string | null
+          type?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          bloqueia_emissao?: never
+          cclasstrib?: string | null
+          company_id?: string | null
+          falta_cclasstrib?: never
+          falta_conta?: never
+          falta_ncm?: never
+          fiscal_confirmado_em?: string | null
+          fiscal_origem?: string | null
+          id?: string | null
+          name?: string | null
+          ncm?: string | null
+          sku?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
       }
     }
     Functions: {
