@@ -18,6 +18,10 @@ export interface BillPayable {
   requested_by: string | null;
   approved_by: string | null;
   approved_at: string | null;
+  is_recurring: boolean | null;
+  recurrence_group_id: string | null;
+  recurrence_index: number | null;
+  recurrence_total: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -74,6 +78,46 @@ export function useBillsPayable() {
       if (error) throw error;
       return (data as BillPayable[]).map((b) => ({ ...b, status: computeStatus(b) }));
     },
+  });
+
+  /**
+   * Transforma uma conta em recorrência.
+   *
+   * Gera todas as ocorrências de uma vez, e não mês a mês, porque compromisso
+   * conhecido precisa aparecer no fluxo de caixa projetado. Recorrência que só
+   * materializa no mês corrente esconde do dono uma conta que ele já tem.
+   */
+  const tornarRecorrente = useMutation({
+    mutationFn: async (input: { billId: string; ocorrencias: number; periodicidade: string }) => {
+      const { data, error } = await supabase.rpc("gerar_conta_recorrente" as never, {
+        p_bill_id: input.billId,
+        p_ocorrencias: input.ocorrencias,
+        p_periodicidade: input.periodicidade,
+      } as never);
+      if (error) throw error;
+      return data as unknown as { criadas: number; ultimo_vencimento: string };
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: qk });
+      toast.success(`${r.criadas} ocorrência(s) criadas, até ${new Date(r.ultimo_vencimento + "T00:00:00").toLocaleDateString("pt-BR")}.`);
+    },
+    onError: (e: Error) => toast.error("Não consegui criar a recorrência: " + e.message),
+  });
+
+  /** Encerra o futuro da recorrência e preserva o que já venceu ou foi pago. */
+  const encerrarRecorrencia = useMutation({
+    mutationFn: async (grupoId: string) => {
+      const { data, error } = await supabase.rpc("encerrar_recorrencia" as never, {
+        p_recurrence_group_id: grupoId,
+      } as never);
+      if (error) throw error;
+      return data as unknown as { canceladas: number };
+    },
+    onSuccess: (r) => {
+      queryClient.invalidateQueries({ queryKey: qk });
+      toast.success(`${r.canceladas} ocorrência(s) futuras canceladas. O histórico ficou.`);
+    },
+    onError: (e: Error) => toast.error("Não consegui encerrar: " + e.message),
   });
 
   const createBill = useMutation({
@@ -176,5 +220,7 @@ export function useBillsPayable() {
     deleteBill,
     decideBill,
     markAsPaid,
+    tornarRecorrente,
+    encerrarRecorrencia,
   };
 }

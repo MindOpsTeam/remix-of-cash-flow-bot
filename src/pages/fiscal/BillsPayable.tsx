@@ -4,11 +4,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check } from "lucide-react";
+import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check, Repeat } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useBillsPayable, type BillInput } from "@/hooks/useBillsPayable";
 import { BillFormDialog } from "@/components/fiscal/BillFormDialog";
 import { DeleteConfirmDialog } from "@/components/fiscal/DeleteConfirmDialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const statusConfig: Record<string, { label: string; className: string; icon: typeof Clock }> = {
   a_vencer: { label: "A Vencer", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", icon: Clock },
@@ -17,7 +21,10 @@ const statusConfig: Record<string, { label: string; className: string; icon: typ
 };
 
 export default function BillsPayable() {
-  const { bills, isLoading, createBill, updateBill, deleteBill, markAsPaid, decideBill } = useBillsPayable();
+  const { bills, isLoading, createBill, updateBill, deleteBill, markAsPaid, decideBill, tornarRecorrente, encerrarRecorrencia } = useBillsPayable();
+  const [recorrer, setRecorrer] = useState<{ id: string; fornecedor: string } | null>(null);
+  const [ocorrencias, setOcorrencias] = useState("12");
+  const [periodicidade, setPeriodicidade] = useState("mensal");
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<(BillInput & { id: string }) | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -122,6 +129,15 @@ export default function BillsPayable() {
                               <DropdownMenuItem onClick={() => setEditItem({ id: b.id, fornecedor: b.fornecedor, descricao: b.descricao, vencimento: b.vencimento, valor: b.valor })}>
                                 <Pencil className="h-4 w-4 mr-2" /> Editar
                               </DropdownMenuItem>
+                              {b.recurrence_group_id ? (
+                                <DropdownMenuItem onClick={() => encerrarRecorrencia.mutate(b.recurrence_group_id!)}>
+                                  <Repeat className="h-4 w-4 mr-2" /> Encerrar recorrência
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => setRecorrer({ id: b.id, fornecedor: b.fornecedor })}>
+                                  <Repeat className="h-4 w-4 mr-2" /> Repetir todo mês
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem className="text-destructive" onClick={() => setDeleteId(b.id)}>
                                 <Trash2 className="h-4 w-4 mr-2" /> Excluir
                               </DropdownMenuItem>
@@ -161,6 +177,57 @@ export default function BillsPayable() {
         onConfirm={() => { if (deleteId) { deleteBill.mutate(deleteId); setDeleteId(null); } }}
         description="A conta será removida permanentemente."
       />
+
+      <Dialog open={!!recorrer} onOpenChange={(v) => !v && setRecorrer(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Repetir esta conta</DialogTitle>
+            <DialogDescription>
+              {recorrer?.fornecedor}. As ocorrências são criadas de uma vez, para aparecerem no fluxo de caixa
+              projetado em vez de surgirem só no mês que vencem.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Quantas vezes</Label>
+              <Input
+                className="mt-1" type="number" min={2} max={60}
+                value={ocorrencias} onChange={(e) => setOcorrencias(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">A cada</Label>
+              <Select value={periodicidade} onValueChange={setPeriodicidade}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="semanal">Semana</SelectItem>
+                  <SelectItem value="quinzenal">Quinzena</SelectItem>
+                  <SelectItem value="mensal">Mês</SelectItem>
+                  <SelectItem value="bimestral">2 meses</SelectItem>
+                  <SelectItem value="trimestral">Trimestre</SelectItem>
+                  <SelectItem value="semestral">Semestre</SelectItem>
+                  <SelectItem value="anual">Ano</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setRecorrer(null)}>Cancelar</Button>
+            <Button
+              disabled={tornarRecorrente.isPending}
+              onClick={() => {
+                if (!recorrer) return;
+                tornarRecorrente.mutate(
+                  { billId: recorrer.id, ocorrencias: Number(ocorrencias) || 12, periodicidade },
+                  { onSuccess: () => setRecorrer(null) },
+                );
+              }}
+            >
+              Criar recorrência
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
