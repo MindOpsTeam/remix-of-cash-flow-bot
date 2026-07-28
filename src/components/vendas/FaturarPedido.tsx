@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { HandCoins, Loader2 } from "lucide-react";
+import { HandCoins, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,8 +22,17 @@ import { supabase } from "@/integrations/supabase/client";
  * pedido faturado, e os dois estados são piores que o erro.
  */
 
+interface Credito {
+  tem_limite: boolean;
+  limite: number | null;
+  em_aberto: number;
+  depois_desta_venda: number;
+  estoura: boolean;
+}
+
 interface FaturarPedidoProps {
   pedidoId: string;
+  contatoId?: string | null;
   numero: number;
   total: number;
   clienteNome: string | null;
@@ -36,7 +45,7 @@ interface FaturarPedidoProps {
 const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export function FaturarPedido({
-  pedidoId, numero, total, clienteNome, prazoPadraoDias, vencimentoPedido, onFaturado,
+  pedidoId, contatoId, numero, total, clienteNome, prazoPadraoDias, vencimentoPedido, onFaturado,
 }: FaturarPedidoProps) {
   const qc = useQueryClient();
   const [aberto, setAberto] = useState(false);
@@ -46,6 +55,20 @@ export function FaturarPedido({
     vencimentoPedido ?? new Date().toISOString().slice(0, 10),
   );
   const [salvando, setSalvando] = useState(false);
+  const [credito, setCredito] = useState<Credito | null>(null);
+
+  // O aviso tem que chegar ANTES do clique. Descobrir que o cliente estourou o
+  // limite depois que o recebível existe não ajuda ninguém.
+  useEffect(() => {
+    if (!aberto || !contatoId) { setCredito(null); return; }
+    (async () => {
+      const { data } = await supabase.rpc("checar_credito" as never, {
+        p_contact_id: contatoId,
+        p_valor: total,
+      } as never);
+      setCredito((data ?? null) as unknown as Credito | null);
+    })();
+  }, [aberto, contatoId, total]);
 
   async function faturar() {
     setSalvando(true);
@@ -99,6 +122,17 @@ export function FaturarPedido({
               faturado.
             </DialogDescription>
           </DialogHeader>
+
+          {credito?.estoura && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-500" />
+              <p className="text-muted-foreground">
+                Este cliente ficará com <span className="font-medium text-foreground">{brl(credito.depois_desta_venda)}</span> em
+                aberto, acima do limite de {brl(Number(credito.limite))}. Hoje ele já deve {brl(credito.em_aberto)}.
+                Dá para faturar assim mesmo, mas fica registrado que você viu.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

@@ -59,6 +59,7 @@ const ProductsPage = lazy(() => import("./pages/Products"));
 
 // Vendas & Compras
 const SalesOrdersPage = lazy(() => import("./pages/SalesOrders"));
+const SalespeoplePage = lazy(() => import("./pages/Salespeople"));
 const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 
 // Estoque & Fiscal
@@ -133,6 +134,7 @@ const AppRoutes = () => (
 
       {/* Vendas & Compras */}
       <Route path="/sales" element={<P><SalesOrdersPage /></P>} />
+      <Route path="/salespeople" element={<P><SalespeoplePage /></P>} />
       <Route path="/purchases" element={<P><PurchaseOrdersPage /></P>} />
 
       {/* Estoque & Fiscal */}

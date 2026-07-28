@@ -108,6 +108,7 @@ export default function SalesOrdersPage() {
   const [shipping, setShipping] = useState("");
   const [notes, setNotes] = useState("");
   const [salesperson, setSalesperson] = useState("");
+  const [salespersonId, setSalespersonId] = useState("");
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["sales_orders", company?.id],
@@ -115,7 +116,7 @@ export default function SalesOrdersPage() {
       if (!company) return [];
       const { data, error } = await supabase
         .from("sales_orders")
-        .select("id, order_number, status, issue_date, due_date, subtotal, total, salesperson, notes, contact_id, contacts(id, name)")
+        .select("id, order_number, status, issue_date, due_date, subtotal, total, salesperson, salesperson_id, notes, contact_id, contacts(id, name)")
         .eq("company_id", company.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -133,6 +134,20 @@ export default function SalesOrdersPage() {
       return (data || []) as Contact[];
     },
     enabled: !!company,
+  });
+
+  const { data: vendedores = [] } = useQuery({
+    queryKey: ["salespeople_list", company?.id],
+    enabled: !!company,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("salespeople" as never)
+        .select("id, name")
+        .eq("company_id", company!.id)
+        .eq("active", true)
+        .order("name");
+      return (data ?? []) as unknown as Array<{ id: string; name: string }>;
+    },
   });
 
   const { data: products = [] } = useQuery({
@@ -166,6 +181,9 @@ export default function SalesOrdersPage() {
         total,
         notes: notes.trim() || null,
         salesperson: salesperson.trim() || null,
+        // Guarda os dois: o id é o que serve para ranking, meta e comissão, e o
+        // texto continua porque pedido antigo só tem ele.
+        salesperson_id: salespersonId || null,
       };
 
       let orderId = editingId;
@@ -227,6 +245,7 @@ export default function SalesOrdersPage() {
     setDueDate(order.due_date || "");
     setNotes(order.notes || "");
     setSalesperson(order.salesperson || "");
+    setSalespersonId((order as { salesperson_id?: string }).salesperson_id || "");
     // Fetch items
     const { data: orderItems } = await supabase
       .from("sales_order_items")
@@ -367,6 +386,7 @@ export default function SalesOrdersPage() {
                   {(o.status === "confirmed" || o.status === "delivered") && (
                     <FaturarPedido
                       pedidoId={o.id}
+                      contatoId={o.contact?.id ?? null}
                       numero={o.order_number}
                       total={Number(o.total)}
                       clienteNome={o.contact?.name ?? null}
@@ -441,7 +461,22 @@ export default function SalesOrdersPage() {
               </div>
               <div>
                 <Label className="text-xs">Vendedor</Label>
-                <Input className="mt-1" value={salesperson} onChange={(e) => setSalesperson(e.target.value)} />
+                <Select
+                  value={salespersonId || "__nenhum"}
+                  onValueChange={(v) => {
+                    const id = v === "__nenhum" ? "" : v;
+                    setSalespersonId(id);
+                    setSalesperson(vendedores.find((x) => x.id === id)?.name ?? "");
+                  }}
+                >
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Escolher" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__nenhum">Nenhum</SelectItem>
+                    {vendedores.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

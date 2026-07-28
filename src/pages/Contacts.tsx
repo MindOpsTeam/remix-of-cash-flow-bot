@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { Cliente360 } from "@/components/contatos/Cliente360";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -351,6 +352,15 @@ export default function ContactsPage() {
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Contato" : "Novo Contato"}</DialogTitle>
           </DialogHeader>
+
+          {/* Histórico primeiro: quem abre um cliente já cadastrado quase sempre
+              quer saber como ele paga, não trocar o CEP. */}
+          {editingId && (
+            <div className="rounded-lg border border-border bg-muted/20 p-3">
+              <Cliente360 contactId={editingId} />
+            </div>
+          )}
+
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
