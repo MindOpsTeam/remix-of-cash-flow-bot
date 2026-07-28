@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.focus-nfe]
 verify_jwt = false
+
+[functions.classificar-lote]
+verify_jwt = false

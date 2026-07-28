@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionForm } from "@/components/TransactionForm";
 import { TransactionEditForm } from "@/components/TransactionEditForm";
+import { ImportarExtrato } from "@/components/importar/ImportarExtrato";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { useRealtimeInvalidation } from "@/hooks/useRealtimeInvalidation";
@@ -12,7 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight, ClipboardPaste } from "lucide-react";
 import { toast } from "sonner";
 import type { TransactionRowData } from "@/components/TransactionRow";
 
@@ -119,10 +120,21 @@ export default function Transactions() {
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Lançamentos</h1>
           <p className="text-sm text-muted-foreground mt-1">Receitas e despesas da empresa</p>
         </div>
-        <Button className="gap-2" variant="accent" onClick={() => setFormOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Novo Lançamento
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <ImportarExtrato
+            trigger={
+              <Button variant="outline" className="gap-2">
+                <ClipboardPaste className="h-4 w-4" />
+                Colar extrato
+              </Button>
+            }
+            onImportado={fetchTransactions}
+          />
+          <Button className="gap-2" variant="accent" onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Novo Lançamento
+          </Button>
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-lg p-5">
@@ -141,10 +153,16 @@ export default function Transactions() {
         {transactions.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground text-sm">Nenhum lançamento encontrado.</p>
-            <Button variant="outline" className="mt-4 gap-2" onClick={() => setFormOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Criar primeiro lançamento
-            </Button>
+            <p className="text-muted-foreground text-xs mt-1">
+              O jeito mais rápido de começar é colar o extrato do banco. A IA classifica e você só confere.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2 mt-4">
+              <ImportarExtrato onImportado={fetchTransactions} />
+              <Button variant="outline" className="gap-2" onClick={() => setFormOpen(true)}>
+                <Plus className="h-4 w-4" />
+                Criar primeiro lançamento
+              </Button>
+            </div>
           </div>
         ) : (
           <>
