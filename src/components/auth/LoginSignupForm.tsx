@@ -1,18 +1,23 @@
-import { useState, FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Lock, Mail, AlertTriangle } from "lucide-react";
+import { ArrowRight, Building2, Check, Loader2, Lock, Mail, ShieldCheck, User } from "lucide-react";
+import { Pill } from "@viverdeia/design-system";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ViaThemeToggle } from "@/components/ViaThemeToggle";
+import appIcon from "@/assets/via/app-icon.png";
+import wordmarkWhite from "@/assets/via/wordmark-white.png";
 
 const LoginSignupForm = () => {
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  // register state
   const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
@@ -60,385 +65,251 @@ const LoginSignupForm = () => {
   };
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    <main className="relative min-h-screen bg-background lg:grid lg:grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)]">
+      <div className="absolute right-5 top-5 z-20">
+        <ViaThemeToggle />
+      </div>
 
-        .lsf-wrapper, .lsf-wrapper * {
-          box-sizing: border-box;
-          font-family: "Poppins", sans-serif;
-        }
+      <section className="via-dark-panel relative hidden min-h-screen overflow-hidden rounded-none border-0 p-12 lg:flex lg:flex-col lg:justify-between">
+        <div
+          className="absolute inset-0 opacity-30"
+          aria-hidden="true"
+          style={{ backgroundImage: "var(--via-noise)" }}
+        />
+        <div className="relative z-10">
+          <img src={wordmarkWhite} alt="Viver de IA" className="h-auto w-56" />
+          <Pill className="via-dark-pill mt-7" size="sm">
+            FinanceAI · ERP financeiro
+          </Pill>
+        </div>
 
-        .lsf-wrapper {
-          min-height: 100vh;
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: linear-gradient(90deg, #e2e2e2, #c9d6ff);
-          padding: 20px;
-        }
+        <div className="relative z-10 max-w-xl">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">
+            Finanças que se leem em segundos
+          </p>
+          <h1 className="mt-5 max-w-lg font-display text-5xl font-medium leading-[1.02] tracking-[-0.045em] text-white">
+            Clareza para fechar o mês e decidir o próximo.
+          </h1>
+          <p className="mt-6 max-w-md text-base leading-7 text-white/70">
+            Fluxo de caixa, margem, fiscal e agentes de IA no mesmo contexto — por empresa ou no grupo inteiro.
+          </p>
 
-        .lsf-container {
-          position: relative;
-          width: 850px;
-          max-width: 100%;
-          height: 550px;
-          background: #fff;
-          border-radius: 30px;
-          box-shadow: 0 0 30px rgba(0, 0, 0, .2);
-          overflow: hidden;
-        }
+          <ul className="mt-10 grid gap-4 text-sm text-white/80">
+            {[
+              "Visão consolidada de todos os CNPJs",
+              "Conciliação e fechamento com rastreabilidade",
+              "Alertas de caixa e margem com contexto",
+            ].map((item) => (
+              <li key={item} className="flex items-center gap-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full border border-white/20 bg-white/10">
+                  <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                </span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
 
-        .lsf-container h1 {
-          font-size: 36px;
-          margin: -10px 0;
-        }
+        <div className="relative z-10 flex items-center gap-3 text-xs text-white/55">
+          <Building2 className="h-4 w-4" aria-hidden="true" />
+          <span>Operação multiempresa · dados protegidos por escopo</span>
+        </div>
+      </section>
 
-        .lsf-container p {
-          font-size: 14.5px;
-          margin: 15px 0;
-        }
-
-        .lsf-form-box {
-          position: absolute;
-          right: 0;
-          width: 50%;
-          height: 100%;
-          background: #fff;
-          display: flex;
-          align-items: center;
-          color: #333;
-          text-align: center;
-          padding: 40px;
-          z-index: 1;
-          transition: .6s ease-in-out 1.2s, visibility 0s 1s;
-        }
-
-        .lsf-container.active .lsf-form-box {
-          right: 50%;
-        }
-
-        .lsf-form-box.register {
-          visibility: hidden;
-        }
-
-        .lsf-container.active .lsf-form-box.register {
-          visibility: visible;
-        }
-
-        .lsf-form-box form { width: 100%; }
-
-        .lsf-input-box {
-          position: relative;
-          margin: 30px 0;
-        }
-
-        .lsf-input-box input {
-          width: 100%;
-          padding: 13px 50px 13px 20px;
-          background: #eee;
-          border-radius: 8px;
-          border: none;
-          outline: none;
-          font-size: 16px;
-          color: #333;
-          font-weight: 500;
-        }
-
-        .lsf-input-box input::placeholder {
-          color: #888;
-          font-weight: 400;
-        }
-
-        .lsf-input-box svg {
-          position: absolute;
-          right: 20px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: #888;
-        }
-
-        .lsf-forgot {
-          margin: -15px 0 15px;
-        }
-
-        .lsf-forgot a {
-          font-size: 14.5px;
-          color: #333;
-          text-decoration: none;
-        }
-
-        .lsf-btn {
-          width: 100%;
-          height: 48px;
-          background: #7494ec;
-          border-radius: 8px;
-          box-shadow: 0 0 10px rgba(0, 0, 0, .1);
-          border: none;
-          cursor: pointer;
-          font-size: 16px;
-          color: #fff;
-          font-weight: 600;
-        }
-
-        .lsf-btn:disabled { opacity: .7; cursor: not-allowed; }
-
-        .lsf-social {
-          display: flex;
-          justify-content: center;
-        }
-
-        .lsf-social a {
-          display: inline-flex;
-          padding: 10px;
-          border: 2px solid #ccc;
-          border-radius: 8px;
-          color: #333;
-          margin: 0 8px;
-          cursor: pointer;
-        }
-
-        .lsf-toggle-box {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-        }
-
-        .lsf-toggle-box::before {
-          content: '';
-          position: absolute;
-          left: -250%;
-          width: 300%;
-          height: 100%;
-          background: #7494ec;
-          border-radius: 150px;
-          z-index: 2;
-          transition: 1.8s ease-in-out;
-        }
-
-        .lsf-container.active .lsf-toggle-box::before {
-          left: 50%;
-        }
-
-        .lsf-toggle-panel {
-          position: absolute;
-          width: 50%;
-          height: 100%;
-          color: #fff;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          z-index: 2;
-          transition: .6s ease-in-out;
-          padding: 0 30px;
-        }
-
-        .lsf-toggle-panel.toggle-left {
-          left: 0;
-          transition-delay: 1.2s;
-        }
-
-        .lsf-container.active .lsf-toggle-panel.toggle-left {
-          left: -50%;
-          transition-delay: .6s;
-        }
-
-        .lsf-toggle-panel.toggle-right {
-          right: -50%;
-          transition-delay: .6s;
-        }
-
-        .lsf-container.active .lsf-toggle-panel.toggle-right {
-          right: 0;
-          transition-delay: 1.2s;
-        }
-
-        .lsf-toggle-panel p { margin-bottom: 20px; }
-
-        .lsf-toggle-panel .lsf-btn {
-          width: 160px;
-          height: 46px;
-          background: transparent;
-          border: 2px solid #fff;
-          box-shadow: none;
-        }
-
-        .lsf-wrapper { flex-direction: column; }
-
-        .lsf-disclaimer {
-          width: 850px;
-          max-width: 100%;
-          margin-top: 20px;
-          padding: 16px 20px;
-          background: rgba(255, 255, 255, .75);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          border-left: 4px solid #f59e0b;
-          border-radius: 12px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, .06);
-          display: flex;
-          gap: 14px;
-          align-items: flex-start;
-          color: #444;
-          font-size: 13px;
-          line-height: 1.55;
-        }
-
-        .lsf-disclaimer .lsf-disclaimer-icon {
-          color: #f59e0b;
-          flex-shrink: 0;
-          margin-top: 2px;
-        }
-
-        .lsf-disclaimer-title {
-          font-size: 13.5px;
-          font-weight: 600;
-          color: #1f2937;
-          margin: 0 0 6px;
-        }
-
-        .lsf-disclaimer-body { margin: 0; }
-        .lsf-disclaimer-body + .lsf-disclaimer-body { margin-top: 8px; }
-        .lsf-disclaimer-body strong { color: #1f2937; font-weight: 600; }
-
-        @media screen and (max-width: 650px) {
-          .lsf-container { height: calc(100vh - 200px); min-height: 480px; }
-          .lsf-form-box { bottom: 0; width: 100%; height: 70%; }
-          .lsf-container.active .lsf-form-box { right: 0; bottom: 30%; }
-          .lsf-toggle-box::before {
-            left: 0; top: -270%; width: 100%; height: 300%; border-radius: 20vw;
-          }
-          .lsf-container.active .lsf-toggle-box::before { left: 0; top: 70%; }
-          .lsf-container.active .lsf-toggle-panel.toggle-left { left: 0; top: -30%; }
-          .lsf-toggle-panel { width: 100%; height: 30%; }
-          .lsf-toggle-panel.toggle-left { top: 0; }
-          .lsf-toggle-panel.toggle-right { right: 0; bottom: -30%; }
-          .lsf-container.active .lsf-toggle-panel.toggle-right { bottom: 0; }
-          .lsf-disclaimer { padding: 14px 16px; font-size: 12.5px; }
-        }
-
-        @media screen and (max-width: 400px) {
-          .lsf-form-box { padding: 20px; }
-          .lsf-toggle-panel h1 { font-size: 30px; }
-        }
-      `}</style>
-
-
-      <div className="lsf-wrapper">
-        <div className={`lsf-container ${isActive ? "active" : ""}`}>
-          {/* Login */}
-          <div className="lsf-form-box login">
-            <form onSubmit={handleLogin}>
-              <h1>Entrar</h1>
-              <div className="lsf-input-box">
-                <input
-                  type="email"
-                  placeholder="Email"
-                  required
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                />
-                <Mail size={20} />
-              </div>
-              <div className="lsf-input-box">
-                <input
-                  type="password"
-                  placeholder="Senha"
-                  required
-                  minLength={6}
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                />
-                <Lock size={20} />
-              </div>
-              <button type="submit" className="lsf-btn" disabled={loading}>
-                {loading ? "Aguarde..." : "Entrar"}
-              </button>
-            </form>
+      <section className="flex min-h-screen items-center justify-center px-5 py-20 sm:px-8 lg:px-14">
+        <div className="w-full max-w-[520px] via-route-enter">
+          <div className="mb-9 flex items-center gap-3 lg:hidden">
+            <img src={appIcon} alt="Viver de IA" className="via-brand-icon h-11 w-11 rounded-lg" />
+            <div>
+              <p className="text-lg font-semibold tracking-[-0.02em] text-foreground">FinanceAI</p>
+              <p className="text-xs text-muted-foreground">por Viver de IA</p>
+            </div>
           </div>
 
-          {/* Register */}
-          <div className="lsf-form-box register">
-            <form onSubmit={handleSignup}>
-              <h1>Cadastro</h1>
-              <div className="lsf-input-box">
-                <input
+          <div className="mb-8">
+            <p className="via-eyebrow">{isActive ? "Criar acesso" : "Área segura"}</p>
+            <h2 className="mt-3 font-display text-4xl font-medium tracking-[-0.035em] text-foreground">
+              {isActive ? "Comece com sua empresa." : "Bem-vindo de volta."}
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              {isActive
+                ? "Cadastre o responsável. Você poderá adicionar CNPJs e convidar o time depois."
+                : "Entre com o mesmo email usado no cadastro da sua empresa."}
+            </p>
+          </div>
+
+          <div
+            className="mb-7 grid grid-cols-2 rounded-full border border-border bg-muted/70 p-1 shadow-[inset_0_1px_0_var(--via-edge-hi)]"
+            role="tablist"
+            aria-label="Escolher acesso"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!isActive}
+              onClick={() => setIsActive(false)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                !isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setIsActive(true)}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Criar conta
+            </button>
+          </div>
+
+          {isActive ? (
+            <form onSubmit={handleSignup} className="space-y-5" aria-label="Criar conta">
+              <Field
+                id="register-name"
+                label="Nome"
+                icon={<User className="h-4 w-4" aria-hidden="true" />}
+              >
+                <Input
+                  id="register-name"
                   type="text"
-                  placeholder="Nome"
+                  autoComplete="name"
+                  placeholder="Seu nome completo"
+                  className="pl-10"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                 />
-                <User size={20} />
-              </div>
-              <div className="lsf-input-box">
-                <input
+              </Field>
+              <Field
+                id="register-email"
+                label="Email profissional"
+                icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+              >
+                <Input
+                  id="register-email"
                   type="email"
-                  placeholder="Email"
+                  autoComplete="email"
+                  placeholder="voce@empresa.com.br"
+                  className="pl-10"
                   required
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
                 />
-                <Mail size={20} />
-              </div>
-              <div className="lsf-input-box">
-                <input
+              </Field>
+              <Field
+                id="register-password"
+                label="Senha"
+                hint="Mínimo de 6 caracteres"
+                icon={<Lock className="h-4 w-4" aria-hidden="true" />}
+              >
+                <Input
+                  id="register-password"
                   type="password"
-                  placeholder="Senha"
+                  autoComplete="new-password"
+                  placeholder="Crie uma senha"
+                  className="pl-10"
                   required
                   minLength={6}
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                 />
-                <Lock size={20} />
-              </div>
-              <button type="submit" className="lsf-btn" disabled={loading}>
-                {loading ? "Aguarde..." : "Cadastrar"}
-              </button>
+              </Field>
+              <Button type="submit" className="mt-2 w-full" size="lg" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+                {loading ? "Criando conta..." : "Criar conta"}
+                {!loading ? <ArrowRight aria-hidden="true" /> : null}
+              </Button>
             </form>
-          </div>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-5" aria-label="Entrar no FinanceAI">
+              <Field
+                id="login-email"
+                label="Email"
+                icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+              >
+                <Input
+                  id="login-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="voce@empresa.com.br"
+                  className="pl-10"
+                  required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                />
+              </Field>
+              <Field
+                id="login-password"
+                label="Senha"
+                icon={<Lock className="h-4 w-4" aria-hidden="true" />}
+              >
+                <Input
+                  id="login-password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Sua senha"
+                  className="pl-10"
+                  required
+                  minLength={6}
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                />
+              </Field>
+              <Button type="submit" className="mt-2 w-full" size="lg" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+                {loading ? "Entrando..." : "Entrar no FinanceAI"}
+                {!loading ? <ArrowRight aria-hidden="true" /> : null}
+              </Button>
+            </form>
+          )}
 
-          {/* Toggle */}
-          <div className="lsf-toggle-box">
-            <div className="lsf-toggle-panel toggle-left">
-              <h1>Olá, bem-vindo!</h1>
-              <p>Não tem uma conta?</p>
-              <button className="lsf-btn" onClick={() => setIsActive(true)} type="button">
-                Cadastrar
-              </button>
-            </div>
-            <div className="lsf-toggle-panel toggle-right">
-              <h1>Bem-vindo de volta!</h1>
-              <p>Já tem uma conta?</p>
-              <button className="lsf-btn" onClick={() => setIsActive(false)} type="button">
-                Entrar
-              </button>
-            </div>
-          </div>
+          <Alert className="mt-8" role="note">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+            <AlertTitle>Responsabilidade e segurança</AlertTitle>
+            <AlertDescription className="text-muted-foreground">
+              A plataforma processa dados financeiros sensíveis. Mantenha credenciais protegidas, revise acessos e
+              realize auditorias regulares. A segurança operacional do ambiente continua sob responsabilidade do cliente.
+            </AlertDescription>
+          </Alert>
         </div>
-
-        <div className="lsf-disclaimer" role="note">
-          <AlertTriangle size={22} className="lsf-disclaimer-icon" aria-hidden />
-          <div>
-            <p className="lsf-disclaimer-title">Uso consciente e responsabilidade</p>
-            <p className="lsf-disclaimer-body">
-              Esta plataforma processa dados financeiros sensíveis. Recomendamos fortemente o
-              acompanhamento por <strong>auditorias de segurança regulares</strong> e a adoção de
-              boas práticas de proteção de credenciais e acessos.
-            </p>
-            <p className="lsf-disclaimer-body">
-              A <strong>Viver de IA</strong> não se responsabiliza por eventuais falhas, perdas ou
-              incidentes ocorridos em produção. A manutenção, o monitoramento e o nível de
-              qualidade de segurança da plataforma são de{" "}
-              <strong>responsabilidade exclusiva do cliente</strong>.
-            </p>
-          </div>
-        </div>
-      </div>
-    </>
+      </section>
+    </main>
   );
 };
 
-export default LoginSignupForm;
+function Field({
+  id,
+  label,
+  hint,
+  icon,
+  children,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={id} className="text-sm font-medium text-foreground">
+          {label}
+        </label>
+        {hint ? <span className="text-[11px] text-muted-foreground">{hint}</span> : null}
+      </div>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-muted-foreground">
+          {icon}
+        </span>
+        {children}
+      </div>
+    </div>
+  );
+}
 
+export default LoginSignupForm;

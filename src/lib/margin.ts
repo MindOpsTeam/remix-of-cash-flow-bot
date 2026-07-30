@@ -33,12 +33,12 @@ export const MONTH_LABELS = [
 
 /** Cores estáveis por índice para diferenciar CNPJs nos gráficos combinados. */
 export const COMPANY_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "hsl(280 70% 60%)",
-  "hsl(24 90% 55%)",
+  "var(--via-data-1)",
+  "var(--via-data-2)",
+  "var(--via-navy)",
+  "var(--via-success)",
+  "var(--via-coral)",
+  "var(--via-text-muted)",
 ];
 
 export function companyColor(index: number): string {

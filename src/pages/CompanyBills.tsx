@@ -146,7 +146,7 @@ export default function CompanyBills() {
               <div className="bg-card border border-border rounded-lg divide-y divide-border">
                 {invoices.map((inv) => (
                   <div key={inv.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
-                    <div className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-emerald-500/10 text-emerald-600"><FileText className="h-4 w-4" /></div>
+                    <div className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-success/[0.08] text-success"><FileText className="h-4 w-4" /></div>
                     <div className="flex-1 min-w-0 space-y-0.5">
                       <p className="text-sm font-medium truncate">{inv.number ? `NFS-e #${inv.number}` : "Nota Fiscal"}</p>
                       {inv.service_description && <p className="text-xs text-muted-foreground truncate">{inv.service_description}</p>}

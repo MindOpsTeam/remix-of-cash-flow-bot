@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ClipboardPaste, Loader2, Check, Sparkles, AlertCircle } from "lucide-react";
+import { ClipboardPaste, Loader2, Check, Compass, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -222,7 +222,7 @@ export function ImportarExtrato({ trigger, onImportado }: ImportarExtratoProps) 
 08/07  ALUGUEL JULHO                -3.200,00`}
             />
             <Button onClick={ler} disabled={lendo || texto.trim().length < 10} className="gap-2">
-              {lendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {lendo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Compass className="h-4 w-4" />}
               {lendo ? "Lendo e classificando..." : "Ler extrato"}
             </Button>
           </div>
@@ -238,7 +238,7 @@ export function ImportarExtrato({ trigger, onImportado }: ImportarExtratoProps) 
               </span>
               {resumoIa && (
                 <Badge variant="secondary" className="gap-1">
-                  <Sparkles className="h-3 w-3" />
+                  <Compass className="h-3 w-3" />
                   {resumoIa.por_regra} por regra · {resumoIa.por_ia} pela IA
                   {resumoIa.sem_classificacao > 0 && ` · ${resumoIa.sem_classificacao} sem conta`}
                 </Badge>
@@ -267,7 +267,7 @@ export function ImportarExtrato({ trigger, onImportado }: ImportarExtratoProps) 
                       <td className="px-3 py-2 max-w-[220px] truncate" title={l.original}>{l.descricao}</td>
                       <td className="px-3 py-2">
                         <Select value={l.account_id ?? ""} onValueChange={(v) => trocarConta(i, v)}>
-                          <SelectTrigger className={`h-8 text-xs ${!l.account_id ? "border-amber-500/60" : ""}`}>
+                          <SelectTrigger className={`h-8 text-xs ${!l.account_id ? "border-warning/30" : ""}`}>
                             <SelectValue placeholder="Escolher conta" />
                           </SelectTrigger>
                           <SelectContent>

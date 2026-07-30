@@ -36,7 +36,7 @@ export function CompanyScopeSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/40 disabled:opacity-70"
+        className="flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2 text-sm font-medium text-foreground shadow-[inset_0_1px_0_var(--via-edge-hi)] transition-all duration-150 hover:border-primary/25 hover:shadow-card disabled:opacity-70"
         disabled={singleCompany}
       >
         {isCombined ? (
@@ -47,7 +47,7 @@ export function CompanyScopeSwitcher() {
         <span className="max-w-[180px] truncate">{label}</span>
         {!singleCompany && <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
+      <DropdownMenuContent align="end" className="w-72 rounded-lg border-border/80 shadow-dropdown">
         <DropdownMenuLabel className="text-xs text-muted-foreground">Escopo do painel</DropdownMenuLabel>
 
         <DropdownMenuItem onClick={() => setScope("all")} className="gap-2">

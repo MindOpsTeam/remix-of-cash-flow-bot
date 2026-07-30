@@ -281,7 +281,7 @@ export default function NfseIntegration() {
                 <>
                   <p className={`text-lg font-semibold ${
                     daysUntilExpiry <= 0 ? "text-expense" :
-                    daysUntilExpiry <= 30 ? "text-yellow-500" : "text-foreground"
+                    daysUntilExpiry <= 30 ? "text-warning" : "text-foreground"
                   }`}>
                     {daysUntilExpiry <= 0 ? "Expirado" : `${daysUntilExpiry} dias`}
                   </p>

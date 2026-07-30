@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ShieldAlert, Sparkles, Loader2, Check, AlertCircle } from "lucide-react";
+import { ShieldAlert, Compass, Loader2, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -159,9 +159,9 @@ export function ProntoParaAgosto() {
       <button
         type="button"
         onClick={() => setAberto(true)}
-        className="mb-5 flex w-full items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-left transition-colors hover:bg-amber-500/15"
+        className="mb-5 flex w-full items-start gap-3 rounded-lg border border-warning/30 bg-warning/[0.08] p-4 text-left transition-colors hover:bg-warning/[0.08]"
       >
-        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-500" />
+        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning dark:text-warning" />
         <div className="min-w-0">
           <p className="text-sm font-medium">
             {pendencias.length} produto(s) não poderão emitir nota a partir de 3 de agosto
@@ -185,7 +185,7 @@ export function ProntoParaAgosto() {
 
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={sugerir} disabled={sugerindo} className="gap-2">
-              {sugerindo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {sugerindo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Compass className="h-4 w-4" />}
               {sugerindo ? "Analisando..." : "Sugerir com IA"}
             </Button>
             {resumo && (

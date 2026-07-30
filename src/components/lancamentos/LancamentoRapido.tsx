@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Sparkles, Loader2, Check, CornerDownLeft } from "lucide-react";
+import { Compass, Loader2, Check, CornerDownLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -147,7 +147,7 @@ export function LancamentoRapido({ onLancado }: { onLancado?: () => void }) {
 
           {conta ? (
             <Badge variant="secondary" className="gap-1">
-              <Sparkles className="h-3 w-3" />
+              <Compass className="h-3 w-3" />
               {conta.code} {conta.name}
               {origemConta === "regra" && " (regra)"}
             </Badge>

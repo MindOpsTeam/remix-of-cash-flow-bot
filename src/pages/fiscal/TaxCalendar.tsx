@@ -11,9 +11,9 @@ import { TaxGuideFormDialog } from "@/components/fiscal/TaxGuideFormDialog";
 import { DeleteConfirmDialog } from "@/components/fiscal/DeleteConfirmDialog";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
-  a_pagar: { label: "A Pagar", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-  pago: { label: "Pago", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
-  atrasado: { label: "Atrasado", className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+  a_pagar: { label: "A Pagar", className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning" },
+  pago: { label: "Pago", className: "bg-success/[0.08] text-success dark:bg-success/[0.08] dark:text-success" },
+  atrasado: { label: "Atrasado", className: "bg-destructive/[0.08] text-destructive dark:bg-destructive/[0.08] dark:text-destructive" },
 };
 
 export default function TaxCalendar() {
@@ -41,9 +41,9 @@ export default function TaxCalendar() {
         </div>
 
         {overdueCount > 0 && (
-          <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/20 px-4 py-3">
-            <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
-            <p className="text-sm text-red-700 dark:text-red-400">
+          <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/[0.08] dark:border-destructive/30 dark:bg-destructive/[0.08] px-4 py-3">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+            <p className="text-sm text-destructive dark:text-destructive">
               Você tem <strong>{overdueCount}</strong> guia{overdueCount > 1 ? "s" : ""} vencida{overdueCount > 1 ? "s" : ""} totalizando {formatCurrency(totalAtrasado)}
             </p>
           </div>
@@ -51,15 +51,15 @@ export default function TaxCalendar() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card><CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center"><DollarSign className="h-4 w-4 text-amber-600" /></div>
+            <div className="h-9 w-9 rounded-lg bg-warning/[0.08] dark:bg-warning/[0.08] flex items-center justify-center"><DollarSign className="h-4 w-4 text-warning" /></div>
             <div><p className="text-xs text-muted-foreground">A Pagar</p><p className="text-lg font-semibold tabular-nums">{formatCurrency(totalAPagar)}</p></div>
           </CardContent></Card>
           <Card><CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><CheckCircle2 className="h-4 w-4 text-emerald-600" /></div>
+            <div className="h-9 w-9 rounded-lg bg-success/[0.08] dark:bg-success/[0.08] flex items-center justify-center"><CheckCircle2 className="h-4 w-4 text-success" /></div>
             <div><p className="text-xs text-muted-foreground">Pago este mês</p><p className="text-lg font-semibold tabular-nums">{formatCurrency(totalPago)}</p></div>
           </CardContent></Card>
           <Card><CardContent className="p-4 flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center"><AlertTriangle className="h-4 w-4 text-red-600" /></div>
+            <div className="h-9 w-9 rounded-lg bg-destructive/[0.08] dark:bg-destructive/[0.08] flex items-center justify-center"><AlertTriangle className="h-4 w-4 text-destructive" /></div>
             <div><p className="text-xs text-muted-foreground">Atrasado</p><p className="text-lg font-semibold tabular-nums">{formatCurrency(totalAtrasado)}</p></div>
           </CardContent></Card>
         </div>

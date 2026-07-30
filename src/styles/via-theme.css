@@ -1,0 +1,211 @@
+/*
+ * FinanceAI application layer for the Viver de IA Design System.
+ * Component internals remain in Tailwind/Radix; this file owns the shell,
+ * brand surfaces, shared motion, and compatibility affordances.
+ */
+
+#root {
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+.via-app-shell {
+  position: relative;
+  background:
+    radial-gradient(900px 520px at 88% -12%, var(--via-navy-06), transparent 68%),
+    radial-gradient(680px 420px at 18% 108%, var(--via-navy-03), transparent 70%),
+    hsl(var(--background));
+}
+
+.via-app-main {
+  min-width: 0;
+  background: transparent;
+}
+
+.via-sidebar {
+  position: relative;
+  background:
+    linear-gradient(180deg, var(--via-surface) 0%, var(--via-bg-2) 132%),
+    var(--via-surface);
+  box-shadow: 1px 0 0 var(--via-border-soft);
+}
+
+.via-sidebar::after {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 150px;
+  content: "";
+  pointer-events: none;
+  background: radial-gradient(240px 120px at 20% 0%, var(--via-navy-06), transparent 72%);
+}
+
+.via-sidebar > * {
+  position: relative;
+  z-index: 1;
+}
+
+.via-brand-icon {
+  border: 1px solid var(--via-navy-10);
+  box-shadow:
+    inset 0 1px 0 var(--via-edge-hi),
+    0 8px 22px -14px var(--via-shadow-ink-40);
+}
+
+.via-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  min-height: 68px;
+  background: color-mix(in srgb, var(--via-bg) 82%, transparent);
+  border-bottom: 1px solid var(--via-border-soft);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+}
+
+.via-page {
+  width: min(100%, 1440px);
+  margin-inline: auto;
+  padding: 28px 28px 56px;
+}
+
+.via-skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 1000;
+  padding: 10px 14px;
+  border-radius: var(--via-radius-sm);
+  color: var(--via-white);
+  background: var(--via-navy);
+  box-shadow: var(--via-shadow-lg);
+  transform: translateY(-150%);
+  transition: transform var(--via-t-fast);
+}
+
+.via-skip-link:focus {
+  transform: translateY(0);
+}
+
+.via-glass-panel {
+  border: 1px solid var(--via-border-soft);
+  border-radius: var(--via-radius-lg);
+  background: var(--via-glass-card);
+  box-shadow:
+    inset 0 1px 0 var(--via-edge-hi),
+    var(--via-glass-shadow);
+  backdrop-filter: var(--via-glass-blur);
+  -webkit-backdrop-filter: var(--via-glass-blur);
+}
+
+.via-data-panel {
+  border: 1px solid var(--via-border-soft);
+  border-radius: var(--via-radius-md);
+  background: var(--via-surface);
+  box-shadow: var(--via-shadow-sm);
+}
+
+.via-dark-panel {
+  color: var(--via-white);
+  border: 1px solid var(--via-navy-20);
+  border-radius: var(--via-radius-lg);
+  background:
+    var(--via-mesh-navy),
+    linear-gradient(145deg, var(--via-navy), var(--via-navy-deep));
+  box-shadow: var(--via-shadow-lg);
+}
+
+.via-eyebrow {
+  color: var(--via-text-muted);
+  font-family: var(--via-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.via-dark-pill {
+  color: var(--via-white);
+  border-color: var(--via-navy-30);
+  background: var(--via-navy-20);
+  box-shadow: inset 0 1px 0 var(--via-edge-hi);
+}
+
+.via-rule {
+  height: 1px;
+  border: 0;
+  background: var(--via-border-soft);
+}
+
+.via-sidebar-company {
+  border: 1px solid var(--via-border-soft);
+  background: var(--via-glass-card-2);
+  box-shadow: inset 0 1px 0 var(--via-edge-hi);
+}
+
+.via-route-enter {
+  animation: viaRouteEnter 360ms var(--via-ease-out) both;
+}
+
+@keyframes viaRouteEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Shared primitives that are not safe to replace because their Radix API is
+ * already wired into business forms. Tokens and surfaces bring them into the
+ * DS while behavior stays untouched. */
+[data-radix-popper-content-wrapper] {
+  font-family: var(--via-font);
+}
+
+[role="dialog"],
+[role="menu"],
+[role="listbox"] {
+  --tw-ring-color: hsl(var(--ring) / 0.16);
+}
+
+.recharts-wrapper,
+.recharts-surface {
+  font-family: var(--via-font);
+}
+
+.recharts-cartesian-grid line {
+  stroke: var(--via-data-grid);
+}
+
+.recharts-text {
+  fill: var(--via-text-muted);
+}
+
+[data-theme="dark"] .via-topbar {
+  background: color-mix(in srgb, var(--via-bg) 78%, transparent);
+}
+
+@media (max-width: 1023px) {
+  .via-page {
+    padding: 20px 20px 88px;
+  }
+}
+
+@media (max-width: 639px) {
+  .via-topbar {
+    min-height: 60px;
+  }
+
+  .via-page {
+    padding: 18px 16px 88px;
+  }
+}
+
+@supports not (background: color-mix(in srgb, white, transparent)) {
+  .via-topbar {
+    background: var(--via-bg);
+  }
+}

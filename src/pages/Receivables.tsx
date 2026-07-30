@@ -11,9 +11,9 @@ import { ReceivableFormDialog } from "@/components/receivables/ReceivableFormDia
 import { DeleteConfirmDialog } from "@/components/fiscal/DeleteConfirmDialog";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
-  a_receber: { label: "A receber", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
-  vencido: { label: "Vencido", className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
-  recebido: { label: "Recebido", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+  a_receber: { label: "A receber", className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning" },
+  vencido: { label: "Vencido", className: "bg-destructive/[0.08] text-destructive dark:bg-destructive/[0.08] dark:text-destructive" },
+  recebido: { label: "Recebido", className: "bg-success/[0.08] text-success dark:bg-success/[0.08] dark:text-success" },
   cancelado: { label: "Cancelado", className: "bg-muted text-muted-foreground" },
 };
 
@@ -51,9 +51,9 @@ export default function Receivables() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {([
-            { label: "A receber", value: totals.aReceber, className: "bg-amber-100 dark:bg-amber-900/30", iconClass: "text-amber-600", Icon: Clock },
-            { label: "Vencido", value: totals.vencido, className: "bg-red-100 dark:bg-red-900/30", iconClass: "text-red-600", Icon: AlertTriangle },
-            { label: "Recebido", value: totals.recebido, className: "bg-emerald-100 dark:bg-emerald-900/30", iconClass: "text-emerald-600", Icon: CheckCircle2 },
+            { label: "A receber", value: totals.aReceber, className: "bg-warning/[0.08] dark:bg-warning/[0.08]", iconClass: "text-warning", Icon: Clock },
+            { label: "Vencido", value: totals.vencido, className: "bg-destructive/[0.08] dark:bg-destructive/[0.08]", iconClass: "text-destructive", Icon: AlertTriangle },
+            { label: "Recebido", value: totals.recebido, className: "bg-success/[0.08] dark:bg-success/[0.08]", iconClass: "text-success", Icon: CheckCircle2 },
           ] as const).map(({ label, value, className, iconClass, Icon }) => (
             <Card key={label}><CardContent className="p-4 flex items-center gap-3">
               <div className={`h-9 w-9 rounded-lg ${className} flex items-center justify-center`}><Icon className={`h-4 w-4 ${iconClass}`} /></div>

@@ -19,9 +19,9 @@ const typeColors: Record<string, string> = {
   retirada: "text-destructive",
   pro_labore: "text-destructive",
   dividendo: "text-destructive",
-  emprestimo_pj_pf: "text-yellow-600",
+  emprestimo_pj_pf: "text-warning",
   aporte: "text-revenue",
-  emprestimo_pf_pj: "text-yellow-600",
+  emprestimo_pf_pj: "text-warning",
 };
 
 const directionLabels: Record<string, string> = {

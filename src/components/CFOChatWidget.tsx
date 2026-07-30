@@ -111,7 +111,7 @@ export function CFOChatWidget() {
 
   const panelClasses = isMobile
     ? "fixed inset-0 z-50 flex flex-col bg-card animate-scale-in"
-    : "fixed bottom-6 right-6 z-50 w-[380px] max-h-[520px] flex flex-col bg-card border border-border rounded-lg overflow-hidden animate-scale-in shadow-dropdown";
+    : "via-glass-panel fixed bottom-6 right-6 z-50 flex max-h-[560px] w-[390px] flex-col overflow-hidden animate-scale-in";
 
   return (
     <>
@@ -119,7 +119,7 @@ export function CFOChatWidget() {
         <button
           onClick={() => setIsOpen(true)}
           aria-label="Abrir CFO Digital"
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-[hsl(240,8%,7%)] text-[hsl(240,5%,90%)] flex items-center justify-center shadow-dropdown hover:scale-105 transition-transform duration-150"
+          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-[var(--via-navy)] text-white shadow-dropdown transition-[transform,box-shadow] duration-200 ease-via-spring hover:-translate-y-1 hover:scale-[1.03] hover:shadow-modal focus-visible:shadow-focus"
         >
           <Brain className="h-6 w-6" />
         </button>
@@ -127,9 +127,9 @@ export function CFOChatWidget() {
 
       {isOpen && (
         <div className={panelClasses}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center justify-between border-b border-border bg-card/70 px-4 py-3 backdrop-blur-xl">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
+              <div className="flex h-8 w-8 items-center justify-center rounded-md border border-primary/10 bg-primary/[0.06]">
                 <Brain className="h-4 w-4 text-primary" />
               </div>
               <div>
@@ -159,7 +159,7 @@ export function CFOChatWidget() {
                     <button
                       key={q}
                       onClick={() => streamChat(q)}
-                      className="block w-full text-left text-xs px-3 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors duration-150"
+                    className="block w-full rounded-md border border-transparent bg-secondary px-3 py-2 text-left text-xs text-secondary-foreground transition-all duration-150 hover:border-primary/10 hover:bg-secondary/80"
                     >
                       {q}
                     </button>
@@ -192,7 +192,7 @@ export function CFOChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t border-border p-2">
+          <div className="border-t border-border bg-card/70 p-2 backdrop-blur-xl">
             <form
               onSubmit={(e) => { e.preventDefault(); if (input.trim() && !isLoading) streamChat(input); }}
               className="flex gap-2"

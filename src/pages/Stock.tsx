@@ -49,8 +49,8 @@ const moveTypeLabels: Record<string, string> = { in: "Entrada", out: "Saída", a
 const moveTypeColors: Record<string, string> = {
   in: "text-revenue",
   out: "text-expense",
-  adjustment: "text-amber-600",
-  transfer: "text-blue-600",
+  adjustment: "text-warning",
+  transfer: "text-primary",
 };
 
 export default function StockPage() {
@@ -173,10 +173,10 @@ export default function StockPage() {
               <p className="text-lg font-bold font-mono">{fmt(totalValue)}</p>
             </CardContent>
           </Card>
-          <Card className={lowStock.length > 0 ? "border-amber-500/50" : ""}>
+          <Card className={lowStock.length > 0 ? "border-warning/30" : ""}>
             <CardContent className="py-3 px-4">
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                {lowStock.length > 0 && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                {lowStock.length > 0 && <AlertTriangle className="h-3 w-3 text-warning" />}
                 Estoque Baixo
               </p>
               <p className="text-lg font-bold">{lowStock.length}</p>
@@ -209,13 +209,13 @@ export default function StockPage() {
               const isLow = p.min_stock && (p.current_stock ?? 0) <= p.min_stock;
               return (
                 <div key={p.id} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors">
-                  <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${isLow ? "bg-amber-100 dark:bg-amber-900/30" : "bg-muted"}`}>
-                    <Package className={`h-4 w-4 ${isLow ? "text-amber-600" : "text-muted-foreground"}`} />
+                  <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${isLow ? "bg-warning/[0.08] dark:bg-warning/[0.08]" : "bg-muted"}`}>
+                    <Package className={`h-4 w-4 ${isLow ? "text-warning" : "text-muted-foreground"}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium truncate">{p.name}</p>
-                      {isLow && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Estoque Baixo</Badge>}
+                      {isLow && <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning">Estoque Baixo</Badge>}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                       {p.sku && <span>SKU: {p.sku}</span>}
@@ -223,7 +223,7 @@ export default function StockPage() {
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className={`text-lg font-bold font-mono ${isLow ? "text-amber-600" : ""}`}>
+                    <p className={`text-lg font-bold font-mono ${isLow ? "text-warning" : ""}`}>
                       {p.current_stock ?? 0} <span className="text-xs text-muted-foreground font-normal">{p.unit}</span>
                     </p>
                     {p.cost_price && <p className="text-[10px] text-muted-foreground font-mono">Valor: {fmt((p.current_stock ?? 0) * p.cost_price)}</p>}
@@ -244,7 +244,7 @@ export default function StockPage() {
                   <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0">
                     {m.type === "in" ? <ArrowDownToLine className="h-3.5 w-3.5 text-revenue" /> :
                       m.type === "out" ? <ArrowUpFromLine className="h-3.5 w-3.5 text-expense" /> :
-                        <RefreshCw className="h-3.5 w-3.5 text-amber-600" />}
+                        <RefreshCw className="h-3.5 w-3.5 text-warning" />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{m.product?.name}</p>

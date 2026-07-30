@@ -84,7 +84,7 @@ export default function CompanyTransfers() {
               onClick={() => setSource("asaas")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                 source === "asaas"
-                  ? "bg-background text-emerald-700 shadow-sm"
+                  ? "bg-background text-success shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -95,7 +95,7 @@ export default function CompanyTransfers() {
               onClick={() => setSource("inter")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                 source === "inter"
-                  ? "bg-background text-orange-600 shadow-sm"
+                  ? "bg-background text-warning shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -124,7 +124,7 @@ export default function CompanyTransfers() {
               <div className="grid gap-4 md:grid-cols-3">
                 <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total Transferido</p><p className="text-xl font-bold font-mono">{fmt(transfersSummary.total)}</p><p className="text-[10px] text-muted-foreground">{transfersSummary.count} transferências</p></CardContent></Card>
                 <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Taxas Pagas</p><p className="text-xl font-bold font-mono text-destructive">{fmt(transfersSummary.fees)}</p></CardContent></Card>
-                <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Pendentes</p><p className="text-xl font-bold font-mono text-yellow-600">{transfersSummary.pending}</p></CardContent></Card>
+                <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Pendentes</p><p className="text-xl font-bold font-mono text-warning">{transfersSummary.pending}</p></CardContent></Card>
               </div>
               <div className="space-y-2">
                 {isLoading ? (
@@ -165,7 +165,7 @@ export default function CompanyTransfers() {
               <div className="grid gap-4 md:grid-cols-3">
                 <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Total Antecipado</p><p className="text-xl font-bold font-mono">{fmt(anticipationsSummary.total)}</p><p className="text-[10px] text-muted-foreground">{anticipationsSummary.count} antecipações</p></CardContent></Card>
                 <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Taxas de Antecipação</p><p className="text-xl font-bold font-mono text-destructive">{fmt(anticipationsSummary.fees)}</p></CardContent></Card>
-                <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Pendentes</p><p className="text-xl font-bold font-mono text-yellow-600">{anticipationsSummary.pending}</p></CardContent></Card>
+                <Card><CardContent className="pt-4"><p className="text-xs text-muted-foreground">Pendentes</p><p className="text-xl font-bold font-mono text-warning">{anticipationsSummary.pending}</p></CardContent></Card>
               </div>
               <div className="space-y-2">
                 {isLoading ? (
@@ -179,7 +179,7 @@ export default function CompanyTransfers() {
                       <div className="bg-card border border-border rounded-lg divide-y divide-border">
                         {items.map((a) => (
                           <div key={a.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
-                            <div className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-purple-500/10 text-purple-600"><TrendingDown className="h-4 w-4" /></div>
+                            <div className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-primary/[0.08] text-primary"><TrendingDown className="h-4 w-4" /></div>
                             <div className="flex-1 min-w-0 space-y-0.5">
                               <p className="text-sm font-medium">Antecipação</p>
                               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -187,7 +187,7 @@ export default function CompanyTransfers() {
                                 {a.installment_count && <span>• {a.installment_count} parcelas</span>}
                               </div>
                               <div className="flex items-center gap-1">
-                                <span className={`text-[10px] px-1.5 py-0 rounded border ${a.status === "CREDITED" ? "text-revenue border-revenue/30" : a.status === "DENIED" ? "text-destructive border-destructive/30" : "text-yellow-600 border-yellow-600/30"}`}>{a.status}</span>
+                                <span className={`text-[10px] px-1.5 py-0 rounded border ${a.status === "CREDITED" ? "text-revenue border-revenue/30" : a.status === "DENIED" ? "text-destructive border-destructive/30" : "text-warning border-warning/30"}`}>{a.status}</span>
                                 {a.fee && Number(a.fee) > 0 && <span className="text-[10px] text-muted-foreground">Taxa: {fmt(Number(a.fee))}</span>}
                               </div>
                             </div>
@@ -297,8 +297,8 @@ export default function CompanyTransfers() {
                             <div
                               className={`flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center ${
                                 tx.type === "revenue"
-                                  ? "bg-emerald-500/10 text-emerald-600"
-                                  : "bg-red-500/10 text-red-600"
+                                  ? "bg-success/[0.08] text-success"
+                                  : "bg-destructive/[0.08] text-destructive"
                               }`}
                             >
                               {tx.type === "revenue" ? (
@@ -314,7 +314,7 @@ export default function CompanyTransfers() {
                                   className={`text-[10px] px-1.5 py-0 rounded border ${
                                     tx.status === "paid"
                                       ? "text-revenue border-revenue/30"
-                                      : "text-yellow-600 border-yellow-600/30"
+                                      : "text-warning border-warning/30"
                                   }`}
                                 >
                                   {tx.status === "paid" ? "Pago" : tx.status}

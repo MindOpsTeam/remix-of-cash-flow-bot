@@ -15,9 +15,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const statusConfig: Record<string, { label: string; className: string; icon: typeof Clock }> = {
-  a_vencer: { label: "A Vencer", className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400", icon: Clock },
-  vencido: { label: "Vencido", className: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400", icon: AlertTriangle },
-  pago: { label: "Pago", className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle2 },
+  a_vencer: { label: "A Vencer", className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning", icon: Clock },
+  vencido: { label: "Vencido", className: "bg-destructive/[0.08] text-destructive dark:bg-destructive/[0.08] dark:text-destructive", icon: AlertTriangle },
+  pago: { label: "Pago", className: "bg-success/[0.08] text-success dark:bg-success/[0.08] dark:text-success", icon: CheckCircle2 },
 };
 
 export default function BillsPayable() {
@@ -50,9 +50,9 @@ export default function BillsPayable() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {([
-            { label: "A Vencer", value: totals.aVencer, className: "bg-amber-100 dark:bg-amber-900/30", iconClass: "text-amber-600", Icon: Clock },
-            { label: "Vencido", value: totals.vencido, className: "bg-red-100 dark:bg-red-900/30", iconClass: "text-red-600", Icon: AlertTriangle },
-            { label: "Pago", value: totals.pago, className: "bg-emerald-100 dark:bg-emerald-900/30", iconClass: "text-emerald-600", Icon: CheckCircle2 },
+            { label: "A Vencer", value: totals.aVencer, className: "bg-warning/[0.08] dark:bg-warning/[0.08]", iconClass: "text-warning", Icon: Clock },
+            { label: "Vencido", value: totals.vencido, className: "bg-destructive/[0.08] dark:bg-destructive/[0.08]", iconClass: "text-destructive", Icon: AlertTriangle },
+            { label: "Pago", value: totals.pago, className: "bg-success/[0.08] dark:bg-success/[0.08]", iconClass: "text-success", Icon: CheckCircle2 },
           ] as const).map(({ label, value, className, iconClass, Icon }) => (
             <Card key={label}><CardContent className="p-4 flex items-center gap-3">
               <div className={`h-9 w-9 rounded-lg ${className} flex items-center justify-center`}><Icon className={`h-4 w-4 ${iconClass}`} /></div>
@@ -95,12 +95,12 @@ export default function BillsPayable() {
                             {statusConfig[b.status]?.label ?? b.status}
                           </span>
                           {b.approval_status === "awaiting_approval" && (
-                            <span className="ml-1 inline-flex items-center rounded-sm bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+                            <span className="ml-1 inline-flex items-center rounded-sm bg-warning/[0.08] px-2 py-0.5 text-xs font-medium text-warning dark:bg-warning/[0.08] dark:text-warning">
                               Aguardando aprovação
                             </span>
                           )}
                           {b.approval_status === "rejected" && (
-                            <span className="ml-1 inline-flex items-center rounded-sm bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                            <span className="ml-1 inline-flex items-center rounded-sm bg-destructive/[0.08] px-2 py-0.5 text-xs font-medium text-destructive dark:bg-destructive/[0.08] dark:text-destructive">
                               Rejeitada
                             </span>
                           )}

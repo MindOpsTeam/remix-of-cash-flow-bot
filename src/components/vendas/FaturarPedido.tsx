@@ -124,8 +124,8 @@ export function FaturarPedido({
           </DialogHeader>
 
           {credito?.estoura && (
-            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-500" />
+            <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/[0.08] p-3 text-xs">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning dark:text-warning" />
               <p className="text-muted-foreground">
                 Este cliente ficará com <span className="font-medium text-foreground">{brl(credito.depois_desta_venda)}</span> em
                 aberto, acima do limite de {brl(Number(credito.limite))}. Hoje ele já deve {brl(credito.em_aberto)}.

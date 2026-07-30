@@ -174,7 +174,7 @@ export default function FocusEmit() {
         </div>
 
         {!pronto && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-4 text-sm flex items-center justify-between gap-4">
+          <div className="rounded-md border border-warning/30 bg-warning/[0.08] p-4 text-sm flex items-center justify-between gap-4">
             <span>Falta configurar a Focus: token do ambiente selecionado, NFS-e habilitada e integração ativa.</span>
             <Button size="sm" variant="outline" asChild>
               <Link to="/settings/integrations/focus">Configurar <ExternalLink className="h-3 w-3 ml-1" /></Link>
@@ -237,7 +237,7 @@ export default function FocusEmit() {
         </section>
 
         {grupoReforma && (
-          <section className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-2">
+          <section className="rounded-lg border border-warning/30 bg-warning/[0.08] p-4 space-y-2">
             <h2 className="font-medium text-sm">Reforma Tributária: o que vai na nota</h2>
             <div className="grid gap-2 sm:grid-cols-3 text-sm">
               <div>

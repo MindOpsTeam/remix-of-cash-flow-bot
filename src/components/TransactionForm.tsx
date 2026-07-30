@@ -14,7 +14,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Compass, Loader2 } from "lucide-react";
 
 interface TransactionFormProps {
   open: boolean;
@@ -235,7 +235,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
               )}
               {aiSuggested && !classifying && (
                 <span className="flex items-center gap-1 text-xs text-revenue">
-                  <Sparkles className="h-3 w-3" /> IA sugeriu
+                  <Compass className="h-3 w-3" /> IA sugeriu
                 </span>
               )}
             </div>

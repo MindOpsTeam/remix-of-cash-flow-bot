@@ -45,9 +45,9 @@ const typeLabels: Record<string, string> = {
 };
 
 const typeBadgeColors: Record<string, string> = {
-  customer: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  supplier: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  both: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
+  customer: "bg-primary/[0.08] text-primary dark:bg-primary/[0.08] dark:text-primary",
+  supplier: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning",
+  both: "bg-primary/[0.08] text-primary dark:bg-primary/[0.08] dark:text-primary",
 };
 
 function formatDoc(doc: string | null, personType: string) {

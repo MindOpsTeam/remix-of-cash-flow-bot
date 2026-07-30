@@ -3,19 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/png" href="/favicon.png">
+    <script>
+      (() => {
+        try {
+          const mode = localStorage.getItem("via-theme");
+          const resolved = mode === "system"
+            ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+            : (mode === "dark" ? "dark" : "light");
+          document.documentElement.dataset.theme = resolved;
+        } catch {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
+    <link rel="icon" type="image/png" href="/favicon-via.png">
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon-via.ico">
     <link rel="manifest" href="/manifest.webmanifest">
-    <link rel="apple-touch-icon" href="/favicon.png">
-    <meta name="theme-color" content="#6478f0">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-via.png">
+    <meta name="theme-color" content="#0A1F3B">
     <meta name="mobile-web-app-capable" content="yes">
     <title>FinanceAI — ERP Financeiro com Agentes de IA</title>
     <meta name="description" content="ERP financeiro multi-CNPJ com agentes de IA: cobrança, fechamento e alertas com aprovação no WhatsApp. Pronto para a Reforma Tributária (CBS/IBS) e NFS-e Nacional.">
     <meta name="author" content="FinanceAI" />
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/d3264edc-68cf-4da1-9684-fdc700ffaf74/id-preview-a5cac8f6--caeb2311-80a4-4aa6-8346-d94481038248.lovable.app-1771449170276.png">

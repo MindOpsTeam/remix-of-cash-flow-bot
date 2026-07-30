@@ -8,8 +8,8 @@ function fmt(v: number) {
 
 const statusColors: Record<string, string> = {
   DONE: "text-revenue border-revenue/30",
-  PENDING: "text-yellow-600 border-yellow-600/30",
-  IN_BANK_PROCESSING: "text-blue-600 border-blue-600/30",
+  PENDING: "text-warning border-warning/30",
+  IN_BANK_PROCESSING: "text-primary border-primary/30",
   BLOCKED: "text-destructive border-destructive/30",
   FAILED: "text-destructive border-destructive/30",
   CANCELLED: "text-muted-foreground border-muted-foreground/30",
@@ -37,7 +37,7 @@ export function TransferItem({ transfer: t }: TransferItemProps) {
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
-      <div className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-blue-500/10 text-blue-600">
+      <div className="flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-primary/[0.08] text-primary">
         <ArrowUpDown className="h-4 w-4" />
       </div>
 

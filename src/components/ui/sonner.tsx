@@ -1,10 +1,10 @@
-import { useTheme } from "next-themes";
+import { useTheme } from "@viverdeia/design-system";
 import { Toaster as Sonner, toast } from "sonner";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const { theme } = useTheme();
 
   return (
     <Sonner
@@ -14,8 +14,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-[hsl(240,8%,7%)] group-[.toaster]:text-[hsl(240,5%,90%)] group-[.toaster]:border-[hsl(240,4%,16%)] group-[.toaster]:shadow-dropdown group-[.toaster]:rounded-lg",
-          description: "group-[.toast]:text-[hsl(240,5%,65%)]",
+            "group toast group-[.toaster]:bg-popover group-[.toaster]:text-popover-foreground group-[.toaster]:border-border group-[.toaster]:shadow-dropdown group-[.toaster]:rounded-lg",
+          description: "group-[.toast]:text-muted-foreground",
           actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
         },

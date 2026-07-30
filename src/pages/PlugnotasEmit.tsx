@@ -89,15 +89,15 @@ export default function PlugnotasEmitPage() {
               <FileText className="h-6 w-6" /> PlugNotas
             </h1>
           </div>
-          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
+          <Card className="border-warning/30 bg-warning/[0.08] dark:bg-warning/[0.08] dark:border-warning/30">
             <CardContent className="py-5 px-5">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                  <p className="text-sm font-medium text-warning dark:text-warning">
                     {config ? "Integração inativa" : "PlugNotas não configurado"}
                   </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-500">
+                  <p className="text-xs text-warning dark:text-warning">
                     {config
                       ? "Reative a integração nas configurações antes de emitir."
                       : "Configure a integração antes de emitir documentos fiscais."}
@@ -128,15 +128,15 @@ export default function PlugnotasEmitPage() {
             </Link>
             <h1 className="text-2xl font-bold tracking-[-0.02em]">PlugNotas</h1>
           </div>
-          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
+          <Card className="border-warning/30 bg-warning/[0.08] dark:bg-warning/[0.08] dark:border-warning/30">
             <CardContent className="py-5 px-5">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                  <p className="text-sm font-medium text-warning dark:text-warning">
                     Empresa emissora não vinculada
                   </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-500">
+                  <p className="text-xs text-warning dark:text-warning">
                     Para emitir documentos, vincule o CNPJ da empresa nas configurações e envie o certificado A1.
                   </p>
                   <Link to="/settings/integrations/plugnotas">

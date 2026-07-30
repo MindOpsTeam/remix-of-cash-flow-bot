@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/select";
 import {
   ScanLine, Check, RotateCcw, FileText, ArrowLeftRight,
-  Receipt, CreditCard, QrCode, FileSpreadsheet, Sparkles, Clock,
+  Receipt, CreditCard, QrCode, FileSpreadsheet, Compass, Clock,
   Paperclip, Loader2, UserPlus, UserCheck,
 } from "lucide-react";
 import { DocumentUploader } from "@/components/DocumentUploader";
@@ -222,7 +222,7 @@ export default function DocumentScanner() {
                     </p>
                     {result.classification_confidence && (
                       <div className="flex items-center gap-1 mt-0.5">
-                        <Sparkles className="h-3 w-3 text-primary" />
+                        <Compass className="h-3 w-3 text-primary" />
                         <span className="text-[10px] text-muted-foreground">
                           Confiança: {result.classification_confidence === "high" ? "Alta" : result.classification_confidence === "medium" ? "Média" : "Baixa"}
                         </span>
@@ -232,7 +232,7 @@ export default function DocumentScanner() {
                 </div>
                 <Badge
                   variant="outline"
-                  className={`text-xs ${editStatus === "pending" ? "border-amber-500 text-amber-600" : ""}`}
+                  className={`text-xs ${editStatus === "pending" ? "border-warning/30 text-warning" : ""}`}
                 >
                   {editStatus === "pending" && <Clock className="h-3 w-3 mr-1" />}
                   {statusLabel}
@@ -265,7 +265,7 @@ export default function DocumentScanner() {
               {(contactName || contactDoc) && (
                 <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg border ${
                   contactInfo?.exists
-                    ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-700"
+                    ? "bg-success/[0.08] border-success/30 text-success"
                     : "bg-primary/5 border-primary/20 text-primary"
                 }`}>
                   {contactInfo?.exists ? (
@@ -287,7 +287,7 @@ export default function DocumentScanner() {
 
               {/* Revenue NF indicator */}
               {editType === "revenue" && (result.document_type === "nota_fiscal" || result.document_type === "nfse") && (
-                <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border bg-blue-500/5 border-blue-500/20 text-blue-700">
+                <div className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border bg-primary/[0.08] border-primary/30 text-primary">
                   <FileSpreadsheet className="h-3.5 w-3.5 flex-shrink-0" />
                   <span>Nota fiscal será registrada em <strong>Vendas → Notas Fiscais</strong></span>
                 </div>
@@ -416,7 +416,7 @@ export default function DocumentScanner() {
                         {new Date(scan.date + "T00:00:00").toLocaleDateString("pt-BR")}
                       </p>
                       {scan.status === "pending" && (
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-500 text-amber-600">
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-warning/30 text-warning">
                           A Pagar
                         </Badge>
                       )}

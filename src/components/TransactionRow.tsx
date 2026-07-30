@@ -40,10 +40,10 @@ export function TransactionRow({ transaction, onEdit, onDelete }: TransactionRow
   const isExternal = transaction.source === "asaas" || transaction.source === "bank";
 
   return (
-    <div className="flex items-center justify-between py-3 px-4 border-b border-[hsl(240,5%,96%)] hover:bg-background transition-colors duration-150 group">
+    <div className="group flex items-center justify-between border-b border-border/70 px-4 py-3 transition-colors duration-150 hover:bg-muted/40">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className={`h-8 w-8 rounded-md flex items-center justify-center shrink-0 ${
-          isRevenue ? "bg-[hsl(152,81%,96%)] text-revenue" : "bg-[hsl(356,100%,97%)] text-expense"
+          isRevenue ? "bg-success/[0.08] text-revenue" : "bg-destructive/[0.08] text-expense"
         }`}>
           {sourceIcons[transaction.source]}
         </div>

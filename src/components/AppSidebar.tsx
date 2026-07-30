@@ -2,7 +2,8 @@ import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
-import logo from "@/assets/logo.png";
+import appIcon from "@/assets/via/app-icon.png";
+import { Pill } from "@viverdeia/design-system";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -196,9 +197,10 @@ function NavLink({
     <Link
       to={item.to}
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-150 ${
+      aria-current={isActive ? "page" : undefined}
+      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-150 ${
         isActive
-          ? "bg-primary/[0.12] text-sidebar-primary font-medium"
+          ? "bg-primary/[0.08] text-sidebar-primary font-semibold shadow-[inset_2px_0_0_hsl(var(--sidebar-primary))]"
           : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
       }`}
     >
@@ -230,6 +232,7 @@ function NavGroupSection({
     <div>
       <button
         onClick={onToggle}
+        aria-expanded={isOpen}
         className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm w-full transition-all duration-150 ${
           hasActive && !isOpen
             ? "text-sidebar-primary font-medium"
@@ -271,7 +274,8 @@ function PersonaSelector({ persona, onChange }: { persona: Persona; onChange: (p
     <div className="relative px-3 mb-2">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-left transition-colors hover:bg-sidebar-accent"
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-sidebar-accent/60 px-3 py-2 text-left shadow-[inset_0_1px_0_var(--via-edge-hi)] transition-all duration-150 hover:border-sidebar-primary/20 hover:bg-sidebar-accent"
       >
         <div className="flex-1 min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-sidebar-muted">Perfil</div>
@@ -352,12 +356,17 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       {/* Logo */}
-      <div className="p-5 pb-3">
+      <div className="p-5 pb-4">
         <div className="flex items-center gap-3">
-          <img src={logo} alt="FinanceAI" className="h-8 w-8 rounded-lg" />
-          <div>
-            <h1 className="text-base font-bold text-sidebar-foreground tracking-tight">FinanceAI</h1>
-            <p className="text-[11px] text-sidebar-muted">ERP Financeiro</p>
+          <img src={appIcon} alt="Viver de IA" className="via-brand-icon h-9 w-9 rounded-lg" />
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-semibold tracking-[-0.02em] text-sidebar-foreground">
+              FinanceAI
+            </h1>
+            <div className="mt-0.5 flex items-center gap-1.5">
+              <Pill size="sm">ERP financeiro</Pill>
+              <span className="sr-only">por Viver de IA</span>
+            </div>
           </div>
         </div>
       </div>
@@ -410,7 +419,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Active Company */}
       {company && (
-        <div className="p-3 mx-3 mb-4 rounded-md bg-sidebar-accent">
+        <div className="via-sidebar-company mx-3 mb-4 rounded-md p-3">
           <p className="text-[11px] text-sidebar-muted mb-0.5">Empresa ativa</p>
           <p className="text-[13px] font-medium text-sidebar-foreground">{company.name}</p>
           {company.cnpj && <p className="text-[11px] text-sidebar-muted">{company.cnpj}</p>}
@@ -424,7 +433,10 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppSidebar() {
   return (
-    <aside className="hidden lg:flex w-60 shrink-0 flex-col bg-sidebar border-r border-sidebar-border sticky top-0 h-screen overflow-hidden">
+    <aside
+      className="via-sidebar sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar lg:flex"
+      aria-label="Navegação principal"
+    >
       <div className="flex flex-col h-full overflow-hidden">
         <SidebarContent />
       </div>

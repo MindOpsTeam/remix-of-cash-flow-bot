@@ -47,7 +47,7 @@ export function KPICard({ label, value, change, icon, format = "currency", delay
 
   return (
     <div 
-      className="bg-card border border-border rounded-lg p-5 shadow-card transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] hover:shadow-card-hover hover:border-[hsl(240,4%,84%)] hover:-translate-y-px animate-slide-up"
+      className="via-glass-panel animate-slide-up p-5 transition-[transform,box-shadow,border-color] duration-200 ease-via-snap hover:-translate-y-px hover:border-primary/15 hover:shadow-card-hover"
       style={{ animationDelay: `${delay}ms`, animationFillMode: "backwards" }}
     >
       <div className="flex items-start justify-between mb-3">
@@ -56,7 +56,7 @@ export function KPICard({ label, value, change, icon, format = "currency", delay
           {icon}
         </div>
       </div>
-      <p className="text-[32px] font-bold text-foreground tracking-[-0.03em] leading-tight font-mono animate-count-up">{formattedValue}</p>
+      <p className="animate-count-up font-mono text-[32px] font-semibold leading-tight tracking-[-0.035em] text-foreground">{formattedValue}</p>
       <div className="flex items-center gap-1.5 mt-2">
         {isPositive ? (
           <TrendingUp className="h-3.5 w-3.5 text-revenue" />

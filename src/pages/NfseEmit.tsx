@@ -254,15 +254,15 @@ export default function NfseEmitPage() {
 
         {/* Provider selector — only shown when PlugNotas is also available */}
         {plugnotasAvailable && (
-          <Card className="border-sky-200 bg-sky-50 dark:bg-sky-900/10 dark:border-sky-800">
+          <Card className="border-primary/30 bg-primary/[0.08] dark:bg-primary/[0.08] dark:border-primary/30">
             <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
               <div className="flex items-start gap-2">
-                <Layers className="h-4 w-4 text-sky-600 mt-0.5 shrink-0" />
+                <Layers className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-medium text-sky-900 dark:text-sky-300">
+                  <p className="text-xs font-medium text-primary dark:text-primary">
                     PlugNotas também está habilitado para NFSe nessa empresa
                   </p>
-                  <p className="text-[11px] text-sky-700 dark:text-sky-400/80 mt-0.5">
+                  <p className="text-[11px] text-primary dark:text-primary/80 mt-0.5">
                     Use o provedor que melhor atende o município ou tipo de operação.
                   </p>
                 </div>
@@ -278,16 +278,16 @@ export default function NfseEmitPage() {
 
         {/* Focus NFe como provedor alternativo */}
         {focusAvailable && (
-          <Card className="border-violet-200 bg-violet-50 dark:bg-violet-900/10 dark:border-violet-800">
+          <Card className="border-primary/30 bg-primary/[0.08] dark:bg-primary/[0.08] dark:border-primary/30">
             <CardContent className="py-3 px-4 flex items-center justify-between gap-3">
               <div className="flex items-start gap-2">
-                <Layers className="h-4 w-4 text-violet-600 mt-0.5 shrink-0" />
+                <Layers className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                 <div>
-                  <p className="text-xs font-medium text-violet-900 dark:text-violet-300">
+                  <p className="text-xs font-medium text-primary dark:text-primary">
                     Focus NFe também está habilitada para NFS-e nessa empresa
                     {focusConfig?.environment === "homologacao" && " (ambiente de teste)"}
                   </p>
-                  <p className="text-[11px] text-violet-700 dark:text-violet-400/80 mt-0.5">
+                  <p className="text-[11px] text-primary dark:text-primary/80 mt-0.5">
                     Busca o tomador pelo CNPJ e devolve PDF e XML na mesma tela.
                   </p>
                 </div>
@@ -303,27 +303,27 @@ export default function NfseEmitPage() {
 
         {/* Not configured: guia de ativação em 3 passos */}
         {!configLoading && !isConfigured && (
-          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
+          <Card className="border-warning/30 bg-warning/[0.08] dark:bg-warning/[0.08] dark:border-warning/30">
             <CardContent className="py-4 px-5">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+              <p className="text-sm font-medium text-warning dark:text-warning">
                 Ative a emissão NFS-e Nacional em 3 passos
               </p>
-              <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
+              <p className="text-xs text-warning dark:text-warning mt-1">
                 A partir de <strong>01/09/2026</strong> o Emissor Nacional é obrigatório para
                 empresas do Simples Nacional (Resolução CGSN 189/2026). Emitindo por aqui você
                 já fica em conformidade — sem custo por nota.
               </p>
-              <ol className="mt-3 space-y-1.5 text-xs text-amber-800 dark:text-amber-400">
+              <ol className="mt-3 space-y-1.5 text-xs text-warning dark:text-warning">
                 <li className="flex gap-2">
-                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-900 dark:bg-amber-800 dark:text-amber-200">1</span>
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-warning/[0.08] text-[10px] font-bold text-warning dark:bg-warning/[0.08] dark:text-warning">1</span>
                   Envie o certificado digital A1 (.pfx) da empresa e a senha
                 </li>
                 <li className="flex gap-2">
-                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-900 dark:bg-amber-800 dark:text-amber-200">2</span>
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-warning/[0.08] text-[10px] font-bold text-warning dark:bg-warning/[0.08] dark:text-warning">2</span>
                   Confirme inscrição municipal e código de serviço padrão
                 </li>
                 <li className="flex gap-2">
-                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[10px] font-bold text-amber-900 dark:bg-amber-800 dark:text-amber-200">3</span>
+                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-warning/[0.08] text-[10px] font-bold text-warning dark:bg-warning/[0.08] dark:text-warning">3</span>
                   Teste a conexão e emita a primeira nota nesta tela
                 </li>
               </ol>
@@ -338,21 +338,21 @@ export default function NfseEmitPage() {
 
         {/* Success result */}
         {result?.success && (
-          <Card className="border-emerald-200 bg-emerald-50 dark:bg-emerald-900/10 dark:border-emerald-800">
+          <Card className="border-success/30 bg-success/[0.08] dark:bg-success/[0.08] dark:border-success/30">
             <CardContent className="py-5 px-5">
               <div className="flex items-start gap-3">
-                <FileCheck className="h-5 w-5 text-emerald-600 mt-0.5" />
+                <FileCheck className="h-5 w-5 text-success mt-0.5" />
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">
+                  <p className="text-sm font-medium text-success dark:text-success">
                     NFS-e emitida com sucesso!
                   </p>
                   {result.chaveAcesso && (
-                    <p className="text-xs font-mono text-emerald-700 dark:text-emerald-500">
+                    <p className="text-xs font-mono text-success dark:text-success">
                       Chave: {result.chaveAcesso}
                     </p>
                   )}
                   {result.idDPS && (
-                    <p className="text-xs font-mono text-emerald-700 dark:text-emerald-500">
+                    <p className="text-xs font-mono text-success dark:text-success">
                       ID DPS: {result.idDPS}
                     </p>
                   )}
@@ -513,12 +513,12 @@ export default function NfseEmitPage() {
 
             {/* Error result */}
             {result && !result.success && (
-              <Card className="border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-800">
+              <Card className="border-destructive/30 bg-destructive/[0.08] dark:bg-destructive/[0.08] dark:border-destructive/30">
                 <CardContent className="py-4 px-5">
-                  <p className="text-sm font-medium text-red-800 dark:text-red-400">
+                  <p className="text-sm font-medium text-destructive dark:text-destructive">
                     Erro na emissao
                   </p>
-                  <p className="text-xs text-red-700 dark:text-red-500 mt-1 font-mono">
+                  <p className="text-xs text-destructive dark:text-destructive mt-1 font-mono">
                     {result.error || JSON.stringify(result)}
                   </p>
                 </CardContent>

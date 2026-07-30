@@ -13,9 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const typeConfig: Record<string, { label: string; icon: typeof FileText; className: string }> = {
-  contrato: { label: "Contrato", icon: FileText, className: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-  xml: { label: "XML", icon: FileArchive, className: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
-  certificado: { label: "Certificado", icon: FileKey, className: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+  contrato: { label: "Contrato", icon: FileText, className: "bg-primary/[0.08] text-primary dark:bg-primary/[0.08] dark:text-primary" },
+  xml: { label: "XML", icon: FileArchive, className: "bg-primary/[0.08] text-primary dark:bg-primary/[0.08] dark:text-primary" },
+  certificado: { label: "Certificado", icon: FileKey, className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning" },
   outro: { label: "Outro", icon: Files, className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400" },
 };
 
@@ -54,9 +54,9 @@ export default function FiscalFiles() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {([
             { label: "Total", value: counts.total, Icon: Files, bg: "bg-muted" },
-            { label: "Contratos", value: counts.contratos, Icon: FileText, bg: "bg-blue-100 dark:bg-blue-900/30" },
-            { label: "XMLs", value: counts.xmls, Icon: FileArchive, bg: "bg-purple-100 dark:bg-purple-900/30" },
-            { label: "Certificados", value: counts.certificados, Icon: FileKey, bg: "bg-amber-100 dark:bg-amber-900/30" },
+            { label: "Contratos", value: counts.contratos, Icon: FileText, bg: "bg-primary/[0.08] dark:bg-primary/[0.08]" },
+            { label: "XMLs", value: counts.xmls, Icon: FileArchive, bg: "bg-primary/[0.08] dark:bg-primary/[0.08]" },
+            { label: "Certificados", value: counts.certificados, Icon: FileKey, bg: "bg-warning/[0.08] dark:bg-warning/[0.08]" },
           ] as const).map(({ label, value, Icon, bg }) => (
             <Card key={label}><CardContent className="p-4 flex items-center gap-3">
               <div className={`h-9 w-9 rounded-lg ${bg} flex items-center justify-center`}><Icon className="h-4 w-4 text-foreground/60" /></div>
