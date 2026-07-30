@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
-import appIcon from "@/assets/via/app-icon.png";
+import appIconWhite from "@/assets/via/app-icon-white.png";
 import { Pill } from "@viverdeia/design-system";
 import {
   LayoutDashboard,
@@ -200,7 +200,7 @@ function NavLink({
       aria-current={isActive ? "page" : undefined}
       className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-150 ${
         isActive
-          ? "bg-primary/[0.08] text-sidebar-primary font-semibold shadow-[inset_2px_0_0_hsl(var(--sidebar-primary))]"
+          ? "bg-sidebar-accent text-sidebar-primary font-semibold shadow-[inset_2px_0_0_hsl(var(--sidebar-primary))]"
           : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
       }`}
     >
@@ -331,9 +331,8 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   // Auto-abre a seção da rota atual
   useEffect(() => {
     const active = getActiveGroup(sections, location.pathname);
-    if (active && !openGroups.has(active)) {
-      setOpenGroups((prev) => new Set([...prev, active]));
-    }
+    if (!active) return;
+    setOpenGroups((prev) => prev.has(active) ? prev : new Set([...prev, active]));
   }, [location.pathname]);
 
   const changePersona = (p: Persona) => {
@@ -358,13 +357,13 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Logo */}
       <div className="p-5 pb-4">
         <div className="flex items-center gap-3">
-          <img src={appIcon} alt="Viver de IA" className="via-brand-icon h-9 w-9 rounded-lg" />
+          <img src={appIconWhite} alt="Viver de IA" className="via-sidebar-brand-icon h-9 w-9 rounded-lg" />
           <div className="min-w-0">
             <h1 className="truncate text-base font-semibold tracking-[-0.02em] text-sidebar-foreground">
               FinanceAI
             </h1>
             <div className="mt-0.5 flex items-center gap-1.5">
-              <Pill size="sm">ERP financeiro</Pill>
+              <Pill size="sm" className="via-sidebar-pill">ERP financeiro</Pill>
               <span className="sr-only">por Viver de IA</span>
             </div>
           </div>
