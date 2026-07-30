@@ -55,13 +55,13 @@ export default function ReformaImpactoClientes() {
         ) : (
           <>
             {/* Mensagem-chave */}
-            <Card className="border-amber-300/50 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-900/10">
+            <Card className="border-warning/30 bg-warning/[0.08] dark:border-warning/30 dark:bg-warning/[0.08]">
               <CardContent className="p-5 flex items-start gap-3">
-                <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <div className="h-9 w-9 rounded-lg bg-warning/[0.08] dark:bg-warning/[0.08] flex items-center justify-center shrink-0">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
                 </div>
                 <p className="text-sm text-foreground">
-                  No <strong>Simples padrão</strong>, seus <strong>{credito.clientesB2B}</strong> cliente{credito.clientesB2B > 1 ? "s" : ""} PJ perde{credito.clientesB2B > 1 ? "m" : ""} cerca de <strong className="tabular-nums text-amber-700 dark:text-amber-400">{formatCurrency(credito.creditoEmRiscoTotal)}/ano</strong> de crédito de CBS/IBS comprando de você (referência {ano === ANO_PLENO ? "2033, regime pleno" : ano}). Recolhendo <strong>por fora (Híbrido)</strong>, esse crédito vira <strong>vantagem competitiva</strong> — e evita pressão por desconto ou troca de fornecedor.
+                  No <strong>Simples padrão</strong>, seus <strong>{credito.clientesB2B}</strong> cliente{credito.clientesB2B > 1 ? "s" : ""} PJ perde{credito.clientesB2B > 1 ? "m" : ""} cerca de <strong className="tabular-nums text-warning dark:text-warning">{formatCurrency(credito.creditoEmRiscoTotal)}/ano</strong> de crédito de CBS/IBS comprando de você (referência {ano === ANO_PLENO ? "2033, regime pleno" : ano}). Recolhendo <strong>por fora (Híbrido)</strong>, esse crédito vira <strong>vantagem competitiva</strong> — e evita pressão por desconto ou troca de fornecedor.
                 </p>
               </CardContent>
             </Card>
@@ -69,9 +69,9 @@ export default function ReformaImpactoClientes() {
             {/* KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {([
-                { label: "Crédito em risco (Simples)", value: formatCurrency(credito.creditoEmRiscoTotal), Icon: AlertTriangle, cls: "bg-amber-100 dark:bg-amber-900/30", ic: "text-amber-600" },
-                { label: "Crédito cheio (por fora)", value: formatCurrency(credito.creditoCheioTotal), Icon: ShieldCheck, cls: "bg-emerald-100 dark:bg-emerald-900/30", ic: "text-emerald-600" },
-                { label: "Receita B2B / ano", value: formatCurrency(credito.receitaB2B), Icon: Users, cls: "bg-blue-100 dark:bg-blue-900/30", ic: "text-blue-600" },
+                { label: "Crédito em risco (Simples)", value: formatCurrency(credito.creditoEmRiscoTotal), Icon: AlertTriangle, cls: "bg-warning/[0.08] dark:bg-warning/[0.08]", ic: "text-warning" },
+                { label: "Crédito cheio (por fora)", value: formatCurrency(credito.creditoCheioTotal), Icon: ShieldCheck, cls: "bg-success/[0.08] dark:bg-success/[0.08]", ic: "text-success" },
+                { label: "Receita B2B / ano", value: formatCurrency(credito.receitaB2B), Icon: Users, cls: "bg-primary/[0.08] dark:bg-primary/[0.08]", ic: "text-primary" },
               ] as const).map(({ label, value, Icon, cls, ic }) => (
                 <Card key={label}><CardContent className="p-4 flex items-center gap-3">
                   <div className={`h-9 w-9 rounded-lg ${cls} flex items-center justify-center`}><Icon className={`h-4 w-4 ${ic}`} /></div>
@@ -101,7 +101,7 @@ export default function ReformaImpactoClientes() {
                           <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{formatCurrency(c.receitaAno)}</td>
                           <td className="px-4 py-2.5 text-right tabular-nums">{formatCurrency(c.creditoCheio)}</td>
                           <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{formatCurrency(c.creditoSimples)}</td>
-                          <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-amber-700 dark:text-amber-400">{formatCurrency(c.creditoEmRisco)}</td>
+                          <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-warning dark:text-warning">{formatCurrency(c.creditoEmRisco)}</td>
                         </tr>
                       ))}
                     </tbody>

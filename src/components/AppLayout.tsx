@@ -5,6 +5,7 @@ import { NotificationBell } from "./NotificationBell";
 import { CompanyScopeSwitcher } from "./company/CompanyScopeSwitcher";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { ViaThemeToggle } from "@/components/ViaThemeToggle";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -14,12 +15,15 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="via-app-shell flex min-h-screen">
+      <a href="#financeai-main" className="via-skip-link">
+        Pular para o conteúdo
+      </a>
       <AppSidebar />
 
       {/* Mobile drawer */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0 bg-sidebar border-sidebar-border">
+        <SheetContent side="left" className="via-sidebar w-64 border-sidebar-border bg-sidebar p-0">
           <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
           <div className="flex flex-col h-full">
             <SidebarContent onNavigate={() => setMobileOpen(false)} />
@@ -27,12 +31,12 @@ export function AppLayout({ children }: AppLayoutProps) {
         </SheetContent>
       </Sheet>
 
-      <main className="flex-1 overflow-auto">
-        <div className="flex items-center justify-between px-6 pt-4 lg:px-10">
+      <main id="financeai-main" className="via-app-main flex-1 overflow-auto" tabIndex={-1}>
+        <div className="via-topbar flex items-center justify-between px-5 lg:px-7">
           {/* Hamburger - mobile only */}
           <button
             onClick={() => setMobileOpen(true)}
-            className="lg:hidden p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="-ml-2 rounded-md p-2 text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground lg:hidden"
             aria-label="Abrir menu"
           >
             <Menu className="h-5 w-5" />
@@ -41,9 +45,10 @@ export function AppLayout({ children }: AppLayoutProps) {
           <div className="flex items-center gap-3">
             <CompanyScopeSwitcher />
             <NotificationBell />
+            <ViaThemeToggle />
           </div>
         </div>
-        <div className="p-6 lg:px-10 lg:py-4 max-w-[1400px] mx-auto animate-fade-in">
+        <div className="via-page via-route-enter">
           {children}
         </div>
       </main>

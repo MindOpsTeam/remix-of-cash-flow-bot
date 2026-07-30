@@ -111,10 +111,10 @@ export function Cliente360({ contactId }: { contactId: string }) {
       {data.credit_limit != null && Number(data.credit_limit) > 0 && (
         <div
           className={`flex items-start gap-2 rounded-md border p-3 text-xs ${
-            estourou ? "border-amber-500/40 bg-amber-500/10" : "border-border"
+            estourou ? "border-warning/30 bg-warning/[0.08]" : "border-border"
           }`}
         >
-          {estourou && <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-500" />}
+          {estourou && <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning dark:text-warning" />}
           <p className="text-muted-foreground">
             Limite de crédito {brl(data.credit_limit)} ·{" "}
             <span className={estourou ? "font-medium text-foreground" : ""}>

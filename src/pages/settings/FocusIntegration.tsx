@@ -258,7 +258,7 @@ export default function FocusIntegration() {
           </div>
 
           {ambiente === "producao" && (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+            <div className="rounded-md border border-warning/30 bg-warning/[0.08] p-3 text-sm">
               <strong>Atenção.</strong> Em produção, cada emissão é um ato fiscal irreversível. A NFC-e só pode ser
               cancelada em até 30 minutos, e a NF-e em geral em 24 horas.
             </div>

@@ -9,11 +9,11 @@ function fmt(v: number) {
 
 const statusColors: Record<string, string> = {
   PAID: "text-revenue border-revenue/30",
-  PENDING: "text-yellow-600 border-yellow-600/30",
-  BANK_PROCESSING: "text-blue-600 border-blue-600/30",
+  PENDING: "text-warning border-warning/30",
+  BANK_PROCESSING: "text-primary border-primary/30",
   CANCELLED: "text-muted-foreground border-muted-foreground/30",
   FAILED: "text-destructive border-destructive/30",
-  REFUNDED: "text-purple-600 border-purple-600/30",
+  REFUNDED: "text-primary border-primary/30",
 };
 
 const statusLabels: Record<string, string> = {
@@ -38,7 +38,7 @@ export function BillItem({ bill: b, onMarkPaid }: BillItemProps) {
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors ${isOverdue ? "border-l-2 border-l-destructive" : ""}`}>
-      <div className={`flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center ${isOverdue ? "bg-destructive/10 text-destructive" : "bg-orange-500/10 text-orange-600"}`}>
+      <div className={`flex-shrink-0 h-9 w-9 rounded-full flex items-center justify-center ${isOverdue ? "bg-destructive/10 text-destructive" : "bg-warning/[0.08] text-warning"}`}>
         <Receipt className="h-4 w-4" />
       </div>
 
@@ -63,7 +63,7 @@ export function BillItem({ bill: b, onMarkPaid }: BillItemProps) {
             </Badge>
           )}
           {isManual && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-blue-600 border-blue-600/30">
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-primary border-primary/30">
               Manual
             </Badge>
           )}

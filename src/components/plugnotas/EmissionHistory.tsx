@@ -44,12 +44,12 @@ interface PlugnotasDocument {
 }
 
 const statusColors: Record<string, string> = {
-  enviado: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  processando: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  autorizado: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  enviado: "bg-primary/[0.08] text-primary dark:bg-primary/[0.08] dark:text-primary",
+  processando: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning",
+  autorizado: "bg-success/[0.08] text-success dark:bg-success/[0.08] dark:text-success",
   cancelado: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
-  rejeitado: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  erro: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  rejeitado: "bg-destructive/[0.08] text-destructive dark:bg-destructive/[0.08] dark:text-destructive",
+  erro: "bg-destructive/[0.08] text-destructive dark:bg-destructive/[0.08] dark:text-destructive",
 };
 
 export function EmissionHistory() {

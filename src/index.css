@@ -1,185 +1,268 @@
+@font-face {
+  font-family: "Geist";
+  src: url("./assets/via/fonts/Geist-Variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist";
+  src: url("./assets/via/fonts/Geist-Italic-Variable.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./assets/via/fonts/GeistMono-Variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./assets/via/fonts/GeistMono-Italic-Variable.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Ponte semântica FinanceAI ↔ Viver de IA.
+ *
+ * O ERP usa cores Tailwind no formato `hsl(var(--token))`, enquanto o
+ * design system canônico publica `--via-*` como hex/rgba/gradiente. Mantemos
+ * os canais HSL abaixo para preservar modificadores de opacidade (`/10`,
+ * `/40`) e ligamos cada papel visual ao valor equivalente do DS.
+ */
 @layer base {
   :root {
-    --background: 60 11% 97%;
-    --foreground: 0 0% 10%;
+    color-scheme: light;
+
+    --background: 220 23.1% 97.5%;
+    --foreground: 214.3 71% 13.5%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 214.3 71% 13.5%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
+    --popover-foreground: 214.3 71% 13.5%;
 
-    --primary: 239 84% 67%;
+    --primary: 214.3 71% 13.5%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 0 0% 10%;
+    --secondary: 220 23.1% 97.5%;
+    --secondary-foreground: 214.3 71% 13.5%;
 
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 218.6 15.1% 36.5%;
 
-    --accent: 240 5% 96%;
-    --accent-foreground: 0 0% 10%;
+    --accent: 214.2 52% 24.5%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 347 77% 60%;
+    --destructive: 0 39.3% 54.1%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 84% 39%;
+    --success: 153.6 63.3% 33.1%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 10%;
+    /* Atenção no DS é navy/accent, nunca amarelo. */
+    --warning: 214.2 52% 24.5%;
+    --warning-foreground: 0 0% 100%;
 
-    --info: 239 84% 67%;
+    --info: 214 62% 47.5%;
     --info-foreground: 0 0% 100%;
 
-    --revenue: 160 84% 39%;
-    --expense: 347 77% 60%;
+    --revenue: 153.6 63.3% 33.1%;
+    --expense: 0 39.3% 54.1%;
 
-    --border: 240 5% 90%;
-    --input: 240 5% 90%;
-    --ring: 239 84% 67%;
+    --border: 214.3 26% 88%;
+    --input: 214.3 26% 88%;
+    --ring: 214.3 71% 13.5%;
+    --input-bg: 220 23.1% 97.5%;
 
-    --input-bg: 40 13% 96%;
+    --radius: var(--via-radius-md);
 
-    --radius: 0.75rem;
+    --chart-1: 214 62% 47.5%;
+    --chart-2: 213.5 76.6% 71.6%;
+    --chart-3: 214.3 71% 13.5%;
+    --chart-4: 153.6 63.3% 33.1%;
+    --chart-5: 0 39.3% 54.1%;
 
-    --chart-1: 239 84% 67%;
-    --chart-2: 160 84% 39%;
-    --chart-3: 347 77% 60%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 217 91% 60%;
-
-    --sidebar-background: 240 8% 7%;
-    --sidebar-foreground: 240 5% 90%;
-    --sidebar-primary: 232 94% 74%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 214.3 71% 13.5%;
+    --sidebar-primary: 214.3 71% 13.5%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 6% 12%;
-    --sidebar-accent-foreground: 240 5% 90%;
-    --sidebar-border: 240 4% 16%;
-    --sidebar-ring: 239 84% 67%;
-    --sidebar-muted: 240 4% 46%;
+    --sidebar-accent: 220 23.1% 97.5%;
+    --sidebar-accent-foreground: 214.3 71% 13.5%;
+    --sidebar-border: 214.3 26% 91%;
+    --sidebar-ring: 214.3 71% 13.5%;
+    --sidebar-muted: 220.6 13.2% 46.1%;
   }
 
-  .dark {
-    --background: 240 5% 3%;
-    --foreground: 240 5% 90%;
+  [data-theme="dark"] {
+    color-scheme: dark;
 
-    --card: 240 6% 10%;
-    --card-foreground: 240 5% 90%;
+    --background: 220 48.8% 8.4%;
+    --foreground: 220 37.5% 96.9%;
 
-    --popover: 240 6% 10%;
-    --popover-foreground: 240 5% 90%;
+    --card: 221.4 43.3% 13.1%;
+    --card-foreground: 220 37.5% 96.9%;
 
-    --primary: 232 94% 74%;
-    --primary-foreground: 240 5% 3%;
+    --popover: 220 40% 17.6%;
+    --popover-foreground: 220 37.5% 96.9%;
 
-    --secondary: 240 4% 16%;
-    --secondary-foreground: 240 5% 90%;
+    --primary: 220 37.5% 96.9%;
+    --primary-foreground: 214.3 71% 13.5%;
 
-    --muted: 240 4% 16%;
-    --muted-foreground: 240 5% 65%;
+    --secondary: 220 40% 17.6%;
+    --secondary-foreground: 216.9 16% 84.1%;
 
-    --accent: 240 4% 16%;
-    --accent-foreground: 240 5% 90%;
+    --muted: 220 40% 17.6%;
+    --muted-foreground: 215 17.4% 72.9%;
 
-    --destructive: 347 77% 60%;
+    --accent: 213.5 76.6% 71.6%;
+    --accent-foreground: 220 48.8% 8.4%;
+
+    --destructive: 0 45% 62%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 64% 52%;
-    --success-foreground: 0 0% 3%;
+    --success: 153.6 48% 52%;
+    --success-foreground: 220 48.8% 8.4%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 3%;
+    --warning: 213.5 76.6% 71.6%;
+    --warning-foreground: 220 48.8% 8.4%;
 
-    --revenue: 160 64% 52%;
-    --expense: 350 89% 72%;
+    --info: 213.5 76.6% 71.6%;
+    --info-foreground: 220 48.8% 8.4%;
 
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 232 94% 74%;
+    --revenue: 153.6 48% 52%;
+    --expense: 0 52% 70%;
 
-    --input-bg: 240 6% 10%;
+    --border: 215 24% 24%;
+    --input: 215 24% 24%;
+    --ring: 220 37.5% 96.9%;
+    --input-bg: 221.4 43.3% 13.1%;
 
-    --chart-1: 232 94% 74%;
-    --chart-2: 160 64% 52%;
-    --chart-3: 350 89% 72%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 217 91% 60%;
+    --chart-1: 213.5 76.6% 71.6%;
+    --chart-2: 214 62% 47.5%;
+    --chart-3: 220 37.5% 96.9%;
+    --chart-4: 153.6 48% 52%;
+    --chart-5: 0 52% 70%;
 
-    --sidebar-background: 240 5% 3%;
-    --sidebar-foreground: 240 5% 65%;
-    --sidebar-primary: 232 94% 74%;
-    --sidebar-primary-foreground: 240 5% 3%;
-    --sidebar-accent: 240 6% 10%;
-    --sidebar-accent-foreground: 240 5% 90%;
-    --sidebar-border: 240 4% 16%;
-    --sidebar-ring: 232 94% 74%;
-    --sidebar-muted: 240 5% 65%;
+    --sidebar-background: 220 48.8% 8.4%;
+    --sidebar-foreground: 216.9 16% 84.1%;
+    --sidebar-primary: 220 37.5% 96.9%;
+    --sidebar-primary-foreground: 214.3 71% 13.5%;
+    --sidebar-accent: 221.4 43.3% 13.1%;
+    --sidebar-accent-foreground: 220 37.5% 96.9%;
+    --sidebar-border: 215 24% 24%;
+    --sidebar-ring: 220 37.5% 96.9%;
+    --sidebar-muted: 215 17.4% 72.9%;
   }
-}
 
-@layer base {
   * {
     @apply border-border;
   }
 
+  html {
+    min-width: 320px;
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
-    @apply bg-background text-foreground antialiased font-ui;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    @apply min-h-screen bg-background font-ui text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    font-variant-numeric: proportional-nums;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  ::selection {
+    color: var(--via-text-primary);
+    background: var(--via-navy-14);
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 }
 
 @layer utilities {
   .font-ui {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--via-font);
+  }
+
+  .font-display {
+    font-family: var(--via-font-display);
   }
 
   .font-mono {
-    font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    font-family: var(--via-font-mono);
+    font-variant-numeric: tabular-nums;
   }
 
   .shadow-card {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--via-shadow-sm);
   }
 
   .shadow-card-hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--via-shadow-md);
   }
 
   .shadow-dropdown {
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--via-shadow-lg);
   }
 
   .shadow-modal {
-    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--via-shadow-xl);
+  }
+
+  .ease-via-snap {
+    transition-timing-function: var(--via-ease-snap);
+  }
+
+  .ease-via-spring {
+    transition-timing-function: var(--via-ease-spring);
   }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes scaleIn {
-  from { transform: scale(0.95); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
 @keyframes countUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-count-up {
-  animation: countUp 0.6s ease-out forwards;
+  animation: countUp 560ms var(--via-ease-out) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

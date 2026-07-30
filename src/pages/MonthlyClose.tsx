@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
-  CalendarCheck, CheckCircle2, AlertCircle, Loader2, Lock, ChevronRight, Sparkles,
+  CalendarCheck, CheckCircle2, AlertCircle, Loader2, Lock, ChevronRight, Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -264,7 +264,7 @@ export default function MonthlyClose() {
             ))}
           </div>
           <Button size="sm" variant="outline" className="gap-2" onClick={batchClassify} disabled={classifying}>
-            {classifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {classifying ? <Loader2 className="h-4 w-4 animate-spin" /> : <Compass className="h-4 w-4" />}
             Classificar pendentes com IA
           </Button>
         </div>

@@ -86,7 +86,7 @@ export default function CashFlowForecast() {
     })),
   ];
 
-  const riskColor = riskLevel === "low" ? "text-revenue" : riskLevel === "high" ? "text-expense" : "text-yellow-500";
+  const riskColor = riskLevel === "low" ? "text-revenue" : riskLevel === "high" ? "text-expense" : "text-warning";
   const riskIcon = riskLevel === "low" ? <Shield className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />;
   const riskLabel = riskLevel === "low" ? "Baixo" : riskLevel === "high" ? "Alto" : "Médio";
 
@@ -218,7 +218,7 @@ export default function CashFlowForecast() {
                   </div>
                 ))}
                 {riskExplanation && (
-                  <div className={`p-3 rounded-lg border ${riskLevel === "high" ? "border-expense/30 bg-expense/5" : riskLevel === "low" ? "border-revenue/30 bg-revenue/5" : "border-yellow-500/30 bg-yellow-500/5"}`}>
+                  <div className={`p-3 rounded-lg border ${riskLevel === "high" ? "border-expense/30 bg-expense/5" : riskLevel === "low" ? "border-revenue/30 bg-revenue/5" : "border-warning/30 bg-warning/[0.08]"}`}>
                     <p className="text-xs font-semibold mb-1 flex items-center gap-1">
                       {riskIcon} Análise de Risco
                     </p>

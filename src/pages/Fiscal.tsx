@@ -41,9 +41,9 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400",
-  authorized: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  cancelled: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  denied: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  authorized: "bg-success/[0.08] text-success dark:bg-success/[0.08] dark:text-success",
+  cancelled: "bg-destructive/[0.08] text-destructive dark:bg-destructive/[0.08] dark:text-destructive",
+  denied: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning",
 };
 
 const EMISSORES = [

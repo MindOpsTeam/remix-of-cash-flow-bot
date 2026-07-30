@@ -312,7 +312,7 @@ export default function ProductsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium truncate">{p.name}</p>
-                    <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${p.type === "service" ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"}`}>
+                    <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${p.type === "service" ? "bg-primary/[0.08] text-primary dark:bg-primary/[0.08] dark:text-primary" : "bg-success/[0.08] text-success dark:bg-success/[0.08] dark:text-success"}`}>
                       {p.type === "service" ? "Serviço" : "Produto"}
                     </Badge>
                     {p.category && <span className="text-[10px] text-muted-foreground">{p.category}</span>}

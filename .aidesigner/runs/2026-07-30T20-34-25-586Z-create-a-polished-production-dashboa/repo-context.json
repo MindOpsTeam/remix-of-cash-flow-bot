@@ -1,0 +1,29 @@
+{
+  "repoRoot": "/Users/barboza/remix-of-cash-flow-bot",
+  "cwd": "/Users/barboza/remix-of-cash-flow-bot",
+  "stack": {
+    "frameworks": [
+      "React"
+    ],
+    "componentLibraries": [
+      "lucide-react",
+      "Radix UI",
+      "cva"
+    ],
+    "styling": [
+      "Tailwind CSS"
+    ],
+    "componentDirectories": [
+      "src/components"
+    ],
+    "packageFiles": [
+      "package.json"
+    ]
+  },
+  "routes": [],
+  "tokens": {
+    "sources": [],
+    "tokens": []
+  },
+  "summary": "Repo root: /Users/barboza/remix-of-cash-flow-bot\nWorking directory: /Users/barboza/remix-of-cash-flow-bot\nFrameworks: React\nStyling: Tailwind CSS\nComponent libraries: lucide-react, Radix UI, cva\nRoute roots: none detected\nRoute candidates: none detected\nComponent directories: src/components\nToken sources: none detected\nVisible design language hints: utility-first styling, primitive-based interaction patterns"
+}

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Scale, TrendingDown, Info, Sparkles } from "lucide-react";
+import { Scale, TrendingDown, Info, Compass } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from "recharts";
@@ -199,7 +199,7 @@ export default function ReformaSimulator() {
               <CardContent className="p-5">
                 <div className="flex items-start gap-3">
                   <div className="h-9 w-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-                    <Sparkles className="h-4 w-4 text-primary" />
+                    <Compass className="h-4 w-4 text-primary" />
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-semibold text-foreground">

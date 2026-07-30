@@ -206,14 +206,14 @@ export default function DRE() {
                 {lines.map((line, i) => (
                   <tr
                     key={i}
-                    className={`border-b border-border/50 ${line.isTotal ? "bg-accent/30" : ""} ${line.alerta ? "bg-amber-500/10" : ""}`}
+                    className={`border-b border-border/50 ${line.isTotal ? "bg-accent/30" : ""} ${line.alerta ? "bg-warning/[0.08]" : ""}`}
                   >
                     <td className={`py-2.5 ${line.level === 1 ? "pl-6 text-muted-foreground" : ""} ${line.isTotal ? "font-semibold text-foreground" : ""}`}>
                       {line.label}
                     </td>
                     <td
                       className={`text-right py-2.5 tabular-nums ${line.isTotal ? "font-semibold" : ""} ${
-                        line.alerta ? "text-amber-600 dark:text-amber-500" : line.value >= 0 ? "text-revenue" : "text-expense"
+                        line.alerta ? "text-warning dark:text-warning" : line.value >= 0 ? "text-revenue" : "text-expense"
                       }`}
                     >
                       {formatCurrency(line.value)}
@@ -225,8 +225,8 @@ export default function DRE() {
           )}
 
           {naoClassificado > 0 && (
-            <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-500 mt-0.5" />
+            <div className="mt-4 flex items-start gap-2 rounded-md border border-warning/30 bg-warning/[0.08] p-3 text-xs">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-warning dark:text-warning mt-0.5" />
               <p className="text-muted-foreground">
                 <span className="font-medium text-foreground">{formatCurrency(naoClassificado)}</span> em lançamentos
                 ainda sem conta contábil. Esse valor não entra no lucro acima. Classifique em{" "}

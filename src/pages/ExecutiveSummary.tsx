@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useState, useCallback, useMemo } from "react";
 import {
   Loader2, FileText, RefreshCw, TrendingUp, TrendingDown, DollarSign,
-  AlertTriangle, CheckCircle, Lightbulb, BarChart3, Target, Sparkles,
+  AlertTriangle, CheckCircle, Lightbulb, BarChart3, Target, Compass,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
@@ -62,7 +62,7 @@ const iconMap: Record<string, React.ReactNode> = {
   alert: <AlertTriangle className="h-5 w-5" />,
   tip: <Lightbulb className="h-5 w-5" />,
   chart: <BarChart3 className="h-5 w-5" />,
-  summary: <Sparkles className="h-5 w-5" />,
+  summary: <Compass className="h-5 w-5" />,
   check: <CheckCircle className="h-5 w-5" />,
   target: <Target className="h-5 w-5" />,
   default: <FileText className="h-5 w-5" />,
@@ -218,7 +218,7 @@ export default function ExecutiveSummary() {
             visual completo com insights e recomendações acionáveis.
           </p>
           <Button onClick={loadSummary} size="lg" className="gap-2">
-            <Sparkles className="h-4 w-4" />
+            <Compass className="h-4 w-4" />
             Gerar Resumo do Mês
           </Button>
         </div>

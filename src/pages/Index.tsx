@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Link } from "react-router-dom";
-import { Loader2, Brain, MessageSquare, Layers, Building2, Info } from "lucide-react";
+import { Brain, MessageSquare, Layers, Building2, Info } from "lucide-react";
+import { EmptyState, Icon, Pill, Spinner } from "@viverdeia/design-system";
 import { useEffect, useState } from "react";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,11 +59,15 @@ export default function Dashboard() {
         <OnboardingWizard open={onboarding.showOnboarding} onComplete={onboarding.close} memberId={onboarding.memberId} />
       )}
 
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3 animate-fade-in">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-3 border-b border-border/70 pb-6 animate-fade-in">
         <div>
+          <div className="mb-3 flex items-center gap-2">
+            <span className="via-eyebrow">Posição financeira</span>
+            {isCombined ? <Pill size="sm">visão consolidada</Pill> : null}
+          </div>
           <div className="flex items-center gap-2">
             {isCombined ? <Layers className="h-5 w-5 text-primary" /> : <Building2 className="h-5 w-5 text-primary" />}
-            <h1 className="text-[28px] font-semibold tracking-[-0.02em] text-foreground">
+            <h1 className="font-display text-[32px] font-medium tracking-[-0.035em] text-foreground">
               {isCombined ? "Painel Consolidado" : data?.companies[0]?.name ?? "Painel"}
             </h1>
           </div>
@@ -79,16 +84,18 @@ export default function Dashboard() {
 
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Spinner size="lg" label="Carregando posição financeira" />
         </div>
       ) : error ? (
         <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
           Erro ao carregar dados de margem: {(error as Error).message}
         </div>
       ) : !data ? (
-        <div className="rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-          Nenhuma empresa vinculada. Cadastre um CNPJ em Configurações → Empresas.
-        </div>
+        <EmptyState
+          icon={<Building2 />}
+          title="Nenhuma empresa vinculada"
+          description="Cadastre um CNPJ em Configurações → Empresas para começar."
+        />
       ) : (
         <>
           <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -124,10 +131,8 @@ export default function Dashboard() {
           {/* Atalhos de IA */}
           <div className="flex flex-wrap gap-3">
             <Link to="/cfo-digital" className="group min-w-[240px] flex-1">
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-all hover:border-primary/40">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <Brain className="h-4 w-4 text-primary" />
-                </div>
+              <div className="via-glass-panel flex items-center gap-3 px-4 py-3 transition-all duration-200 hover:-translate-y-px hover:border-primary/20 hover:shadow-card-hover">
+                <Icon size="md" tone="navy" surface="soft"><Brain /></Icon>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">CFO Digital</p>
                   <p className="truncate text-xs text-muted-foreground">Análise inteligente com IA</p>
@@ -135,10 +140,8 @@ export default function Dashboard() {
               </div>
             </Link>
             <Link to="/whatsapp" className="group min-w-[240px] flex-1">
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-all hover:border-primary/40">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <MessageSquare className="h-4 w-4 text-primary" />
-                </div>
+              <div className="via-glass-panel flex items-center gap-3 px-4 py-3 transition-all duration-200 hover:-translate-y-px hover:border-primary/20 hover:shadow-card-hover">
+                <Icon size="md" tone="navy" surface="soft"><MessageSquare /></Icon>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">CFO Digital via WhatsApp</p>
                   <p className="truncate text-xs text-muted-foreground">Assistente estratégico financeiro</p>

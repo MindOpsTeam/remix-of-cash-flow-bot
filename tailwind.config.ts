@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 export default {
-  darkMode: ["class"],
+  darkMode: ["selector", '[data-theme="dark"]'],
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
@@ -14,8 +14,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        ui: ["'Inter'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
-        mono: ["'JetBrains Mono'", "'SF Mono'", "'Fira Code'", "monospace"],
+        ui: ["var(--via-font)", "'Geist'", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        display: ["var(--via-font-display)", "'Geist'", "sans-serif"],
+        mono: ["var(--via-font-mono)", "'Geist Mono'", "'JetBrains Mono'", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -78,9 +79,19 @@ export default {
         },
       },
       borderRadius: {
-        lg: "0.75rem",
-        md: "0.5rem",
-        sm: "0.375rem",
+        lg: "var(--via-radius-md)",
+        md: "var(--via-radius-sm)",
+        sm: "var(--via-radius-xs)",
+        xl: "var(--via-radius-lg)",
+        "2xl": "var(--via-radius-xl)",
+      },
+      boxShadow: {
+        card: "var(--via-shadow-sm)",
+        "card-hover": "var(--via-shadow-md)",
+        dropdown: "var(--via-shadow-lg)",
+        modal: "var(--via-shadow-xl)",
+        glass: "var(--via-glass-shadow)",
+        focus: "var(--via-shadow-focus)",
       },
       keyframes: {
         "accordion-down": {
@@ -92,24 +103,29 @@ export default {
           to: { height: "0" },
         },
         "fade-in": {
-          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
         "scale-in": {
-          "0%": { transform: "scale(0.95)", opacity: "0" },
+          "0%": { transform: "translateY(8px) scale(0.985)", opacity: "0" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
         "slide-up": {
-          "0%": { opacity: "0", transform: "translateY(20px)" },
+          "0%": { opacity: "0", transform: "translateY(12px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "soft-pulse": {
+          "0%, 100%": { opacity: "0.72" },
+          "50%": { opacity: "1" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.4s ease-out",
-        "scale-in": "scale-in 0.3s ease-out",
-        "slide-up": "slide-up 0.4s ease-out",
+        "fade-in": "fade-in 360ms var(--via-ease-out)",
+        "scale-in": "scale-in 260ms var(--via-ease-out)",
+        "slide-up": "slide-up 360ms var(--via-ease-out)",
+        "soft-pulse": "soft-pulse 2.4s var(--via-ease) infinite",
       },
     },
   },

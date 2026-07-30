@@ -5,11 +5,10 @@ const PASSWORD = process.env.E2E_PASSWORD ?? "";
 
 async function login(page: Page) {
   await page.goto("/");
-  // Dois painéis (login/cadastro) coexistem no DOM — escopar ao form de login
-  const loginForm = page.locator(".lsf-form-box.login form");
-  await loginForm.getByPlaceholder("Email").fill(EMAIL);
-  await loginForm.getByPlaceholder("Senha").fill(PASSWORD);
-  await loginForm.getByRole("button", { name: "Entrar" }).click();
+  const loginForm = page.getByRole("form", { name: "Entrar no FinanceAI" });
+  await loginForm.getByLabel("Email").fill(EMAIL);
+  await loginForm.getByLabel("Senha").fill(PASSWORD);
+  await loginForm.getByRole("button", { name: "Entrar no FinanceAI" }).click();
   // Painel do tenant de teste (empresa única → título = nome da empresa)
   await expect(
     page.getByRole("heading", { name: /Painel|E2E Test Corp/ }),
@@ -87,7 +86,7 @@ test.describe("público", () => {
   test("login renderiza e rota protegida redireciona", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(
-      page.locator(".lsf-form-box.login").getByRole("button", { name: "Entrar" }),
+      page.getByRole("form", { name: "Entrar no FinanceAI" }).getByRole("button", { name: "Entrar no FinanceAI" }),
     ).toBeVisible({ timeout: 15_000 });
   });
 
@@ -96,5 +95,9 @@ test.describe("público", () => {
     expect(res.ok()).toBe(true);
     const manifest = await res.json();
     expect(manifest.name).toContain("FinanceAI");
+    expect(manifest.icons).toEqual([
+      { src: "/icon-via-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon-via-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+    ]);
   });
 });
