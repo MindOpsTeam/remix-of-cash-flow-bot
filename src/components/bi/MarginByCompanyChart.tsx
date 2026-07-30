@@ -1,8 +1,17 @@
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  Cell,
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
-import { formatPercent, companyColor, type CompanyMargin } from "@/lib/margin";
+import { formatPercent, type CompanyMargin } from "@/lib/margin";
+import { ChartEmptyState, ChartPanel } from "@/components/bi/ChartPanel";
 
 interface MarginByCompanyChartProps {
   data: CompanyMargin[];
@@ -10,51 +19,104 @@ interface MarginByCompanyChartProps {
 
 interface Datum {
   name: string;
+  fullName: string;
   receita: number;
+  resultado: number;
   margem: number;
-  index: number;
 }
 
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: Datum }> }) {
   if (!active || !payload?.length) return null;
-  const d = payload[0].payload;
+  const datum = payload[0].payload;
+
   return (
     <div className="rounded-md border border-border bg-card p-3 text-xs shadow-card">
-      <p className="mb-1 font-semibold text-foreground">{d.name}</p>
-      <p className="text-muted-foreground">Receita: <span className="font-mono text-foreground">{formatCurrency(d.receita)}</span></p>
-      <p className="text-muted-foreground">Margem Operac.: <span className="font-mono text-foreground">{formatPercent(d.margem)}</span></p>
+      <p className="mb-2 font-semibold text-foreground">{datum.fullName}</p>
+      <div className="space-y-1 text-muted-foreground">
+        <p>Margem operacional: <span className="font-mono font-semibold text-foreground">{formatPercent(datum.margem)}</span></p>
+        <p>Receita: <span className="font-mono text-foreground">{formatCurrency(datum.receita)}</span></p>
+        <p>Resultado: <span className="font-mono text-foreground">{formatCurrency(datum.resultado)}</span></p>
+      </div>
     </div>
   );
 }
 
-/** Compara receita e margem operacional lado a lado por CNPJ. */
+/** Ranking direto de margem operacional, sem misturar unidades em dois eixos. */
 export function MarginByCompanyChart({ data }: MarginByCompanyChartProps) {
-  const chartData: Datum[] = data.map((c, index) => ({
-    name: c.name.length > 14 ? `${c.name.slice(0, 14)}…` : c.name,
-    receita: c.receita,
-    margem: Math.round(c.margemOperacional * 10) / 10,
-    index,
-  }));
+  const hasData = data.some((company) => company.receita !== 0 || company.custos !== 0 || company.despesas !== 0);
+  const chartData: Datum[] = [...data]
+    .sort((a, b) => b.margemOperacional - a.margemOperacional)
+    .slice(0, 8)
+    .map((company) => ({
+      name: company.name.length > 16 ? `${company.name.slice(0, 16)}…` : company.name,
+      fullName: company.name,
+      receita: company.receita,
+      resultado: company.resultado,
+      margem: Math.round(company.margemOperacional * 10) / 10,
+    }));
+
+  const margins = chartData.map((company) => company.margem);
+  const minMargin = Math.min(0, ...margins);
+  const maxMargin = Math.max(0, ...margins);
+  const padding = Math.max(5, (maxMargin - minMargin) * 0.12);
+  const domain: [number, number] = minMargin === 0 && maxMargin === 0
+    ? [-5, 5]
+    : [
+        Math.floor((minMargin - (minMargin < 0 ? padding : 0)) / 5) * 5,
+        Math.ceil((maxMargin + (maxMargin > 0 ? padding : 0)) / 5) * 5,
+      ];
 
   return (
-    <div className="animate-slide-up rounded-lg border border-border bg-card p-5" style={{ animationDelay: "350ms", animationFillMode: "backwards" }}>
-      <h2 className="mb-4 text-sm font-semibold text-foreground">Receita × Margem Operacional por CNPJ</h2>
-      <ResponsiveContainer width="100%" height={300}>
-        <ComposedChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} interval={0} />
-          <YAxis yAxisId="left" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-          <YAxis yAxisId="right" orientation="right" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-          <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
-          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }} />
-          <Bar yAxisId="left" dataKey="receita" name="Receita" radius={[4, 4, 0, 0]}>
-            {chartData.map((d) => (
-              <Cell key={d.index} fill={companyColor(d.index)} />
-            ))}
-          </Bar>
-          <Line yAxisId="right" dataKey="margem" name="Margem Operac. (%)" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: "hsl(var(--primary))" }} />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
+    <ChartPanel
+      title="Margem por CNPJ"
+      description="Ranking operacional; valores negativos exigem atenção"
+      delay={300}
+      meta={<span className="rounded-sm bg-muted px-2 py-1 text-[11px] text-muted-foreground">até 8 CNPJs</span>}
+    >
+      {!hasData ? (
+        <ChartEmptyState
+          description="O ranking será calculado quando houver movimentação financeira no período."
+          minHeight={284}
+        />
+      ) : (
+        <div className="h-[300px] w-full" aria-label="Ranking de margem operacional por CNPJ">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              layout="vertical"
+              margin={{ top: 4, right: 18, bottom: 0, left: 4 }}
+            >
+              <CartesianGrid strokeDasharray="3 5" horizontal={false} />
+              <XAxis
+                type="number"
+                domain={domain}
+                tickFormatter={(value) => `${value}%`}
+                tick={{ fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={112}
+                tick={{ fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <ReferenceLine x={0} stroke="var(--via-data-axis)" />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.35)" }} />
+              <Bar dataKey="margem" name="Margem operacional" barSize={18} radius={4}>
+                {chartData.map((company) => (
+                  <Cell
+                    key={company.fullName}
+                    fill={company.margem < 0 ? "var(--via-coral)" : "var(--via-data-1)"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </ChartPanel>
   );
 }

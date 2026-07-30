@@ -96,15 +96,16 @@
     --chart-4: 153.6 63.3% 33.1%;
     --chart-5: 0 39.3% 54.1%;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 214.3 71% 13.5%;
-    --sidebar-primary: 214.3 71% 13.5%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 23.1% 97.5%;
-    --sidebar-accent-foreground: 214.3 71% 13.5%;
-    --sidebar-border: 214.3 26% 91%;
-    --sidebar-ring: 214.3 71% 13.5%;
-    --sidebar-muted: 220.6 13.2% 46.1%;
+    /* A navegação usa uma superfície invertida também no tema claro. */
+    --sidebar-background: 220 48.8% 8.4%;
+    --sidebar-foreground: 220 37.5% 96.9%;
+    --sidebar-primary: 220 37.5% 96.9%;
+    --sidebar-primary-foreground: 214.3 71% 13.5%;
+    --sidebar-accent: 221.4 43.3% 13.1%;
+    --sidebar-accent-foreground: 220 37.5% 96.9%;
+    --sidebar-border: 215 24% 24%;
+    --sidebar-ring: 213.5 76.6% 71.6%;
+    --sidebar-muted: 215 17.4% 72.9%;
   }
 
   [data-theme="dark"] {

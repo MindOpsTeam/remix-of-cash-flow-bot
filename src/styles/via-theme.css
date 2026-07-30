@@ -23,11 +23,10 @@
 }
 
 .via-sidebar {
-  position: relative;
   background:
-    linear-gradient(180deg, var(--via-surface) 0%, var(--via-bg-2) 132%),
-    var(--via-surface);
-  box-shadow: 1px 0 0 var(--via-border-soft);
+    linear-gradient(180deg, hsl(var(--sidebar-background)) 0%, var(--via-navy-deep) 132%),
+    hsl(var(--sidebar-background));
+  box-shadow: 1px 0 0 hsl(var(--sidebar-border));
 }
 
 .via-sidebar::after {
@@ -36,7 +35,11 @@
   height: 150px;
   content: "";
   pointer-events: none;
-  background: radial-gradient(240px 120px at 20% 0%, var(--via-navy-06), transparent 72%);
+  background: radial-gradient(
+    260px 150px at 18% -8%,
+    hsl(var(--sidebar-primary) / 0.1),
+    transparent 72%
+  );
 }
 
 .via-sidebar > * {
@@ -49,6 +52,20 @@
   box-shadow:
     inset 0 1px 0 var(--via-edge-hi),
     0 8px 22px -14px var(--via-shadow-ink-40);
+}
+
+.via-sidebar-brand-icon {
+  border: 1px solid hsl(var(--sidebar-primary) / 0.14);
+  background: hsl(var(--sidebar-primary) / 0.06);
+  box-shadow:
+    inset 0 1px 0 hsl(var(--sidebar-primary) / 0.12),
+    0 10px 24px -16px rgba(0, 0, 0, 0.9);
+}
+
+.via-sidebar-pill {
+  color: hsl(var(--sidebar-foreground));
+  border-color: hsl(var(--sidebar-border));
+  background: hsl(var(--sidebar-accent) / 0.82);
 }
 
 .via-topbar {
@@ -138,9 +155,18 @@
 }
 
 .via-sidebar-company {
+  border: 1px solid hsl(var(--sidebar-border));
+  background: hsl(var(--sidebar-accent) / 0.72);
+  box-shadow: inset 0 1px 0 hsl(var(--sidebar-primary) / 0.06);
+}
+
+.via-chart-panel {
   border: 1px solid var(--via-border-soft);
-  background: var(--via-glass-card-2);
-  box-shadow: inset 0 1px 0 var(--via-edge-hi);
+  border-radius: var(--via-radius-lg);
+  background: var(--via-surface);
+  box-shadow:
+    inset 0 1px 0 var(--via-edge-hi),
+    var(--via-shadow-sm);
 }
 
 .via-route-enter {

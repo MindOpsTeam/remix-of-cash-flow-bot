@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const companyId = "11111111-1111-4111-8111-111111111111";
+const secondCompanyId = "44444444-4444-4444-8444-444444444444";
+const thirdCompanyId = "55555555-5555-4555-8555-555555555555";
 const userId = "22222222-2222-4222-8222-222222222222";
 
 const protectedRoutes = [
@@ -105,8 +107,37 @@ function fakeSession() {
   };
 }
 
-async function installMocks(page: Page) {
+function mockMarginRows() {
+  const companies = [
+    { id: companyId, receita: 232_000, custos: 92_000, despesas: 61_000 },
+    { id: secondCompanyId, receita: 168_000, custos: 81_000, despesas: 49_000 },
+    { id: thirdCompanyId, receita: 104_000, custos: 58_000, despesas: 54_000 },
+  ];
+
+  return Array.from({ length: 12 }, (_, monthIndex) => {
+    const date = new Date();
+    date.setDate(1);
+    date.setMonth(date.getMonth() - (11 - monthIndex));
+    const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+    const seasonality = 0.84 + monthIndex * 0.018 + Math.sin(monthIndex * 1.2) * 0.045;
+
+    return companies.map((company, companyIndex) => ({
+      company_id: company.id,
+      month,
+      receita: Math.round(company.receita * seasonality),
+      custos: Math.round(company.custos * (seasonality + companyIndex * 0.015)),
+      despesas: Math.round(company.despesas * (0.97 + Math.cos(monthIndex) * 0.035)),
+    }));
+  }).flat();
+}
+
+interface MockOptions {
+  marginRows?: ReturnType<typeof mockMarginRows>;
+}
+
+async function installMocks(page: Page, options: MockOptions = {}) {
   const session = fakeSession();
+  const marginRows = options.marginRows ?? mockMarginRows();
 
   await page.route("**/auth/v1/**", async (route) => {
     if (route.request().method() === "OPTIONS") {
@@ -136,17 +167,41 @@ async function installMocks(page: Page) {
     let body: unknown = [];
 
     if (table === "company_members" && (url.searchParams.get("select") ?? "").includes("companies")) {
-      body = [{
-        company_id: companyId,
-        companies: {
-          id: companyId,
-          name: "Acme Holdings Brasil S.A.",
-          cnpj: "12345678000199",
-          org_id: "ACME-MATRIZ",
-          regime_tributario: "regular",
-          cclasstrib_padrao: "000001",
+      body = [
+        {
+          company_id: companyId,
+          companies: {
+            id: companyId,
+            name: "Acme Holdings Brasil S.A.",
+            cnpj: "12345678000199",
+            org_id: "ACME-MATRIZ",
+            regime_tributario: "regular",
+            cclasstrib_padrao: "000001",
+          },
         },
-      }];
+        {
+          company_id: secondCompanyId,
+          companies: {
+            id: secondCompanyId,
+            name: "Acme Serviços Digitais",
+            cnpj: "23456789000155",
+            org_id: "ACME-DIGITAL",
+            regime_tributario: "regular",
+            cclasstrib_padrao: "000001",
+          },
+        },
+        {
+          company_id: thirdCompanyId,
+          companies: {
+            id: thirdCompanyId,
+            name: "Acme Operações",
+            cnpj: "34567890000144",
+            org_id: "ACME-OPS",
+            regime_tributario: "simples",
+            cclasstrib_padrao: "000001",
+          },
+        },
+      ];
     } else if (table === "company_members" && wantsObject) {
       body = {
         id: "33333333-3333-4333-8333-333333333333",
@@ -162,6 +217,8 @@ async function installMocks(page: Page) {
         ar_a_vencer: 612800,
         ar_vencido: 45200,
       }];
+    } else if (table === "v_company_margin") {
+      body = marginRows;
     }
 
     await route.fulfill({
@@ -176,8 +233,8 @@ async function installMocks(page: Page) {
   });
 }
 
-async function loginWithMocks(page: Page) {
-  await installMocks(page);
+async function loginWithMocks(page: Page, options?: MockOptions) {
+  await installMocks(page, options);
   await page.goto("/");
   const form = page.getByRole("form", { name: "Entrar no FinanceAI" });
   await form.getByLabel("Email").fill("qa.visual@financeai.local");
@@ -256,6 +313,79 @@ test.describe("migração integral do design system", () => {
     }
 
     expect(pageErrors).toEqual([]);
+  });
+
+  test("a navegação lateral permanece visível durante a rolagem", async ({ page }) => {
+    await loginWithMocks(page);
+    const sidebar = page.getByRole("complementary", { name: "Navegação principal" });
+
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar).toHaveCSS("position", "sticky");
+    const sidebarColor = await sidebar.evaluate((element) => getComputedStyle(element).backgroundColor);
+    const rgb = sidebarColor.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number) ?? [255, 255, 255];
+    expect(Math.max(...rgb), "sidebar deveria usar uma superfície escura no tema claro").toBeLessThan(80);
+    await expect(sidebar.locator('img[alt="Viver de IA"]')).toHaveAttribute("src", /app-icon-white/);
+
+    const initialBox = await sidebar.boundingBox();
+    expect(initialBox?.y).toBe(0);
+
+    await page.evaluate(() => window.scrollTo(0, 600));
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+    const scrolledBox = await sidebar.boundingBox();
+    expect(scrolledBox?.y).toBe(0);
+    expect(scrolledBox?.height).toBe(page.viewportSize()?.height);
+  });
+
+  test("o dashboard prioriza quatro KPIs e gráficos comparáveis", async ({ page }) => {
+    await loginWithMocks(page);
+
+    for (const label of ["Receita", "Resultado", "Margem Bruta", "Margem Operacional"]) {
+      await expect(page.locator("article").filter({ hasText: label })).toHaveCount(1);
+    }
+    await expect(page.getByRole("region", { name: "Estrutura de custos do mês" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Evolução da margem operacional" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Margem por CNPJ" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Participação na receita" })).toBeVisible();
+    await expect(page.locator(".recharts-pie")).toHaveCount(0);
+    await expect(page.getByText("Sem dados para visualizar")).toHaveCount(0);
+
+    if (process.env.CAPTURE_DESIGN_SYSTEM === "1") {
+      await page.waitForTimeout(1_600);
+      await page.screenshot({
+        path: "artifacts/design-system/dashboard-redesign-light.png",
+        fullPage: true,
+      });
+    }
+  });
+
+  test("gráficos sem movimento exibem estado vazio em vez de formas enganosas", async ({ page }) => {
+    await loginWithMocks(page, { marginRows: [] });
+
+    await expect(page.getByText("Sem dados para visualizar")).toHaveCount(3);
+    await expect(page.locator(".recharts-wrapper")).toHaveCount(0);
+    await expect(page.getByText("Sem variação")).toHaveCount(4);
+  });
+
+  test("o dashboard redesenhado preserva o viewport @mobile", async ({ page }) => {
+    await loginWithMocks(page);
+
+    await expect(page.getByRole("button", { name: "Abrir menu" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Indicadores essenciais" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Evolução da margem operacional" })).toBeVisible();
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+
+    if (process.env.CAPTURE_DESIGN_SYSTEM === "1") {
+      await page.waitForTimeout(1_600);
+      await page.screenshot({
+        path: "artifacts/design-system/dashboard-redesign-mobile-light.png",
+        fullPage: true,
+      });
+    }
   });
 
   test("as 51 rotas protegidas preservam o viewport @mobile", async ({ page }) => {

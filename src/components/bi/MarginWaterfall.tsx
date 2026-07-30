@@ -3,6 +3,7 @@ import {
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { formatPercent, type MarginTotals } from "@/lib/margin";
+import { ChartEmptyState, ChartPanel } from "@/components/bi/ChartPanel";
 
 interface MarginWaterfallProps {
   totals: MarginTotals;
@@ -32,35 +33,48 @@ export function MarginWaterfall({ totals }: MarginWaterfallProps) {
   const { receita, custos, despesas, margemBrutaValor, resultado } = totals;
 
   const steps: Step[] = [
-    { name: "Receita", base: 0, value: receita, amount: receita, fill: "hsl(var(--revenue))" },
-    { name: "Custos", base: margemBrutaValor, value: custos, amount: -custos, fill: "hsl(var(--expense))" },
-    { name: "M. Bruta", base: 0, value: margemBrutaValor, amount: margemBrutaValor, fill: "hsl(var(--chart-1))" },
-    { name: "Despesas", base: resultado, value: despesas, amount: -despesas, fill: "hsl(var(--warning))" },
-    { name: "Resultado", base: 0, value: resultado, amount: resultado, fill: resultado >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))" },
+    { name: "Receita", base: 0, value: receita, amount: receita, fill: "var(--via-data-1)" },
+    { name: "Custos", base: margemBrutaValor, value: custos, amount: -custos, fill: "var(--via-coral)" },
+    { name: "M. Bruta", base: 0, value: margemBrutaValor, amount: margemBrutaValor, fill: "var(--via-data-2)" },
+    { name: "Despesas", base: resultado, value: despesas, amount: -despesas, fill: "hsl(var(--destructive) / 0.68)" },
+    { name: "Resultado", base: 0, value: resultado, amount: resultado, fill: resultado >= 0 ? "var(--via-success)" : "var(--via-coral)" },
   ];
+  const hasData = receita !== 0 || custos !== 0 || despesas !== 0;
 
   return (
-    <div className="animate-slide-up rounded-lg border border-border bg-card p-5" style={{ animationDelay: "350ms", animationFillMode: "backwards" }}>
-      <div className="mb-4 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Composição do Resultado</h2>
+    <ChartPanel
+      title="Composição do resultado"
+      description="Da receita ao resultado após custos e despesas"
+      delay={300}
+      meta={(
         <span className="text-xs text-muted-foreground">
           M. Bruta {formatPercent(totals.margemBruta)} · M. Operac. {formatPercent(totals.margemOperacional)}
         </span>
-      </div>
-      <ResponsiveContainer width="100%" height={280}>
-        <BarChart data={steps} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-          <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-          <Tooltip content={<WaterfallTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.4)" }} />
-          <Bar dataKey="base" stackId="w" fill="transparent" />
-          <Bar dataKey="value" stackId="w" radius={[4, 4, 0, 0]}>
-            {steps.map((s) => (
-              <Cell key={s.name} fill={s.fill} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+      )}
+    >
+      {!hasData ? (
+        <ChartEmptyState
+          description="A composição será exibida quando houver movimentação financeira no período."
+          minHeight={264}
+        />
+      ) : (
+        <div className="h-[290px] w-full" aria-label="Composição do resultado financeiro">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={steps} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 5" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <Tooltip content={<WaterfallTooltip />} cursor={{ fill: "hsl(var(--muted) / 0.35)" }} />
+              <Bar dataKey="base" stackId="w" fill="transparent" />
+              <Bar dataKey="value" stackId="w" radius={[4, 4, 0, 0]}>
+                {steps.map((step) => (
+                  <Cell key={step.name} fill={step.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </ChartPanel>
   );
 }

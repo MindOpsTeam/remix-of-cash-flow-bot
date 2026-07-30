@@ -98,33 +98,51 @@ export default function Dashboard() {
         />
       ) : (
         <>
-          <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Info className="h-3.5 w-3.5" />
-            KPIs do mês atual · gráficos dos últimos 12 meses
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <span className="via-eyebrow">Desempenho mensal</span>
+              <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">Indicadores essenciais</h2>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Info className="h-3.5 w-3.5" />
+              Comparação com o mês anterior
+            </div>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-8">
             <MarginKpis current={data.currentMonth} previous={data.previousMonth} />
+          </div>
+
+          <div className="mb-4 border-b border-border/70 pb-4">
+            <span className="via-eyebrow">Leitura analítica</span>
+            <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">Tendências e comparação</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Histórico dos últimos 12 meses e desempenho acumulado por CNPJ</p>
           </div>
 
           {isCombined ? (
             <>
               <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
                 <div className="xl:col-span-2">
+                  <MarginTrendChart data={data.trend} companies={data.companies} isCombined />
+                </div>
+                <MarginByCompanyChart data={data.perCompany} />
+              </div>
+
+              <div className="mb-6 grid grid-cols-1 gap-6 2xl:grid-cols-3">
+                <div className="2xl:col-span-2">
                   <CompanyMarginTable data={data.perCompany} />
                 </div>
                 <RevenueContributionChart data={data.perCompany} />
               </div>
-
-              <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-                <MarginByCompanyChart data={data.perCompany} />
-                <MarginTrendChart data={data.trend} companies={data.companies} isCombined />
-              </div>
             </>
           ) : (
-            <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-              <MarginWaterfall totals={data.totals} />
-              <MarginTrendChart data={data.trend} companies={data.companies} isCombined={false} />
+            <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-5">
+              <div className="xl:col-span-3">
+                <MarginTrendChart data={data.trend} companies={data.companies} isCombined={false} />
+              </div>
+              <div className="xl:col-span-2">
+                <MarginWaterfall totals={data.totals} />
+              </div>
             </div>
           )}
 
