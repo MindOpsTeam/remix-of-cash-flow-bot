@@ -46,6 +46,7 @@ const NfseIntegrationPage = lazy(() => import("./pages/settings/NfseIntegration"
 const PlugnotasIntegrationPage = lazy(() => import("./pages/settings/PlugnotasIntegration"));
 const FocusIntegrationPage = lazy(() => import("./pages/settings/FocusIntegration"));
 const OpenFinanceIntegrationPage = lazy(() => import("./pages/settings/OpenFinanceIntegration"));
+const ContaAzulIntegrationPage = lazy(() => import("./pages/settings/ContaAzulIntegration"));
 const PlugnotasEmitPage = lazy(() => import("./pages/PlugnotasEmit"));
 const FocusEmitPage = lazy(() => import("./pages/FocusEmit"));
 const AuditoriaPage = lazy(() => import("./pages/Auditoria"));
@@ -191,6 +192,7 @@ const AppRoutes = () => (
       <Route path="/settings/integrations/plugnotas" element={<P><PlugnotasIntegrationPage /></P>} />
       <Route path="/settings/integrations/focus" element={<P><FocusIntegrationPage /></P>} />
       <Route path="/settings/integrations/openfinance" element={<P><OpenFinanceIntegrationPage /></P>} />
+      <Route path="/settings/integrations/contaazul" element={<P><ContaAzulIntegrationPage /></P>} />
       <Route path="/settings/preferences" element={<P><PreferencesPage /></P>} />
 
       <Route path="*" element={<NotFound />} />

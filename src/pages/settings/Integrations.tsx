@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock, FileText, Layers, Receipt } from "lucide-react";
+import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock, FileText, Layers, Receipt, PlugZap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,6 +32,15 @@ const integrationCards = [
     title: "Banco Inter — Empresa",
     description: "Sincronize extrato e saldo via API oficial (OAuth2 + mTLS)",
     to: "/settings/integrations/inter",
+  },
+  {
+    icon: PlugZap,
+    iconBg: "bg-primary/10",
+    iconColor: "text-primary",
+    key: "contaazul" as const,
+    title: "Conta Azul",
+    description: "Importe clientes, produtos e o financeiro em aberto de quem migra do Conta Azul",
+    to: "/settings/integrations/contaazul",
   },
   {
     icon: FileText,

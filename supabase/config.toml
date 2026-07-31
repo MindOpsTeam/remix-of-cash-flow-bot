@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.agent-runner]
 verify_jwt = false
+
+[functions.contaazul-import]
+verify_jwt = false
