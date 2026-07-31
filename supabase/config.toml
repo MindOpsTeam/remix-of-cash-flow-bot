@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.indices-sync]
 verify_jwt = false
+
+[functions.agent-runner]
+verify_jwt = false

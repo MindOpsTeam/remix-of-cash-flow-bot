@@ -456,6 +456,18 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByText("2 importado(s)")).toBeVisible();
   });
 
+  test("a página de agentes mostra a galeria de templates ativáveis", async ({ page }) => {
+    await loginWithMocks(page);
+    await page.goto("/agents");
+
+    await expect(page.getByRole("heading", { name: "Galeria de agentes" })).toBeVisible();
+    for (const nome of ["Vigia de Caixa", "Sentinela de Contas", "Guarda Fiscal", "Vigia de Metas", "Resumo do CFO", "Analista Sob Medida"]) {
+      await expect(page.getByText(nome, { exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole("button", { name: "Ativar", exact: true })).toHaveCount(6);
+    await expect(page.getByRole("heading", { name: "Fila de aprovação" })).toBeVisible();
+  });
+
   test("o vazio da DRE convida a conectar o banco, não a colar extrato", async ({ page }) => {
     await loginWithMocks(page);
     await page.goto("/dre");

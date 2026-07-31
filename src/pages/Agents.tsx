@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { ConfiguracaoAgentes } from "@/components/agentes/ConfiguracaoAgentes";
+import { GaleriaAgentes } from "@/components/agentes/GaleriaAgentes";
 import { useAuth } from "@/hooks/useAuth";
 
 interface AgentAction {
@@ -206,6 +207,14 @@ export default function Agents() {
           </div>
         </div>
 
+        <div className="mb-8">
+          <GaleriaAgentes />
+        </div>
+
+        <div className="mb-3">
+          <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">Fila de aprovação</h2>
+          <p className="text-xs text-muted-foreground">Propostas dos agentes que esperam a sua decisão.</p>
+        </div>
         <div className="mb-4 flex gap-2">
           <Button size="sm" variant={tab === "pending" ? "default" : "outline"} onClick={() => setTab("pending")}>
             Em aberto
