@@ -645,6 +645,7 @@ export type Database = {
           contact_id: string | null
           created_at: string
           descricao: string | null
+          external_id: string | null
           fornecedor: string
           id: string
           is_recurring: boolean
@@ -667,6 +668,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           descricao?: string | null
+          external_id?: string | null
           fornecedor: string
           id?: string
           is_recurring?: boolean
@@ -689,6 +691,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           descricao?: string | null
+          external_id?: string | null
           fornecedor?: string
           id?: string
           is_recurring?: boolean
@@ -1848,6 +1851,61 @@ export type Database = {
           },
         ]
       }
+      contaazul_config: {
+        Row: {
+          ativo: boolean
+          client_id_preview: string | null
+          company_id: string
+          created_at: string
+          id: string
+          last_import_at: string | null
+          last_import_result: Json | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          client_id_preview?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          last_import_at?: string | null
+          last_import_result?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          client_id_preview?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_import_at?: string | null
+          last_import_result?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contaazul_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contaazul_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contaazul_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           active: boolean
@@ -1859,6 +1917,7 @@ export type Database = {
           default_payment_terms: number | null
           document: string | null
           email: string | null
+          external_id: string | null
           id: string
           name: string
           neighborhood: string | null
@@ -1886,6 +1945,7 @@ export type Database = {
           default_payment_terms?: number | null
           document?: string | null
           email?: string | null
+          external_id?: string | null
           id?: string
           name: string
           neighborhood?: string | null
@@ -1913,6 +1973,7 @@ export type Database = {
           default_payment_terms?: number | null
           document?: string | null
           email?: string | null
+          external_id?: string | null
           id?: string
           name?: string
           neighborhood?: string | null
@@ -3254,6 +3315,7 @@ export type Database = {
           created_at: string
           current_stock: number | null
           description: string | null
+          external_id: string | null
           fiscal_confirmado_em: string | null
           fiscal_confirmado_por: string | null
           fiscal_origem: string | null
@@ -3282,6 +3344,7 @@ export type Database = {
           created_at?: string
           current_stock?: number | null
           description?: string | null
+          external_id?: string | null
           fiscal_confirmado_em?: string | null
           fiscal_confirmado_por?: string | null
           fiscal_origem?: string | null
@@ -3310,6 +3373,7 @@ export type Database = {
           created_at?: string
           current_stock?: number | null
           description?: string | null
+          external_id?: string | null
           fiscal_confirmado_em?: string | null
           fiscal_confirmado_por?: string | null
           fiscal_origem?: string | null
@@ -3520,6 +3584,7 @@ export type Database = {
           created_at: string
           description: string
           due_date: string
+          external_id: string | null
           id: string
           invoice_id: string | null
           parcela: number | null
@@ -3544,6 +3609,7 @@ export type Database = {
           created_at?: string
           description: string
           due_date: string
+          external_id?: string | null
           id?: string
           invoice_id?: string | null
           parcela?: number | null
@@ -3568,6 +3634,7 @@ export type Database = {
           created_at?: string
           description?: string
           due_date?: string
+          external_id?: string | null
           id?: string
           invoice_id?: string | null
           parcela?: number | null
@@ -5331,6 +5398,10 @@ export type Database = {
         Args: { p_dias_validade?: number; p_sales_order_id: string }
         Returns: Json
       }
+      get_contaazul_credentials: {
+        Args: { p_company_id: string }
+        Returns: string
+      }
       get_focus_token: {
         Args: { p_company_id: string; p_environment: string }
         Returns: string
@@ -5372,6 +5443,19 @@ export type Database = {
         Returns: Json
       }
       reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
+      rotate_contaazul_refresh_token: {
+        Args: { p_company_id: string; p_refresh_token: string }
+        Returns: undefined
+      }
+      set_contaazul_credentials: {
+        Args: {
+          p_client_id: string
+          p_client_secret: string
+          p_company_id: string
+          p_refresh_token: string
+        }
+        Returns: undefined
+      }
       set_focus_token: {
         Args: { p_company_id: string; p_environment: string; p_token: string }
         Returns: undefined
@@ -5385,6 +5469,16 @@ export type Database = {
         Returns: undefined
       }
       try_uuid: { Args: { t: string }; Returns: string }
+      venda_balcao: {
+        Args: {
+          p_company_id: string
+          p_contact_id?: string
+          p_desconto?: number
+          p_forma_pagamento?: string
+          p_itens: Json
+        }
+        Returns: Json
+      }
       ver_proposta: { Args: { p_token: string }; Returns: Json }
     }
     Enums: {
