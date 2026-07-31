@@ -118,15 +118,33 @@ serve(async (req) => {
 
           const remoteJid = lastMsg.phone_number.includes("@") ? lastMsg.phone_number : `${lastMsg.phone_number}@s.whatsapp.net`;
 
-          try {
-            await fetch(`${evolutionUrl}/message/sendText/${config.instance_name}`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", apikey: evolutionKey },
-              body: JSON.stringify({ number: remoteJid, text: fullMessage }),
+          // Duas tentativas com backoff: a Evolution cai com frequência e uma
+          // falha transitória não pode engolir o alerta do dia.
+          let sent = false;
+          for (const espera of [0, 1500]) {
+            if (espera > 0) await new Promise((r) => setTimeout(r, espera));
+            try {
+              const resp = await fetch(`${evolutionUrl}/message/sendText/${config.instance_name}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", apikey: evolutionKey },
+                body: JSON.stringify({ number: remoteJid, text: fullMessage }),
+              });
+              if (resp.ok) { sent = true; break; }
+              console.error(`smart-alerts: Evolution ${resp.status} for ${companyName}`);
+            } catch (e) {
+              console.error("Failed to send alert:", e);
+            }
+          }
+          if (sent) alerts.push(`Sent ${alertMessages.length} alerts to ${companyName}`);
+          else {
+            await supabase.from("notifications").insert({
+              company_id: companyId,
+              titulo: "Alertas do dia não chegaram no WhatsApp",
+              corpo: "A Evolution não respondeu ao envio dos alertas financeiros. Reconecte a instância.",
+              categoria: "sistema",
+              link: "/whatsapp",
+              dedupe_key: `whatsapp_falhou:smart-alerts:${config.id}`,
             });
-            alerts.push(`Sent ${alertMessages.length} alerts to ${companyName}`);
-          } catch (e) {
-            console.error("Failed to send alert:", e);
           }
         }
       }

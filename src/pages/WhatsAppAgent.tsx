@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { edgeAuthHeaders, edgeUrl } from "@/lib/edge";
+
+/** Base do proxy que injeta a key da Evolution no servidor (issue #27). */
+const evolutionProxyBase = (configId: string) => `${edgeUrl("evolution-proxy")}/${configId}`;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -107,19 +111,21 @@ export default function WhatsApp() {
 
   const loadConfigs = useCallback(async () => {
     if (!company) return;
+    // A evolution_api_key NUNCA desce ao browser: toda operação em instância
+    // salva passa pelo evolution-proxy, que injeta a key no servidor.
     const { data } = await supabase
       .from("whatsapp_configs")
-      .select("*")
+      .select("id, company_id, instance_name, group_jid, group_name, phone_number, webhook_secret, active, created_at, evolution_api_url, notify_number")
       .eq("company_id", company.id)
       .order("created_at", { ascending: false });
     if (data) {
       setConfigs(data as unknown as WhatsAppConfig[]);
       // Auto-fix: fetch phone_number for configs missing it
       for (const c of data as any[]) {
-        if (!c.phone_number && c.evolution_api_url && c.evolution_api_key && !autoFixPhoneRef.current.has(c.id)) {
+        if (!c.phone_number && c.evolution_api_url && !autoFixPhoneRef.current.has(c.id)) {
           autoFixPhoneRef.current.add(c.id);
-          const url = c.evolution_api_url.replace(/\/$/, "");
-          const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+          const url = evolutionProxyBase(c.id);
+          const headers = await edgeAuthHeaders();
           try {
             const infoRes = await fetch(`${url}/instance/fetchInstances`, { headers });
             if (infoRes.ok) {
@@ -417,12 +423,12 @@ export default function WhatsApp() {
   };
 
   const handleConfigureWebhook = async (c: WhatsAppConfig) => {
-    if (!c.evolution_api_url || !c.evolution_api_key) {
-      toast.error("Credenciais da Evolution API não encontradas nesta instância.");
+    if (!c.evolution_api_url) {
+      toast.error("URL da Evolution API não encontrada nesta instância.");
       return;
     }
-    const url = c.evolution_api_url.replace(/\/$/, "");
-    const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+    const url = evolutionProxyBase(c.id);
+    const headers = await edgeAuthHeaders();
     toast.loading("Configurando webhook...", { id: "webhook-config" });
     await configureWebhook(url, headers, c.instance_name, c.webhook_secret);
     // Also fetch and save phone number if missing
@@ -442,12 +448,12 @@ export default function WhatsApp() {
   useEffect(() => () => stopReconnectPolling(), [stopReconnectPolling]);
 
   const handleReconnect = async (c: WhatsAppConfig) => {
-    if (!c.evolution_api_url || !c.evolution_api_key) {
-      toast.error("Credenciais da Evolution API não encontradas.");
+    if (!c.evolution_api_url) {
+      toast.error("URL da Evolution API não encontrada.");
       return;
     }
-    const url = c.evolution_api_url.replace(/\/$/, "");
-    const headers = { apikey: c.evolution_api_key, "Content-Type": "application/json" };
+    const url = evolutionProxyBase(c.id);
+    const headers = await edgeAuthHeaders();
 
     setReconnect({ config: c, qrCodeBase64: "", status: "waiting", error: "", loading: true });
     stopReconnectPolling();
@@ -508,8 +514,8 @@ export default function WhatsApp() {
   const handleReconnectRefreshQr = async () => {
     if (!reconnect) return;
     const c = reconnect.config;
-    const url = c.evolution_api_url!.replace(/\/$/, "");
-    const headers = { apikey: c.evolution_api_key!, "Content-Type": "application/json" };
+    const url = evolutionProxyBase(c.id);
+    const headers = await edgeAuthHeaders();
     setReconnect(prev => prev ? { ...prev, loading: true, status: "waiting", error: "" } : null);
     stopReconnectPolling();
     try {
@@ -557,8 +563,10 @@ export default function WhatsApp() {
   };
 
   const handleSelectGroup = async (c: WhatsAppConfig) => {
-    if (!c.evolution_api_url || !c.evolution_api_key) {
-      toast.error("Credenciais da Evolution API não encontradas.");
+    // A listagem de grupos já roda na edge (list-whatsapp-groups), que lê a
+    // key no servidor; o browser só precisa saber que existe URL configurada.
+    if (!c.evolution_api_url) {
+      toast.error("URL da Evolution API não encontrada.");
       return;
     }
     setGroupDialogConfig(c);

@@ -130,14 +130,35 @@ async function despachar(service: Service, inst: Instancia, aviso: Aviso, link: 
     const evolutionKey = config?.evolution_api_key || Deno.env.get("EVOLUTION_API_KEY");
     if (config && numero && numero.length >= 10 && evolutionUrl && evolutionKey) {
       const texto = `🤖 *${inst.nome}*\n\n*${aviso.titulo}*\n${aviso.corpo}`;
-      try {
-        await fetch(`${evolutionUrl}/message/sendText/${config.instance_name}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", apikey: evolutionKey },
-          body: JSON.stringify({ number: `${numero}@s.whatsapp.net`, text: texto }),
+      // Evolution cai com frequência: duas tentativas com backoff, e falha
+      // definitiva vira notificação in-app visível — nunca descarte mudo.
+      let enviado = false;
+      for (const espera of [0, 1500]) {
+        if (espera > 0) await new Promise((r) => setTimeout(r, espera));
+        try {
+          const resp = await fetch(`${evolutionUrl}/message/sendText/${config.instance_name}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: evolutionKey },
+            body: JSON.stringify({ number: `${numero}@s.whatsapp.net`, text: texto }),
+          });
+          if (resp.ok) {
+            enviado = true;
+            break;
+          }
+          console.error(`[agent-runner] Evolution ${resp.status} p/ ${inst.company_id}`);
+        } catch (err) {
+          console.error(`[agent-runner] WhatsApp falhou p/ ${inst.company_id}`, err);
+        }
+      }
+      if (!enviado) {
+        await service.from("notifications").insert({
+          company_id: inst.company_id,
+          titulo: "Aviso não chegou no WhatsApp",
+          corpo: `O agente ${inst.nome} tentou avisar por WhatsApp e a Evolution não respondeu. Reconecte a instância.`,
+          categoria: "sistema",
+          link: "/whatsapp",
+          dedupe_key: `whatsapp_falhou:${inst.id}`,
         });
-      } catch (err) {
-        console.error(`[agent-runner] WhatsApp falhou p/ ${inst.company_id}`, err);
       }
     }
   }
