@@ -38,6 +38,7 @@ export default function Reports() {
   // Period selector
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [preset, setPreset] = useState<"mes" | "trimestre" | "ano">("mes");
 
   const monthLabel = new Date(selectedYear, selectedMonth).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
@@ -61,7 +62,9 @@ export default function Reports() {
   const loadData = useCallback(async () => {
     if (!company) return;
 
-    const startOfMonth = new Date(selectedYear, selectedMonth, 1).toISOString().split("T")[0];
+    // Presets: mês (padrão), trimestre e ano terminando no mês selecionado.
+    const mesesJanela = preset === "trimestre" ? 3 : preset === "ano" ? 12 : 1;
+    const startOfMonth = new Date(selectedYear, selectedMonth - (mesesJanela - 1), 1).toISOString().split("T")[0];
     const endOfMonth = new Date(selectedYear, selectedMonth + 1, 0).toISOString().split("T")[0];
 
     const [{ data: transactions }, { data: costCenters }] = await Promise.all([
@@ -118,7 +121,7 @@ export default function Reports() {
       .map(([name, vals]) => ({ name, ...vals }))
       .sort((a, b) => b.receita - b.despesa - (a.receita - a.despesa));
     setCostCenterData(ccs);
-  }, [company, selectedYear, selectedMonth]);
+  }, [company, selectedYear, selectedMonth, preset]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -142,7 +145,20 @@ export default function Reports() {
             {monthLabel} — Análises e indicadores da empresa
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+            {([["mes", "Mês"], ["trimestre", "Trimestre"], ["ano", "12 meses"]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setPreset(key)}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  preset === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           {/* Period selector */}
           <div className="flex items-center gap-1 bg-card border border-border rounded-lg px-1">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={goToPrevMonth}>

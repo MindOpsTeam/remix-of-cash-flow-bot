@@ -33,6 +33,8 @@ const protectedRoutes = [
   "/fiscal/contas-a-pagar",
   "/fiscal/arquivos",
   "/dre",
+  "/consolidado",
+  "/contador",
   "/reports",
   "/forecast",
   "/summary",
@@ -222,6 +224,17 @@ async function installMocks(page: Page, options: MockOptions = {}) {
       }];
     } else if (table === "v_company_margin") {
       body = marginRows;
+    } else if (table === "v_group_account_totals") {
+      body = [
+        { company_id: companyId, month: "2026-07-01", group_code: "3.1", group_name: "Receita de Serviços", type: "revenue", total: 120000 },
+        { company_id: secondCompanyId, month: "2026-07-01", group_code: "3.1", group_name: "Receita de Serviços", type: "revenue", total: 80000 },
+        { company_id: companyId, month: "2026-07-01", group_code: "4.1", group_name: "CMV", type: "expense", total: 30000 },
+        { company_id: thirdCompanyId, month: "2026-07-01", group_code: "5.1", group_name: "Administrativas", type: "expense", total: 12000 },
+      ];
+    } else if (table === "company_journal_entries") {
+      body = [
+        { id: "j1", transaction_id: "t1", date: "2026-07-10", debit_account: "Caixa", credit_account: "Receita de Serviços", amount: 1200, description: "Venda" },
+      ];
     } else if (table === "bank_transactions_raw") {
       body = options.bankRaw ?? [];
     } else if (table === "bank_connections") {
@@ -336,11 +349,11 @@ test.describe("migração integral do design system", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
-  test("as 52 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
+  test("as 54 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);
-    expect(protectedRoutes).toHaveLength(52);
+    expect(protectedRoutes).toHaveLength(54);
 
     for (const route of protectedRoutes) {
       await page.goto(route, { waitUntil: "domcontentloaded" });
@@ -456,6 +469,28 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByText("2 importado(s)")).toBeVisible();
   });
 
+  test("a DRE consolidada mostra a matriz conta × CNPJ com totais do grupo", async ({ page }) => {
+    await loginWithMocks(page);
+    await page.goto("/consolidado");
+
+    await expect(page.getByRole("heading", { name: "DRE Consolidada do Grupo" })).toBeVisible();
+    await expect(page.getByText("Receita de Serviços")).toBeVisible();
+    await expect(page.getByRole("cell", { name: "Resultado" })).toBeVisible();
+    await expect(page.getByText("lançamento(s) intercompany eliminados", { exact: false })).toBeVisible();
+    await expect(page.getByRole("button", { name: "CSV" })).toBeEnabled();
+  });
+
+  test("a Central do Contador oferece os quatro artefatos por período", async ({ page }) => {
+    await loginWithMocks(page);
+    await page.goto("/contador");
+
+    await expect(page.getByRole("heading", { name: "Central do Contador" })).toBeVisible();
+    for (const artefato of ["Diário de lançamentos", "Razão por conta", "Partidas dobradas", "Plano de contas"]) {
+      await expect(page.getByRole("heading", { name: artefato })).toBeVisible();
+    }
+    await expect(page.getByRole("button", { name: "Pacote do mês" })).toBeVisible();
+  });
+
   test("o BI self-service oferece o wizard de nova visão", async ({ page }) => {
     await loginWithMocks(page);
 
@@ -510,7 +545,7 @@ test.describe("migração integral do design system", () => {
     }
   });
 
-  test("as 52 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
+  test("as 54 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);

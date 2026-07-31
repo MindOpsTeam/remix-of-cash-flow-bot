@@ -1,7 +1,10 @@
 import { AppLayout } from "@/components/AppLayout";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BookOpenCheck, GitMerge, ArrowLeftRight, Info } from "lucide-react";
+import { BookOpenCheck, GitMerge, ArrowLeftRight, Info, FileDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toCsv, downloadCsv } from "@/lib/csv-export";
+import { partidasParaCsv } from "@/lib/export-contabil";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -119,13 +122,35 @@ export default function Auditoria() {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em] flex items-center gap-2">
-            <BookOpenCheck className="h-6 w-6" /> Auditoria
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            O rastro contábil de cada lançamento e o histórico de conciliação.
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em] flex items-center gap-2">
+              <BookOpenCheck className="h-6 w-6" /> Auditoria
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              O rastro contábil de cada lançamento e o histórico de conciliação.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            disabled={partidasFiltradas.length === 0}
+            onClick={() => {
+              const { headers, rows } = partidasParaCsv(
+                partidasFiltradas.map((p) => ({
+                  date: p.date,
+                  debit_account: p.debit_account,
+                  credit_account: p.credit_account,
+                  amount: Number(p.amount) || 0,
+                  description: p.description,
+                })),
+              );
+              downloadCsv(`partidas-dobradas-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(headers, rows));
+            }}
+          >
+            <FileDown className="h-4 w-4" /> Exportar CSV
+          </Button>
         </div>
 
         <Tabs defaultValue="razao">

@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -138,7 +139,10 @@ export default function GroupConsolidation() {
               <h1 className="text-2xl font-bold tracking-[-0.02em]">Plano de contas do grupo</h1>
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Mapeie contas equivalentes dos {companies.length} CNPJs para uma conta do grupo — a DRE consolidada agrupa por ela.
+              Mapeie contas equivalentes dos {companies.length} CNPJs para uma conta do grupo — a DRE consolidada agrupa por ela.{" "}
+              <Link to="/consolidado" className="underline underline-offset-2 hover:text-foreground">
+                Ver a DRE consolidada
+              </Link>
             </p>
           </div>
         </div>

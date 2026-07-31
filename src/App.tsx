@@ -18,6 +18,8 @@ const Index = lazy(() => import("./pages/Index"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const BankInbox = lazy(() => import("./pages/BankInbox"));
 const DRE = lazy(() => import("./pages/DRE"));
+const Consolidado = lazy(() => import("./pages/Consolidado"));
+const Contador = lazy(() => import("./pages/Contador"));
 const Reports = lazy(() => import("./pages/Reports"));
 const WhatsApp = lazy(() => import("./pages/WhatsAppAgent"));
 const CFODigital = lazy(() => import("./pages/CFODigital"));
@@ -159,6 +161,8 @@ const AppRoutes = () => (
 
       {/* Análise */}
       <Route path="/dre" element={<P><DRE /></P>} />
+      <Route path="/consolidado" element={<P><Consolidado /></P>} />
+      <Route path="/contador" element={<P><Contador /></P>} />
       <Route path="/reports" element={<P><Reports /></P>} />
       <Route path="/forecast" element={<P><CashFlowForecast /></P>} />
       <Route path="/summary" element={<P><ExecutiveSummary /></P>} />
