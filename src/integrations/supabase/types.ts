@@ -5514,6 +5514,7 @@ export type Database = {
       }
       get_pluggy_credentials: { Args: { p_company_id: string }; Returns: Json }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
+      is_demo_account: { Args: never; Returns: boolean }
       mes_esta_fechado: {
         Args: { p_company_id: string; p_data: string }
         Returns: boolean
