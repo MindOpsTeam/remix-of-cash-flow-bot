@@ -36,6 +36,7 @@ const CostCentersPage = lazy(() => import("./pages/settings/CostCenters"));
 const IntegrationsPage = lazy(() => import("./pages/settings/Integrations"));
 const AsaasIntegrationPJ = lazy(() => import("./pages/settings/AsaasIntegrationPJ"));
 const PreferencesPage = lazy(() => import("./pages/settings/Preferences"));
+const PlanoPage = lazy(() => import("./pages/settings/Plano"));
 const CompanySettingsPage = lazy(() => import("./pages/settings/CompanySettings"));
 const GroupConsolidationPage = lazy(() => import("./pages/settings/GroupConsolidation"));
 const ApiKeysPage = lazy(() => import("./pages/settings/ApiKeys"));
@@ -196,6 +197,7 @@ const AppRoutes = () => (
       <Route path="/settings/integrations/openfinance" element={<P><OpenFinanceIntegrationPage /></P>} />
       <Route path="/settings/integrations/contaazul" element={<P><ContaAzulIntegrationPage /></P>} />
       <Route path="/settings/preferences" element={<P><PreferencesPage /></P>} />
+      <Route path="/settings/plano" element={<P><PlanoPage /></P>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

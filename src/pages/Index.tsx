@@ -26,6 +26,7 @@ import { CentroCustoCard } from "@/components/bi/CentroCustoCard";
 import { TopClientesCard } from "@/components/bi/TopClientesCard";
 import { AiInsightsCard } from "@/components/bi/AiInsightsCard";
 import { MinhasVisoes } from "@/components/bi/MinhasVisoes";
+import { ChecklistAtivacao } from "@/components/bi/ChecklistAtivacao";
 
 function useOnboarding() {
   const { user } = useAuth();
@@ -109,6 +110,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <ChecklistAtivacao />
       <ReformaReadinessCard />
       <GroupApArCard />
 

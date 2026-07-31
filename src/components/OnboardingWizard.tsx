@@ -9,6 +9,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { Rocket, Building2, Link2, CheckCircle2 } from "lucide-react";
+import { OpenFinanceConnect } from "@/components/openfinance/OpenFinanceConnect";
 
 function formatCNPJ(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 14);
@@ -273,11 +274,20 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
                   <StepIcon className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">Integrações</h2>
-                  <p className="text-xs text-muted-foreground">Todas opcionais — você pode configurar depois</p>
+                  <h2 className="text-lg font-semibold text-foreground">Conecte seu banco</h2>
+                  <p className="text-xs text-muted-foreground">
+                    O extrato entra sozinho e a IA classifica — é o caminho mais rápido para ver seu DRE montado
+                  </p>
                 </div>
               </div>
               <div className="space-y-4">
+                {/* Ativação começa aqui: banco conectado é o passo que separa
+                    cadastro de uso. O widget é o mesmo de Bancos & Open Finance. */}
+                <OpenFinanceConnect />
+                <p className="text-[11px] text-muted-foreground">
+                  Já usa Conta Azul? Depois de entrar, importe tudo em Configurações → Integrações → Conta Azul.
+                  As integrações abaixo são opcionais.
+                </p>
                 <div className="space-y-3 bg-muted/30 rounded-lg p-3">
                   <p className="text-xs font-medium text-foreground">Asaas (cobranças)</p>
                   <div className="space-y-1.5">

@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers, KeyRound } from "lucide-react";
+import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers, KeyRound, Crown } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -71,6 +71,13 @@ const sections = [
     title: "Preferências",
     description: "Notificações, comportamento da IA e padrões do sistema",
     to: "/settings/preferences",
+    available: true,
+  },
+  {
+    icon: Crown,
+    title: "Plano",
+    description: "O que está incluso no seu plano e como subir",
+    to: "/settings/plano",
     available: true,
   },
 ];
