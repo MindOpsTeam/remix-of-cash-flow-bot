@@ -47,6 +47,43 @@
   z-index: 1;
 }
 
+/* Barra de rolagem da navegação: fina e discreta, no tom do sidebar.
+   A nativa (grossa e clara) ficava horrível sobre o fundo escuro. */
+.via-nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--sidebar-foreground) / 0.18) transparent;
+  scrollbar-gutter: stable;
+}
+.via-nav-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.via-nav-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.via-nav-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--sidebar-foreground) / 0.18);
+  border-radius: 9999px;
+}
+.via-nav-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--sidebar-foreground) / 0.32);
+}
+
+/* Alça de redimensionar: invisível em repouso, um fio de destaque no hover. */
+.via-sidebar-resizer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin-inline: auto;
+  width: 2px;
+  border-radius: 9999px;
+  background: transparent;
+  transition: background 150ms ease;
+}
+.via-sidebar-resizer:hover::before,
+.via-sidebar-resizer:focus-visible::before {
+  background: hsl(var(--sidebar-primary) / 0.55);
+}
+
 .via-brand-icon {
   border: 1px solid var(--via-navy-10);
   box-shadow:

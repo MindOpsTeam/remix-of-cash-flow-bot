@@ -517,7 +517,7 @@ export function SidebarContent({
             <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.5} />
           </button>
         )}
-        <div className="mt-1 flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto">
+        <div className="via-nav-scroll mt-1 flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto">
           <RailLink to={painel.to} icon={painel.icon} label={painel.label} isActive={activeTo === painel.to} onClick={onNavigate} />
           {itensFavoritos.length > 0 && <div className="my-1 h-px w-6 bg-sidebar-border" />}
           {itensFavoritos.map((item) => (
@@ -591,7 +591,7 @@ export function SidebarContent({
       <PersonaSelector persona={persona} onChange={changePersona} />
 
       {/* Navigation */}
-      <nav className="flex-1 min-h-0 px-3 space-y-0.5 overflow-y-auto">
+      <nav className="via-nav-scroll flex-1 min-h-0 px-3 space-y-0.5 overflow-y-auto">
         <NavLink
           item={painel}
           isActive={activeTo === painel.to}
@@ -752,7 +752,7 @@ export function AppSidebar() {
           tabIndex={0}
           onMouseDown={startDrag}
           onKeyDown={onHandleKey}
-          className="absolute right-0 top-0 z-20 h-full w-1.5 cursor-col-resize transition-colors hover:bg-sidebar-primary/40 focus-visible:bg-sidebar-primary/60 focus:outline-none"
+          className="via-sidebar-resizer absolute right-0 top-0 z-20 h-full w-2 cursor-col-resize focus:outline-none"
         />
       )}
     </aside>
