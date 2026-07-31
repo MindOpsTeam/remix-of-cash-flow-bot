@@ -327,9 +327,14 @@ export default function PDV() {
               <p className="mt-1 text-xs text-muted-foreground">
                 Estoque baixado, receita lançada e recebível quitado.
               </p>
-              <Button size="sm" variant="outline" className="mt-2 gap-2" onClick={() => window.print()}>
-                <Printer className="h-4 w-4" /> Imprimir recibo
-              </Button>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" className="gap-2" onClick={() => window.print()}>
+                  <Printer className="h-4 w-4" /> Imprimir recibo
+                </Button>
+                <Button size="sm" variant="ghost" className="gap-2 text-muted-foreground" asChild>
+                  <a href="/fiscal/plugnotas/emit">Emitir NFC-e</a>
+                </Button>
+              </div>
             </div>
           )}
         </div>
