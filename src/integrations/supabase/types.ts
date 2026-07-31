@@ -743,6 +743,13 @@ export type Database = {
             referencedColumns: ["contact_id"]
           },
           {
+            foreignKeyName: "bills_payable_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_clientes"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "bills_payable_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
@@ -2276,6 +2283,13 @@ export type Database = {
             referencedColumns: ["contact_id"]
           },
           {
+            foreignKeyName: "contracts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_clientes"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "contracts_cost_center_id_fkey"
             columns: ["cost_center_id"]
             isOneToOne: false
@@ -2736,6 +2750,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "invoices_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_clientes"
             referencedColumns: ["contact_id"]
           },
           {
@@ -3674,6 +3695,13 @@ export type Database = {
             referencedRelation: "v_cliente_360"
             referencedColumns: ["contact_id"]
           },
+          {
+            foreignKeyName: "purchase_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_clientes"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       receivables: {
@@ -3793,6 +3821,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "receivables_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_clientes"
             referencedColumns: ["contact_id"]
           },
           {
@@ -4080,6 +4115,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "sales_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_clientes"
             referencedColumns: ["contact_id"]
           },
           {
@@ -4593,6 +4635,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "v_cliente_360"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_clientes"
             referencedColumns: ["contact_id"]
           },
           {
@@ -5247,6 +5296,13 @@ export type Database = {
             referencedRelation: "v_cliente_360"
             referencedColumns: ["contact_id"]
           },
+          {
+            foreignKeyName: "contracts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_clientes"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       v_dre_linhas: {
@@ -5365,6 +5421,40 @@ export type Database = {
         }
         Relationships: []
       }
+      v_mrr_movimentos: {
+        Row: {
+          company_id: string | null
+          contratos_novos: number | null
+          contratos_perdidos: number | null
+          mes: string | null
+          mrr_ativo: number | null
+          mrr_novo: number | null
+          mrr_perdido: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contracts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       v_produtos_pendencia_fiscal: {
         Row: {
           account_id: string | null
@@ -5438,6 +5528,47 @@ export type Database = {
           },
           {
             foreignKeyName: "products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      v_recompra_clientes: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          dias_desde_ultima: number | null
+          intervalo_medio_dias: number | null
+          n_compras: number | null
+          name: string | null
+          primeira_compra: string | null
+          proxima_esperada: string | null
+          status: string | null
+          tem_contrato: boolean | null
+          ticket_medio: number | null
+          total_gasto: number | null
+          ultima_compra: string | null
+          whatsapp: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contacts_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "v_group_ap_ar"
