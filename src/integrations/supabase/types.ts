@@ -2203,6 +2203,61 @@ export type Database = {
           },
         ]
       }
+      dashboard_widgets: {
+        Row: {
+          company_id: string
+          config: Json
+          created_at: string
+          id: string
+          posicao: number
+          titulo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          config: Json
+          created_at?: string
+          id?: string
+          posicao?: number
+          titulo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          config?: Json
+          created_at?: string
+          id?: string
+          posicao?: number
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_widgets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dashboard_widgets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "dashboard_widgets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       fiscal_files: {
         Row: {
           company_id: string
