@@ -327,6 +327,28 @@ export default function PurchaseOrdersPage() {
           </Button>
         </div>
 
+        {/* Compra automatizada: solução irmã do ecossistema, com IA de cotação
+            e negociação autônoma. Cross-link até a integração nativa chegar. */}
+        <a
+          href="https://openclaw-shop-page.lovable.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/[0.04] px-4 py-3 transition-colors hover:bg-primary/[0.08]"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <ShoppingBag className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Compra automatizada com OpenClaw</p>
+              <p className="text-xs text-muted-foreground">
+                Envie orçamentos, extraia itens com IA e deixe o agente negociar com fornecedores
+              </p>
+            </div>
+          </div>
+          <span className="shrink-0 text-xs font-medium text-primary">Abrir →</span>
+        </a>
+
         {/* Filters */}
         <div className="flex gap-3">
           <div className="relative flex-1 max-w-sm">

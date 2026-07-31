@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
+import { usePrefs } from "@/hooks/usePrefs";
 import appIconWhite from "@/assets/via/app-icon-white.png";
 import { Pill } from "@viverdeia/design-system";
 import {
@@ -40,6 +41,9 @@ import {
   Inbox,
   Layers,
   FileDown,
+  Banknote,
+  Wrench,
+  Star,
   Link2,
   Database,
   Check,
@@ -146,13 +150,24 @@ const sections: NavGroup[] = [
     // dono da empresa a única tela que registra dinheiro.
     personas: ["operacional", "tatico", "estrategico"],
     items: [
+      { to: "/pdv", label: "Frente de Caixa", icon: Banknote },
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
-      { to: "/bank-inbox", label: "Extrato bancário", icon: Inbox },
       { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },
+      { to: "/transfers?tab=anticipations", label: "Antecipações", icon: TrendingUp },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
-      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
       { to: "/inter", label: "Conciliação Bancária", icon: Landmark },
       { to: "/settings/bank-accounts", label: "Bancos & Open Finance", icon: Link2 },
+    ],
+  },
+  {
+    key: "importacoes",
+    label: "Importações",
+    icon: Inbox,
+    personas: ["operacional", "tatico"],
+    items: [
+      { to: "/bank-inbox", label: "Extrato bancário", icon: Inbox },
+      { to: "/documents", label: "Scanner OCR", icon: ScanLine },
+      { to: "/settings/integrations/contaazul", label: "Conta Azul", icon: Link2 },
     ],
   },
   {
@@ -163,7 +178,8 @@ const sections: NavGroup[] = [
     items: [
       { to: "/contacts", label: "Clientes / Fornecedores", icon: Users },
       { to: "/contracts", label: "Contratos", icon: FileSignature },
-      { to: "/products", label: "Produtos / Serviços", icon: Package },
+      { to: "/products", label: "Produtos", icon: Package },
+      { to: "/products?type=service", label: "Serviços", icon: Wrench },
       { to: "/sales", label: "Vendas", icon: ShoppingCart },
       { to: "/salespeople", label: "Vendedores", icon: UserCog },
       { to: "/purchases", label: "Compras", icon: ShoppingBag },
@@ -194,17 +210,21 @@ function NavLink({
   item,
   isActive,
   onClick,
+  isFav,
+  onToggleFav,
 }: {
   item: NavItem;
   isActive: boolean;
   onClick?: () => void;
+  isFav?: boolean;
+  onToggleFav?: (to: string) => void;
 }) {
   return (
     <Link
       to={item.to}
       onClick={onClick}
       aria-current={isActive ? "page" : undefined}
-      className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-150 ${
+      className={`group/nav flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-150 ${
         isActive
           ? "bg-sidebar-accent text-sidebar-primary font-semibold shadow-[inset_2px_0_0_hsl(var(--sidebar-primary))]"
           : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
@@ -214,7 +234,23 @@ function NavLink({
         className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-sidebar-primary" : ""}`}
         strokeWidth={1.5}
       />
-      {item.label}
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {onToggleFav && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleFav(item.to);
+          }}
+          aria-label={isFav ? `Remover ${item.label} dos favoritos` : `Favoritar ${item.label}`}
+          className={`shrink-0 rounded p-0.5 transition-opacity ${
+            isFav ? "opacity-100 text-sidebar-primary" : "opacity-0 group-hover/nav:opacity-60 hover:!opacity-100"
+          }`}
+        >
+          <Star className="h-3 w-3" fill={isFav ? "currentColor" : "none"} strokeWidth={1.5} />
+        </button>
+      )}
     </Link>
   );
 }
@@ -225,12 +261,16 @@ function NavGroupSection({
   isOpen,
   onToggle,
   onNavigate,
+  favoritos,
+  onToggleFav,
 }: {
   group: NavGroup;
   pathname: string;
   isOpen: boolean;
   onToggle: () => void;
   onNavigate?: () => void;
+  favoritos?: string[];
+  onToggleFav?: (to: string) => void;
 }) {
   const hasActive = group.items.some((i) => pathname === i.to || pathname.startsWith(i.to + "/"));
 
@@ -264,6 +304,8 @@ function NavGroupSection({
               item={item}
               isActive={pathname === item.to || pathname.startsWith(item.to + "/")}
               onClick={onNavigate}
+              isFav={favoritos?.includes(item.to)}
+              onToggleFav={onToggleFav}
             />
           ))}
         </div>
@@ -321,6 +363,17 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation();
   const { signOut } = useAuth();
   const { company } = useCompany();
+  const { prefs, patch } = usePrefs();
+
+  const favoritos = (prefs.favoritos ?? []) as string[];
+  const toggleFav = (to: string) =>
+    patch.mutate({
+      favoritos: favoritos.includes(to) ? favoritos.filter((f) => f !== to) : [...favoritos, to],
+    });
+  const todosItens = sections.flatMap((s) => s.items);
+  const itensFavoritos = favoritos
+    .map((to) => todosItens.find((i) => i.to === to))
+    .filter((i): i is NavItem => !!i);
 
   const [persona, setPersona] = useState<Persona>(() => {
     if (typeof window === "undefined") return "completo";
@@ -386,6 +439,23 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           isActive={location.pathname === painel.to}
           onClick={onNavigate}
         />
+        {itensFavoritos.length > 0 && (
+          <div className="pb-1">
+            <div className="flex items-center gap-2 px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.1em] text-sidebar-muted">
+              <Star className="h-3 w-3" strokeWidth={1.5} /> Favoritos
+            </div>
+            {itensFavoritos.map((item) => (
+              <NavLink
+                key={`fav-${item.to}`}
+                item={item}
+                isActive={location.pathname === item.to}
+                onClick={onNavigate}
+                isFav
+                onToggleFav={toggleFav}
+              />
+            ))}
+          </div>
+        )}
         {nav.map((group) => (
           <NavGroupSection
             key={group.key}
@@ -394,6 +464,8 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             isOpen={openGroups.has(group.key)}
             onToggle={() => toggleGroup(group.key)}
             onNavigate={onNavigate}
+            favoritos={favoritos}
+            onToggleFav={toggleFav}
           />
         ))}
       </nav>

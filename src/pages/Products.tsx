@@ -94,7 +94,12 @@ export default function ProductsPage() {
     },
   });
   const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("all");
+  // ?type=service permite ao sidebar oferecer a visão "Serviços" direto.
+  const [filterType, setFilterType] = useState(() => {
+    if (typeof window === "undefined") return "all";
+    const tipo = new URLSearchParams(window.location.search).get("type");
+    return tipo === "service" || tipo === "product" ? tipo : "all";
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);

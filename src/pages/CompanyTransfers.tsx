@@ -107,7 +107,16 @@ export default function CompanyTransfers() {
 
         {/* ===== ASAAS ===== */}
         {source === "asaas" && (
-          <Tabs defaultValue="transfers">
+          <Tabs
+            defaultValue={
+              typeof window !== "undefined" &&
+              ["transfers", "subscriptions", "anticipations"].includes(
+                new URLSearchParams(window.location.search).get("tab") ?? "",
+              )
+                ? (new URLSearchParams(window.location.search).get("tab") as string)
+                : "transfers"
+            }
+          >
             <TabsList>
               <TabsTrigger value="transfers" className="gap-1.5">
                 <ArrowUpDown className="h-3.5 w-3.5" /> Transferências

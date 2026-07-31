@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { DepositosDialog } from "@/components/estoque/DepositosDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -154,9 +155,12 @@ export default function StockPage() {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Controle de inventário e movimentações</p>
           </div>
-          <Button onClick={() => { resetMoveForm(); setMoveDialogOpen(true); }}>
-            <Plus className="h-4 w-4 mr-1.5" /> Nova Movimentação
-          </Button>
+          <div className="flex gap-2">
+            <DepositosDialog />
+            <Button onClick={() => { resetMoveForm(); setMoveDialogOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1.5" /> Nova Movimentação
+            </Button>
+          </div>
         </div>
 
         {/* Stats */}
