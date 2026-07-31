@@ -3547,6 +3547,9 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          aceite_em: string | null
+          aceite_ip: string | null
+          aceite_nome: string | null
           commission_percent: number | null
           commission_value: number | null
           company_id: string
@@ -3555,6 +3558,7 @@ export type Database = {
           discount_percent: number | null
           discount_value: number | null
           due_date: string | null
+          estoque_baixado_em: string | null
           id: string
           internal_notes: string | null
           issue_date: string
@@ -3562,6 +3566,8 @@ export type Database = {
           order_number: number
           payment_method: string | null
           payment_terms: number | null
+          proposta_token: string | null
+          proposta_validade: string | null
           salesperson: string | null
           salesperson_id: string | null
           shipping: number | null
@@ -3572,6 +3578,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          aceite_em?: string | null
+          aceite_ip?: string | null
+          aceite_nome?: string | null
           commission_percent?: number | null
           commission_value?: number | null
           company_id: string
@@ -3580,6 +3589,7 @@ export type Database = {
           discount_percent?: number | null
           discount_value?: number | null
           due_date?: string | null
+          estoque_baixado_em?: string | null
           id?: string
           internal_notes?: string | null
           issue_date?: string
@@ -3587,6 +3597,8 @@ export type Database = {
           order_number?: number
           payment_method?: string | null
           payment_terms?: number | null
+          proposta_token?: string | null
+          proposta_validade?: string | null
           salesperson?: string | null
           salesperson_id?: string | null
           shipping?: number | null
@@ -3597,6 +3609,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          aceite_em?: string | null
+          aceite_ip?: string | null
+          aceite_nome?: string | null
           commission_percent?: number | null
           commission_value?: number | null
           company_id?: string
@@ -3605,6 +3620,7 @@ export type Database = {
           discount_percent?: number | null
           discount_value?: number | null
           due_date?: string | null
+          estoque_baixado_em?: string | null
           id?: string
           internal_notes?: string | null
           issue_date?: string
@@ -3612,6 +3628,8 @@ export type Database = {
           order_number?: number
           payment_method?: string | null
           payment_terms?: number | null
+          proposta_token?: string | null
+          proposta_validade?: string | null
           salesperson?: string | null
           salesperson_id?: string | null
           shipping?: number | null
@@ -5019,6 +5037,10 @@ export type Database = {
       }
     }
     Functions: {
+      aceitar_proposta: {
+        Args: { p_ip?: string; p_nome: string; p_token: string }
+        Returns: Json
+      }
       acumulado_indice: {
         Args: { p_ate: string; p_de: string; p_indice: string }
         Returns: number
@@ -5035,6 +5057,10 @@ export type Database = {
       }
       create_company_for_user: {
         Args: { company_cnpj?: string; company_name: string }
+        Returns: Json
+      }
+      encerrar_recorrencia: {
+        Args: { p_recurrence_group_id: string }
         Returns: Json
       }
       faturar_pedido: {
@@ -5055,6 +5081,18 @@ export type Database = {
         Returns: Json
       }
       gen_org_id: { Args: never; Returns: string }
+      gerar_conta_recorrente: {
+        Args: {
+          p_bill_id: string
+          p_ocorrencias: number
+          p_periodicidade?: string
+        }
+        Returns: Json
+      }
+      gerar_link_proposta: {
+        Args: { p_dias_validade?: number; p_sales_order_id: string }
+        Returns: Json
+      }
       get_focus_token: {
         Args: { p_company_id: string; p_environment: string }
         Returns: string
@@ -5088,6 +5126,8 @@ export type Database = {
           p_observacao?: string
           p_product_id: string
           p_quantidade: number
+          p_reference_id?: string
+          p_reference_type?: string
           p_tipo: string
           p_warehouse_id?: string
         }
@@ -5107,6 +5147,7 @@ export type Database = {
         Returns: undefined
       }
       try_uuid: { Args: { t: string }; Returns: string }
+      ver_proposta: { Args: { p_token: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
