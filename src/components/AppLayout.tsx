@@ -1,12 +1,15 @@
 import { ReactNode, useState } from "react";
 import { AppSidebar, SidebarContent } from "./AppSidebar";
 import { CFOChatWidget } from "./CFOChatWidget";
+import { DemoTour } from "./DemoTour";
 import { NotificationBell } from "./NotificationBell";
 import { CompanyScopeSwitcher } from "./company/CompanyScopeSwitcher";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
+import { Eye, Menu } from "lucide-react";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
+import { useAuth } from "@/hooks/useAuth";
 import { useAceitarConvite } from "@/hooks/useConvite";
+import { isDemoUser } from "@/lib/demo";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -14,6 +17,8 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAuth();
+  const ehDemo = isDemoUser(user?.email);
   useAceitarConvite();
 
   return (
@@ -45,6 +50,12 @@ export function AppLayout({ children }: AppLayoutProps) {
           </button>
           <div className="lg:hidden" /> {/* spacer */}
           <div className="flex items-center gap-3">
+            {ehDemo ? (
+              <span className="hidden items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary sm:flex">
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                Modo demonstração · somente leitura
+              </span>
+            ) : null}
             <CompanyScopeSwitcher />
             <NotificationBell />
             <ViaThemeToggle />
@@ -55,6 +66,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         </div>
       </main>
       <CFOChatWidget />
+      {ehDemo ? <DemoTour /> : null}
     </div>
   );
 }

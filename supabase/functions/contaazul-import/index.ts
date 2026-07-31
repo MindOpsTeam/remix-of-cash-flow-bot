@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
             email: p.email,
             phone: p.phone,
             type: p.type,
-            person_type: (p.document ?? "").length > 11 ? "juridica" : "fisica",
+            person_type: (p.document ?? "").length > 11 ? "pj" : "pf",
             active: true,
           },
           { onConflict: "company_id,external_id" },

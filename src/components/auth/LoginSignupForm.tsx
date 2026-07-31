@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Building2, Check, Loader2, Lock, Mail, ShieldCheck, User } from "lucide-react";
+import { ArrowRight, Building2, Check, Compass, Loader2, Lock, Mail, ShieldCheck, User } from "lucide-react";
 import { Pill } from "@viverdeia/design-system";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,12 +8,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
+import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_TOUR_DISMISSED_KEY, DEMO_TOUR_STEP_KEY } from "@/lib/demo";
 import appIcon from "@/assets/via/app-icon.png";
 import wordmarkWhite from "@/assets/via/wordmark-white.png";
 
 const LoginSignupForm = () => {
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -62,6 +64,22 @@ const LoginSignupForm = () => {
       toast.success("Verifique seu email para confirmar o cadastro.");
     }
     setLoading(false);
+  };
+
+  const entrarNaDemonstracao = async () => {
+    setDemoLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: DEMO_EMAIL,
+      password: DEMO_PASSWORD,
+    });
+    if (error) {
+      toast.error("A demonstração está indisponível no momento. Tente novamente em instantes.");
+      setDemoLoading(false);
+      return;
+    }
+    sessionStorage.setItem(DEMO_TOUR_STEP_KEY, "0");
+    sessionStorage.removeItem(DEMO_TOUR_DISMISSED_KEY);
+    navigate("/dashboard");
   };
 
   return (
@@ -266,6 +284,34 @@ const LoginSignupForm = () => {
               </Button>
             </form>
           )}
+
+          <div className="mt-7">
+            <div className="flex items-center gap-3" aria-hidden="true">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                ou conheça antes
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="mt-4 w-full"
+              onClick={entrarNaDemonstracao}
+              disabled={demoLoading}
+            >
+              {demoLoading ? (
+                <Loader2 className="animate-spin" aria-hidden="true" />
+              ) : (
+                <Compass aria-hidden="true" />
+              )}
+              {demoLoading ? "Preparando demonstração..." : "Ver demonstração guiada"}
+            </Button>
+            <p className="mt-2 text-center text-[11px] leading-4 text-muted-foreground">
+              Conta compartilhada e somente leitura, com uma empresa fictícia de 3 CNPJs. Nada é salvo.
+            </p>
+          </div>
 
           <Alert className="mt-8" role="note">
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />

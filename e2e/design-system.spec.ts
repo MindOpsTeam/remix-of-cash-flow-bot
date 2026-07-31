@@ -76,14 +76,14 @@ function base64Url(value: unknown) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
-function fakeSession() {
+function fakeSession(email = "qa.visual@financeai.local") {
   const now = Math.floor(Date.now() / 1000);
   const iso = new Date(now * 1000).toISOString();
   const user = {
     id: userId,
     aud: "authenticated",
     role: "authenticated",
-    email: "qa.visual@financeai.local",
+    email,
     email_confirmed_at: iso,
     phone: "",
     confirmed_at: iso,
@@ -138,12 +138,13 @@ function mockMarginRows() {
 interface MockOptions {
   marginRows?: ReturnType<typeof mockMarginRows>;
   onboardingIncompleto?: boolean;
+  demoUser?: boolean;
   bankRaw?: Array<{ id: string; date: string; description: string; amount: number; direction: string }>;
   bankConnections?: Array<{ id: string; provider: string; external_id: string; institution_name: string; institution_image: null; status: string; last_synced_at: string | null; consent_expires_at: null }>;
 }
 
 async function installMocks(page: Page, options: MockOptions = {}) {
-  const session = fakeSession();
+  const session = fakeSession(options.demoUser ? "demo@financeai.app" : undefined);
   const marginRows = options.marginRows ?? mockMarginRows();
 
   await page.route("**/auth/v1/**", async (route) => {
@@ -601,6 +602,39 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByRole("link", { name: "Conectar banco" })).toBeVisible();
     await expect(page.getByText("ou cole um extrato manualmente")).toBeVisible();
     await expect(page.getByRole("button", { name: "Colar extrato" })).toHaveCount(0);
+  });
+
+  test("a tela de login oferece a demonstração guiada", async ({ page }) => {
+    await page.goto("/");
+
+    await expect(page.getByRole("button", { name: "Ver demonstração guiada" })).toBeVisible();
+    await expect(page.getByText("Conta compartilhada e somente leitura", { exact: false })).toBeVisible();
+  });
+
+  test("o botão de demonstração entra na conta demo e conduz o tour", async ({ page }) => {
+    await installMocks(page, { demoUser: true });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Ver demonstração guiada" }).click();
+
+    // Passo 1: cockpit, com o badge de somente leitura no topo.
+    await expect(page.getByRole("heading", { name: "Painel Consolidado" })).toBeVisible();
+    await expect(page.getByText("Modo demonstração · somente leitura")).toBeVisible();
+    const tour = page.getByRole("complementary", { name: "Tour da demonstração" });
+    await expect(tour.getByText("Passo 1 de 10")).toBeVisible();
+    await expect(tour.getByText("O cockpit do seu dinheiro")).toBeVisible();
+
+    // Continuar navega para o passo 2 (caixa de entrada bancária).
+    await tour.getByRole("button", { name: "Continuar" }).click();
+    await expect(page).toHaveURL(/\/bank-inbox$/);
+    await expect(tour.getByText("Passo 2 de 10")).toBeVisible();
+    await expect(tour.getByRole("button", { name: "Passo anterior" })).toBeVisible();
+
+    // Fechar vira o atalho "Retomar tour"; retomar volta ao mesmo passo.
+    await tour.getByRole("button", { name: "Fechar tour" }).click();
+    const retomar = page.getByRole("button", { name: "Retomar tour" });
+    await expect(retomar).toBeVisible();
+    await retomar.click();
+    await expect(tour.getByText("Passo 2 de 10")).toBeVisible();
   });
 
   test("o dashboard redesenhado preserva o viewport @mobile", async ({ page }) => {
