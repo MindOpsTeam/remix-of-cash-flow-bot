@@ -117,9 +117,11 @@ export default function PDV() {
         naturezaOperacao: "Venda ao consumidor",
         destinatario: { cpfCnpj: "", razaoSocial: "Consumidor não identificado" },
         itens: recibo.itens.map((i) => ({
+          codigo: "",
           descricao: i.descricao,
           ncm: i.ncm!,
           cfop: i.cfop ?? "5102",
+          unidade: "UN",
           quantidade: i.quantidade,
           valorUnitario: i.unitario,
         })),
