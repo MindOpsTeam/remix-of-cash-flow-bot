@@ -56,7 +56,7 @@ interface Recibo {
   order_number: string;
   total: number;
   desconto: number;
-  itens: Array<{ descricao: string; quantidade: number; unitario: number; ncm: string | null; cfop: string | null }>;
+  itens: Array<{ codigo: string; descricao: string; quantidade: number; unitario: number; ncm: string | null; cfop: string | null }>;
   forma: string;
   formaCodigo: string;
   quando: string;
@@ -117,7 +117,7 @@ export default function PDV() {
         naturezaOperacao: "Venda ao consumidor",
         destinatario: { cpfCnpj: "", razaoSocial: "Consumidor não identificado" },
         itens: recibo.itens.map((i) => ({
-          codigo: "",
+          codigo: i.codigo,
           descricao: i.descricao,
           ncm: i.ncm!,
           cfop: i.cfop ?? "5102",
@@ -246,6 +246,7 @@ export default function PDV() {
         total: r.total,
         desconto: descontoNum,
         itens: carrinho.map((i) => ({
+          codigo: i.produto.sku ?? i.produto.barcode ?? i.produto.id,
           descricao: i.produto.name,
           quantidade: i.quantidade,
           unitario: i.produto.sell_price,
