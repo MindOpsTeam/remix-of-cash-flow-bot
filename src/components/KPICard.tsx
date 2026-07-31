@@ -5,12 +5,15 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 interface KPICardProps {
   label: string;
   value: number;
-  change: number;
+  /** Variação vs. período de comparação. undefined = sem base de comparação. */
+  change?: number;
   icon: ReactNode;
   format?: "currency" | "percentage";
   delay?: number;
   valueTone?: "default" | "positive" | "negative";
   changeSuffix?: "%" | "p.p.";
+  /** Rótulo do período de comparação (ex.: "vs. mês anterior", "vs período anterior"). */
+  changeLabel?: string;
   /** Série mensal para a sparkline discreta no rodapé do card. */
   spark?: number[];
 }
@@ -89,10 +92,13 @@ export function KPICard({
   delay = 0,
   valueTone = "default",
   changeSuffix = "%",
+  changeLabel = "vs. mês anterior",
   spark,
 }: KPICardProps) {
-  const isPositive = change >= 0;
-  const isNeutral = Math.abs(change) < 0.05;
+  const semComparacao = change == null;
+  const delta = change ?? 0;
+  const isPositive = delta >= 0;
+  const isNeutral = Math.abs(delta) < 0.05;
   const animatedValue = useAnimatedNumber(value, 1200, delay);
   const formattedValue = format === "currency"
     ? formatCurrency(animatedValue)
@@ -118,7 +124,9 @@ export function KPICard({
         {formattedValue}
       </p>
       <div className="mt-3 flex min-h-5 items-center gap-1.5">
-        {isNeutral ? (
+        {semComparacao ? (
+          <span className="text-[11px] text-muted-foreground">Sem base de comparação</span>
+        ) : isNeutral ? (
           <>
             <Minus className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs font-medium text-muted-foreground">Sem variação</span>
@@ -126,15 +134,15 @@ export function KPICard({
         ) : isPositive ? (
           <>
             <ArrowUpRight className="h-3.5 w-3.5 text-revenue" />
-            <span className="text-xs font-semibold text-revenue">+{change.toFixed(1)}{changeSuffix}</span>
+            <span className="text-xs font-semibold text-revenue">+{delta.toFixed(1)}{changeSuffix}</span>
           </>
         ) : (
           <>
             <ArrowDownRight className="h-3.5 w-3.5 text-expense" />
-            <span className="text-xs font-semibold text-expense">{change.toFixed(1)}{changeSuffix}</span>
+            <span className="text-xs font-semibold text-expense">{delta.toFixed(1)}{changeSuffix}</span>
           </>
         )}
-        {!isNeutral ? <span className="text-[11px] text-muted-foreground">vs. mês anterior</span> : null}
+        {!semComparacao && !isNeutral ? <span className="text-[11px] text-muted-foreground">{changeLabel}</span> : null}
       </div>
       {spark ? <Sparkline pontos={spark} /> : null}
     </article>

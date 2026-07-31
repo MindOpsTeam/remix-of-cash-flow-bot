@@ -9,6 +9,12 @@ interface MarginKpisProps {
   previous: MarginTotals;
   /** Série mensal para sparklines nos cards. */
   trend?: TrendPoint[];
+  /** Quando não há período de comparação (ex.: ano sem base anterior). */
+  semComparacao?: boolean;
+  /** Rótulo do período de comparação nos cards. */
+  comparacaoLabel?: string;
+  /** Descrição do período para o rodapé da estrutura de saída. */
+  periodoDescricao?: string;
 }
 
 function pctChange(cur: number, prev: number): number {
@@ -17,15 +23,18 @@ function pctChange(cur: number, prev: number): number {
 }
 
 /** Quatro indicadores decisórios + estrutura compacta de custos. */
-export function MarginKpis({ current, previous, trend }: MarginKpisProps) {
+export function MarginKpis({ current, previous, trend, semComparacao, comparacaoLabel, periodoDescricao }: MarginKpisProps) {
   const serie = (chave: (p: TrendPoint) => number) =>
     trend && trend.length > 1 ? trend.map(chave) : undefined;
+  const variacao = (cur: number, prev: number) => (semComparacao ? undefined : cur - prev);
+  const varPct = (cur: number, prev: number) => (semComparacao ? undefined : pctChange(cur, prev));
 
   const kpis = [
     {
       label: "Receita",
       value: current.receita,
-      change: pctChange(current.receita, previous.receita),
+      change: varPct(current.receita, previous.receita),
+      changeLabel: comparacaoLabel,
       icon: <DollarSign className="h-4 w-4" />,
       spark: serie((p) => p.receita),
       delay: 0,
@@ -33,7 +42,8 @@ export function MarginKpis({ current, previous, trend }: MarginKpisProps) {
     {
       label: "Resultado",
       value: current.resultado,
-      change: pctChange(current.resultado, previous.resultado),
+      change: varPct(current.resultado, previous.resultado),
+      changeLabel: comparacaoLabel,
       icon: <Wallet className="h-4 w-4" />,
       valueTone: current.resultado > 0
         ? "positive" as const
@@ -46,7 +56,8 @@ export function MarginKpis({ current, previous, trend }: MarginKpisProps) {
     {
       label: "Margem Bruta",
       value: current.margemBruta,
-      change: current.margemBruta - previous.margemBruta,
+      change: variacao(current.margemBruta, previous.margemBruta),
+      changeLabel: comparacaoLabel,
       icon: <Percent className="h-4 w-4" />,
       format: "percentage" as const,
       changeSuffix: "p.p." as const,
@@ -56,7 +67,8 @@ export function MarginKpis({ current, previous, trend }: MarginKpisProps) {
     {
       label: "Margem Operacional",
       value: current.margemOperacional,
-      change: current.margemOperacional - previous.margemOperacional,
+      change: variacao(current.margemOperacional, previous.margemOperacional),
+      changeLabel: comparacaoLabel,
       icon: <PiggyBank className="h-4 w-4" />,
       format: "percentage" as const,
       changeSuffix: "p.p." as const,
@@ -88,7 +100,7 @@ export function MarginKpis({ current, previous, trend }: MarginKpisProps) {
           <p className="mt-2 font-mono text-xl font-semibold tracking-[-0.035em] text-foreground">
             {formatCurrency(totalOutflow)}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">Custos e despesas do mês atual</p>
+          <p className="mt-1 text-xs text-muted-foreground">Custos e despesas {periodoDescricao ?? "do mês atual"}</p>
         </div>
 
         {costDrivers.map(({ label, value, icon: DriverIcon }, index) => {

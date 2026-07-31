@@ -430,6 +430,24 @@ test.describe("migração integral do design system", () => {
     await expect(sidebar.locator('[aria-current="page"]')).toHaveCount(1);
   });
 
+  test("o painel troca a janela de período (mês / intervalo / ano)", async ({ page }) => {
+    await loginWithMocks(page);
+    await expect(page.getByRole("heading", { name: "Indicadores essenciais" })).toBeVisible();
+
+    // Padrão: mês, comparação com o mês anterior.
+    await expect(page.getByText("Comparação: vs mês anterior")).toBeVisible();
+
+    // Ano: acumulado, sem base de comparação.
+    await page.getByRole("tab", { name: "Ano" }).click();
+    await expect(page.getByText("Comparação: acumulado do ano")).toBeVisible();
+    await expect(page.getByText("Sem base de comparação").first()).toBeVisible();
+
+    // Intervalo: mostra os dois seletores de mês.
+    await page.getByRole("tab", { name: "Intervalo" }).click();
+    await expect(page.getByLabel("Mês inicial")).toBeVisible();
+    await expect(page.getByLabel("Mês final")).toBeVisible();
+  });
+
   test("a sidebar recolhe para só ícones e volta", async ({ page }) => {
     await loginWithMocks(page);
     const sidebar = page.getByRole("complementary", { name: "Navegação principal" });

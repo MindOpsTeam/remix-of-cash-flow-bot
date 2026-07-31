@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { Link } from "react-router-dom";
 import { Brain, MessageSquare, Layers, Building2, Info } from "lucide-react";
 import { EmptyState, Icon, Pill, Spinner } from "@viverdeia/design-system";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { useMarginBI } from "@/hooks/useMarginBI";
@@ -27,6 +27,8 @@ import { TopClientesCard } from "@/components/bi/TopClientesCard";
 import { AiInsightsCard } from "@/components/bi/AiInsightsCard";
 import { MinhasVisoes } from "@/components/bi/MinhasVisoes";
 import { ChecklistAtivacao } from "@/components/bi/ChecklistAtivacao";
+import { PeriodoSelector } from "@/components/bi/PeriodoSelector";
+import { calcularJanela, type PeriodoSel } from "@/lib/periodo";
 
 function useOnboarding() {
   const { user } = useAuth();
@@ -66,7 +68,12 @@ export default function Dashboard() {
   const onboarding = useOnboarding();
 
   const isCombined = scope === "all";
-  const monthLabel = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  // Janela de período do painel (mês / intervalo / ano) — recalcula os
+  // indicadores essenciais a partir do trend já carregado, sem novo fetch.
+  const [periodo, setPeriodo] = useState<PeriodoSel>({ mode: "mes" });
+  const janela = useMemo(() => calcularJanela(data?.trend ?? [], periodo), [data?.trend, periodo]);
+  const monthLabel = janela.periodoLabel;
 
   // Ritmo de queima sobre meses COMPLETOS: o mês corrente parcial distorceria.
   const trend = data?.trend ?? [];
@@ -133,19 +140,29 @@ export default function Dashboard() {
         />
       ) : (
         <>
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <span className="via-eyebrow">Desempenho mensal</span>
+              <span className="via-eyebrow">Desempenho</span>
               <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">Indicadores essenciais</h2>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Info className="h-3.5 w-3.5" />
-              Comparação com o mês anterior
+            <div className="flex flex-col items-start gap-1.5 sm:items-end">
+              <PeriodoSelector trend={data.trend} sel={periodo} onChange={setPeriodo} />
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Info className="h-3.5 w-3.5" />
+                {janela.comparacaoLabel ? `Comparação: ${janela.comparacaoLabel}` : "Sem base de comparação"}
+              </div>
             </div>
           </div>
 
           <div className="mb-8">
-            <MarginKpis current={data.currentMonth} previous={data.previousMonth} trend={data.trend} />
+            <MarginKpis
+              current={janela.current}
+              previous={janela.previous}
+              trend={data.trend}
+              semComparacao={!janela.temComparacao}
+              comparacaoLabel={janela.comparacaoLabel}
+              periodoDescricao="no período"
+            />
           </div>
 
           {cockpit.data && (
