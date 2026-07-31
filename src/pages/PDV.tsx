@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
+import { mapNfce, extractReformaMeta, deveDestacar, type NfceFormData } from "@/lib/plugnotas";
 
 /**
  * Frente de caixa. Leitor de código de barras funciona de fábrica: o input de
@@ -28,6 +29,8 @@ interface ProdutoPdv {
   track_stock: boolean;
   current_stock: number | null;
   type: string;
+  ncm: string | null;
+  cfop: string | null;
 }
 
 interface ItemCarrinho {
@@ -45,10 +48,20 @@ const FORMAS_PAGAMENTO = [
 interface Recibo {
   order_number: string;
   total: number;
-  itens: Array<{ descricao: string; quantidade: number; unitario: number }>;
+  desconto: number;
+  itens: Array<{ descricao: string; quantidade: number; unitario: number; ncm: string | null; cfop: string | null }>;
   forma: string;
+  formaCodigo: string;
   quando: string;
 }
+
+/** Forma do PDV → código de pagamento da NFC-e (tabela PlugNotas). */
+const FORMA_NFCE: Record<string, string> = {
+  dinheiro: "01",
+  pix: "17",
+  cartao_credito: "03",
+  cartao_debito: "04",
+};
 
 export default function PDV() {
   const { company } = useCompany();
@@ -58,7 +71,89 @@ export default function PDV() {
   const [forma, setForma] = useState("dinheiro");
   const [finalizando, setFinalizando] = useState(false);
   const [recibo, setRecibo] = useState<Recibo | null>(null);
+  const [emitindoNfce, setEmitindoNfce] = useState(false);
   const buscaRef = useRef<HTMLInputElement>(null);
+
+  const nfceHabilitada = useQuery({
+    queryKey: ["pdv_nfce", company?.id],
+    enabled: !!company,
+    staleTime: 300_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("plugnotas_config")
+        .select("active, enabled_nfce")
+        .eq("company_id", company!.id)
+        .maybeSingle();
+      const c = data as { active?: boolean; enabled_nfce?: boolean } | null;
+      return !!c?.active && !!c?.enabled_nfce;
+    },
+  });
+
+  // NFC-e nativa: o payload nasce dos itens da venda, sem redigitar nada.
+  // Regras honestas: NCM obrigatório em todo item (lote fiscal resolve) e
+  // venda com desconto emite pela tela fiscal — valor da nota nunca diverge.
+  async function emitirNfce() {
+    if (!company || !recibo) return;
+    if (recibo.desconto > 0) {
+      toast.error("Venda com desconto: emita pela tela fiscal para o valor da nota bater.");
+      return;
+    }
+    const semNcm = recibo.itens.filter((i) => !/^\d{8}$/.test(i.ncm ?? ""));
+    if (semNcm.length > 0) {
+      toast.error(`${semNcm.length} item(ns) sem NCM válido. Resolva em Produtos → Pronto para agosto.`);
+      return;
+    }
+    setEmitindoNfce(true);
+    try {
+      const dados: NfceFormData = {
+        emitenteCnpj: company.cnpj ?? "",
+        naturezaOperacao: "Venda ao consumidor",
+        destinatario: { cpfCnpj: "", razaoSocial: "Consumidor não identificado" },
+        itens: recibo.itens.map((i) => ({
+          descricao: i.descricao,
+          ncm: i.ncm!,
+          cfop: i.cfop ?? "5102",
+          quantidade: i.quantidade,
+          valorUnitario: i.unitario,
+        })),
+        consumidorFinal: true,
+        formaPagamento: recibo.formaCodigo,
+        valorPago: recibo.total,
+      };
+
+      const { data: invoice, error: invErr } = await supabase
+        .from("invoices")
+        .insert({ company_id: company.id, type: "nfce", status: "draft", total: recibo.total } as never)
+        .select("id")
+        .single();
+      if (invErr) throw new Error(invErr.message);
+
+      const reformaOpts = deveDestacar(company.regimeTributario, "nfce")
+        ? { cClassTrib: company.cclasstribPadrao ?? undefined }
+        : null;
+      const payload = mapNfce(dados, reformaOpts);
+      const { data: result, error } = await supabase.functions.invoke("plugnotas-nfce", {
+        body: {
+          company_id: company.id,
+          operation: "emitir",
+          params: payload,
+          invoice_id: (invoice as { id: string }).id,
+          reforma: extractReformaMeta(payload),
+        },
+      });
+      if (error) throw new Error(error.message);
+      if ((result as { ok?: boolean })?.ok) {
+        toast.success("NFC-e enviada — acompanhe a autorização na tela fiscal.");
+      } else {
+        await supabase.from("invoices").update({ status: "denied" } as never).eq("id", (invoice as { id: string }).id);
+        throw new Error("A SEFAZ recusou o envio. Confira os dados fiscais na tela de emissão.");
+      }
+    } catch (e) {
+      toast.error("NFC-e não emitida: " + (e as Error).message);
+    } finally {
+      setEmitindoNfce(false);
+    }
+  }
 
   const produtos = useQuery({
     queryKey: ["pdv_products", company?.id],
@@ -67,7 +162,7 @@ export default function PDV() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, sku, barcode, sell_price, track_stock, current_stock, type")
+        .select("id, name, sku, barcode, sell_price, track_stock, current_stock, type, ncm, cfop")
         .eq("company_id", company!.id)
         .eq("active", true)
         .order("name")
@@ -140,8 +235,16 @@ export default function PDV() {
       setRecibo({
         order_number: r.order_number,
         total: r.total,
-        itens: carrinho.map((i) => ({ descricao: i.produto.name, quantidade: i.quantidade, unitario: i.produto.sell_price })),
+        desconto: descontoNum,
+        itens: carrinho.map((i) => ({
+          descricao: i.produto.name,
+          quantidade: i.quantidade,
+          unitario: i.produto.sell_price,
+          ncm: i.produto.ncm,
+          cfop: i.produto.cfop,
+        })),
         forma: FORMAS_PAGAMENTO.find((f) => f.value === forma)?.label ?? forma,
+        formaCodigo: FORMA_NFCE[forma] ?? "99",
         quando: new Date().toLocaleString("pt-BR"),
       });
       setCarrinho([]);
@@ -152,6 +255,67 @@ export default function PDV() {
       toast.error("Venda não registrada: " + (e as Error).message);
     } finally {
       setFinalizando(false);
+    }
+  }
+
+  // Fechamento de turno lite: o dia do caixa por forma de pagamento, mais
+  // sangria/suprimento como lançamentos confirmados rastreáveis (source pdv).
+  const turno = useQuery({
+    queryKey: ["pdv_turno", company?.id],
+    enabled: !!company,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const hoje = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from("transactions")
+        .select("amount, type, payment_method, description")
+        .eq("company_id", company!.id)
+        .eq("source", "pdv")
+        .eq("date", hoje);
+      const rows = (data ?? []) as Array<{ amount: number; type: string; payment_method: string | null; description: string }>;
+      const vendas = rows.filter((r) => r.type === "revenue" && !r.description.startsWith("Suprimento"));
+      const porForma = new Map<string, number>();
+      for (const v of vendas) {
+        const chave = FORMAS_PAGAMENTO.find((f) => f.value === v.payment_method)?.label ?? v.payment_method ?? "Outros";
+        porForma.set(chave, (porForma.get(chave) ?? 0) + Number(v.amount));
+      }
+      const sangrias = rows.filter((r) => r.description.startsWith("Sangria")).reduce((s, r) => s + Number(r.amount), 0);
+      const suprimentos = rows.filter((r) => r.description.startsWith("Suprimento")).reduce((s, r) => s + Number(r.amount), 0);
+      return {
+        totalVendas: vendas.reduce((s, v) => s + Number(v.amount), 0),
+        qtdVendas: vendas.length,
+        porForma: [...porForma.entries()],
+        sangrias,
+        suprimentos,
+      };
+    },
+  });
+
+  async function movimentoCaixa(tipo: "sangria" | "suprimento") {
+    if (!company) return;
+    const bruto = window.prompt(tipo === "sangria" ? "Valor da sangria (R$):" : "Valor do suprimento (R$):");
+    if (!bruto) return;
+    const valor = Number(bruto.replace(",", "."));
+    if (!Number.isFinite(valor) || valor <= 0) {
+      toast.error("Valor inválido.");
+      return;
+    }
+    const { data: sessao } = await supabase.auth.getUser();
+    const { error } = await supabase.from("transactions").insert({
+      company_id: company.id,
+      user_id: sessao.user?.id,
+      date: new Date().toISOString().slice(0, 10),
+      description: tipo === "sangria" ? "Sangria de caixa (PDV)" : "Suprimento de caixa (PDV)",
+      amount: valor,
+      type: tipo === "sangria" ? "expense" : "revenue",
+      status: "confirmed",
+      source: "pdv",
+      payment_method: "dinheiro",
+    } as never);
+    if (error) toast.error("Não registrei: " + error.message);
+    else {
+      toast.success(tipo === "sangria" ? "Sangria registrada." : "Suprimento registrado.");
+      turno.refetch();
     }
   }
 
@@ -319,6 +483,43 @@ export default function PDV() {
             </Button>
           </div>
 
+          {turno.data && (turno.data.qtdVendas > 0 || turno.data.sangrias > 0 || turno.data.suprimentos > 0) && (
+            <div className="mt-4 rounded-lg border border-border bg-card p-4 print-hide">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Turno de hoje</p>
+                <span className="font-mono text-sm font-bold">{formatCurrency(turno.data.totalVendas)}</span>
+              </div>
+              <div className="space-y-1">
+                {turno.data.porForma.map(([forma, valor]) => (
+                  <div key={forma} className="flex justify-between text-xs text-muted-foreground">
+                    <span>{forma} · {turno.data!.qtdVendas} venda(s)</span>
+                    <span className="font-mono">{formatCurrency(valor)}</span>
+                  </div>
+                ))}
+                {turno.data.suprimentos > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Suprimentos</span>
+                    <span className="font-mono">+{formatCurrency(turno.data.suprimentos)}</span>
+                  </div>
+                )}
+                {turno.data.sangrias > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Sangrias</span>
+                    <span className="font-mono">−{formatCurrency(turno.data.sangrias)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => movimentoCaixa("sangria")}>
+                  Sangria
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => movimentoCaixa("suprimento")}>
+                  Suprimento
+                </Button>
+              </div>
+            </div>
+          )}
+
           {recibo && (
             <div className="mt-4 rounded-lg border border-[hsl(var(--success))]/30 bg-[hsl(var(--success))]/5 p-4 print-hide">
               <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -331,9 +532,16 @@ export default function PDV() {
                 <Button size="sm" variant="outline" className="gap-2" onClick={() => window.print()}>
                   <Printer className="h-4 w-4" /> Imprimir recibo
                 </Button>
-                <Button size="sm" variant="ghost" className="gap-2 text-muted-foreground" asChild>
-                  <a href="/fiscal/plugnotas/emit">Emitir NFC-e</a>
-                </Button>
+                {nfceHabilitada.data ? (
+                  <Button size="sm" variant="outline" className="gap-2" onClick={emitirNfce} disabled={emitindoNfce}>
+                    {emitindoNfce ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Emitir NFC-e
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="ghost" className="gap-2 text-muted-foreground" asChild>
+                    <a href="/settings/integrations/plugnotas">Habilitar NFC-e</a>
+                  </Button>
+                )}
               </div>
             </div>
           )}
