@@ -987,6 +987,7 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          plan_key: string
           regime_apuracao: string
           regime_tributario: string | null
           updated_at: string
@@ -998,6 +999,7 @@ export type Database = {
           id?: string
           name: string
           org_id?: string
+          plan_key?: string
           regime_apuracao?: string
           regime_tributario?: string | null
           updated_at?: string
@@ -1009,11 +1011,20 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          plan_key?: string
           regime_apuracao?: string
           regime_tributario?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_plan_key_fkey"
+            columns: ["plan_key"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["key"]
+          },
+        ]
       }
       company_asaas_anticipations: {
         Row: {
@@ -1727,6 +1738,64 @@ export type Database = {
           },
           {
             foreignKeyName: "company_asaas_webhook_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      company_invites: {
+        Row: {
+          company_id: string
+          created_at: string
+          criado_por: string
+          expira_em: string
+          id: string
+          role: string
+          token: string
+          usado_em: string | null
+          usado_por: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          criado_por: string
+          expira_em?: string
+          id?: string
+          role?: string
+          token?: string
+          usado_em?: string | null
+          usado_por?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          criado_por?: string
+          expira_em?: string
+          id?: string
+          role?: string
+          token?: string
+          usado_em?: string | null
+          usado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_invites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_invites_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "company_invites_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "v_group_ap_ar"
@@ -3102,6 +3171,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plans: {
+        Row: {
+          contaazul: boolean
+          created_at: string
+          key: string
+          max_agentes: number
+          max_widgets: number
+          nome: string
+          pdv: boolean
+          preco_centavos: number
+          whatsapp: boolean
+        }
+        Insert: {
+          contaazul?: boolean
+          created_at?: string
+          key: string
+          max_agentes?: number
+          max_widgets?: number
+          nome: string
+          pdv?: boolean
+          preco_centavos?: number
+          whatsapp?: boolean
+        }
+        Update: {
+          contaazul?: boolean
+          created_at?: string
+          key?: string
+          max_agentes?: number
+          max_widgets?: number
+          nome?: string
+          pdv?: boolean
+          preco_centavos?: number
+          whatsapp?: boolean
+        }
+        Relationships: []
       }
       plugnotas_config: {
         Row: {
@@ -5342,6 +5447,7 @@ export type Database = {
       }
     }
     Functions: {
+      aceitar_convite: { Args: { p_token: string }; Returns: Json }
       aceitar_proposta: {
         Args: { p_ip?: string; p_nome: string; p_token: string }
         Returns: Json
@@ -5410,6 +5516,30 @@ export type Database = {
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       mes_esta_fechado: {
         Args: { p_company_id: string; p_data: string }
+        Returns: boolean
+      }
+      plano_da_empresa: {
+        Args: { p_company_id: string }
+        Returns: {
+          contaazul: boolean
+          created_at: string
+          key: string
+          max_agentes: number
+          max_widgets: number
+          nome: string
+          pdv: boolean
+          preco_centavos: number
+          whatsapp: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "plans"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      pode_escrever_na_empresa: {
+        Args: { p_company_id: string }
         Returns: boolean
       }
       ratear_lancamento: {
