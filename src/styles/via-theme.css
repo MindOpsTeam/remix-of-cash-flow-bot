@@ -68,6 +68,14 @@
   background: hsl(var(--sidebar-foreground) / 0.32);
 }
 
+/* Alça de redimensionar: FORA do fluxo. `.via-sidebar > *` acima força
+   position:relative nos filhos diretos e venceria o `absolute` do Tailwind,
+   jogando a alça pro fluxo e roubando a altura da navegação. Reafirmar aqui
+   (mesmo seletor de classe, definido depois → ganha por ordem). */
+.via-sidebar-resizer {
+  position: absolute;
+  z-index: 30;
+}
 /* Alça de redimensionar: invisível em repouso, um fio de destaque no hover. */
 .via-sidebar-resizer::before {
   content: "";

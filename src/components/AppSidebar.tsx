@@ -505,7 +505,7 @@ export function SidebarContent({
       setOpenGroups(new Set([key]));
     };
     return (
-      <div className="flex h-full flex-col items-center gap-1 py-4">
+      <div className="flex min-h-0 flex-1 flex-col items-center gap-1 py-4">
         <img src={appIconWhite} alt="FinanceAI" className="via-sidebar-brand-icon mb-1 h-9 w-9 rounded-lg" />
         {onSetCollapsed && (
           <button
@@ -735,12 +735,10 @@ export function AppSidebar() {
   return (
     <aside
       style={{ width: collapsed ? SIDEBAR_RAIL : width }}
-      className="via-sidebar sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar lg:flex relative"
+      className="via-sidebar sticky top-0 hidden h-screen shrink-0 self-start flex-col overflow-hidden border-r border-sidebar-border bg-sidebar lg:flex relative"
       aria-label="Navegação principal"
     >
-      <div className="flex h-full flex-col overflow-hidden">
-        <SidebarContent collapsed={collapsed} onSetCollapsed={persistCollapsed} />
-      </div>
+      <SidebarContent collapsed={collapsed} onSetCollapsed={persistCollapsed} />
       {!collapsed && (
         <div
           role="separator"

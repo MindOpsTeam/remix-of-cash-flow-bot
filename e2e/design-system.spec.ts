@@ -448,6 +448,24 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByLabel("Mês final")).toBeVisible();
   });
 
+  test("a navegação preenche a altura e a alça não rouba espaço", async ({ page }) => {
+    await page.setViewportSize({ width: 1309, height: 780 });
+    await loginWithMocks(page);
+    // Regressão: `.via-sidebar > *` forçava position:relative na alça de
+    // resize, jogando-a no fluxo e zerando a altura da nav (flex-1).
+    const alturas = await page.evaluate(() => {
+      const aside = document.querySelector('aside[aria-label="Navegação principal"]') as HTMLElement;
+      const nav = aside.querySelector("nav") as HTMLElement;
+      const resizer = aside.querySelector('[aria-label="Redimensionar menu"]') as HTMLElement;
+      return {
+        nav: Math.round(nav.getBoundingClientRect().height),
+        resizerPos: getComputedStyle(resizer).position,
+      };
+    });
+    expect(alturas.resizerPos).toBe("absolute");
+    expect(alturas.nav).toBeGreaterThan(300);
+  });
+
   test("a sidebar recolhe para só ícones e volta", async ({ page }) => {
     await loginWithMocks(page);
     const sidebar = page.getByRole("complementary", { name: "Navegação principal" });
