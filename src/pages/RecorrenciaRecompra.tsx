@@ -42,15 +42,11 @@ export default function RecorrenciaRecompra() {
     () => (scope === "all" ? companies.map((c) => c.id) : companies.filter((c) => c.id === scope).map((c) => c.id)),
     [companies, scope],
   );
-  // views não estão nos tipos gerados do Supabase
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any;
-
   const { data: mrrMeses = [], isLoading: loadingMrr } = useQuery<MrrMes[]>({
     queryKey: ["mrr-mov", ids.join(",")],
     enabled: ids.length > 0,
     queryFn: async () => {
-      const { data, error } = await db
+      const { data, error } = await supabase
         .from("v_mrr_movimentos")
         .select("mes, mrr_ativo, mrr_novo, mrr_perdido, contratos_novos, contratos_perdidos")
         .in("company_id", ids);
@@ -75,7 +71,7 @@ export default function RecorrenciaRecompra() {
     queryKey: ["recompra", ids.join(",")],
     enabled: ids.length > 0,
     queryFn: async () => {
-      const { data, error } = await db
+      const { data, error } = await supabase
         .from("v_recompra_clientes")
         .select("*")
         .in("company_id", ids);
