@@ -2,7 +2,6 @@ import { AppLayout } from "@/components/AppLayout";
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 import { ArrowLeft, Layers, Save, Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
