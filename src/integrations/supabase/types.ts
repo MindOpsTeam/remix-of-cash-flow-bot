@@ -102,6 +102,70 @@ export type Database = {
           },
         ]
       }
+      agent_instances: {
+        Row: {
+          ativo: boolean
+          canais: Json
+          company_id: string
+          config: Json
+          created_at: string
+          id: string
+          last_result: Json | null
+          last_run_at: string | null
+          nome: string
+          template_key: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          canais?: Json
+          company_id: string
+          config?: Json
+          created_at?: string
+          id?: string
+          last_result?: Json | null
+          last_run_at?: string | null
+          nome: string
+          template_key: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          canais?: Json
+          company_id?: string
+          config?: Json
+          created_at?: string
+          id?: string
+          last_result?: Json | null
+          last_run_at?: string | null
+          nome?: string
+          template_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "agent_instances_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       agent_rules: {
         Row: {
           agent: string
@@ -2498,6 +2562,58 @@ export type Database = {
           },
         ]
       }
+      kpi_metas: {
+        Row: {
+          alvo: number
+          company_id: string
+          created_at: string
+          direcao: string
+          id: string
+          metric_key: string
+          updated_at: string
+        }
+        Insert: {
+          alvo: number
+          company_id: string
+          created_at?: string
+          direcao?: string
+          id?: string
+          metric_key: string
+          updated_at?: string
+        }
+        Update: {
+          alvo?: number
+          company_id?: string
+          created_at?: string
+          direcao?: string
+          id?: string
+          metric_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_metas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_metas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "kpi_metas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       monthly_close: {
         Row: {
           closed_at: string | null
@@ -2657,6 +2773,70 @@ export type Database = {
             foreignKeyName: "nfse_config_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: true
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          agent_instance_id: string | null
+          categoria: string
+          company_id: string
+          corpo: string | null
+          created_at: string
+          dedupe_key: string | null
+          id: string
+          lida: boolean
+          link: string | null
+          titulo: string
+          user_id: string | null
+        }
+        Insert: {
+          agent_instance_id?: string | null
+          categoria?: string
+          company_id: string
+          corpo?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          id?: string
+          lida?: boolean
+          link?: string | null
+          titulo: string
+          user_id?: string | null
+        }
+        Update: {
+          agent_instance_id?: string | null
+          categoria?: string
+          company_id?: string
+          corpo?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          id?: string
+          lida?: boolean
+          link?: string | null
+          titulo?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "notifications_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
           },
@@ -4467,6 +4647,7 @@ export type Database = {
           group_name: string | null
           id: string
           instance_name: string
+          notify_number: string | null
           phone_number: string | null
           updated_at: string
           webhook_secret: string
@@ -4481,6 +4662,7 @@ export type Database = {
           group_name?: string | null
           id?: string
           instance_name: string
+          notify_number?: string | null
           phone_number?: string | null
           updated_at?: string
           webhook_secret?: string
@@ -4495,6 +4677,7 @@ export type Database = {
           group_name?: string | null
           id?: string
           instance_name?: string
+          notify_number?: string | null
           phone_number?: string | null
           updated_at?: string
           webhook_secret?: string
