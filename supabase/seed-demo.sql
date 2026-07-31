@@ -97,10 +97,14 @@ BEGIN
       END IF;
     END LOOP;
 
-    -- Recebíveis: abertos, vencidos e recebidos (aging e inadimplência com cor).
+    -- Recebíveis: um de cada status para acender aging e inadimplência com cor.
+    -- due_date = current_date + (i*9 - 18): i=1 vencido, i=2 recebido, i=3/4 em aberto.
     FOR i IN 1..4 LOOP
       INSERT INTO public.receivables (company_id, description, amount, due_date, status, source, contact_id)
-      VALUES (v_company, 'Fatura mensal ' || i || ' · Horizonte', round(v_emp.base * 0.08), current_date + (i * 9 - 18), CASE WHEN i <= 2 THEN 'a_receber' ELSE 'a_receber' END, 'manual', v_contato);
+      VALUES (v_company, 'Fatura mensal ' || i || ' · Horizonte', round(v_emp.base * 0.08),
+        current_date + (i * 9 - 18),
+        CASE i WHEN 1 THEN 'vencido' WHEN 2 THEN 'recebido' ELSE 'a_receber' END,
+        'manual', v_contato);
     END LOOP;
 
     -- Contas a pagar chegando (radar aceso).

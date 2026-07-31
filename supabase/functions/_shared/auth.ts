@@ -103,6 +103,38 @@ export async function assertMembership(
   return null;
 }
 
+/**
+ * Valida que o user atual PODE ESCREVER na company (papel admin ou member).
+ * Complemento de assertMembership: edges que usam service_role bypassam RLS,
+ * então o papel viewer (ex.: conta de demonstração compartilhada) precisa ser
+ * barrado explicitamente aqui, senão "somente leitura" não vale para nenhum
+ * caminho que passe por service_role.
+ */
+export async function assertCanWrite(
+  supabase: SupabaseClient,
+  userId: string,
+  companyId: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response | null> {
+  const { data, error } = await supabase
+    .from("company_members")
+    .select("role")
+    .eq("company_id", companyId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error || !data) {
+    return jsonResp({ error: "Forbidden" }, 403, corsHeaders);
+  }
+  if (data.role !== "admin" && data.role !== "member") {
+    return jsonResp(
+      { error: "READ_ONLY_ROLE", detalhe: "Seu perfil é somente leitura nesta empresa." },
+      403,
+      corsHeaders,
+    );
+  }
+  return null;
+}
+
 export function jsonResp(
   data: unknown,
   status: number,

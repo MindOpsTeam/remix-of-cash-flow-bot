@@ -16,7 +16,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
-import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
+import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_shared/auth.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { syncPluggyConnection } from "../_shared/openfinance-sync.ts";
 import {
@@ -74,6 +74,9 @@ Deno.serve(async (req) => {
     if (!companyId) return jsonResp({ error: "company_id é obrigatório" }, 400, corsHeaders);
     const forbidden = await assertMembership(supabase, user.id, companyId, corsHeaders);
     if (forbidden) return forbidden;
+    // sync/ignore/import mutam o palco — barrar papel somente leitura (demo).
+    const readonly = await assertCanWrite(supabase, user.id, companyId, corsHeaders);
+    if (readonly) return readonly;
 
     if (action === "sync") {
       const connectionId = body.connection_id as string;

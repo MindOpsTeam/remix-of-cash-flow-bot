@@ -1,5 +1,5 @@
 import { corsPreflightResponse } from "../_shared/cors.ts";
-import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
+import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_shared/auth.ts";
 import { parseJsonBody, validate, validateRequired, validateString, sanitizeForPrompt } from "../_shared/validate.ts";
 
 Deno.serve(async (req) => {
@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
     const { image_base64, mimetype, company_id } = parsed.data;
 
     const validationError = validate(
-      validateRequired(parsed.data, ["image_base64", "mimetype"]),
+      validateRequired(parsed.data, ["image_base64", "mimetype", "company_id"]),
       validateString(image_base64, "image_base64"),
       validateString(mimetype, "mimetype"),
     );
@@ -27,13 +27,13 @@ Deno.serve(async (req) => {
       return jsonResp({ error: validationError }, 400, corsHeaders);
     }
 
-    // Se o caller passou company_id, exigir membership.
-    // Se omitir, o OCR roda mas sem classificação contábil (passo 2 só roda
-    // quando company_id E membership conferem).
-    if (company_id) {
-      const forbidden = await assertMembership(supabase, user.id, company_id as string, corsHeaders);
-      if (forbidden) return forbidden;
-    }
+    // company_id é OBRIGATÓRIO: sem ele, qualquer JWT válido queimava a quota
+    // de IA sem escopo. Exigir membresia e papel de escrita (o scan cria
+    // lançamento — viewer/demo não abre esse custo).
+    const forbidden = await assertMembership(supabase, user.id, company_id as string, corsHeaders);
+    if (forbidden) return forbidden;
+    const readonly = await assertCanWrite(supabase, user.id, company_id as string, corsHeaders);
+    if (readonly) return readonly;
 
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableApiKey) {

@@ -313,7 +313,11 @@ async function loginWithMocks(page: Page, options?: MockOptions) {
   await form.getByLabel("Email").fill("qa.visual@financeai.local");
   await form.getByLabel("Senha").fill("route-audit");
   await form.getByRole("button", { name: "Entrar no FinanceAI" }).click();
-  await expect(page.getByRole("heading", { name: "Painel Consolidado" })).toBeVisible();
+  // Onboarding incompleto abre o wizard como modal e marca o fundo com
+  // aria-hidden — o heading do dashboard sai da árvore de acessibilidade.
+  // Esperar o marco certo em cada caso.
+  const marco = options?.onboardingIncompleto ? "Guia de instalação" : "Painel Consolidado";
+  await expect(page.getByRole("heading", { name: marco })).toBeVisible();
 }
 
 test.describe("migração integral do design system", () => {
@@ -622,6 +626,8 @@ test.describe("migração integral do design system", () => {
     const tour = page.getByRole("complementary", { name: "Tour da demonstração" });
     await expect(tour.getByText("Passo 1 de 10")).toBeVisible();
     await expect(tour.getByText("O cockpit do seu dinheiro")).toBeVisible();
+    // Na demo o widget flutuante do CFO some (colidia com os botões do tour).
+    await expect(page.getByRole("button", { name: "Abrir CFO Digital" })).toHaveCount(0);
 
     // Continuar navega para o passo 2 (caixa de entrada bancária).
     await tour.getByRole("button", { name: "Continuar" }).click();

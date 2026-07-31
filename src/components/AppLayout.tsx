@@ -65,8 +65,9 @@ export function AppLayout({ children }: AppLayoutProps) {
           {children}
         </div>
       </main>
-      <CFOChatWidget />
-      {ehDemo ? <DemoTour /> : null}
+      {/* Na demo, o tour (barra inferior fixa) é o guia; o widget flutuante do
+          CFO colidiria com os botões "Continuar"/"Fechar tour" no mobile. */}
+      {ehDemo ? <DemoTour /> : <CFOChatWidget />}
     </div>
   );
 }

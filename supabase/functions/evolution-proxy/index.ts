@@ -11,7 +11,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
-import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
+import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_shared/auth.ts";
 
 const CAMINHOS_PERMITIDOS = [
   "instance/connect/",
@@ -64,6 +64,11 @@ Deno.serve(async (req) => {
 
     const forbidden = await assertMembership(supabase, user.id, config.company_id, corsHeaders);
     if (forbidden) return forbidden;
+    // O proxy faz fetch server-side para a evolution_api_url gravada: papel
+    // somente leitura (demo) não dispara essa saída de rede (defesa extra ao
+    // RESTRICTIVE já posto em whatsapp_configs).
+    const readonly = await assertCanWrite(supabase, user.id, config.company_id, corsHeaders);
+    if (readonly) return readonly;
 
     const evolutionUrl = (config.evolution_api_url || Deno.env.get("EVOLUTION_API_URL") || "").replace(/\/$/, "");
     const evolutionKey = config.evolution_api_key || Deno.env.get("EVOLUTION_API_KEY");

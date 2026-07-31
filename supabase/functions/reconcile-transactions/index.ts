@@ -15,7 +15,7 @@
  */
 
 import { corsPreflightResponse } from "../_shared/cors.ts";
-import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
+import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_shared/auth.ts";
 
 const EXTRA_HEADERS = "authorization, x-client-info, apikey, content-type";
 
@@ -56,9 +56,11 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "company_id, amount, date, type required" }, 400, corsHeaders);
       }
 
-      // O user que chama deve ser member da empresa.
+      // O user que chama deve ser member da empresa e poder escrever.
       const forbidden = await assertMembership(supabase, user.id, company_id, corsHeaders);
       if (forbidden) return forbidden;
+      const readonly = await assertCanWrite(supabase, user.id, company_id, corsHeaders);
+      if (readonly) return readonly;
 
       // Idempotency check
       if (external_id) {

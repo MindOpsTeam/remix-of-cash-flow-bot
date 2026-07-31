@@ -1,5 +1,5 @@
 import { corsPreflightResponse } from "../_shared/cors.ts";
-import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
+import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_shared/auth.ts";
 import { parseJsonBody, validate, validateRequired, validateEnum, validateUUID } from "../_shared/validate.ts";
 
 const TRANSACTION_TYPES = [
@@ -105,9 +105,11 @@ Deno.serve(async (req) => {
       return jsonResp({ error: "amount must be greater than zero" }, 400, corsHeaders);
     }
 
-    // Confirma que o user autenticado é membro da empresa
+    // Confirma que o user autenticado é membro da empresa e pode escrever
     const forbidden = await assertMembership(supabase, userId, companyId, corsHeaders);
     if (forbidden) return forbidden;
+    const readonly = await assertCanWrite(supabase, userId, companyId, corsHeaders);
+    if (readonly) return readonly;
 
     const { pjType } = getDirection(transactionType);
     const label = TYPE_LABELS[transactionType] || transactionType;

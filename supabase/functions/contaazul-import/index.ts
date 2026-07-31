@@ -13,7 +13,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
-import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
+import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_shared/auth.ts";
 import {
   mapPessoa,
   mapProduto,
@@ -117,6 +117,8 @@ Deno.serve(async (req) => {
     if (!companyId) return jsonResp({ error: "company_id é obrigatório" }, 400, corsHeaders);
     const forbidden = await assertMembership(supabase, user.id, companyId, corsHeaders);
     if (forbidden) return forbidden;
+    const readonly = await assertCanWrite(supabase, user.id, companyId, corsHeaders);
+    if (readonly) return readonly;
 
     // Entitlement do plano vale na edge, não só na tela.
     const { data: plano } = await service.rpc("plano_da_empresa", { p_company_id: companyId });
