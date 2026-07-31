@@ -418,6 +418,33 @@ test.describe("migração integral do design system", () => {
     expect(scrolledBox?.height).toBe(page.viewportSize()?.height);
   });
 
+  test("a sidebar marca só o item mais específico como ativo", async ({ page }) => {
+    await loginWithMocks(page);
+    await page.goto("/fiscal/arquivos");
+    const sidebar = page.getByRole("complementary", { name: "Navegação principal" });
+
+    // "/fiscal/arquivos" é o único ativo; "/fiscal" (Notas Fiscais) não acende.
+    await expect(sidebar.getByRole("link", { name: "Arquivos Fiscais" })).toHaveAttribute("aria-current", "page");
+    await expect(sidebar.getByRole("link", { name: "Notas Fiscais" })).not.toHaveAttribute("aria-current", "page");
+    // No máximo um item marcado como página atual na navegação inteira.
+    await expect(sidebar.locator('[aria-current="page"]')).toHaveCount(1);
+  });
+
+  test("a sidebar recolhe para só ícones e volta", async ({ page }) => {
+    await loginWithMocks(page);
+    const sidebar = page.getByRole("complementary", { name: "Navegação principal" });
+
+    await sidebar.getByRole("button", { name: "Recolher menu" }).click();
+    await expect(sidebar.getByRole("button", { name: "Expandir menu" })).toBeVisible();
+    // No modo recolhido não há o título nem o seletor de perfil.
+    await expect(sidebar.getByRole("heading", { name: "FinanceAI" })).toHaveCount(0);
+    // O Painel continua acessível como ícone (aria-label preservado).
+    await expect(sidebar.getByRole("link", { name: "Painel" })).toBeVisible();
+
+    await sidebar.getByRole("button", { name: "Expandir menu" }).click();
+    await expect(sidebar.getByRole("heading", { name: "FinanceAI" })).toBeVisible();
+  });
+
   test("o dashboard prioriza quatro KPIs e gráficos comparáveis", async ({ page }) => {
     await loginWithMocks(page);
 

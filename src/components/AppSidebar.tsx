@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { usePrefs } from "@/hooks/usePrefs";
@@ -52,6 +52,8 @@ import {
   Calculator,
   FolderArchive,
   BookOpenCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 // ---------- Personas (níveis de decisão do usuário do ERP) ----------
@@ -188,6 +190,15 @@ const sections: NavGroup[] = [
   },
 ];
 
+const settingsItem: NavItem = { to: "/settings", label: "Configurações", icon: Settings };
+
+// Todos os destinos candidatos a "ativo" (inclui painel e configurações).
+const ALL_TOS: string[] = [
+  painel.to,
+  ...sections.flatMap((s) => s.items.map((i) => i.to)),
+  settingsItem.to,
+];
+
 // ---------- Helpers ----------
 
 function visibleSections(persona: Persona): NavGroup[] {
@@ -195,13 +206,44 @@ function visibleSections(persona: Persona): NavGroup[] {
   return sections.filter((s) => s.personas.includes(persona));
 }
 
-function getActiveGroup(nav: NavGroup[], pathname: string): string | null {
-  for (const entry of nav) {
-    if (entry.items.some((i) => pathname === i.to || pathname.startsWith(i.to + "/"))) {
-      return entry.key;
+/**
+ * Pontua quanto um destino casa com a rota atual. O prefixo "/fiscal" casava
+ * com "/fiscal/arquivos" E "/fiscal/impostos" ao mesmo tempo, acendendo vários
+ * itens. Agora só o MAIS específico ganha: query exata > path exato > prefixo.
+ */
+function scoreMatch(to: string, pathname: string, search: string): number {
+  const qIdx = to.indexOf("?");
+  const toPath = qIdx === -1 ? to : to.slice(0, qIdx);
+  const toQuery = qIdx === -1 ? "" : to.slice(qIdx + 1);
+  if (toQuery) {
+    if (pathname !== toPath) return -1;
+    const atual = new URLSearchParams(search);
+    const alvo = new URLSearchParams(toQuery);
+    for (const [k, v] of alvo) if (atual.get(k) !== v) return -1;
+    return toPath.length + 2000; // destino com query vence tudo
+  }
+  if (pathname === toPath) return toPath.length + 1000; // match exato de path
+  if (pathname.startsWith(toPath + "/")) return toPath.length; // prefixo
+  return -1;
+}
+
+/** O ÚNICO destino ativo para a rota atual (o de maior pontuação). */
+function computeActiveTo(pathname: string, search: string): string | null {
+  let best: string | null = null;
+  let bestScore = -1;
+  for (const to of ALL_TOS) {
+    const s = scoreMatch(to, pathname, search);
+    if (s > bestScore) {
+      bestScore = s;
+      best = to;
     }
   }
-  return null;
+  return best;
+}
+
+function groupKeyOfTo(to: string | null): string | null {
+  if (!to) return null;
+  return sections.find((s) => s.items.some((i) => i.to === to))?.key ?? null;
 }
 
 // ---------- Components ----------
@@ -255,9 +297,41 @@ function NavLink({
   );
 }
 
+/** Ícone-botão do modo recolhido (com tooltip nativo pelo title). */
+function RailLink({
+  to,
+  icon: Icon,
+  label,
+  isActive,
+  onClick,
+}: {
+  to: string;
+  icon: LucideIcon;
+  label: string;
+  isActive: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      aria-current={isActive ? "page" : undefined}
+      className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+        isActive
+          ? "bg-sidebar-accent text-sidebar-primary shadow-[inset_2px_0_0_hsl(var(--sidebar-primary))]"
+          : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
+      }`}
+    >
+      <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
+    </Link>
+  );
+}
+
 function NavGroupSection({
   group,
-  pathname,
+  activeTo,
   isOpen,
   onToggle,
   onNavigate,
@@ -265,14 +339,14 @@ function NavGroupSection({
   onToggleFav,
 }: {
   group: NavGroup;
-  pathname: string;
+  activeTo: string | null;
   isOpen: boolean;
   onToggle: () => void;
   onNavigate?: () => void;
   favoritos?: string[];
   onToggleFav?: (to: string) => void;
 }) {
-  const hasActive = group.items.some((i) => pathname === i.to || pathname.startsWith(i.to + "/"));
+  const hasActive = group.items.some((i) => i.to === activeTo);
 
   return (
     <div>
@@ -302,7 +376,7 @@ function NavGroupSection({
             <NavLink
               key={item.to}
               item={item}
-              isActive={pathname === item.to || pathname.startsWith(item.to + "/")}
+              isActive={item.to === activeTo}
               onClick={onNavigate}
               isFav={favoritos?.includes(item.to)}
               onToggleFav={onToggleFav}
@@ -359,7 +433,15 @@ function PersonaSelector({ persona, onChange }: { persona: Persona; onChange: (p
 
 // ---------- Sidebar content (shared between desktop and mobile) ----------
 
-export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarContent({
+  onNavigate,
+  collapsed = false,
+  onSetCollapsed,
+}: {
+  onNavigate?: () => void;
+  collapsed?: boolean;
+  onSetCollapsed?: (v: boolean) => void;
+}) {
   const location = useLocation();
   const { signOut } = useAuth();
   const { company } = useCompany();
@@ -382,17 +464,22 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   const nav = visibleSections(persona);
 
-  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
-    const active = getActiveGroup(sections, location.pathname);
-    return new Set(active ? [active] : []);
-  });
+  // Um único destino ativo (o mais específico) — some o bug de vários acesos.
+  const activeTo = useMemo(
+    () => computeActiveTo(location.pathname, location.search),
+    [location.pathname, location.search],
+  );
+  const activeGroupKey = useMemo(() => groupKeyOfTo(activeTo), [activeTo]);
+
+  const [openGroups, setOpenGroups] = useState<Set<string>>(
+    () => new Set(activeGroupKey ? [activeGroupKey] : []),
+  );
 
   // Auto-abre a seção da rota atual
   useEffect(() => {
-    const active = getActiveGroup(sections, location.pathname);
-    if (!active) return;
-    setOpenGroups((prev) => prev.has(active) ? prev : new Set([...prev, active]));
-  }, [location.pathname]);
+    if (!activeGroupKey) return;
+    setOpenGroups((prev) => (prev.has(activeGroupKey) ? prev : new Set([...prev, activeGroupKey])));
+  }, [activeGroupKey]);
 
   const changePersona = (p: Persona) => {
     setPersona(p);
@@ -411,13 +498,74 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     });
   };
 
+  // ---- Modo recolhido: só ícones ----
+  if (collapsed) {
+    const abrirNoGrupo = (key: string) => {
+      onSetCollapsed?.(false);
+      setOpenGroups(new Set([key]));
+    };
+    return (
+      <div className="flex h-full flex-col items-center gap-1 py-4">
+        <img src={appIconWhite} alt="FinanceAI" className="via-sidebar-brand-icon mb-1 h-9 w-9 rounded-lg" />
+        {onSetCollapsed && (
+          <button
+            onClick={() => onSetCollapsed(false)}
+            title="Expandir menu"
+            aria-label="Expandir menu"
+            className="flex h-9 w-9 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          >
+            <PanelLeftOpen className="h-[18px] w-[18px]" strokeWidth={1.5} />
+          </button>
+        )}
+        <div className="mt-1 flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto">
+          <RailLink to={painel.to} icon={painel.icon} label={painel.label} isActive={activeTo === painel.to} onClick={onNavigate} />
+          {itensFavoritos.length > 0 && <div className="my-1 h-px w-6 bg-sidebar-border" />}
+          {itensFavoritos.map((item) => (
+            <RailLink key={`fav-${item.to}`} to={item.to} icon={item.icon} label={item.label} isActive={item.to === activeTo} onClick={onNavigate} />
+          ))}
+          <div className="my-1 h-px w-6 bg-sidebar-border" />
+          {nav.map((group) => {
+            const hasActive = group.items.some((i) => i.to === activeTo);
+            return (
+              <button
+                key={group.key}
+                onClick={() => abrirNoGrupo(group.key)}
+                title={group.label}
+                aria-label={group.label}
+                className={`flex h-10 w-10 items-center justify-center rounded-md transition-colors ${
+                  hasActive
+                    ? "bg-sidebar-accent text-sidebar-primary shadow-[inset_2px_0_0_hsl(var(--sidebar-primary))]"
+                    : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                }`}
+              >
+                <group.icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-auto flex w-full flex-col items-center gap-1 pt-1">
+          <div className="my-1 h-px w-6 bg-sidebar-border" />
+          <RailLink to={settingsItem.to} icon={settingsItem.icon} label={settingsItem.label} isActive={activeTo === settingsItem.to} onClick={onNavigate} />
+          <button
+            onClick={signOut}
+            title="Sair"
+            aria-label="Sair"
+            className="flex h-10 w-10 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-expense"
+          >
+            <LogOut className="h-[18px] w-[18px]" strokeWidth={1.5} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Logo */}
       <div className="p-5 pb-4">
         <div className="flex items-center gap-3">
           <img src={appIconWhite} alt="Viver de IA" className="via-sidebar-brand-icon h-9 w-9 rounded-lg" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-semibold tracking-[-0.02em] text-sidebar-foreground">
               FinanceAI
             </h1>
@@ -426,6 +574,16 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               <span className="sr-only">por Viver de IA</span>
             </div>
           </div>
+          {onSetCollapsed && (
+            <button
+              onClick={() => onSetCollapsed(true)}
+              title="Recolher menu"
+              aria-label="Recolher menu"
+              className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground lg:flex"
+            >
+              <PanelLeftClose className="h-4 w-4" strokeWidth={1.5} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -436,7 +594,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex-1 min-h-0 px-3 space-y-0.5 overflow-y-auto">
         <NavLink
           item={painel}
-          isActive={location.pathname === painel.to}
+          isActive={activeTo === painel.to}
           onClick={onNavigate}
         />
         {itensFavoritos.length > 0 && (
@@ -448,7 +606,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               <NavLink
                 key={`fav-${item.to}`}
                 item={item}
-                isActive={location.pathname === item.to}
+                isActive={item.to === activeTo}
                 onClick={onNavigate}
                 isFav
                 onToggleFav={toggleFav}
@@ -460,7 +618,7 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           <NavGroupSection
             key={group.key}
             group={group}
-            pathname={location.pathname}
+            activeTo={activeTo}
             isOpen={openGroups.has(group.key)}
             onToggle={() => toggleGroup(group.key)}
             onNavigate={onNavigate}
@@ -474,8 +632,8 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="mx-4 mt-2 h-px bg-sidebar-border" />
       <div className="px-3 py-2">
         <NavLink
-          item={{ to: "/settings", label: "Configurações", icon: Settings }}
-          isActive={location.pathname.startsWith("/settings") && !location.pathname.startsWith("/settings/consolidation") && !location.pathname.startsWith("/settings/bank-accounts")}
+          item={settingsItem}
+          isActive={activeTo === settingsItem.to}
           onClick={onNavigate}
         />
       </div>
@@ -506,17 +664,97 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-// ---------- Desktop sidebar ----------
+// ---------- Desktop sidebar (redimensionável + recolhível) ----------
+
+const SIDEBAR_MIN = 208;
+const SIDEBAR_MAX = 420;
+const SIDEBAR_DEFAULT = 240;
+const SIDEBAR_RAIL = 68;
+const WIDTH_KEY = "cfo:sidebar-width";
+const COLLAPSED_KEY = "cfo:sidebar-collapsed";
 
 export function AppSidebar() {
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  });
+  const [width, setWidth] = useState<number>(() => {
+    if (typeof window === "undefined") return SIDEBAR_DEFAULT;
+    const w = Number(localStorage.getItem(WIDTH_KEY));
+    return w >= SIDEBAR_MIN && w <= SIDEBAR_MAX ? w : SIDEBAR_DEFAULT;
+  });
+  const draggingRef = useRef(false);
+  const widthRef = useRef(width);
+  widthRef.current = width;
+
+  const persistCollapsed = (v: boolean) => {
+    setCollapsed(v);
+    try { localStorage.setItem(COLLAPSED_KEY, v ? "1" : "0"); } catch { /* ignore */ }
+  };
+
+  const clamp = (w: number) => Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, w));
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!draggingRef.current) return;
+      // A sidebar é o elemento mais à esquerda (x=0), então clientX ≈ largura.
+      setWidth(clamp(e.clientX));
+    };
+    const onUp = () => {
+      if (!draggingRef.current) return;
+      draggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      try { localStorage.setItem(WIDTH_KEY, String(Math.round(widthRef.current))); } catch { /* ignore */ }
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  const onHandleKey = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      setWidth((w) => { const n = clamp(w - 16); try { localStorage.setItem(WIDTH_KEY, String(n)); } catch { /* ignore */ } return n; });
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      setWidth((w) => { const n = clamp(w + 16); try { localStorage.setItem(WIDTH_KEY, String(n)); } catch { /* ignore */ } return n; });
+    }
+  };
+
   return (
     <aside
-      className="via-sidebar sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar lg:flex"
+      style={{ width: collapsed ? SIDEBAR_RAIL : width }}
+      className="via-sidebar sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar lg:flex relative"
       aria-label="Navegação principal"
     >
-      <div className="flex flex-col h-full overflow-hidden">
-        <SidebarContent />
+      <div className="flex h-full flex-col overflow-hidden">
+        <SidebarContent collapsed={collapsed} onSetCollapsed={persistCollapsed} />
       </div>
+      {!collapsed && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Redimensionar menu"
+          aria-valuenow={width}
+          aria-valuemin={SIDEBAR_MIN}
+          aria-valuemax={SIDEBAR_MAX}
+          tabIndex={0}
+          onMouseDown={startDrag}
+          onKeyDown={onHandleKey}
+          className="absolute right-0 top-0 z-20 h-full w-1.5 cursor-col-resize transition-colors hover:bg-sidebar-primary/40 focus-visible:bg-sidebar-primary/60 focus:outline-none"
+        />
+      )}
     </aside>
   );
 }
