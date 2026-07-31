@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
 import { toCsv, downloadCsv } from "@/lib/csv-export";
+import { montarConsolidado, consolidadoParaCsv, type GroupTotalRow } from "@/lib/consolidado";
 import {
   diarioParaCsv,
   razaoParaCsv,
@@ -36,9 +37,10 @@ function fimDoMes(mesIso: string): string {
 }
 
 export default function Contador() {
-  const { company } = useCompany();
+  const { company, companies, scope } = useCompany();
   const [mes, setMes] = useState<string>(mesAtualIso());
   const ate = fimDoMes(mes);
+  const isCombined = scope === "all";
 
   const dados = useQuery({
     queryKey: ["contador", company?.id, mes],
@@ -141,6 +143,22 @@ export default function Contador() {
     artefatos.forEach((a, i) => setTimeout(() => baixar(a.key), i * 400));
   }
 
+  // DRE consolidada do grupo direto daqui (só faz sentido no escopo combinado).
+  async function baixarConsolidado() {
+    const ids = companies.map((c) => c.id);
+    const { data, error } = await supabase
+      .from("v_group_account_totals")
+      .select("company_id, month, group_code, group_name, type, total")
+      .in("company_id", ids)
+      .gte("month", mes)
+      .lte("month", mes);
+    if (error || !data?.length) return;
+    const consolidado = montarConsolidado(data as GroupTotalRow[], ids);
+    const nomes = Object.fromEntries(companies.map((c) => [c.id, c.name]));
+    const { headers, rows } = consolidadoParaCsv(consolidado, nomes, ids);
+    downloadCsv(`consolidado-${mesTag}.csv`, toCsv(headers, rows.map((r) => r.map(String))));
+  }
+
   return (
     <AppLayout>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -211,9 +229,23 @@ export default function Contador() {
         ))}
       </div>
 
+      {isCombined && (
+        <div className="mt-4 flex items-center justify-between rounded-lg border border-border bg-card p-5">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">DRE consolidada do grupo</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Matriz conta × CNPJ do mês, direto daqui ({companies.length} CNPJs).
+            </p>
+          </div>
+          <Button size="sm" variant="outline" className="gap-2" onClick={baixarConsolidado}>
+            <FileDown className="h-4 w-4" /> CSV
+          </Button>
+        </div>
+      )}
+
       <p className="mt-4 text-xs text-muted-foreground">
         A DRE do mês exporta em PDF na tela <Link to="/dre" className="underline underline-offset-2">DRE</Link>; a
-        consolidada do grupo, em CSV na <Link to="/consolidado" className="underline underline-offset-2">DRE Consolidada</Link>.
+        consolidada completa vive em <Link to="/consolidado" className="underline underline-offset-2">DRE Consolidada</Link>.
       </p>
     </AppLayout>
   );

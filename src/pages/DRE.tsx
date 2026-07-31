@@ -24,9 +24,22 @@ export default function DRE() {
   const [regime, setRegime] = useState<"caixa" | "competencia">("caixa");
   const [monthlyData, setMonthlyData] = useState<{ month: string; receitas: number; despesas: number; lucro: number }[]>([]);
 
-  // Period selector
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  // Period selector com estado na URL (?mes=YYYY-MM): período compartilhável
+  // por link e sobrevive a refresh.
+  const mesInicial = (() => {
+    if (typeof window === "undefined") return null;
+    const raw = new URLSearchParams(window.location.search).get("mes");
+    const m = raw?.match(/^(\d{4})-(\d{2})$/);
+    return m ? { ano: Number(m[1]), mes: Number(m[2]) - 1 } : null;
+  })();
+  const [selectedYear, setSelectedYear] = useState(mesInicial?.ano ?? new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(mesInicial?.mes ?? new Date().getMonth());
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    params.set("mes", `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params}`);
+  }, [selectedYear, selectedMonth]);
 
   const monthLabel = new Date(selectedYear, selectedMonth).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
