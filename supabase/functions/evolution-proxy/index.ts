@@ -45,6 +45,12 @@ Deno.serve(async (req) => {
     if (!configId || !caminho) {
       return jsonResp({ error: "uso: /evolution-proxy/{config_id}/{caminho}" }, 400, corsHeaders);
     }
+    // Path traversal: fetch/URL normalizam "..", então "instance/connect/../../x"
+    // passaria no startsWith e chegaria em /x com a key injetada. Recusa
+    // qualquer segmento relativo ou encoding antes da whitelist.
+    if (caminho.includes("..") || caminho.includes("%") || caminho.includes("//") || caminho.includes("\\")) {
+      return jsonResp({ error: "Caminho inválido." }, 403, corsHeaders);
+    }
     if (!CAMINHOS_PERMITIDOS.some((p) => caminho === p.replace(/\/$/, "") || caminho.startsWith(p))) {
       return jsonResp({ error: `Caminho não permitido: ${caminho}` }, 403, corsHeaders);
     }

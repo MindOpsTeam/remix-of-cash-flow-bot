@@ -118,6 +118,12 @@ Deno.serve(async (req) => {
     const forbidden = await assertMembership(supabase, user.id, companyId, corsHeaders);
     if (forbidden) return forbidden;
 
+    // Entitlement do plano vale na edge, não só na tela.
+    const { data: plano } = await service.rpc("plano_da_empresa", { p_company_id: companyId });
+    if (plano && plano.contaazul === false) {
+      return jsonResp({ error: "PLAN_NOT_INCLUDED", detalhe: `O plano ${plano.nome} não inclui a importação Conta Azul.` }, 402, corsHeaders);
+    }
+
     const cred = await credenciaisDaEmpresa(service, companyId);
     if (!cred) return jsonResp({ error: "CONTAAZUL_NOT_CONFIGURED" }, 409, corsHeaders);
     const token = await accessToken(service, companyId, cred);

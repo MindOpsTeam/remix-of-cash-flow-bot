@@ -4,6 +4,9 @@ import { Banknote, CheckCircle2, Loader2, Minus, Plus, Printer, ShoppingCart, Tr
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { EmptyState } from "@viverdeia/design-system";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +40,10 @@ interface ItemCarrinho {
   produto: ProdutoPdv;
   quantidade: number;
 }
+
+/** Dia da LOJA (America/Sao_Paulo), nunca UTC: venda das 22h pertence a hoje. */
+const dataLocalIso = () =>
+  new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
 const FORMAS_PAGAMENTO = [
   { value: "dinheiro", label: "Dinheiro" },
@@ -265,7 +272,7 @@ export default function PDV() {
     enabled: !!company,
     staleTime: 30_000,
     queryFn: async () => {
-      const hoje = new Date().toISOString().slice(0, 10);
+      const hoje = dataLocalIso();
       const { data } = await supabase
         .from("transactions")
         .select("amount, type, payment_method, description")
@@ -291,30 +298,38 @@ export default function PDV() {
     },
   });
 
-  async function movimentoCaixa(tipo: "sangria" | "suprimento") {
-    if (!company) return;
-    const bruto = window.prompt(tipo === "sangria" ? "Valor da sangria (R$):" : "Valor do suprimento (R$):");
-    if (!bruto) return;
-    const valor = Number(bruto.replace(",", "."));
+  // Movimento de caixa com auditoria mínima: valor + motivo, sem prompt
+  // nativo (quebra em kiosk/webview e não deixa rastro do porquê).
+  const [movimento, setMovimento] = useState<"sangria" | "suprimento" | null>(null);
+  const [movimentoValor, setMovimentoValor] = useState("");
+  const [movimentoMotivo, setMovimentoMotivo] = useState("");
+
+  async function confirmarMovimento() {
+    if (!company || !movimento) return;
+    const valor = Number(movimentoValor.replace(",", "."));
     if (!Number.isFinite(valor) || valor <= 0) {
       toast.error("Valor inválido.");
       return;
     }
     const { data: sessao } = await supabase.auth.getUser();
+    const rotulo = movimento === "sangria" ? "Sangria de caixa (PDV)" : "Suprimento de caixa (PDV)";
     const { error } = await supabase.from("transactions").insert({
       company_id: company.id,
       user_id: sessao.user?.id,
-      date: new Date().toISOString().slice(0, 10),
-      description: tipo === "sangria" ? "Sangria de caixa (PDV)" : "Suprimento de caixa (PDV)",
+      date: dataLocalIso(),
+      description: movimentoMotivo.trim() ? `${rotulo}: ${movimentoMotivo.trim()}` : rotulo,
       amount: valor,
-      type: tipo === "sangria" ? "expense" : "revenue",
+      type: movimento === "sangria" ? "expense" : "revenue",
       status: "confirmed",
       source: "pdv",
       payment_method: "dinheiro",
     } as never);
     if (error) toast.error("Não registrei: " + error.message);
     else {
-      toast.success(tipo === "sangria" ? "Sangria registrada." : "Suprimento registrado.");
+      toast.success(movimento === "sangria" ? "Sangria registrada." : "Suprimento registrado.");
+      setMovimento(null);
+      setMovimentoValor("");
+      setMovimentoMotivo("");
       turno.refetch();
     }
   }
@@ -510,13 +525,42 @@ export default function PDV() {
                 )}
               </div>
               <div className="mt-2 flex gap-2">
-                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => movimentoCaixa("sangria")}>
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setMovimento("sangria")}>
                   Sangria
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => movimentoCaixa("suprimento")}>
+                <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setMovimento("suprimento")}>
                   Suprimento
                 </Button>
               </div>
+              <Dialog open={movimento !== null} onOpenChange={(v) => !v && setMovimento(null)}>
+                <DialogContent className="max-w-xs">
+                  <DialogHeader>
+                    <DialogTitle>{movimento === "sangria" ? "Sangria de caixa" : "Suprimento de caixa"}</DialogTitle>
+                    <DialogDescription>
+                      {movimento === "sangria" ? "Retirada de dinheiro do caixa." : "Entrada de troco/reforço no caixa."}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    <Input
+                      inputMode="decimal"
+                      placeholder="Valor (R$)"
+                      value={movimentoValor}
+                      onChange={(e) => setMovimentoValor(e.target.value.replace(/[^\d.,]/g, ""))}
+                      aria-label="Valor do movimento"
+                      autoFocus
+                    />
+                    <Input
+                      placeholder="Motivo (ex.: depósito no banco, troco)"
+                      value={movimentoMotivo}
+                      onChange={(e) => setMovimentoMotivo(e.target.value)}
+                      aria-label="Motivo do movimento"
+                    />
+                    <Button className="w-full" onClick={confirmarMovimento} disabled={!movimentoValor}>
+                      Registrar
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
 

@@ -119,6 +119,10 @@ async function despachar(service: Service, inst: Instancia, aviso: Aviso, link: 
   }
 
   if (inst.canais.whatsapp) {
+    // Entitlement: plano sem WhatsApp não envia, mesmo com canal ligado.
+    const { data: plano } = await service.rpc("plano_da_empresa", { p_company_id: inst.company_id });
+    if (plano && plano.whatsapp === false) return;
+
     const { data: config } = await service
       .from("whatsapp_configs")
       .select("instance_name, notify_number, evolution_api_url, evolution_api_key")
