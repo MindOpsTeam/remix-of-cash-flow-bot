@@ -137,6 +137,7 @@ function mockMarginRows() {
 
 interface MockOptions {
   marginRows?: ReturnType<typeof mockMarginRows>;
+  onboardingIncompleto?: boolean;
   bankRaw?: Array<{ id: string; date: string; description: string; amount: number; direction: string }>;
   bankConnections?: Array<{ id: string; provider: string; external_id: string; institution_name: string; institution_image: null; status: string; last_synced_at: string | null; consent_expires_at: null }>;
 }
@@ -208,13 +209,18 @@ async function installMocks(page: Page, options: MockOptions = {}) {
           },
         },
       ];
-    } else if (table === "company_members" && wantsObject) {
-      body = {
+    } else if (table === "company_members") {
+      // maybeSingle pede como LISTA (sem o accept de objeto) e pega a 1ª linha.
+      const membro = {
         id: "33333333-3333-4333-8333-333333333333",
-        onboarding_completed: true,
+        user_id: userId,
+        company_id: companyId,
+        onboarding_completed: !options.onboardingIncompleto,
         approval_limit: null,
         role: "admin",
+        created_at: "2026-07-01T12:00:00Z",
       };
+      body = wantsObject ? membro : [membro];
     } else if (table === "v_group_ap_ar") {
       body = [{
         company_id: companyId,
@@ -481,6 +487,37 @@ test.describe("migração integral do design system", () => {
 
     await page.getByRole("button", { name: /Importar 2 para o resultado/ }).click();
     await expect(page.getByText("2 importado(s)")).toBeVisible();
+  });
+
+  test("o guia de instalação percorre os 7 passos com tudo opcional", async ({ page }) => {
+    await loginWithMocks(page, { onboardingIncompleto: true });
+
+    await expect(page.getByRole("heading", { name: "Guia de instalação" })).toBeVisible();
+    await expect(page.getByText("tudo opcional")).toBeVisible();
+
+    await page.getByRole("button", { name: "Próximo" }).click();
+    await expect(page.getByRole("heading", { name: "Dados da empresa" })).toBeVisible();
+    await expect(page.getByPlaceholder("Ex.: preciso mesmo de CNPJ? O que é a API do Asaas?")).toBeVisible();
+
+    await page.getByRole("button", { name: "Pular" }).click();
+    await expect(page.getByRole("heading", { name: "Sua empresa tem mais de um CNPJ?" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Pular" }).click();
+    await expect(page.getByRole("heading", { name: "Convide sua equipe" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Gerar e copiar convite" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Pular" }).click();
+    await expect(page.getByRole("heading", { name: "Conecte seu banco" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Pular" }).click();
+    await expect(page.getByRole("heading", { name: "Integrações e chaves" })).toBeVisible();
+    await page.getByRole("button", { name: "Conta Azul — importe seus dados de lá" }).click();
+    await expect(page.getByText("developers.contaazul.com", { exact: false })).toBeVisible();
+    await expect(page.getByText("Custo:", { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("Crie a sua", { exact: false })).toBeVisible();
+
+    await page.getByRole("button", { name: "Pular" }).click();
+    await expect(page.getByRole("heading", { name: "Instalação concluída" })).toBeVisible();
   });
 
   test("favoritos salvos aparecem no topo do sidebar", async ({ page }) => {

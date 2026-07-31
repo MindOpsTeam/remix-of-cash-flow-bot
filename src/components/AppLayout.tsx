@@ -6,6 +6,7 @@ import { CompanyScopeSwitcher } from "./company/CompanyScopeSwitcher";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
+import { useAceitarConvite } from "@/hooks/useConvite";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -13,6 +14,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children }: AppLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  useAceitarConvite();
 
   return (
     <div className="via-app-shell flex min-h-screen">

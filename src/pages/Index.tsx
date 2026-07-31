@@ -36,6 +36,9 @@ function useOnboarding() {
 
   useEffect(() => {
     if (!user || !company) return;
+    // ?guia=1 reabre o guia de instalação para quem já concluiu (link nas
+    // Configurações) — o wizard é reentrante por design.
+    const reabrir = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("guia") === "1";
     supabase
       .from("company_members")
       .select("id, onboarding_completed")
@@ -43,7 +46,7 @@ function useOnboarding() {
       .eq("company_id", company.id)
       .maybeSingle()
       .then(async ({ data }) => {
-        if (data && !(data as { onboarding_completed: boolean }).onboarding_completed) {
+        if (data && (reabrir || !(data as { onboarding_completed: boolean }).onboarding_completed)) {
           // NÃO marcar como concluído aqui. Marcar na abertura fazia abandono na
           // primeira etapa virar conclusão: quem fechasse a aba ou desse refresh
           // nunca mais via o onboarding. Quem conclui é o próprio wizard.

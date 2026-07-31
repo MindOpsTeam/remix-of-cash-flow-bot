@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers, KeyRound, Crown } from "lucide-react";
+import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers, KeyRound, Crown, Rocket } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -78,6 +78,13 @@ const sections = [
     title: "Plano",
     description: "O que está incluso no seu plano e como subir",
     to: "/settings/plano",
+    available: true,
+  },
+  {
+    icon: Rocket,
+    title: "Guia de instalação",
+    description: "Reabra o passo a passo: CNPJs, equipe, banco e todas as chaves",
+    to: "/dashboard?guia=1",
     available: true,
   },
 ];

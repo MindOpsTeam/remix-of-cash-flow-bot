@@ -23,6 +23,7 @@ export default function Users() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [inviteRole, setInviteRole] = useState<"admin" | "member" | "viewer">("member");
 
   const qc = useQueryClient();
   const [limits, setLimits] = useState<Record<string, string>>({});
@@ -57,12 +58,31 @@ export default function Users() {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const copyInviteLink = () => {
-    const link = `${window.location.origin}/?invite=${company?.id}`;
-    navigator.clipboard.writeText(link).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-      toast({ title: "Link copiado!", description: "Envie o link para o novo usuário." });
+  // Convite REAL: token próprio de uma vaga, com papel e validade de 7 dias.
+  // (O link antigo /?invite=<company_id> não era consumido por nada — gap
+  // fechado junto com a RPC aceitar_convite.)
+  const gerarConvite = async () => {
+    if (!company) return;
+    const { data: sessao } = await supabase.auth.getUser();
+    const { data, error } = await (supabase.from as unknown as (t: string) => {
+      insert: (row: Record<string, unknown>) => {
+        select: (q: string) => { single: () => PromiseLike<{ data: { token: string } | null; error: { message: string } | null }> };
+      };
+    })("company_invites")
+      .insert({ company_id: company.id, role: inviteRole, criado_por: sessao.user?.id })
+      .select("token")
+      .single();
+    if (error || !data) {
+      toast({ title: "Erro ao gerar convite", description: error?.message, variant: "destructive" });
+      return;
+    }
+    const link = `${window.location.origin}/?invite=${data.token}`;
+    await navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast({
+      title: "Convite copiado!",
+      description: `Vale por 7 dias, para 1 pessoa, com papel ${inviteRole === "admin" ? "Admin" : inviteRole === "viewer" ? "Leitura" : "Membro"}.`,
     });
   };
 
@@ -141,14 +161,30 @@ export default function Users() {
 
         {/* Invite section */}
         <div className="bg-card border border-border rounded-lg p-4">
-          <p className="text-sm font-medium text-foreground mb-1">Convidar usuário</p>
+          <p className="text-sm font-medium text-foreground mb-1">Convidar para a equipe</p>
           <p className="text-xs text-muted-foreground mb-3">
-            Copie o link de convite e envie para a pessoa que deve ter acesso.
+            Gere um link único (1 pessoa, 7 dias). Quem aceitar entra NESTA empresa com o papel escolhido —
+            assim todo mundo trabalha na mesma organização, sem criar empresa duplicada.
           </p>
-          <Button variant="outline" size="sm" onClick={copyInviteLink} className="gap-2">
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "Copiado!" : "Copiar link de convite"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value as typeof inviteRole)}
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              aria-label="Papel do convidado"
+            >
+              <option value="member">Membro (lança e edita)</option>
+              <option value="admin">Admin (tudo)</option>
+              <option value="viewer">Leitura (só vê)</option>
+            </select>
+            <Button variant="outline" size="sm" onClick={gerarConvite} className="gap-2">
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copiado!" : "Gerar e copiar convite"}
+            </Button>
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Vários CNPJs? Cada empresa tem a própria equipe: troque de CNPJ no topo e convide os responsáveis de cada um.
+          </p>
         </div>
 
       </div>
