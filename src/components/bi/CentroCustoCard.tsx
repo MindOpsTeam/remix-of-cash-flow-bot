@@ -8,20 +8,26 @@ import { formatCurrency } from "@/lib/utils";
  */
 interface CentroCustoCardProps {
   centros: Array<{ nome: string; total: number }>;
+  /** Total do mês somando TODOS os centros — o card exibe só os maiores. */
+  totalMes: number;
 }
 
-export function CentroCustoCard({ centros }: CentroCustoCardProps) {
+export function CentroCustoCard({ centros, totalMes }: CentroCustoCardProps) {
   const maior = centros[0]?.total ?? 0;
-  const total = centros.reduce((s, c) => s + c.total, 0);
+  const somaExibida = centros.reduce((s, c) => s + c.total, 0);
+  const truncado = totalMes > somaExibida + 0.005;
 
   return (
     <ChartPanel
       title="Despesa por centro de custo"
-      description="Onde o dinheiro do mês está sendo gasto"
+      description={truncado ? `Os ${centros.length} maiores centros do mês` : "Onde o dinheiro do mês está sendo gasto"}
       delay={300}
       meta={
         centros.length > 0 ? (
-          <span className="font-mono text-sm font-semibold text-foreground">{formatCurrency(total)}</span>
+          <div className="text-right">
+            <span className="font-mono text-sm font-semibold text-foreground">{formatCurrency(totalMes)}</span>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">total do mês</p>
+          </div>
         ) : undefined
       }
     >

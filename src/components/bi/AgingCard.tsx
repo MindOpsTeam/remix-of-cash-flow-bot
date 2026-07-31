@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 import { ChartPanel, ChartEmptyState } from "@/components/bi/ChartPanel";
 import { formatCurrency } from "@/lib/utils";
 import type { AgingBuckets } from "@/lib/metrics";
@@ -18,11 +20,14 @@ const SEGMENTOS: Array<{ key: keyof Omit<AgingBuckets, "total">; label: string; 
   { key: "acima30", label: "30+ dias", cor: "var(--via-coral)" },
 ];
 
-function Barra({ titulo, buckets }: { titulo: string; buckets: AgingBuckets }) {
+function Barra({ titulo, buckets, to }: { titulo: string; buckets: AgingBuckets; to: string }) {
   return (
     <div>
       <div className="mb-2 flex items-baseline justify-between text-xs">
-        <span className="font-medium text-foreground">{titulo}</span>
+        <Link to={to} className="group flex items-center gap-1 font-medium text-foreground hover:underline">
+          {titulo}
+          <ArrowRight className="h-3 w-3 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+        </Link>
         <span className="font-mono font-semibold text-foreground">{formatCurrency(buckets.total)}</span>
       </div>
       <div className="flex h-3 w-full gap-px overflow-hidden rounded-sm bg-muted" role="img" aria-label={`${titulo}: ${formatCurrency(buckets.total)} em aberto`}>
@@ -61,8 +66,8 @@ export function AgingCard({ ar, ap }: AgingCardProps) {
         />
       ) : (
         <div className="space-y-5">
-          <Barra titulo="A receber" buckets={ar} />
-          <Barra titulo="A pagar" buckets={ap} />
+          <Barra titulo="A receber" buckets={ar} to="/receivables" />
+          <Barra titulo="A pagar" buckets={ap} to="/fiscal/contas-a-pagar" />
         </div>
       )}
     </ChartPanel>

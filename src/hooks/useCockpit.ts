@@ -39,6 +39,8 @@ export interface CockpitData {
   acoesPendentes: number;
   clientes: { top: ClienteMetricRow[]; participacaoPct: number };
   centrosCusto: Array<{ nome: string; total: number }>;
+  /** Soma de TODOS os centros do mês, não só os top 5 exibidos. */
+  centrosCustoTotalMes: number;
   metas: KpiMeta[];
 }
 
@@ -180,10 +182,15 @@ export function useCockpit() {
         fechamentoAnteriorAberto,
         acoesPendentes: actionsRes.count ?? 0,
         clientes: concentracaoClientes((clientesRes.data ?? []) as ClienteMetricRow[]),
-        centrosCusto: ((centrosRes.data ?? []) as Array<{ centro_nome: string | null; total: number | null }>)
-          .map((c) => ({ nome: c.centro_nome ?? "Sem centro", total: c.total ?? 0 }))
-          .sort((a, b) => b.total - a.total)
-          .slice(0, 5),
+        ...(() => {
+          const todos = ((centrosRes.data ?? []) as Array<{ centro_nome: string | null; total: number | null }>)
+            .map((c) => ({ nome: c.centro_nome ?? "Sem centro", total: c.total ?? 0 }))
+            .sort((a, b) => b.total - a.total);
+          return {
+            centrosCusto: todos.slice(0, 5),
+            centrosCustoTotalMes: todos.reduce((s, c) => s + c.total, 0),
+          };
+        })(),
         metas: ((metasRes.data ?? []) as KpiMeta[]).map((m) => ({ ...m, alvo: Number(m.alvo) })),
       };
     },

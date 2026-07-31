@@ -205,7 +205,7 @@ export default function Dashboard() {
                 <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">Onde agir agora</h2>
               </div>
               <div className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
-                <CentroCustoCard centros={cockpit.data.centrosCusto} />
+                <CentroCustoCard centros={cockpit.data.centrosCusto} totalMes={cockpit.data.centrosCustoTotalMes} />
                 <TopClientesCard
                   top={cockpit.data.clientes.top}
                   participacaoPct={cockpit.data.clientes.participacaoPct}

@@ -128,6 +128,9 @@ export function MinhasVisoes() {
   const mover = useMutation({
     mutationFn: async ({ id, direcao }: { id: string; direcao: -1 | 1 }) => {
       const idx = widgets.findIndex((w) => w.id === id);
+      // idx -1 com direcao +1 cairia em widgets[0] e trocaria posições erradas
+      // (widget removido por outro membro com o cache local ainda velho).
+      if (idx < 0) return;
       const alvo = widgets[idx + direcao];
       if (!alvo) return;
       await widgetsTable().update({ posicao: alvo.posicao }).eq("id", id);

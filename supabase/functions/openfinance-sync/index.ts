@@ -117,10 +117,26 @@ Deno.serve(async (req) => {
       let imported = 0;
       let reconciled = 0;
       let skipped = 0;
+      let falhas = 0;
 
       for (const r of rows ?? []) {
         const item = porRawId.get(r.id);
         const tipo = r.direction === "revenue" ? "revenue" : "expense";
+
+        // 0) Reivindica a linha do staging ANTES de qualquer decisão. Duas
+        //    sessões importando o mesmo lote (duas abas) passariam ambas pelo
+        //    SELECT inicial; o UPDATE condicional garante que só uma processa
+        //    cada linha — a outra vê 0 linhas afetadas e pula.
+        const { data: claimed } = await service
+          .from("bank_transactions_raw")
+          .update({ status: "importing" })
+          .eq("id", r.id)
+          .eq("status", "new")
+          .select("id");
+        if (!claimed || claimed.length === 0) {
+          skipped += 1;
+          continue;
+        }
 
         // 1) Já entrou por outra via com o mesmo external_id? Não duplica.
         if (r.external_id) {
@@ -142,7 +158,10 @@ Deno.serve(async (req) => {
 
         // 2) O humano já digitou esse dinheiro? Adota o lançamento dele em vez
         //    de criar um segundo (régua do reconcile: mesma direção, mesmo
-        //    valor, ±3 dias, fonte digitada, ainda sem par bancário).
+        //    valor, ±3 dias, fonte digitada, ainda sem par bancário). O update
+        //    re-checa `external_id IS NULL`: se outra linha do banco adotou o
+        //    mesmo candidato no meio do caminho, 0 linhas voltam e esta cai no
+        //    insert — dois movimentos nunca se fundem num só lançamento.
         const { de, ate } = janelaConciliacao(r.date);
         const { data: candidato } = await service
           .from("transactions")
@@ -158,16 +177,20 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (candidato) {
-          await service
+          const { data: adotado } = await service
             .from("transactions")
-            .update({ external_id: r.external_id, source: "reconciled" })
-            .eq("id", candidato.id);
-          await service
-            .from("bank_transactions_raw")
-            .update({ status: "imported", transaction_id: candidato.id })
-            .eq("id", r.id);
-          reconciled += 1;
-          continue;
+            .update({ external_id: r.external_id, source: "reconciled", status: "reconciled" })
+            .eq("id", candidato.id)
+            .is("external_id", null)
+            .select("id");
+          if (adotado && adotado.length > 0) {
+            await service
+              .from("bank_transactions_raw")
+              .update({ status: "imported", transaction_id: candidato.id })
+              .eq("id", r.id);
+            reconciled += 1;
+            continue;
+          }
         }
 
         // 3) Lançamento novo: revisado pelo humano na Caixa de entrada, então
@@ -191,7 +214,11 @@ Deno.serve(async (req) => {
           .select("id")
           .single();
         if (txErr) {
+          // Mês fechado (gatilho) ou colisão: devolve a linha ao staging para
+          // não ficar presa em "importing" invisível para sempre.
           console.error("[openfinance-sync] import: insert falhou", txErr);
+          await service.from("bank_transactions_raw").update({ status: "new" }).eq("id", r.id);
+          falhas += 1;
           continue;
         }
         await service
@@ -201,7 +228,7 @@ Deno.serve(async (req) => {
         imported += 1;
       }
 
-      return jsonResp({ ok: true, imported, reconciled, skipped }, 200, corsHeaders);
+      return jsonResp({ ok: true, imported, reconciled, skipped, falhas }, 200, corsHeaders);
     }
 
     return jsonResp({ error: `Ação inválida: ${action}` }, 400, corsHeaders);

@@ -1,11 +1,13 @@
 /**
  * Catálogo e régua dos templates de agente.
  *
- * ARQUIVO PURO de propósito: sem import de Deno, sem query. O front importa
- * este mesmo arquivo para montar a galeria e os formulários de config, e o
- * vitest testa a régua direto (mesmo padrão de _shared/agentes.ts). Quem toca
- * banco é o agent-runner; quem redige texto de IA também — aqui mora só a
- * DECISÃO determinística de quando falar e o que dizer com números prontos.
+ * ⚠️ ARQUIVO PURO E BROWSER-SAFE — restrição DURA, não estilo. Ele é
+ * importado EM RUNTIME pelo bundle do cliente (GaleriaAgentes.tsx) além do
+ * vitest, então NUNCA adicione aqui import por URL (esm.sh), Deno.env ou
+ * qualquer API de Deno: isso quebraria o build de produção do dashboard, não
+ * a edge. Quem toca banco é o agent-runner; quem redige texto de IA também —
+ * aqui mora só a DECISÃO determinística de quando falar e o que dizer com
+ * números prontos (mesmo padrão de _shared/agentes.ts).
  */
 
 export interface CampoConfig {
