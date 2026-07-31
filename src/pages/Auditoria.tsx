@@ -140,8 +140,8 @@ export default function Auditoria() {
               const { headers, rows } = partidasParaCsv(
                 partidasFiltradas.map((p) => ({
                   date: p.date,
-                  debit_account: p.debit_account,
-                  credit_account: p.credit_account,
+                  debit_account: p.debit_account ?? "",
+                  credit_account: p.credit_account ?? "",
                   amount: Number(p.amount) || 0,
                   description: p.description,
                 })),
