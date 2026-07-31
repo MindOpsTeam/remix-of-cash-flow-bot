@@ -456,6 +456,18 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByText("2 importado(s)")).toBeVisible();
   });
 
+  test("o BI self-service oferece o wizard de nova visão", async ({ page }) => {
+    await loginWithMocks(page);
+
+    await expect(page.getByRole("heading", { name: "Minhas visões" })).toBeVisible();
+    await expect(page.getByText("Monte o seu primeiro gráfico")).toBeVisible();
+
+    await page.getByRole("button", { name: "Novo gráfico" }).click();
+    await expect(page.getByRole("heading", { name: "Nova visão" })).toBeVisible();
+    await expect(page.getByText("1 · Métrica")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Adicionar ao cockpit" })).toBeDisabled();
+  });
+
   test("a página de agentes mostra a galeria de templates ativáveis", async ({ page }) => {
     await loginWithMocks(page);
     await page.goto("/agents");

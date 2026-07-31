@@ -25,6 +25,7 @@ import { RadarOperacionalCard } from "@/components/bi/RadarOperacionalCard";
 import { CentroCustoCard } from "@/components/bi/CentroCustoCard";
 import { TopClientesCard } from "@/components/bi/TopClientesCard";
 import { AiInsightsCard } from "@/components/bi/AiInsightsCard";
+import { MinhasVisoes } from "@/components/bi/MinhasVisoes";
 
 function useOnboarding() {
   const { user } = useAuth();
@@ -213,6 +214,8 @@ export default function Dashboard() {
               </div>
             </>
           )}
+
+          <MinhasVisoes />
 
           {/* Atalhos de IA */}
           <div className="flex flex-wrap gap-3">
