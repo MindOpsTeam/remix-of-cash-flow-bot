@@ -35,6 +35,7 @@ const protectedRoutes = [
   "/fiscal/arquivos",
   "/dre",
   "/consolidado",
+  "/recorrencia",
   "/contador",
   "/reports",
   "/forecast",
@@ -261,6 +262,27 @@ async function installMocks(page: Page, options: MockOptions = {}) {
         { id: "aaaaaaa1-0000-4000-8000-000000000001", name: "Receita de Serviços", code: "3.1", type: "revenue" },
         { id: "aaaaaaa2-0000-4000-8000-000000000002", name: "Despesas Administrativas", code: "5.1", type: "expense" },
       ];
+    } else if (table === "v_mrr_movimentos") {
+      body = Array.from({ length: 12 }, (_, k) => {
+        const d = new Date();
+        d.setDate(1);
+        d.setMonth(d.getMonth() - (11 - k));
+        return {
+          company_id: companyId,
+          mes: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`,
+          mrr_ativo: 12000 + k * 800,
+          mrr_novo: k === 11 ? 900 : 400,
+          mrr_perdido: k === 11 ? 300 : 0,
+          contratos_novos: 1,
+          contratos_perdidos: k === 11 ? 1 : 0,
+        };
+      });
+    } else if (table === "v_recompra_clientes") {
+      body = [
+        { contact_id: "eeee0001-0000-4000-8000-000000000001", company_id: companyId, name: "Padaria Aurora", whatsapp: "11987654321", n_compras: 5, primeira_compra: "2026-02-01", ultima_compra: "2026-07-05", total_gasto: 9000, ticket_medio: 1800, intervalo_medio_dias: 30, dias_desde_ultima: 26, proxima_esperada: "2026-08-04", tem_contrato: false, status: "previsto" },
+        { contact_id: "eeee0002-0000-4000-8000-000000000002", company_id: companyId, name: "Comercial Horizonte Ltda", whatsapp: null, n_compras: 6, primeira_compra: "2026-01-01", ultima_compra: "2026-06-21", total_gasto: 15000, ticket_medio: 2500, intervalo_medio_dias: 30, dias_desde_ultima: 40, proxima_esperada: "2026-07-21", tem_contrato: true, status: "atrasado" },
+        { contact_id: "eeee0003-0000-4000-8000-000000000003", company_id: companyId, name: "Mercado Sol", whatsapp: null, n_compras: 4, primeira_compra: "2025-09-01", ultima_compra: "2026-01-10", total_gasto: 3200, ticket_medio: 800, intervalo_medio_dias: 45, dias_desde_ultima: 190, proxima_esperada: "2026-02-24", tem_contrato: false, status: "perdido" },
+      ];
     }
 
     const total = Array.isArray(body) ? body.length : 1;
@@ -370,11 +392,11 @@ test.describe("migração integral do design system", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
-  test("as 55 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
+  test("as 56 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);
-    expect(protectedRoutes).toHaveLength(55);
+    expect(protectedRoutes).toHaveLength(56);
 
     for (const route of protectedRoutes) {
       await page.goto(route, { waitUntil: "domcontentloaded" });
@@ -464,6 +486,18 @@ test.describe("migração integral do design system", () => {
     });
     expect(alturas.resizerPos).toBe("absolute");
     expect(alturas.nav).toBeGreaterThan(300);
+  });
+
+  test("a página de recorrência mostra MRR e o radar de recompra", async ({ page }) => {
+    await loginWithMocks(page);
+    await page.goto("/recorrencia");
+
+    await expect(page.getByRole("heading", { name: "Recorrência & Recompra" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Saúde do MRR" })).toBeVisible();
+    // Radar: clientes por status de recompra.
+    await expect(page.getByText("Comprar agora").first()).toBeVisible();
+    await expect(page.getByText("Padaria Aurora")).toBeVisible();
+    await expect(page.getByText("Comercial Horizonte Ltda")).toBeVisible();
   });
 
   test("a sidebar recolhe para só ícones e volta", async ({ page }) => {
@@ -655,10 +689,10 @@ test.describe("migração integral do design system", () => {
     await page.goto("/agents");
 
     await expect(page.getByRole("heading", { name: "Galeria de agentes" })).toBeVisible();
-    for (const nome of ["Vigia de Caixa", "Sentinela de Contas", "Guarda Fiscal", "Vigia de Metas", "Resumo do CFO", "Analista Sob Medida"]) {
+    for (const nome of ["Vigia de Caixa", "Sentinela de Contas", "Guarda Fiscal", "Vigia de Metas", "Resumo do CFO", "Vigia de Recompra", "Analista Sob Medida"]) {
       await expect(page.getByText(nome, { exact: true })).toBeVisible();
     }
-    await expect(page.getByRole("button", { name: "Ativar", exact: true })).toHaveCount(6);
+    await expect(page.getByRole("button", { name: "Ativar", exact: true })).toHaveCount(7);
     await expect(page.getByRole("heading", { name: "Fila de aprovação" })).toBeVisible();
   });
 
@@ -727,7 +761,7 @@ test.describe("migração integral do design system", () => {
     }
   });
 
-  test("as 55 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
+  test("as 56 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);

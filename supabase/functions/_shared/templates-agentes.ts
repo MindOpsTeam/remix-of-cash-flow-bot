@@ -81,6 +81,16 @@ export const TEMPLATES_AGENTES: TemplateAgente[] = [
     link: "/dashboard",
   },
   {
+    key: "vigia_de_recompra",
+    nome: "Vigia de Recompra",
+    descricao: "Avisa todo dia quais clientes entraram na janela de recompra ou já passaram dela — a receita previsível que está na mão.",
+    requerIa: false,
+    dedupeDias: 2,
+    configPadrao: { ticket_min: 0 },
+    campos: [{ key: "ticket_min", label: "Ignorar clientes com ticket médio abaixo de", tipo: "number", sufixo: "R$" }],
+    link: "/recorrencia",
+  },
+  {
     key: "analista_custom",
     nome: "Analista Sob Medida",
     descricao: "Você escreve a pergunta que ele deve responder todo dia sobre os seus números (ex.: 'algum cliente concentra mais de 40% da receita?').",
@@ -163,6 +173,35 @@ export function avaliarImpostos(
     titulo: "Impostos vencendo",
     corpo: `${naJanela.length} guia(s) somando ${brl(total)} vencem até ${new Date(`${limiteIso}T00:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" })}${tipos ? ` (${tipos})` : ""}.`,
     dedupeKey: `impostos:${limiteIso}`,
+  };
+}
+
+export function avaliarRecompra(
+  clientes: Array<{ name: string; status: string; ticket_medio: number | null }>,
+  ticketMin: number,
+  hojeIso: string,
+): Aviso | null {
+  const quentes = clientes.filter(
+    (c) => (c.status === "previsto" || c.status === "atrasado") && Number(c.ticket_medio ?? 0) >= ticketMin,
+  );
+  if (quentes.length === 0) return null;
+
+  const previstos = quentes.filter((c) => c.status === "previsto");
+  const atrasados = quentes.filter((c) => c.status === "atrasado");
+  const potencial = quentes.reduce((s, c) => s + Number(c.ticket_medio ?? 0), 0);
+  const maior = [...quentes].sort((a, b) => Number(b.ticket_medio ?? 0) - Number(a.ticket_medio ?? 0))[0];
+
+  const partes = [
+    `${quentes.length} cliente(s) na janela de recompra, somando ${brl(potencial)} de ticket médio.`,
+  ];
+  if (previstos.length > 0) partes.push(`${previstos.length} na hora de comprar.`);
+  if (atrasados.length > 0) partes.push(`${atrasados.length} já atrasado(s).`);
+  if (maior) partes.push(`Maior: ${maior.name} (${brl(Number(maior.ticket_medio ?? 0))}).`);
+
+  return {
+    titulo: "Clientes prontos para recomprar",
+    corpo: partes.join(" "),
+    dedupeKey: `recompra:${hojeIso}`,
   };
 }
 

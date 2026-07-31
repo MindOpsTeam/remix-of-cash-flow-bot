@@ -18,6 +18,8 @@ DECLARE
   v_cc uuid;
   v_prod uuid;
   v_contato uuid;
+  v_contato2 uuid;
+  v_ordem integer;
   v_mes integer;
   v_dia integer;
   v_base numeric;
@@ -129,6 +131,27 @@ BEGIN
       INSERT INTO public.products (company_id, name, sku, barcode, sell_price, cost_price, track_stock, current_stock, min_stock, ncm, cfop, type, active, account_id)
       VALUES (v_company, 'Produto Aurora ' || chr(64 + i), 'AUR-' || i, '78910000000' || i, 40 + i * 15, 18 + i * 6, true, 8 + i * 7, 5, '85171231', '5102', 'product', true, v_conta_receita)
       RETURNING id INTO v_prod;
+    END LOOP;
+
+    -- Vendas avulsas repetidas → cadência de recompra (v_recompra_clientes).
+    -- Horizonte compra a cada ~30 dias e está ATRASADO (última há 40 dias);
+    -- Padaria Aurora está PREVISTO (última há 26 dias, mesmo ritmo).
+    v_ordem := 0;
+    INSERT INTO public.contacts (company_id, name, type, person_type, active)
+    VALUES (v_company, 'Padaria Aurora', 'customer', 'pj', true)
+    RETURNING id INTO v_contato2;
+
+    FOR i IN 0..5 LOOP
+      v_ordem := v_ordem + 1;
+      INSERT INTO public.sales_orders (company_id, contact_id, user_id, order_number, status, issue_date, total)
+      VALUES (v_company, v_contato, v_dono, v_ordem, 'invoiced',
+        current_date - (40 + (5 - i) * 30), round(v_emp.base * 0.04 * (0.9 + 0.2 * random())));
+    END LOOP;
+    FOR i IN 0..4 LOOP
+      v_ordem := v_ordem + 1;
+      INSERT INTO public.sales_orders (company_id, contact_id, user_id, order_number, status, issue_date, total)
+      VALUES (v_company, v_contato2, v_dono, v_ordem, 'invoiced',
+        current_date - (26 + (4 - i) * 30), round(v_emp.base * 0.03 * (0.9 + 0.2 * random())));
     END LOOP;
 
     -- Metas: uma batida (receita), uma em risco (inadimplência).

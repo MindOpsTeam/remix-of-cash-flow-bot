@@ -21,6 +21,7 @@ import {
   avaliarContasAVencer,
   avaliarImpostos,
   avaliarMeta,
+  avaliarRecompra,
   type Aviso,
 } from "../_shared/templates-agentes.ts";
 
@@ -196,6 +197,13 @@ async function rodarInstancia(service: Service, apiKey: string | undefined, inst
       .eq("company_id", inst.company_id)
       .neq("status", "pago");
     const aviso = avaliarImpostos(data ?? [], hoje, Number(config.dias));
+    if (aviso) avisos.push(aviso);
+  } else if (inst.template_key === "vigia_de_recompra") {
+    const { data } = await service
+      .from("v_recompra_clientes")
+      .select("name, status, ticket_medio")
+      .eq("company_id", inst.company_id);
+    const aviso = avaliarRecompra(data ?? [], Number(config.ticket_min ?? 0), hoje);
     if (aviso) avisos.push(aviso);
   } else if (inst.template_key === "vigia_de_metas") {
     const { data: metas } = await service

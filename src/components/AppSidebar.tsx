@@ -54,6 +54,7 @@ import {
   BookOpenCheck,
   PanelLeftClose,
   PanelLeftOpen,
+  Repeat,
 } from "lucide-react";
 
 // ---------- Personas (níveis de decisão do usuário do ERP) ----------
@@ -99,6 +100,7 @@ const sections: NavGroup[] = [
     items: [
       { to: "/dre", label: "DRE", icon: FileBarChart2 },
       { to: "/consolidado", label: "DRE Consolidada", icon: Layers },
+      { to: "/recorrencia", label: "Recorrência & Recompra", icon: Repeat },
       { to: "/budget", label: "Orçamento × Realizado", icon: Target },
       { to: "/forecast", label: "Previsão de Caixa", icon: TrendingUp },
       { to: "/summary", label: "Resumo Executivo", icon: FileText },
