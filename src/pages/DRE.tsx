@@ -11,7 +11,7 @@ import { FileDown, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { montarDRE, montarSerieMensal, type DRELine, type LinhaView, type LinhaMes } from "@/lib/dre";
-import { ImportarExtrato } from "@/components/importar/ImportarExtrato";
+import { ConnectFirstCTA } from "@/components/openfinance/ConnectFirstCTA";
 
 export default function DRE() {
   const { company } = useCompany();
@@ -185,14 +185,11 @@ export default function DRE() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 bg-card border border-border rounded-lg p-5 overflow-x-auto">
           {!temMovimento ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground text-sm">Nenhum lançamento confirmado neste mês.</p>
-              <p className="text-muted-foreground text-xs mt-1">
-                Cole o extrato do banco e o resultado aparece aqui em seguida.
-              </p>
-              <div className="flex justify-center mt-4">
-                <ImportarExtrato onImportado={buildDRE} />
-              </div>
+            <div className="py-12">
+              <ConnectFirstCTA
+                onImportado={buildDRE}
+                descricao="Conecte o banco uma vez e o resultado deste mês monta sozinho: o extrato entra todo dia, a IA classifica e você só revisa."
+              />
             </div>
           ) : (
             <table className="w-full text-sm">

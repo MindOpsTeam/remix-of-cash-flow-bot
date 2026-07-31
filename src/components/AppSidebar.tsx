@@ -37,6 +37,7 @@ import {
   Briefcase,
   Zap,
   Landmark,
+  Inbox,
   Link2,
   Database,
   Check,
@@ -142,6 +143,7 @@ const sections: NavGroup[] = [
     personas: ["operacional", "tatico", "estrategico"],
     items: [
       { to: "/transactions", label: "Lançamentos", icon: ArrowLeftRight },
+      { to: "/bank-inbox", label: "Extrato bancário", icon: Inbox },
       { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
       { to: "/documents", label: "Scanner OCR", icon: ScanLine },

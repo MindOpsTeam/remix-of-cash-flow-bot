@@ -1,26 +1,71 @@
 /**
- * Open Finance — sync on-demand e importação p/ transactions.
+ * Open Finance — sync on-demand, varredura por cron e importação p/ transactions.
  *
  * POST /openfinance-sync
- *   { action: "sync", company_id, connection_id }   → puxa incrementais para o staging
- *   { action: "import", company_id, raw_ids: [] }   → move do staging p/ transactions
+ *   header x-cron-secret                                 → varre TODAS as conexões ativas
+ *   { action: "sync", company_id, connection_id }        → puxa incrementais para o staging
+ *   { action: "import", company_id, items: [...] }       → staging → transactions, revisado e classificado
+ *   { action: "import", company_id, raw_ids: [...] }     → formato legado (sem classificação)
+ *   { action: "ignore", company_id, raw_ids: [...] }     → marca staging como ignorado
  *
- * Autenticado por JWT.
+ * Regra do import: o humano já revisou na Caixa de entrada, então o lançamento
+ * entra `confirmed` e classificado — é isso que o faz aparecer no DRE. Antes de
+ * inserir, procura um lançamento digitado (manual/whatsapp/receivable/texto/
+ * contrato) com o mesmo valor na janela de ±3 dias e ADOTA em vez de duplicar,
+ * espelhando a régua do reconcile-transactions.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { syncPluggyConnection } from "../_shared/openfinance-sync.ts";
+import {
+  parseImportItems,
+  janelaConciliacao,
+  FONTES_CONCILIAVEIS,
+} from "../_shared/openfinance-import.ts";
 
 Deno.serve(async (req) => {
-  const auth = await authenticate(req);
-  if (auth instanceof Response) return auth;
-  const { user, supabase, corsHeaders } = auth;
-
   const service = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Varredura agendada: sem JWT, autentica pelo segredo do cron (padrão dos
+  // agentes). O webhook da Pluggy cobre o push; o cron cobre conexões sem
+  // webhook e o drift de consentimento.
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (cronSecret && req.headers.get("x-cron-secret") === cronSecret) {
+    const corsHeaders = getCorsHeaders(req);
+    try {
+      const { data: conns } = await service
+        .from("bank_connections")
+        .select("id, company_id, external_id, last_synced_at, history_calls_month, history_calls_reset_at")
+        .neq("status", "disconnected");
+
+      let ok = 0;
+      let falhas = 0;
+      let staged = 0;
+      for (const conn of conns ?? []) {
+        try {
+          const r = await syncPluggyConnection(service, conn, { initial: false });
+          staged += r?.staged ?? 0;
+          ok += 1;
+        } catch (err) {
+          falhas += 1;
+          console.error(`[openfinance-sync] cron: conexão ${conn.id} falhou`, err);
+        }
+      }
+      return jsonResp({ ok: true, conexoes: (conns ?? []).length, sincronizadas: ok, falhas, staged }, 200, corsHeaders);
+    } catch (err) {
+      console.error("[openfinance-sync] cron error", err);
+      return jsonResp({ error: String(err) }, 500, corsHeaders);
+    }
+  }
+
+  const auth = await authenticate(req);
+  if (auth instanceof Response) return auth;
+  const { user, supabase, corsHeaders } = auth;
 
   try {
     const body = await req.json().catch(() => ({}));
@@ -43,21 +88,90 @@ Deno.serve(async (req) => {
       return jsonResp({ ok: true, ...result }, 200, corsHeaders);
     }
 
-    if (action === "import") {
+    if (action === "ignore") {
       const rawIds = (body.raw_ids as string[]) ?? [];
       if (rawIds.length === 0) return jsonResp({ error: "raw_ids vazio" }, 400, corsHeaders);
+      const { error } = await service
+        .from("bank_transactions_raw")
+        .update({ status: "ignored" })
+        .eq("company_id", companyId)
+        .eq("status", "new")
+        .in("id", rawIds);
+      if (error) throw error;
+      return jsonResp({ ok: true, ignoradas: rawIds.length }, 200, corsHeaders);
+    }
+
+    if (action === "import") {
+      const items = parseImportItems(body);
+      if (items.length === 0) return jsonResp({ error: "nenhum item para importar" }, 400, corsHeaders);
 
       const { data: rows, error } = await service
         .from("bank_transactions_raw")
         .select("*")
         .eq("company_id", companyId)
-        .in("id", rawIds)
+        .in("id", items.map((i) => i.raw_id))
         .eq("status", "new");
       if (error) throw error;
 
+      const porRawId = new Map(items.map((i) => [i.raw_id, i]));
       let imported = 0;
+      let reconciled = 0;
+      let skipped = 0;
+
       for (const r of rows ?? []) {
-        // Cria o lançamento (status pendente — usuário classifica conta contábil depois)
+        const item = porRawId.get(r.id);
+        const tipo = r.direction === "revenue" ? "revenue" : "expense";
+
+        // 1) Já entrou por outra via com o mesmo external_id? Não duplica.
+        if (r.external_id) {
+          const { data: existente } = await service
+            .from("transactions")
+            .select("id")
+            .eq("company_id", companyId)
+            .eq("external_id", r.external_id)
+            .maybeSingle();
+          if (existente) {
+            await service
+              .from("bank_transactions_raw")
+              .update({ status: "imported", transaction_id: existente.id })
+              .eq("id", r.id);
+            skipped += 1;
+            continue;
+          }
+        }
+
+        // 2) O humano já digitou esse dinheiro? Adota o lançamento dele em vez
+        //    de criar um segundo (régua do reconcile: mesma direção, mesmo
+        //    valor, ±3 dias, fonte digitada, ainda sem par bancário).
+        const { de, ate } = janelaConciliacao(r.date);
+        const { data: candidato } = await service
+          .from("transactions")
+          .select("id")
+          .eq("company_id", companyId)
+          .eq("type", tipo)
+          .eq("amount", r.amount)
+          .is("external_id", null)
+          .in("source", [...FONTES_CONCILIAVEIS])
+          .gte("date", de)
+          .lte("date", ate)
+          .limit(1)
+          .maybeSingle();
+
+        if (candidato) {
+          await service
+            .from("transactions")
+            .update({ external_id: r.external_id, source: "reconciled" })
+            .eq("id", candidato.id);
+          await service
+            .from("bank_transactions_raw")
+            .update({ status: "imported", transaction_id: candidato.id })
+            .eq("id", r.id);
+          reconciled += 1;
+          continue;
+        }
+
+        // 3) Lançamento novo: revisado pelo humano na Caixa de entrada, então
+        //    entra confirmado e classificado — e portanto no DRE.
         const { data: tx, error: txErr } = await service
           .from("transactions")
           .insert({
@@ -66,21 +180,28 @@ Deno.serve(async (req) => {
             date: r.date,
             description: r.description,
             amount: r.amount,
-            type: r.direction === "revenue" ? "revenue" : "expense",
-            status: "pending",
+            type: tipo,
+            status: "confirmed",
             source: "openfinance",
             external_id: r.external_id,
+            account_id: item?.account_id ?? null,
+            cost_center_id: item?.cost_center_id ?? null,
+            payment_method: r.payment_method ?? null,
           })
           .select("id")
           .single();
-        if (txErr) continue;
+        if (txErr) {
+          console.error("[openfinance-sync] import: insert falhou", txErr);
+          continue;
+        }
         await service
           .from("bank_transactions_raw")
           .update({ status: "imported", transaction_id: tx.id })
           .eq("id", r.id);
         imported += 1;
       }
-      return jsonResp({ ok: true, imported }, 200, corsHeaders);
+
+      return jsonResp({ ok: true, imported, reconciled, skipped }, 200, corsHeaders);
     }
 
     return jsonResp({ error: `Ação inválida: ${action}` }, 400, corsHeaders);

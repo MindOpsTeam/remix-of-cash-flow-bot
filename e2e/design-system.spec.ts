@@ -8,6 +8,7 @@ const userId = "22222222-2222-4222-8222-222222222222";
 const protectedRoutes = [
   "/dashboard",
   "/transactions",
+  "/bank-inbox",
   "/transfers",
   "/receivables",
   "/contracts",
@@ -133,6 +134,8 @@ function mockMarginRows() {
 
 interface MockOptions {
   marginRows?: ReturnType<typeof mockMarginRows>;
+  bankRaw?: Array<{ id: string; date: string; description: string; amount: number; direction: string }>;
+  bankConnections?: Array<{ id: string; provider: string; external_id: string; institution_name: string; institution_image: null; status: string; last_synced_at: string | null; consent_expires_at: null }>;
 }
 
 async function installMocks(page: Page, options: MockOptions = {}) {
@@ -219,16 +222,56 @@ async function installMocks(page: Page, options: MockOptions = {}) {
       }];
     } else if (table === "v_company_margin") {
       body = marginRows;
+    } else if (table === "bank_transactions_raw") {
+      body = options.bankRaw ?? [];
+    } else if (table === "bank_connections") {
+      body = options.bankConnections ?? [];
+    } else if (table === "chart_of_accounts") {
+      body = [
+        { id: "aaaaaaa1-0000-4000-8000-000000000001", name: "Receita de Serviços", code: "3.1", type: "revenue" },
+        { id: "aaaaaaa2-0000-4000-8000-000000000002", name: "Despesas Administrativas", code: "5.1", type: "expense" },
+      ];
     }
 
+    const total = Array.isArray(body) ? body.length : 1;
     await route.fulfill({
       status: 200,
-      headers: { ...headers, "content-range": "0-0/*" },
+      headers: { ...headers, "content-range": total > 0 ? `0-${total - 1}/${total}` : "*/0" },
       body: JSON.stringify(body),
     });
   });
 
   await page.route("**/functions/v1/**", async (route) => {
+    const url = route.request().url();
+    if (url.includes("classificar-lote")) {
+      const req = route.request().postDataJSON() as { itens?: Array<{ tipo: string }> };
+      const itens = (req.itens ?? []).map((item, indice) => ({
+        indice,
+        account_id: item.tipo === "revenue"
+          ? "aaaaaaa1-0000-4000-8000-000000000001"
+          : "aaaaaaa2-0000-4000-8000-000000000002",
+        cost_center_id: null,
+        confidence: "high",
+        origem: "regra",
+      }));
+      await route.fulfill({
+        status: 200,
+        headers,
+        body: JSON.stringify({ itens, resumo: { por_regra: itens.length, por_ia: 0, sem_classificacao: 0 } }),
+      });
+      return;
+    }
+    if (url.includes("openfinance-sync")) {
+      const req = route.request().postDataJSON() as { action?: string; items?: unknown[] };
+      if (req.action === "import") {
+        await route.fulfill({
+          status: 200,
+          headers,
+          body: JSON.stringify({ ok: true, imported: req.items?.length ?? 0, reconciled: 0, skipped: 0 }),
+        });
+        return;
+      }
+    }
     await route.fulfill({ status: 200, headers, body: "{}" });
   });
 }
@@ -293,11 +336,11 @@ test.describe("migração integral do design system", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
-  test("as 51 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
+  test("as 52 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);
-    expect(protectedRoutes).toHaveLength(51);
+    expect(protectedRoutes).toHaveLength(52);
 
     for (const route of protectedRoutes) {
       await page.goto(route, { waitUntil: "domcontentloaded" });
@@ -367,6 +410,42 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByText("Sem variação")).toHaveCount(4);
   });
 
+  test("a caixa de entrada bancária revisa e importa o extrato do banco", async ({ page }) => {
+    await loginWithMocks(page, {
+      bankConnections: [{
+        id: "cccccccc-0000-4000-8000-000000000001",
+        provider: "pluggy",
+        external_id: "item-1",
+        institution_name: "Banco Sandbox",
+        institution_image: null,
+        status: "updated",
+        last_synced_at: null,
+        consent_expires_at: null,
+      }],
+      bankRaw: [
+        { id: "bbbbbbb1-0000-4000-8000-000000000001", date: "2026-07-28", description: "TED RECEBIDA CLIENTE XYZ", amount: 3500, direction: "revenue" },
+        { id: "bbbbbbb2-0000-4000-8000-000000000002", date: "2026-07-29", description: "PIX ENVIADO FORNECEDOR ABC", amount: 1240, direction: "expense" },
+      ],
+    });
+    await page.goto("/bank-inbox");
+
+    await expect(page.getByRole("heading", { name: "Extrato bancário" })).toBeVisible();
+    await expect(page.getByText("TED RECEBIDA CLIENTE XYZ")).toBeVisible();
+    await expect(page.getByText("2 de 2 selecionada(s)")).toBeVisible();
+
+    await page.getByRole("button", { name: /Importar 2 para o resultado/ }).click();
+    await expect(page.getByText("2 importado(s)")).toBeVisible();
+  });
+
+  test("o vazio da DRE convida a conectar o banco, não a colar extrato", async ({ page }) => {
+    await loginWithMocks(page);
+    await page.goto("/dre");
+
+    await expect(page.getByRole("link", { name: "Conectar banco" })).toBeVisible();
+    await expect(page.getByText("ou cole um extrato manualmente")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Colar extrato" })).toHaveCount(0);
+  });
+
   test("o dashboard redesenhado preserva o viewport @mobile", async ({ page }) => {
     await loginWithMocks(page);
 
@@ -388,7 +467,7 @@ test.describe("migração integral do design system", () => {
     }
   });
 
-  test("as 51 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
+  test("as 52 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);

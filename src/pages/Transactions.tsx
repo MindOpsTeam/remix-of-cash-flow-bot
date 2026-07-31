@@ -14,7 +14,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, ChevronLeft, ChevronRight, ClipboardPaste } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight, ClipboardPaste, Inbox } from "lucide-react";
+import { Link as RouterLink } from "react-router-dom";
+import { ConnectFirstCTA } from "@/components/openfinance/ConnectFirstCTA";
 import { toast } from "sonner";
 import type { TransactionRowData } from "@/components/TransactionRow";
 
@@ -121,16 +123,22 @@ export default function Transactions() {
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Lançamentos</h1>
           <p className="text-sm text-muted-foreground mt-1">Receitas e despesas da empresa</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ImportarExtrato
             trigger={
-              <Button variant="outline" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
                 <ClipboardPaste className="h-4 w-4" />
                 Colar extrato
               </Button>
             }
             onImportado={fetchTransactions}
           />
+          <Button asChild variant="outline" className="gap-2">
+            <RouterLink to="/bank-inbox">
+              <Inbox className="h-4 w-4" />
+              Extrato bancário
+            </RouterLink>
+          </Button>
           <Button className="gap-2" variant="accent" onClick={() => setFormOpen(true)}>
             <Plus className="h-4 w-4" />
             Novo Lançamento
@@ -156,16 +164,12 @@ export default function Transactions() {
         </div>
 
         {transactions.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground text-sm">Nenhum lançamento encontrado.</p>
-            <p className="text-muted-foreground text-xs mt-1">
-              O jeito mais rápido de começar é colar o extrato do banco. A IA classifica e você só confere.
-            </p>
-            <div className="flex flex-wrap justify-center gap-2 mt-4">
-              <ImportarExtrato onImportado={fetchTransactions} />
-              <Button variant="outline" className="gap-2" onClick={() => setFormOpen(true)}>
+          <div className="py-12">
+            <ConnectFirstCTA onImportado={fetchTransactions} />
+            <div className="mt-3 flex justify-center">
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => setFormOpen(true)}>
                 <Plus className="h-4 w-4" />
-                Criar primeiro lançamento
+                ou crie um lançamento manual
               </Button>
             </div>
           </div>
