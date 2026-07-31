@@ -235,3 +235,12 @@
     background: var(--via-bg);
   }
 }
+
+/* Recibo do PDV: na impressão só o recibo existe. */
+@media print {
+  .print-hide,
+  .via-sidebar,
+  .via-topbar {
+    display: none !important;
+  }
+}

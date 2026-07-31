@@ -20,6 +20,7 @@ const BankInbox = lazy(() => import("./pages/BankInbox"));
 const DRE = lazy(() => import("./pages/DRE"));
 const Consolidado = lazy(() => import("./pages/Consolidado"));
 const Contador = lazy(() => import("./pages/Contador"));
+const PDV = lazy(() => import("./pages/PDV"));
 const Reports = lazy(() => import("./pages/Reports"));
 const WhatsApp = lazy(() => import("./pages/WhatsAppAgent"));
 const CFODigital = lazy(() => import("./pages/CFODigital"));
@@ -130,6 +131,7 @@ const AppRoutes = () => (
       {/* Financeiro */}
       <Route path="/transactions" element={<P><Transactions /></P>} />
       <Route path="/bank-inbox" element={<P><BankInbox /></P>} />
+      <Route path="/pdv" element={<P><PDV /></P>} />
       <Route path="/transfers" element={<P><CompanyTransfers /></P>} />
       <Route path="/receivables" element={<P><ReceivablesPage /></P>} />
       <Route path="/contracts" element={<P><ContractsPage /></P>} />

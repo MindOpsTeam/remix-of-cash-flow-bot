@@ -9,6 +9,7 @@ const protectedRoutes = [
   "/dashboard",
   "/transactions",
   "/bank-inbox",
+  "/pdv",
   "/transfers",
   "/receivables",
   "/contracts",
@@ -239,6 +240,11 @@ async function installMocks(page: Page, options: MockOptions = {}) {
       body = options.bankRaw ?? [];
     } else if (table === "bank_connections") {
       body = options.bankConnections ?? [];
+    } else if (table === "products") {
+      body = [
+        { id: "ddddddd1-0000-4000-8000-000000000001", name: "Café Especial 250g", sku: "CAFE-250", barcode: "789100000001", sell_price: 42, track_stock: true, current_stock: 12, type: "product" },
+        { id: "ddddddd2-0000-4000-8000-000000000002", name: "Caneca Logo", sku: "CAN-01", barcode: "789100000002", sell_price: 35, track_stock: true, current_stock: 5, type: "product" },
+      ];
     } else if (table === "chart_of_accounts") {
       body = [
         { id: "aaaaaaa1-0000-4000-8000-000000000001", name: "Receita de Serviços", code: "3.1", type: "revenue" },
@@ -349,11 +355,11 @@ test.describe("migração integral do design system", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
-  test("as 54 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
+  test("as 55 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);
-    expect(protectedRoutes).toHaveLength(54);
+    expect(protectedRoutes).toHaveLength(55);
 
     for (const route of protectedRoutes) {
       await page.goto(route, { waitUntil: "domcontentloaded" });
@@ -469,6 +475,26 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByText("2 importado(s)")).toBeVisible();
   });
 
+  test("o PDV monta o carrinho e habilita a finalização", async ({ page }) => {
+    await loginWithMocks(page);
+    await page.goto("/pdv");
+
+    await expect(page.getByRole("heading", { name: "PDV" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Finalizar venda/ })).toBeDisabled();
+
+    const tileCafe = page.getByRole("button", { name: "Café Especial 250g R$ 42,00", exact: false }).first();
+    await tileCafe.click();
+    await tileCafe.click();
+    await page.getByRole("button", { name: "Caneca Logo R$ 35,00", exact: false }).first().click();
+
+    await expect(page.getByText("R$ 119,00").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Finalizar venda/ })).toBeEnabled();
+
+    await page.getByLabel("Buscar produto").fill("789100000002");
+    await page.getByLabel("Buscar produto").press("Enter");
+    await expect(page.getByText("R$ 154,00").first()).toBeVisible();
+  });
+
   test("a DRE consolidada mostra a matriz conta × CNPJ com totais do grupo", async ({ page }) => {
     await loginWithMocks(page);
     await page.goto("/consolidado");
@@ -545,7 +571,7 @@ test.describe("migração integral do design system", () => {
     }
   });
 
-  test("as 54 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
+  test("as 55 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);
