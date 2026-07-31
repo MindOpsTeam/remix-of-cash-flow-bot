@@ -40,12 +40,15 @@ interface ConfigAnomalia {
   baseline_dias: number;
 }
 
-const PADRAO_COBRANCA: ConfigCobranca = {
-  dias_antes: 3, dias_depois: [1, 7, 15], valor_minimo: 0, tom: "cordial", assinatura: "",
-};
-const PADRAO_ANOMALIA: ConfigAnomalia = {
-  fator: 3, valor_minimo: 500, janela_dias: 7, baseline_dias: 90,
-};
+// Fonte única: os mesmos defaults que as edges executam (issue #28 — a cópia
+// local já tinha começado a divergir; agora divergir é impossível).
+import {
+  PADRAO_COBRANCA as PADRAO_COBRANCA_SHARED,
+  PADRAO_ANOMALIA as PADRAO_ANOMALIA_SHARED,
+} from "../../../supabase/functions/_shared/agentes";
+
+const PADRAO_COBRANCA: ConfigCobranca = PADRAO_COBRANCA_SHARED as ConfigCobranca;
+const PADRAO_ANOMALIA: ConfigAnomalia = PADRAO_ANOMALIA_SHARED as ConfigAnomalia;
 
 interface LinhaRegra {
   agent: string;

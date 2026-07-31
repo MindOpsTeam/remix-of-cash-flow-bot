@@ -240,6 +240,10 @@ async function installMocks(page: Page, options: MockOptions = {}) {
       body = options.bankRaw ?? [];
     } else if (table === "bank_connections") {
       body = options.bankConnections ?? [];
+    } else if (table === "user_preferences") {
+      body = wantsObject
+        ? { prefs: { favoritos: ["/dre"] } }
+        : [{ prefs: { favoritos: ["/dre"] } }];
     } else if (table === "products") {
       body = [
         { id: "ddddddd1-0000-4000-8000-000000000001", name: "Café Especial 250g", sku: "CAFE-250", barcode: "789100000001", sell_price: 42, track_stock: true, current_stock: 12, type: "product" },
@@ -374,7 +378,11 @@ test.describe("migração integral do design system", () => {
       expect(result.overflow, `overflow em ${route}`).toBeLessThanOrEqual(1);
     }
 
-    expect(pageErrors).toEqual([]);
+    // page.goto derruba requests em voo (sino/prefs consultam em toda rota) e
+    // o WebKit/Chromium reporta o abort como pageerror. Navegação real é
+    // client-side e não aborta nada; filtramos só esse ruído.
+    const ruidoDeNavegacao = /due to access control checks|Load failed|cancelled|aborted|NetworkError/i;
+    expect(pageErrors.filter((e) => !ruidoDeNavegacao.test(e))).toEqual([]);
   });
 
   test("a navegação lateral permanece visível durante a rolagem", async ({ page }) => {
@@ -473,6 +481,14 @@ test.describe("migração integral do design system", () => {
 
     await page.getByRole("button", { name: /Importar 2 para o resultado/ }).click();
     await expect(page.getByText("2 importado(s)")).toBeVisible();
+  });
+
+  test("favoritos salvos aparecem no topo do sidebar", async ({ page }) => {
+    await loginWithMocks(page);
+
+    await expect(page.getByText("Favoritos", { exact: true })).toBeVisible();
+    const fav = page.locator("nav").getByRole("link", { name: /Remover DRE dos favoritos|DRE/ }).first();
+    await expect(fav).toBeVisible();
   });
 
   test("o PDV monta o carrinho e habilita a finalização", async ({ page }) => {
@@ -587,6 +603,10 @@ test.describe("migração integral do design system", () => {
       expect(overflow, `overflow mobile em ${route}`).toBeLessThanOrEqual(1);
     }
 
-    expect(pageErrors).toEqual([]);
+    // page.goto derruba requests em voo (sino/prefs consultam em toda rota) e
+    // o WebKit/Chromium reporta o abort como pageerror. Navegação real é
+    // client-side e não aborta nada; filtramos só esse ruído.
+    const ruidoDeNavegacao = /due to access control checks|Load failed|cancelled|aborted|NetworkError/i;
+    expect(pageErrors.filter((e) => !ruidoDeNavegacao.test(e))).toEqual([]);
   });
 });

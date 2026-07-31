@@ -181,7 +181,7 @@ export default function WhatsApp() {
       const inst = Array.isArray(instances)
         ? instances.find((i: any) => i.instance?.instanceName === instanceName || i.instanceName === instanceName)
         : instances;
-      let phone = inst?.instance?.owner || inst?.owner || "";
+      const phone = inst?.instance?.owner || inst?.owner || "";
       return phone.replace("@s.whatsapp.net", "").replace(/\D/g, "");
     } catch (e) {
       console.warn("Could not fetch instance phone:", e);
