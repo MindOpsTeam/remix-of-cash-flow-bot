@@ -16,6 +16,15 @@ import { RevenueContributionChart } from "@/components/bi/RevenueContributionCha
 import { MarginWaterfall } from "@/components/bi/MarginWaterfall";
 import { ReformaReadinessCard } from "@/components/reforma/ReformaReadinessCard";
 import { GroupApArCard } from "@/components/bi/GroupApArCard";
+import { useCockpit } from "@/hooks/useCockpit";
+import { burnMensal, runwayMeses, dso, dpo } from "@/lib/metrics";
+import { CockpitPulse } from "@/components/bi/CockpitPulse";
+import { KpiMetasCard } from "@/components/bi/KpiMetasCard";
+import { AgingCard } from "@/components/bi/AgingCard";
+import { RadarOperacionalCard } from "@/components/bi/RadarOperacionalCard";
+import { CentroCustoCard } from "@/components/bi/CentroCustoCard";
+import { TopClientesCard } from "@/components/bi/TopClientesCard";
+import { AiInsightsCard } from "@/components/bi/AiInsightsCard";
 
 function useOnboarding() {
   const { user } = useAuth();
@@ -46,12 +55,32 @@ function useOnboarding() {
 }
 
 export default function Dashboard() {
-  const { scope, companies } = useCompany();
+  const { scope, companies, company } = useCompany();
   const { data, isLoading, error } = useMarginBI();
+  const cockpit = useCockpit();
   const onboarding = useOnboarding();
 
   const isCombined = scope === "all";
   const monthLabel = new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  // Ritmo de queima sobre meses COMPLETOS: o mês corrente parcial distorceria.
+  const trend = data?.trend ?? [];
+  const mesesFechados = trend.length > 3 ? trend.slice(-4, -1) : trend.slice(-3);
+  const burn = burnMensal(mesesFechados);
+  const runway = runwayMeses(cockpit.data?.caixa ?? null, burn);
+  const receita90 = trend.slice(-3).reduce((s, p) => s + p.receita, 0);
+  const saidas90 = trend.slice(-3).reduce((s, p) => s + p.custos + p.despesas, 0);
+  const dsoDias = cockpit.data ? dso(cockpit.data.arAberto, receita90, 90) : null;
+  const dpoDias = cockpit.data ? dpo(cockpit.data.apAberto, saidas90, 90) : null;
+
+  const metasHolder = isCombined ? companies[0]?.id : company?.id;
+  const realizadoMetas: Record<string, number> = {
+    receita_mes: data?.currentMonth.receita ?? 0,
+    resultado_mes: data?.currentMonth.resultado ?? 0,
+    margem_operacional: data?.currentMonth.margemOperacional ?? 0,
+    mrr: cockpit.data?.mrrMensal ?? 0,
+    inadimplencia: cockpit.data?.inadimplenciaPct ?? 0,
+  };
 
   return (
     <AppLayout>
@@ -110,8 +139,30 @@ export default function Dashboard() {
           </div>
 
           <div className="mb-8">
-            <MarginKpis current={data.currentMonth} previous={data.previousMonth} />
+            <MarginKpis current={data.currentMonth} previous={data.previousMonth} trend={data.trend} />
           </div>
+
+          {cockpit.data && (
+            <>
+              <div className="mb-3">
+                <span className="via-eyebrow">Cockpit</span>
+                <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">Caixa e compromissos</h2>
+              </div>
+              <div className="mb-6">
+                <CockpitPulse data={cockpit.data} burn={burn} runway={runway} />
+              </div>
+              <div className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
+                <KpiMetasCard
+                  metas={cockpit.data.metas}
+                  realizado={realizadoMetas}
+                  companyId={metasHolder}
+                  isCombined={isCombined}
+                />
+                <AgingCard ar={cockpit.data.agingAR} ap={cockpit.data.agingAP} />
+                <RadarOperacionalCard data={cockpit.data} dsoDias={dsoDias} dpoDias={dpoDias} />
+              </div>
+            </>
+          )}
 
           <div className="mb-4 border-b border-border/70 pb-4">
             <span className="via-eyebrow">Leitura analítica</span>
@@ -144,6 +195,23 @@ export default function Dashboard() {
                 <MarginWaterfall totals={data.totals} />
               </div>
             </div>
+          )}
+
+          {cockpit.data && (
+            <>
+              <div className="mb-4 border-b border-border/70 pb-4">
+                <span className="via-eyebrow">Operação e clientes</span>
+                <h2 className="mt-1 text-lg font-semibold tracking-[-0.02em] text-foreground">Onde agir agora</h2>
+              </div>
+              <div className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
+                <CentroCustoCard centros={cockpit.data.centrosCusto} />
+                <TopClientesCard
+                  top={cockpit.data.clientes.top}
+                  participacaoPct={cockpit.data.clientes.participacaoPct}
+                />
+                <AiInsightsCard companyId={company?.id} companyName={company?.name} />
+              </div>
+            </>
           )}
 
           {/* Atalhos de IA */}

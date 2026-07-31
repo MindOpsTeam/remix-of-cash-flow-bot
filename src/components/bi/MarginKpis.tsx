@@ -1,11 +1,14 @@
 import { DollarSign, TrendingDown, Layers, PiggyBank, Percent, Wallet } from "lucide-react";
 import { KPICard } from "@/components/KPICard";
 import type { MarginTotals } from "@/lib/margin";
+import type { TrendPoint } from "@/hooks/useMarginBI";
 import { formatCurrency } from "@/lib/utils";
 
 interface MarginKpisProps {
   current: MarginTotals;
   previous: MarginTotals;
+  /** Série mensal para sparklines nos cards. */
+  trend?: TrendPoint[];
 }
 
 function pctChange(cur: number, prev: number): number {
@@ -14,13 +17,17 @@ function pctChange(cur: number, prev: number): number {
 }
 
 /** Quatro indicadores decisórios + estrutura compacta de custos. */
-export function MarginKpis({ current, previous }: MarginKpisProps) {
+export function MarginKpis({ current, previous, trend }: MarginKpisProps) {
+  const serie = (chave: (p: TrendPoint) => number) =>
+    trend && trend.length > 1 ? trend.map(chave) : undefined;
+
   const kpis = [
     {
       label: "Receita",
       value: current.receita,
       change: pctChange(current.receita, previous.receita),
       icon: <DollarSign className="h-4 w-4" />,
+      spark: serie((p) => p.receita),
       delay: 0,
     },
     {
@@ -33,6 +40,7 @@ export function MarginKpis({ current, previous }: MarginKpisProps) {
         : current.resultado < 0
           ? "negative" as const
           : "default" as const,
+      spark: serie((p) => p.receita - p.custos - p.despesas),
       delay: 50,
     },
     {
@@ -42,6 +50,7 @@ export function MarginKpis({ current, previous }: MarginKpisProps) {
       icon: <Percent className="h-4 w-4" />,
       format: "percentage" as const,
       changeSuffix: "p.p." as const,
+      spark: serie((p) => p.margemBruta),
       delay: 100,
     },
     {
@@ -51,6 +60,7 @@ export function MarginKpis({ current, previous }: MarginKpisProps) {
       icon: <PiggyBank className="h-4 w-4" />,
       format: "percentage" as const,
       changeSuffix: "p.p." as const,
+      spark: serie((p) => p.margemOperacional),
       delay: 150,
     },
   ];

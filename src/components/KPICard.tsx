@@ -11,6 +11,45 @@ interface KPICardProps {
   delay?: number;
   valueTone?: "default" | "positive" | "negative";
   changeSuffix?: "%" | "p.p.";
+  /** Série mensal para a sparkline discreta no rodapé do card. */
+  spark?: number[];
+}
+
+/** Sparkline mínima: polyline pura, sem eixos, compositor-friendly. */
+function Sparkline({ pontos }: { pontos: number[] }) {
+  if (pontos.length < 2) return null;
+  const min = Math.min(...pontos);
+  const max = Math.max(...pontos);
+  const amplitude = max - min || 1;
+  const largura = 100;
+  const altura = 24;
+  const coords = pontos
+    .map((v, i) => {
+      const x = (i / (pontos.length - 1)) * largura;
+      const y = altura - 2 - ((v - min) / amplitude) * (altura - 4);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+
+  return (
+    <svg
+      viewBox={`0 0 ${largura} ${altura}`}
+      preserveAspectRatio="none"
+      className="mt-3 h-6 w-full text-[var(--via-data-1)]"
+      aria-hidden="true"
+    >
+      <polyline
+        points={coords}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+        opacity="0.75"
+      />
+    </svg>
+  );
 }
 
 function useAnimatedNumber(target: number, duration = 1200, delay = 0) {
@@ -50,6 +89,7 @@ export function KPICard({
   delay = 0,
   valueTone = "default",
   changeSuffix = "%",
+  spark,
 }: KPICardProps) {
   const isPositive = change >= 0;
   const isNeutral = Math.abs(change) < 0.05;
@@ -96,6 +136,7 @@ export function KPICard({
         )}
         {!isNeutral ? <span className="text-[11px] text-muted-foreground">vs. mês anterior</span> : null}
       </div>
+      {spark ? <Sparkline pontos={spark} /> : null}
     </article>
   );
 }

@@ -410,6 +410,25 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByText("Sem variação")).toHaveCount(4);
   });
 
+  test("o cockpit mostra pulso, metas, aging e radar operacional", async ({ page }) => {
+    await loginWithMocks(page);
+
+    await expect(page.getByRole("heading", { name: "Caixa e compromissos" })).toBeVisible();
+    for (const tile of ["Caixa", "Runway", "MRR", "Inadimplência"]) {
+      await expect(page.getByText(tile, { exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole("heading", { name: /Metas do (grupo|mês)/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Aberto por vencimento" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Radar operacional" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Onde agir agora" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Análise da IA" })).toBeVisible();
+
+    if (process.env.CAPTURE_DESIGN_SYSTEM === "1") {
+      await page.waitForTimeout(1_600);
+      await page.screenshot({ path: "artifacts/design-system/cockpit-desktop-light.png", fullPage: true });
+    }
+  });
+
   test("a caixa de entrada bancária revisa e importa o extrato do banco", async ({ page }) => {
     await loginWithMocks(page, {
       bankConnections: [{
