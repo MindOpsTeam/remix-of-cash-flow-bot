@@ -189,7 +189,7 @@ export default function BankInbox() {
         body: { action: "import", company_id: company.id, items },
       });
       if (error) throw error;
-      const r = data as { imported?: number; reconciled?: number; skipped?: number };
+      const r = data as { imported?: number; reconciled?: number; skipped?: number; titulos_baixados?: number };
 
       // Correção humana vira regra da empresa: a próxima classificação do
       // mesmo padrão sai por regra, sem token (mesmo aprendizado da colagem).
@@ -213,6 +213,7 @@ export default function BankInbox() {
         r.imported ? `${r.imported} importado(s)` : null,
         r.reconciled ? `${r.reconciled} casado(s) com lançamento já digitado` : null,
         r.skipped ? `${r.skipped} já existiam` : null,
+        r.titulos_baixados ? `${r.titulos_baixados} título(s) quitado(s) automaticamente` : null,
       ].filter(Boolean);
       toast.success(partes.length ? partes.join(" · ") : "Nada novo para importar.");
       setSugestoes({});

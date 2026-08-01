@@ -104,6 +104,78 @@ Deno.serve(async (req) => {
       return jsonResp({ ok: true, ignoradas: rawIds.length }, 200, corsHeaders);
     }
 
+    /**
+     * Fecha o loop com o título em aberto.
+     *
+     * Sem isto, quando o extrato chega ANTES da baixa manual o dinheiro entra
+     * no DRE como receita nova e o título continua "a receber" — o humano vê o
+     * título aberto, dá baixa e a receita DUPLICA. Aqui o crédito/débito
+     * bancário procura um título compatível e o liquida, ligando os dois.
+     *
+     * Régua conservadora de propósito: valor EXATO, título ainda em aberto e
+     * sem lançamento ligado, com vencimento numa janela que cobre atraso
+     * (até 60 dias) e antecipação (até 15). Na dúvida não casa — título aberto
+     * a mais é erro visível; baixa errada é erro invisível.
+     */
+    async function baixarTituloAberto(
+      tipo: "revenue" | "expense",
+      valor: number,
+      dataIso: string,
+      transactionId: string,
+    ): Promise<"receivable" | "bill" | null> {
+      const base = new Date(`${dataIso.slice(0, 10)}T00:00:00Z`);
+      const desloca = (n: number) => {
+        const d = new Date(base);
+        d.setUTCDate(d.getUTCDate() + n);
+        return d.toISOString().slice(0, 10);
+      };
+      const de = desloca(-60);
+      const ate = desloca(15);
+
+      if (tipo === "revenue") {
+        const { data: titulo } = await service
+          .from("receivables")
+          .select("id")
+          .eq("company_id", companyId)
+          .in("status", ["a_receber", "vencido"])
+          .is("transaction_id", null)
+          .eq("amount", valor)
+          .gte("due_date", de)
+          .lte("due_date", ate)
+          .order("due_date", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (!titulo) return null;
+        const { data: baixado } = await service
+          .from("receivables")
+          .update({ status: "recebido", payment_date: dataIso.slice(0, 10), transaction_id: transactionId })
+          .eq("id", titulo.id)
+          .is("transaction_id", null)   // outra linha pode ter baixado no meio
+          .select("id");
+        return baixado && baixado.length > 0 ? "receivable" : null;
+      }
+
+      const { data: conta } = await service
+        .from("bills_payable")
+        .select("id")
+        .eq("company_id", companyId)
+        .neq("status", "pago")
+        .eq("valor", valor)
+        .gte("vencimento", de)
+        .lte("vencimento", ate)
+        .order("vencimento", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!conta) return null;
+      const { data: pago } = await service
+        .from("bills_payable")
+        .update({ status: "pago" })
+        .eq("id", conta.id)
+        .neq("status", "pago")
+        .select("id");
+      return pago && pago.length > 0 ? "bill" : null;
+    }
+
     if (action === "import") {
       const items = parseImportItems(body);
       if (items.length === 0) return jsonResp({ error: "nenhum item para importar" }, 400, corsHeaders);
@@ -121,6 +193,7 @@ Deno.serve(async (req) => {
       let reconciled = 0;
       let skipped = 0;
       let falhas = 0;
+      let titulosBaixados = 0;
 
       for (const r of rows ?? []) {
         const item = porRawId.get(r.id);
@@ -191,6 +264,7 @@ Deno.serve(async (req) => {
               .from("bank_transactions_raw")
               .update({ status: "imported", transaction_id: candidato.id })
               .eq("id", r.id);
+            if (await baixarTituloAberto(tipo, Number(r.amount), r.date, candidato.id)) titulosBaixados += 1;
             reconciled += 1;
             continue;
           }
@@ -228,10 +302,11 @@ Deno.serve(async (req) => {
           .from("bank_transactions_raw")
           .update({ status: "imported", transaction_id: tx.id })
           .eq("id", r.id);
+        if (await baixarTituloAberto(tipo, Number(r.amount), r.date, tx.id)) titulosBaixados += 1;
         imported += 1;
       }
 
-      return jsonResp({ ok: true, imported, reconciled, skipped, falhas }, 200, corsHeaders);
+      return jsonResp({ ok: true, imported, reconciled, skipped, falhas, titulos_baixados: titulosBaixados }, 200, corsHeaders);
     }
 
     return jsonResp({ error: `Ação inválida: ${action}` }, 400, corsHeaders);
