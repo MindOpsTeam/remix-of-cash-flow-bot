@@ -3229,6 +3229,45 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_lock: {
+        Row: {
+          created_at: string
+          id: boolean
+          locked_system_identifier: string
+          motivo: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: boolean
+          locked_system_identifier: string
+          motivo?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: boolean
+          locked_system_identifier?: string
+          motivo?: string | null
+        }
+        Relationships: []
+      }
+      platform_owner: {
+        Row: {
+          definido_em: string
+          id: boolean
+          user_id: string
+        }
+        Insert: {
+          definido_em?: string
+          id?: boolean
+          user_id: string
+        }
+        Update: {
+          definido_em?: string
+          id?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       plugnotas_config: {
         Row: {
           active: boolean
@@ -5587,6 +5626,16 @@ export type Database = {
         Args: { p_ate: string; p_de: string; p_indice: string }
         Returns: number
       }
+      auditar_integridade_contabil: {
+        Args: { p_company_id: string }
+        Returns: {
+          descricao: string
+          exemplo: string
+          quantidade: number
+          regra: string
+          severidade: string
+        }[]
+      }
       brl: { Args: { p_valor: number }; Returns: string }
       carregar_cclasstrib: {
         Args: { p_linhas: Json; p_versao: string }
@@ -5670,6 +5719,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      plataforma_bloqueada: { Args: never; Returns: boolean }
       pode_escrever_na_empresa: {
         Args: { p_company_id: string }
         Returns: boolean
@@ -5730,6 +5780,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      sou_dono_da_plataforma: { Args: never; Returns: boolean }
       try_uuid: { Args: { t: string }; Returns: string }
       venda_balcao: {
         Args: {
