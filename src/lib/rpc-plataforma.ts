@@ -27,6 +27,26 @@ export const plataformaBloqueada = () => rpcBooleana("plataforma_bloqueada");
 export const souDonoDaPlataforma = () => rpcBooleana("sou_dono_da_plataforma");
 
 /**
+ * A instalação ainda aceita cadastro por autosserviço?
+ *
+ * Verdadeiro enquanto não houver dono (o primeiro cadastro é sempre livre e vira
+ * o administrador) ou se o dono tiver reaberto o autosserviço de propósito. Nos
+ * demais casos entra-se só por convite.
+ */
+export async function cadastroEstaAberto(): Promise<boolean> {
+  try {
+    const { data, error } = await (supabase.rpc as unknown as RpcSemTipo)("cadastro_esta_aberto");
+    // Falha para ABERTO de propósito, ao contrário das outras. Base sem esta
+    // migration responderia "fechado" e o formulário de criar conta sumiria —
+    // travando a instalação inteira antes mesmo de existir um administrador.
+    if (error) return true;
+    return data !== false;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * A demonstração pertence a ESTE banco?
  *
  * Num remix a vitrine veio junto por clonagem, mas não é dali: o botão de entrar

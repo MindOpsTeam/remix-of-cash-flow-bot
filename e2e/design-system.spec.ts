@@ -145,6 +145,8 @@ interface MockOptions {
   modoTemplate?: boolean;
   /** Simula um REMIX: a vitrine veio por clonagem e não pertence a este banco. */
   semDemonstracao?: boolean;
+  /** Instalação já tem dono: novos usuários entram só por convite. */
+  cadastroPorConvite?: boolean;
   bankRaw?: Array<{ id: string; date: string; description: string; amount: number; direction: string }>;
   bankConnections?: Array<{ id: string; provider: string; external_id: string; institution_name: string; institution_image: null; status: string; last_synced_at: string | null; consent_expires_at: null }>;
 }
@@ -281,6 +283,8 @@ async function installMocks(page: Page, options: MockOptions = {}) {
       // A vitrine só é oferecida no banco de origem. Num remix esta RPC responde
       // false e o botão tem que sumir da tela.
       body = options.semDemonstracao !== true;
+    } else if (table === "cadastro_esta_aberto") {
+      body = options.cadastroPorConvite !== true;
     } else if (table === "limpar_demonstracao_se_remixado") {
       body = { removida: false, motivo: "a vitrine deste banco é daqui" };
     } else if (table === "v_mrr_movimentos") {
@@ -835,6 +839,26 @@ test.describe("migração integral do design system", () => {
 
     await expect(page.getByRole("button", { name: "Ver demonstração guiada" })).toBeVisible();
     await expect(page.getByText("Conta compartilhada e somente leitura", { exact: false })).toBeVisible();
+  });
+
+  test("com a instalação fechada, criar conta avisa que a entrada é por convite", async ({ page }) => {
+    // Depois do primeiro usuário a instalação só aceita convite. Dizer isso ANTES
+    // do formulário evita a pessoa preencher tudo para tomar uma recusa no fim.
+    await installMocks(page, { cadastroPorConvite: true });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Criar conta" }).click();
+
+    await expect(page.getByText("Esta plataforma entra por convite")).toBeVisible();
+    await expect(page.getByText("Peça a ele um link de convite", { exact: false })).toBeVisible();
+  });
+
+  test("com convite na mão, o cadastro segue normal", async ({ page }) => {
+    await installMocks(page, { cadastroPorConvite: true });
+    await page.goto("/?invite=7f3d9c10-1b2a-4c3d-8e4f-5a6b7c8d9e0f");
+    await page.getByRole("tab", { name: "Criar conta" }).click();
+
+    await expect(page.getByText("Convite reconhecido")).toBeVisible();
+    await expect(page.getByText("Esta plataforma entra por convite")).toHaveCount(0);
   });
 
   test("no remix a demonstração some da tela de login", async ({ page }) => {

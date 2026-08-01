@@ -16,6 +16,17 @@ import { useAuth } from "@/hooks/useAuth";
 
 const CHAVE = "financeai:invite-token";
 
+/**
+ * O token pendente, se houver. Lido no cadastro: sem ele no metadata, o gatilho
+ * do banco não tem como saber que aquela pessoa foi convidada e recusa a conta.
+ */
+export function tokenDoConvite(): string | null {
+  if (typeof window === "undefined") return null;
+  const daUrl = new URLSearchParams(window.location.search).get("invite");
+  if (daUrl && /^[0-9a-f-]{36}$/i.test(daUrl)) return daUrl;
+  return localStorage.getItem(CHAVE);
+}
+
 export function capturarConvite() {
   if (typeof window === "undefined") return false;
   const token = new URLSearchParams(window.location.search).get("invite");

@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_TOUR_DISMISSED_KEY, DEMO_TOUR_STEP_KEY } from "@/lib/demo";
-import { plataformaBloqueada, demonstracaoDisponivel, limparDemonstracaoSeRemixado } from "@/lib/rpc-plataforma";
+import { plataformaBloqueada, demonstracaoDisponivel, limparDemonstracaoSeRemixado, cadastroEstaAberto } from "@/lib/rpc-plataforma";
+import { tokenDoConvite } from "@/hooks/useConvite";
 import appIcon from "@/assets/via/app-icon.png";
 import wordmarkWhite from "@/assets/via/wordmark-white.png";
 
@@ -25,6 +26,10 @@ const LoginSignupForm = () => {
   // A demonstração é do projeto ORIGINAL. Num remix ela veio por clonagem e está
   // sendo removida — oferecer o botão seria oferecer um login que vai sumir.
   const [temDemonstracao, setTemDemonstracao] = useState(false);
+  // Depois do primeiro usuário a instalação só aceita convite. Saber disso ANTES
+  // evita oferecer um formulário que o banco vai recusar.
+  const [cadastroAberto, setCadastroAberto] = useState(true);
+  const convitePendente = tokenDoConvite();
 
   useEffect(() => {
     let vivo = true;
@@ -39,6 +44,9 @@ const LoginSignupForm = () => {
       .then((tem) => {
         if (vivo) setTemDemonstracao(tem);
       });
+    cadastroEstaAberto().then((aberto) => {
+      if (vivo) setCadastroAberto(aberto);
+    });
     return () => {
       vivo = false;
     };
@@ -82,7 +90,12 @@ const LoginSignupForm = () => {
       password: regPassword,
       options: {
         emailRedirectTo: window.location.origin + (nextParam ?? ""),
-        data: regName ? { full_name: regName } : undefined,
+        // O token vai no metadata porque é o único canal que o GoTrue leva do
+        // formulário até o gatilho que autoriza (ou não) o cadastro.
+        data: {
+          ...(regName ? { full_name: regName } : {}),
+          ...(convitePendente ? { convite: convitePendente } : {}),
+        },
       },
     });
     if (error) {
@@ -90,12 +103,20 @@ const LoginSignupForm = () => {
       // template barra o cadastro. Traduzir para o que o usuário precisa fazer.
       const barradoPeloTemplate =
         modoTemplate || /database error saving new user|remix_necessario/i.test(error.message);
+      // O GoTrue embrulha qualquer erro do gatilho em "Database error saving new
+      // user". Sem traduzir, quem foi barrado por falta de convite lê um erro de
+      // banco e não sabe que precisa pedir um link ao administrador.
+      const faltaConvite = /convite_necessario/i.test(error.message)
+        || (!modoTemplate && !cadastroAberto && !convitePendente
+            && /database error saving new user/i.test(error.message));
       toast.error(
-        barradoPeloTemplate
+        barradoPeloTemplate && !faltaConvite
           ? "Você precisa fazer o remix para cadastrar sua conta nesta plataforma."
-          : error.message,
+          : faltaConvite
+            ? "Esta plataforma aceita novos usuários apenas por convite. Peça um link ao administrador."
+            : error.message,
       );
-      if (barradoPeloTemplate) setModoTemplate(true);
+      if (barradoPeloTemplate && !faltaConvite) setModoTemplate(true);
     } else {
       toast.success("Verifique seu email para confirmar o cadastro.");
     }
@@ -225,6 +246,34 @@ const LoginSignupForm = () => {
 
           {isActive ? (
             <>
+            {/* Só por convite: dizer isso ANTES do formulário evita a pessoa
+                preencher tudo para receber uma recusa no fim. Com convite na
+                mão o formulário aparece normalmente. */}
+            {!modoTemplate && !cadastroAberto && !convitePendente && (
+              <div className="mb-5 rounded-lg border border-border bg-muted/40 p-4" role="note">
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <ShieldCheck className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                  Esta plataforma entra por convite
+                </p>
+                <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                  O administrador desta instalação define quem tem acesso. Peça a ele um link de
+                  convite: ao abri-lo, você cria sua conta normalmente e já entra com o papel que
+                  ele escolheu.
+                </p>
+              </div>
+            )}
+            {!modoTemplate && convitePendente && (
+              <div className="mb-5 rounded-lg border border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/[0.08] p-4" role="note">
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Check className="h-4 w-4 text-[hsl(var(--success))]" aria-hidden="true" />
+                  Convite reconhecido
+                </p>
+                <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                  Crie sua conta abaixo. Você entra direto na equipe, com o papel definido por quem
+                  convidou.
+                </p>
+              </div>
+            )}
             {modoTemplate && (
               <div className="mb-5 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/[0.08] p-4" role="alert">
                 <p className="flex items-center gap-2 text-sm font-semibold text-foreground">

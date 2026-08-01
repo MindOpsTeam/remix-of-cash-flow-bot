@@ -1,5 +1,8 @@
 import { AppLayout } from "@/components/AppLayout";
-import { ArrowLeft, Crown, User, Copy, Check } from "lucide-react";
+import { mensagemDeErro } from "@/lib/erros";
+import { usePlataformaStatus } from "@/hooks/usePlataformaStatus";
+import { cadastroEstaAberto } from "@/lib/rpc-plataforma";
+import { ArrowLeft, Crown, User, Copy, Check, DoorClosed, DoorOpen } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +30,37 @@ export default function Users() {
 
   const qc = useQueryClient();
   const [limits, setLimits] = useState<Record<string, string>>({});
+  const { souDono } = usePlataformaStatus();
+
+  // Como novos usuários entram na instalação: por convite (padrão) ou por
+  // autosserviço. É decisão do dono da plataforma, não de cada empresa.
+  const portao = useQuery({
+    queryKey: ["cadastro-aberto"],
+    queryFn: cadastroEstaAberto,
+  });
+
+  const mudarPortao = useMutation({
+    mutationFn: async (aberto: boolean) => {
+      const { error } = await (supabase.rpc as unknown as (
+        fn: string,
+        args: Record<string, boolean>,
+      ) => PromiseLike<{ error: { message: string } | null }>)("definir_cadastro_aberto", {
+        p_aberto: aberto,
+      });
+      if (error) throw error;
+      return aberto;
+    },
+    onSuccess: (aberto) => {
+      qc.invalidateQueries({ queryKey: ["cadastro-aberto"] });
+      toast({
+        title: aberto ? "Autosserviço liberado" : "Entrada só por convite",
+        description: aberto
+          ? "Qualquer pessoa com o endereço pode criar conta e a própria empresa."
+          : "Novos usuários entram apenas com um link de convite gerado aqui.",
+      });
+    },
+    onError: (e) => toast({ title: "Não deu para mudar", description: mensagemDeErro(e), variant: "destructive" }),
+  });
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ["company_members", company?.id],
@@ -158,6 +192,42 @@ export default function Users() {
             );
           })}
         </div>
+
+        {/* Portão de entrada da instalação — só o dono da plataforma decide. */}
+        {souDono && (
+          <div className="bg-card border border-border rounded-lg p-4">
+            <p className="text-sm font-medium text-foreground mb-1">Como novos usuários entram</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Por convite, qualquer pessoa que chegue no endereço não consegue criar conta — só quem
+              recebe um link seu. No autosserviço, quem se cadastrar cria a própria empresa e vira
+              administrador <strong className="text-foreground">dela</strong>, separada da sua.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant={portao.data === false ? "default" : "outline"}
+                size="sm"
+                className="gap-2"
+                disabled={mudarPortao.isPending}
+                onClick={() => mudarPortao.mutate(false)}
+              >
+                <DoorClosed className="h-3.5 w-3.5" /> Só por convite
+              </Button>
+              <Button
+                variant={portao.data === true ? "default" : "outline"}
+                size="sm"
+                className="gap-2"
+                disabled={mudarPortao.isPending}
+                onClick={() => mudarPortao.mutate(true)}
+              >
+                <DoorOpen className="h-3.5 w-3.5" /> Autosserviço aberto
+              </Button>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              O primeiro cadastro da instalação é sempre livre — é ele que vira o administrador da
+              plataforma. Esta escolha vale a partir do segundo.
+            </p>
+          </div>
+        )}
 
         {/* Invite section */}
         <div className="bg-card border border-border rounded-lg p-4">
