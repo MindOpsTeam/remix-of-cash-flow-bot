@@ -1,6 +1,7 @@
 import { corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_shared/auth.ts";
 import { parseJsonBody, validate, validateRequired, validateString, sanitizeForPrompt } from "../_shared/validate.ts";
+import { conhecimentoContabilParaPrompt } from "../_shared/contabil-br.ts";
 
 Deno.serve(async (req) => {
   const preflight = corsPreflightResponse(req);
@@ -174,7 +175,10 @@ Campos não identificados = null. Responda APENAS com JSON válido.`;
           learningContext = `\n\nHistórico de classificações anteriores (aprenda os padrões do usuário):\n${examples}`;
         }
 
-        const classifyPrompt = `Você é um classificador financeiro especialista. Analise o documento e classifique-o nas categorias corretas.
+        const classifyPrompt = `Você é um contador brasileiro classificando um documento fiscal no plano de contas da empresa.
+
+${conhecimentoContabilParaPrompt()}
+
 
 CONTAS CONTÁBEIS (${txType === "revenue" ? "receitas" : "despesas"} disponíveis):
 ${accountsList}

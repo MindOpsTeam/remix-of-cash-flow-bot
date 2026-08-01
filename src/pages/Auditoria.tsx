@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCompany } from "@/hooks/useCompany";
+import { IntegridadeContabilCard } from "@/components/contabil/IntegridadeContabilCard";
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -151,6 +152,10 @@ export default function Auditoria() {
           >
             <FileDown className="h-4 w-4" /> Exportar CSV
           </Button>
+        </div>
+
+        <div className="mb-5">
+          <IntegridadeContabilCard />
         </div>
 
         <Tabs defaultValue="razao">

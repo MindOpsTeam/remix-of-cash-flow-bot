@@ -5,8 +5,11 @@
  * é caro e lento. Aqui a ordem é a da casa:
  *
  *   1. Regra aprendida da empresa   → zero token, resposta estável
- *   2. O que sobrou, em UMA chamada → o modelo vê o lote inteiro de uma vez
- *   3. Tudo validado contra o plano de contas real da empresa
+ *   2. Doutrina contábil determinística → DAS, tarifa, maquininha e afins não
+ *      admitem dúvida: resolver por regra é mais barato E auditável
+ *   3. O que sobrou, em UMA chamada → o modelo vê o lote inteiro de uma vez,
+ *      com a doutrina do CFC no contexto
+ *   4. Tudo validado contra o plano de contas real e contra a doutrina
  *
  * Numa segunda importação do mesmo banco, a maior parte cai na etapa 1 e o
  * custo tende a zero. É esse o desenho que faz a IA ficar mais barata conforme
@@ -16,6 +19,8 @@
 import { authenticate, jsonResp } from "../_shared/auth.ts";
 import { corsPreflightResponse } from "../_shared/cors.ts";
 import { chamarModelo, registrarUso, normalizarDescricao } from "../_shared/ia.ts";
+import { conhecimentoContabilParaPrompt } from "../_shared/contabil-br.ts";
+import { classificarPorPadrao, validarClassificacao } from "../_shared/contabil-heuristica.ts";
 
 interface ItemEntrada {
   descricao: string;
@@ -34,7 +39,11 @@ interface ItemSaida {
   account_id: string | null;
   cost_center_id: string | null;
   confidence: "high" | "medium" | "low";
-  origem: "regra" | "ia" | "nenhuma";
+  origem: "regra" | "doutrina" | "ia" | "nenhuma";
+  /** Por que caiu nessa conta — rastro para o contador auditar. */
+  justificativa?: string;
+  /** Problema contábil detectado na validação (ex.: transferência entre contas). */
+  aviso?: string;
 }
 
 const MAX_ITENS = 300;
@@ -132,7 +141,48 @@ Deno.serve(async (req: Request) => {
     }
   });
 
-  // ── 2. O resto, numa chamada só
+  // ── 2. Doutrina determinística (antes de gastar token)
+  const porCodigo = new Map<string, { id: string; type: string }>();
+  for (const c of contas as Array<{ id: string; code: string | null; type: string }>) {
+    if (c.code) porCodigo.set(c.code, { id: c.id, type: c.type });
+  }
+  const centroPorNome = new Map<string, string>();
+  for (const c of centros as Array<{ id: string; name: string }>) {
+    centroPorNome.set(c.name.toLowerCase(), c.id);
+  }
+
+  const aindaPendentes: Array<{ indice: number; item: ItemEntrada }> = [];
+  for (const { indice, item } of pendentes) {
+    const { sugestao, bloqueio } = classificarPorPadrao(item.descricao, item.tipo);
+
+    // Não é resultado (transferência própria, aporte, empréstimo): não
+    // classifica NADA e explica. Melhor ficar de fora do DRE do que inflá-lo.
+    if (bloqueio) {
+      saidas[indice] = {
+        indice, account_id: null, cost_center_id: null,
+        confidence: "low", origem: "doutrina", aviso: bloqueio.motivo,
+      };
+      continue;
+    }
+
+    const conta = sugestao ? porCodigo.get(sugestao.codigo) : undefined;
+    if (sugestao && conta) {
+      saidas[indice] = {
+        indice,
+        account_id: conta.id,
+        cost_center_id: sugestao.centro ? centroPorNome.get(sugestao.centro.toLowerCase()) ?? null : null,
+        confidence: sugestao.confianca === "alta" ? "high" : "medium",
+        origem: "doutrina",
+        justificativa: sugestao.justificativa,
+      };
+      continue;
+    }
+    aindaPendentes.push({ indice, item });
+  }
+  pendentes.length = 0;
+  pendentes.push(...aindaPendentes);
+
+  // ── 3. O resto, numa chamada só
   let custoTotal = 0;
   if (pendentes.length > 0) {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
@@ -154,7 +204,9 @@ Deno.serve(async (req: Request) => {
         [
           {
             role: "system",
-            content: `Você classifica lançamentos de extrato bancário de uma empresa brasileira no plano de contas dela.
+            content: `Você é um contador brasileiro classificando lançamentos de extrato no plano de contas da empresa.
+
+${conhecimentoContabilParaPrompt()}
 
 Contas:
 ${listaContas}
@@ -203,16 +255,32 @@ Devolva um item para CADA número recebido, usando o id exato de uma conta da li
       const porIndice = new Map<number, { account_id: string | null; cost_center_id: string | null; confidence: "high" | "medium" | "low" }>();
       for (const linha of r.dados?.itens ?? []) porIndice.set(linha.i, linha);
 
-      pendentes.forEach(({ indice }, n) => {
+      const contaPorId = new Map<string, { id: string; code: string | null; type: string }>();
+      for (const c of contas as Array<{ id: string; code: string | null; type: string }>) contaPorId.set(c.id, c);
+
+      pendentes.forEach(({ indice, item }, n) => {
         const sugestao = porIndice.get(n);
-        const contaValida = sugestao?.account_id && idsContas.has(sugestao.account_id) ? sugestao.account_id : null;
+        let contaValida = sugestao?.account_id && idsContas.has(sugestao.account_id) ? sugestao.account_id : null;
         const centroValido = sugestao?.cost_center_id && idsCentros.has(sugestao.cost_center_id) ? sugestao.cost_center_id : null;
+
+        // A IA erra em silêncio: validar contra a doutrina ANTES de virar
+        // lançamento. Erro derruba a classificação; alerta só sinaliza.
+        const problemas = validarClassificacao({
+          tipo: item.tipo,
+          descricao: item.descricao,
+          conta: contaValida ? contaPorId.get(contaValida) ?? null : null,
+        });
+        const erro = problemas.find((p) => p.gravidade === "erro");
+        if (erro) contaValida = null;
+        const alerta = problemas.find((p) => p.gravidade === "alerta");
+
         saidas[indice] = {
           indice,
           account_id: contaValida,
-          cost_center_id: centroValido,
+          cost_center_id: contaValida ? centroValido : null,
           confidence: contaValida ? (sugestao?.confidence ?? "medium") : "low",
           origem: contaValida ? "ia" : "nenhuma",
+          aviso: erro?.mensagem ?? alerta?.mensagem,
         };
       });
     }
@@ -224,7 +292,9 @@ Devolva um item para CADA número recebido, usando o id exato de uma conta da li
       resumo: {
         total: itens.length,
         por_regra: saidas.filter((s) => s.origem === "regra").length,
+        por_doutrina: saidas.filter((s) => s.origem === "doutrina").length,
         por_ia: saidas.filter((s) => s.origem === "ia").length,
+        com_aviso: saidas.filter((s) => !!s.aviso).length,
         sem_classificacao: saidas.filter((s) => s.origem === "nenhuma").length,
         custo_centavos: Number(custoTotal.toFixed(4)),
       },
