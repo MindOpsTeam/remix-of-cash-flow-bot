@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
 import { Check, Compass, EyeOff, Loader2, RefreshCw } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -334,7 +335,7 @@ export default function BankInbox() {
                   {linhas.map((l) => {
                     const s = sugestoes[l.id];
                     return (
-                      <tr key={l.id} className="border-t">
+                      <LinhaDetalhe tipo="bank_raw" id={l.id} key={l.id} className="border-t">
                         <td className="px-3 py-2">
                           <Checkbox
                             checked={selecionadas.has(l.id)}
@@ -377,7 +378,7 @@ export default function BankInbox() {
                           {l.direction === "revenue" ? "+" : "−"}
                           {formatCurrency(l.amount)}
                         </td>
-                      </tr>
+                      </LinhaDetalhe>
                     );
                   })}
                 </tbody>

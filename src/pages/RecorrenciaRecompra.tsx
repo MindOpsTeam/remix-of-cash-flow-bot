@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Repeat, TrendingDown, Wallet, Users, RefreshCcw, ArrowUpRight, MessageSquare, Info } from "lucide-react";
 import { Spinner, EmptyState } from "@viverdeia/design-system";
 import { Badge } from "@/components/ui/badge";
+import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
 import { KPICard } from "@/components/KPICard";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -197,7 +198,7 @@ export default function RecorrenciaRecompra() {
                     const st = RECOMPRA_STATUS[c.status];
                     const zap = (c.whatsapp ?? "").replace(/\D/g, "");
                     return (
-                      <tr key={c.contact_id} className="border-t border-border">
+                      <LinhaDetalhe tipo="contact" id={c.contact_id} key={c.contact_id} className="border-t border-border">
                         <td className="px-3 py-2 font-medium text-foreground">
                           {c.name}
                           {c.tem_contrato && <Badge variant="outline" className="ml-2 text-[10px]">já recorrente</Badge>}
@@ -224,7 +225,7 @@ export default function RecorrenciaRecompra() {
                             </a>
                           ) : null}
                         </td>
-                      </tr>
+                      </LinhaDetalhe>
                     );
                   })}
                 </tbody>
