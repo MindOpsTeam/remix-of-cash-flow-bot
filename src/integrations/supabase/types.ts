@@ -5636,6 +5636,15 @@ export type Database = {
           severidade: string
         }[]
       }
+      autores_da_empresa: {
+        Args: { p_company_id: string }
+        Returns: {
+          email: string
+          nome: string
+          papel: string
+          user_id: string
+        }[]
+      }
       brl: { Args: { p_valor: number }; Returns: string }
       carregar_cclasstrib: {
         Args: { p_linhas: Json; p_versao: string }
