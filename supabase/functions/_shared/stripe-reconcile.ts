@@ -210,6 +210,46 @@ export function comparaEmTempoConstante(a: string, b: string): boolean {
   return diff === 0;
 }
 
+function paraHex(buf: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/** HMAC-SHA256 em hex. Usa Web Crypto, que existe igual em Deno, Node e browser. */
+export async function hmacSha256Hex(segredo: string, mensagem: string): Promise<string> {
+  const chave = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(segredo),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return paraHex(await crypto.subtle.sign("HMAC", chave, new TextEncoder().encode(mensagem)));
+}
+
+/**
+ * A conferência completa da assinatura do Stripe, num lugar só e testável.
+ *
+ * Mora aqui, e não na edge function, porque é a fronteira de confiança do
+ * webhook: é o único ponto que separa "o Stripe avisou que entrou dinheiro" de
+ * "qualquer um postou que entrou dinheiro". Regra que decide segurança precisa
+ * de teste, e teste precisa que a função seja importável sem rede.
+ */
+export async function assinaturaStripeConfere(
+  header: string | null,
+  corpoCru: string,
+  webhookSecret: string,
+  agoraSegundos: number = Math.floor(Date.now() / 1000),
+): Promise<boolean> {
+  if (!webhookSecret) return false;
+  const sig = leAssinaturaStripe(header);
+  if (!sig) return false;
+  if (!assinaturaDentroDaJanela(sig.timestamp, agoraSegundos)) return false;
+  const esperado = await hmacSha256Hex(webhookSecret, cargaAssinada(sig.timestamp, corpoCru));
+  return sig.assinaturas.some((a) => comparaEmTempoConstante(a, esperado));
+}
+
 const FORMATO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**

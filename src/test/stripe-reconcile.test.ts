@@ -14,6 +14,8 @@ import {
   assinaturaDentroDaJanela,
   cargaAssinada,
   comparaEmTempoConstante,
+  hmacSha256Hex,
+  assinaturaStripeConfere,
   ehUuid,
   estaPago,
   TOLERANCIA_ASSINATURA_SEGUNDOS,
@@ -158,6 +160,54 @@ describe("assinatura do webhook", () => {
     expect(comparaEmTempoConstante("abc", "abc")).toBe(true);
     expect(comparaEmTempoConstante("abc", "abd")).toBe(false);
     expect(comparaEmTempoConstante("abc", "ab")).toBe(false);
+  });
+});
+
+describe("conferência completa da assinatura — a fronteira de confiança", () => {
+  const SEGREDO = "whsec_teste_do_webhook";
+  const CORPO = '{"id":"evt_1","type":"charge.succeeded","data":{"object":{"amount":10000}}}';
+  const AGORA = 1800000000;
+
+  /** Assina como o Stripe assina, para o teste exercitar o caminho de verdade. */
+  async function assinaComo(corpo: string, t: number, segredo = SEGREDO) {
+    return `t=${t},v1=${await hmacSha256Hex(segredo, cargaAssinada(t, corpo))}`;
+  }
+
+  it("aceita a assinatura legítima", async () => {
+    const h = await assinaComo(CORPO, AGORA);
+    expect(await assinaturaStripeConfere(h, CORPO, SEGREDO, AGORA)).toBe(true);
+  });
+
+  it("recusa quando o corpo foi adulterado no caminho", async () => {
+    const h = await assinaComo(CORPO, AGORA);
+    const adulterado = CORPO.replace("10000", "9999900");
+    expect(await assinaturaStripeConfere(h, adulterado, SEGREDO, AGORA)).toBe(false);
+  });
+
+  it("recusa assinatura feita com outro segredo — é isso que isola uma empresa da outra", async () => {
+    const h = await assinaComo(CORPO, AGORA, "whsec_de_outra_empresa");
+    expect(await assinaturaStripeConfere(h, CORPO, SEGREDO, AGORA)).toBe(false);
+  });
+
+  it("recusa replay: assinatura legítima, porém velha", async () => {
+    const h = await assinaComo(CORPO, AGORA);
+    expect(await assinaturaStripeConfere(h, CORPO, SEGREDO, AGORA + 301)).toBe(false);
+  });
+
+  it("aceita quando uma das assinaturas do cabeçalho é a certa (rotação de segredo)", async () => {
+    const boa = await hmacSha256Hex(SEGREDO, cargaAssinada(AGORA, CORPO));
+    expect(
+      await assinaturaStripeConfere(`t=${AGORA},v1=00deadbeef,v1=${boa}`, CORPO, SEGREDO, AGORA),
+    ).toBe(true);
+  });
+
+  it("sem segredo configurado nada passa, nem cabeçalho bem formado", async () => {
+    const h = await assinaComo(CORPO, AGORA);
+    expect(await assinaturaStripeConfere(h, CORPO, "", AGORA)).toBe(false);
+  });
+
+  it("cabeçalho ausente não passa", async () => {
+    expect(await assinaturaStripeConfere(null, CORPO, SEGREDO, AGORA)).toBe(false);
   });
 });
 

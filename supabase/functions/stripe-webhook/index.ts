@@ -17,46 +17,8 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-import {
-  leAssinaturaStripe,
-  assinaturaDentroDaJanela,
-  cargaAssinada,
-  comparaEmTempoConstante,
-} from "../_shared/stripe-reconcile.ts";
+import { assinaturaStripeConfere } from "../_shared/stripe-reconcile.ts";
 import { stripeGet, reconheceCobranca, componhoRepasse } from "../_shared/stripe-sync.ts";
-
-function hex(buf: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function hmacSha256(segredo: string, mensagem: string): Promise<string> {
-  const chave = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(segredo),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  return hex(await crypto.subtle.sign("HMAC", chave, new TextEncoder().encode(mensagem)));
-}
-
-/**
- * Confere a assinatura do Stripe. Só passa se alguma assinatura v1 bater E o
- * timestamp estiver na janela — assinatura válida mas antiga é replay.
- */
-async function assinaturaConfere(
-  header: string | null,
-  corpoCru: string,
-  webhookSecret: string,
-): Promise<boolean> {
-  const sig = leAssinaturaStripe(header);
-  if (!sig) return false;
-  if (!assinaturaDentroDaJanela(sig.timestamp, Math.floor(Date.now() / 1000))) return false;
-  const esperado = await hmacSha256(webhookSecret, cargaAssinada(sig.timestamp, corpoCru));
-  return sig.assinaturas.some((a) => comparaEmTempoConstante(a, esperado));
-}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req, "stripe-signature");
@@ -93,7 +55,7 @@ Deno.serve(async (req) => {
     if (!webhookSecret) {
       return responde({ error: "webhook do Stripe não configurado para esta empresa" }, 401);
     }
-    if (!(await assinaturaConfere(req.headers.get("stripe-signature"), corpoCru, webhookSecret))) {
+    if (!(await assinaturaStripeConfere(req.headers.get("stripe-signature"), corpoCru, webhookSecret))) {
       return responde({ error: "assinatura inválida" }, 401);
     }
 
