@@ -23,6 +23,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useDetalhe } from "@/components/detalhe/DetalheProvider";
 
 interface SalesOrder {
   id: string;
@@ -82,6 +83,7 @@ const statusColors: Record<string, string> = {
 const emptyItem: OrderItem = { product_id: null, description: "", quantity: 1, unit_price: 0, discount_percent: 0, total: 0 };
 
 export default function SalesOrdersPage() {
+  const { abrirDetalhe } = useDetalhe();
   const { company } = useCompany();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -364,7 +366,10 @@ export default function SalesOrdersPage() {
         ) : (
           <div className="bg-card border border-border rounded-lg divide-y divide-border">
             {filtered.map((o) => (
-              <div key={o.id} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors">
+              <div key={o.id} role="button" tabIndex={0} aria-label="Abrir detalhes do registro"
+                onClick={(e) => { const a=(e.target as HTMLElement).closest("button,a,input,[role='button']"); if (!a || a===e.currentTarget) abrirDetalhe({ tipo: "sales_order", id: o.id }); }}
+                onKeyDown={(e) => { if (e.key!=="Enter"&&e.key!==" ") return; const a=(e.target as HTMLElement).closest("button,a,input,[role='button']"); if (a && a!==e.currentTarget) return; e.preventDefault(); abrirDetalhe({ tipo: "sales_order", id: o.id }); }}
+                className="flex cursor-pointer items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30 focus:outline-none focus-visible:bg-muted/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40">
                 <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </div>

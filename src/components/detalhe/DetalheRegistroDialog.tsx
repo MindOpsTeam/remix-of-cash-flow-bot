@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
-  ArrowLeft, ArrowUpRight, Calendar, ExternalLink, FileText, Loader2, User, Link2,
+  ArrowLeft, ArrowUpRight, Calendar, ExternalLink, FileText, Loader2, Receipt, User, Link2,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -113,6 +113,30 @@ export function DetalheRegistroDialog() {
     },
   });
 
+  // Composição: conta, centro de custo e contato ganham a lista de lançamentos
+  // que os alimentam — é o drill-down que transforma um número em explicação.
+  const campoFiltro: Record<string, string> = {
+    account: "account_id",
+    cost_center: "cost_center_id",
+    contact: "contact_id",
+  };
+  const filtro = atual ? campoFiltro[atual.tipo] : undefined;
+
+  const { data: composicao = [] } = useQuery<Array<{ id: string; description: string; amount: number; date: string; type: string }>>({
+    queryKey: ["detalhe-composicao", atual?.tipo, atual?.id],
+    enabled: !!atual && !!filtro,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("transactions")
+        .select("id, description, amount, date, type")
+        .eq(filtro!, atual!.id)
+        .in("status", ["confirmed", "reconciled"])
+        .order("date", { ascending: false })
+        .limit(8);
+      return (data ?? []) as Array<{ id: string; description: string; amount: number; date: string; type: string }>;
+    },
+  });
+
   if (!atual || !def) return null;
 
   const titulo = registro ? String(valorNoCaminho(registro, def.campoTitulo) ?? def.titulo) : def.titulo;
@@ -209,6 +233,33 @@ export function DetalheRegistroDialog() {
                   </div>
                 ))}
               </dl>
+
+              {/* Composição: de onde vem o número */}
+              {composicao.length > 0 && (
+                <div className="border-t border-border pt-3">
+                  <p className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <Receipt className="h-3.5 w-3.5" /> Lançamentos recentes
+                  </p>
+                  <ul className="divide-y divide-border overflow-hidden rounded-md border border-border">
+                    {composicao.map((t) => (
+                      <li key={t.id}>
+                        <button
+                          onClick={() => abrirDetalhe({ tipo: "transaction", id: t.id })}
+                          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/50"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs text-foreground">{t.description}</span>
+                            <span className="text-[11px] text-muted-foreground">{formatarData(t.date)}</span>
+                          </span>
+                          <span className={`shrink-0 font-mono text-xs ${t.type === "revenue" ? "text-revenue" : "text-expense"}`}>
+                            {formatCurrency(Number(t.amount) || 0)}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Navegação encadeada: nada é beco sem saída */}
               {refs.length > 0 && (

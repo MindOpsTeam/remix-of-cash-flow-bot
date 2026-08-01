@@ -25,6 +25,8 @@ export interface DRELine {
   isTotal?: boolean;
   /** Linha que exige ação do usuário, e não um resultado apurado. */
   alerta?: boolean;
+  /** Conta que originou a linha — só para abrir o detalhe. Não entra em conta alguma. */
+  accountId?: string | null;
 }
 
 export interface ResultadoDRE {
@@ -103,7 +105,7 @@ export function montarDRE(entrada: readonly LinhaView[]): ResultadoDRE {
   const doGrupo = (grupo: LinhaView["grupo"]) =>
     linhas
       .filter((l) => l.grupo === grupo)
-      .map((l) => ({ label: rotulo(l), code: l.account_code ?? "", amount: l.total }))
+      .map((l) => ({ label: rotulo(l), code: l.account_code ?? "", amount: l.total, accountId: l.account_id }))
       .sort((a, b) => a.code.localeCompare(b.code));
 
   const receitas = doGrupo("receita");
@@ -136,21 +138,21 @@ export function montarDRE(entrada: readonly LinhaView[]): ResultadoDRE {
   return {
     linhas: [
       { label: "Receita Bruta", value: totalReceita, level: 0, isTotal: true },
-      ...receitas.map((r) => ({ label: r.label, value: r.amount, level: 1 })),
+      ...receitas.map((r) => ({ label: r.label, value: r.amount, level: 1, accountId: r.accountId })),
       // Só aparece quando existe. DRE de prestador sem imposto retido não
       // precisa carregar uma linha de zero para parecer completo.
       ...(deducoes.length > 0
         ? [
             { label: "(-) Deduções da Receita", value: -totalDeducoes, level: 0 },
-            ...deducoes.map((d) => ({ label: d.label, value: -d.amount, level: 1 })),
+            ...deducoes.map((d) => ({ label: d.label, value: -d.amount, level: 1, accountId: d.accountId })),
             { label: "Receita Líquida", value: receitaLiquida, level: 0, isTotal: true },
           ]
         : []),
       { label: "(-) Custos", value: -totalCustos, level: 0 },
-      ...custos.map((c) => ({ label: c.label, value: -c.amount, level: 1 })),
+      ...custos.map((c) => ({ label: c.label, value: -c.amount, level: 1, accountId: c.accountId })),
       { label: "Lucro Bruto", value: lucroBruto, level: 0, isTotal: true },
       { label: "(-) Despesas Operacionais", value: -totalDespesas, level: 0 },
-      ...despesas.map((d) => ({ label: d.label, value: -d.amount, level: 1 })),
+      ...despesas.map((d) => ({ label: d.label, value: -d.amount, level: 1, accountId: d.accountId })),
       { label: "Lucro Líquido", value: lucroLiquido, level: 0, isTotal: true },
       ...(semContaEntrada > 0
         ? [{ label: "A classificar (entradas)", value: semContaEntrada, level: 0, alerta: true }]

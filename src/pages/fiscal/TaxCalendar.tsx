@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { useTaxGuides, type TaxGuideInput } from "@/hooks/useTaxGuides";
 import { TaxGuideFormDialog } from "@/components/fiscal/TaxGuideFormDialog";
 import { DeleteConfirmDialog } from "@/components/fiscal/DeleteConfirmDialog";
+import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   a_pagar: { label: "A Pagar", className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning" },
@@ -88,7 +89,7 @@ export default function TaxCalendar() {
                   </thead>
                   <tbody>
                     {guides.map(g => (
-                      <tr key={g.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                      <LinhaDetalhe tipo="tax_guide" id={g.id} key={g.id} className="border-b last:border-b-0">
                         <td className="px-4 py-3 font-medium">{g.tipo}</td>
                         <td className="px-4 py-3 text-muted-foreground">{g.competencia}</td>
                         <td className="px-4 py-3 text-muted-foreground">{formatDate(g.vencimento)}</td>
@@ -120,7 +121,7 @@ export default function TaxCalendar() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
-                      </tr>
+                      </LinhaDetalhe>
                     ))}
                   </tbody>
                 </table>

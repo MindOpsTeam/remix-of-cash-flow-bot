@@ -12,8 +12,10 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { montarDRE, montarSerieMensal, type DRELine, type LinhaView, type LinhaMes } from "@/lib/dre";
 import { ConnectFirstCTA } from "@/components/openfinance/ConnectFirstCTA";
+import { useDetalhe } from "@/components/detalhe/DetalheProvider";
 
 export default function DRE() {
+  const { abrirDetalhe } = useDetalhe();
   const { company } = useCompany();
   const [lines, setLines] = useState<DRELine[]>([]);
   const [naoClassificado, setNaoClassificado] = useState(0);
@@ -216,7 +218,18 @@ export default function DRE() {
                 {lines.map((line, i) => (
                   <tr
                     key={i}
-                    className={`border-b border-border/50 ${line.isTotal ? "bg-accent/30" : ""} ${line.alerta ? "bg-warning/[0.08]" : ""}`}
+                    role={line.accountId ? "button" : undefined}
+                    tabIndex={line.accountId ? 0 : undefined}
+                    aria-label={line.accountId ? `Abrir a conta ${line.label}` : undefined}
+                    onClick={() => line.accountId && abrirDetalhe({ tipo: "account", id: line.accountId })}
+                    onKeyDown={(e) => {
+                      if (!line.accountId || (e.key !== "Enter" && e.key !== " ")) return;
+                      e.preventDefault();
+                      abrirDetalhe({ tipo: "account", id: line.accountId });
+                    }}
+                    className={`border-b border-border/50 ${line.isTotal ? "bg-accent/30" : ""} ${line.alerta ? "bg-warning/[0.08]" : ""} ${
+                      line.accountId ? "cursor-pointer transition-colors hover:bg-muted/40 focus:outline-none focus-visible:bg-muted/50 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40" : ""
+                    }`}
                   >
                     <td className={`py-2.5 ${line.level === 1 ? "pl-6 text-muted-foreground" : ""} ${line.isTotal ? "font-semibold text-foreground" : ""}`}>
                       {line.label}
