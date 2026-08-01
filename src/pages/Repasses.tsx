@@ -65,7 +65,7 @@ export default function Repasses() {
   const [conciliando, setConciliando] = useState<string | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
 
-  const { data: config } = useQuery({
+  const { data: config, isPending: configCarregando } = useQuery({
     queryKey: ["stripe-config", companyId],
     enabled: !!companyId,
     queryFn: async () => {
@@ -181,7 +181,10 @@ export default function Repasses() {
           </Button>
         </header>
 
-        {!configurado && (
+        {/* Só afirma "não está ligado" depois de saber. Enquanto a consulta corre,
+            esse aviso apareceria e sumiria — piscando uma informação errada para
+            quem tem o Stripe configurado. */}
+        {!configurado && !configCarregando && (
           <div className="rounded-lg border border-dashed p-6 text-sm">
             <p className="font-medium">O Stripe ainda não está ligado nesta empresa.</p>
             <p className="mt-1 text-muted-foreground">
