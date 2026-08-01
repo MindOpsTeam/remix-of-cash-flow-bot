@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
+import { souDonoDaPlataforma } from "@/lib/rpc-plataforma";
 
 export interface AdminPlataforma {
   /** Papel do usuário atual na empresa em foco. */
@@ -41,11 +42,16 @@ export function useAdminPlataforma(): AdminPlataforma {
       const meu = lista.find((m) => m.user_id === user!.id) ?? null;
       const primeiro = lista[0] ?? null;
 
+      // A posse da instalação é explícita (platform_owner, gravada no 1º
+      // cadastro). O "membro mais antigo" fica só como retaguarda para bases
+      // criadas antes dessa tabela existir.
+      const souDono = await souDonoDaPlataforma();
+
       return {
         papel: (meu?.role ?? null) as AdminPlataforma["papel"],
         memberId: meu?.id ?? null,
         onboardingCompleto: !!meu?.onboarding_completed,
-        ehPrimeiroUsuario: !!meu && !!primeiro && meu.id === primeiro.id,
+        ehPrimeiroUsuario: souDono || (!!meu && !!primeiro && meu.id === primeiro.id),
       };
     },
   });

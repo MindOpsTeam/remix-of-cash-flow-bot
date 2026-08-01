@@ -73,7 +73,9 @@ const LoginSignupForm = () => {
       password: DEMO_PASSWORD,
     });
     if (error) {
-      toast.error("A demonstração está indisponível no momento. Tente novamente em instantes.");
+      // No template whitelabel o banco nasce vazio: a conta de demonstração só
+      // existe onde alguém rodou supabase/seed-demo.sql.
+      toast.error("Este ambiente não tem conta de demonstração. Crie a sua conta para começar.");
       setDemoLoading(false);
       return;
     }

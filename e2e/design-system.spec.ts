@@ -520,6 +520,18 @@ test.describe("migração integral do design system", () => {
     expect(new Set(alturas).size).toBe(1);
   });
 
+  test("o lembrete de concluir configuração é discreto e some quando completa", async ({ page }) => {
+    await loginWithMocks(page);
+    // Sem integração configurada (mocks vazios) o lembrete aparece no topo...
+    const lembrete = page.getByRole("link", { name: /Concluir configuração/ });
+    await expect(lembrete).toBeVisible();
+    await expect(lembrete).toHaveAttribute("href", "/settings/plataforma");
+    // ...e é discreto: não é modal nem banner, é um link pequeno no cabeçalho.
+    const caixa = await lembrete.boundingBox();
+    expect(caixa?.height ?? 99).toBeLessThan(32);
+    expect(caixa?.y ?? 99).toBeLessThan(80);
+  });
+
   test("a sidebar recolhe para só ícones e volta", async ({ page }) => {
     await loginWithMocks(page);
     const sidebar = page.getByRole("complementary", { name: "Navegação principal" });

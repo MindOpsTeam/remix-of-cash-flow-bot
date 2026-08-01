@@ -9,6 +9,7 @@ import { Eye, Menu } from "lucide-react";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { useAceitarConvite } from "@/hooks/useConvite";
+import { BotaoConcluirConfiguracao } from "@/components/integracoes/BotaoConcluirConfiguracao";
 import { isDemoUser } from "@/lib/demo";
 
 interface AppLayoutProps {
@@ -56,6 +57,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 Modo demonstração · somente leitura
               </span>
             ) : null}
+            {!ehDemo ? <BotaoConcluirConfiguracao /> : null}
             <CompanyScopeSwitcher />
             <NotificationBell />
             <ViaThemeToggle />
