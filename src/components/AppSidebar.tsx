@@ -159,7 +159,8 @@ const sections: NavGroup[] = [
       { to: "/transfers", label: "Movimentações", icon: ArrowUpDown },
       { to: "/transfers?tab=anticipations", label: "Antecipações", icon: TrendingUp },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
-      { to: "/inter", label: "Conciliação Bancária", icon: Landmark },
+      { to: "/bank-inbox", label: "Conciliação bancária", icon: Inbox },
+      { to: "/inter", label: "Banco Inter (API direta)", icon: Landmark },
       { to: "/settings/bank-accounts", label: "Bancos & Open Finance", icon: Link2 },
     ],
   },
@@ -169,7 +170,6 @@ const sections: NavGroup[] = [
     icon: Inbox,
     personas: ["operacional", "tatico"],
     items: [
-      { to: "/bank-inbox", label: "Extrato bancário", icon: Inbox },
       { to: "/documents", label: "Scanner OCR", icon: ScanLine },
       { to: "/settings/integrations/contaazul", label: "Conta Azul", icon: Link2 },
     ],

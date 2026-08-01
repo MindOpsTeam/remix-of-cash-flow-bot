@@ -677,7 +677,7 @@ test.describe("migração integral do design system", () => {
     });
     await page.goto("/bank-inbox");
 
-    await expect(page.getByRole("heading", { name: "Extrato bancário" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Conciliação bancária" })).toBeVisible();
     await expect(page.getByText("TED RECEBIDA CLIENTE XYZ")).toBeVisible();
     await expect(page.getByText("2 de 2 selecionada(s)")).toBeVisible();
 

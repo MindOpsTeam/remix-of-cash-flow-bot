@@ -251,9 +251,10 @@ export default function BankInbox() {
     <AppLayout>
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-[-0.02em] text-foreground">Extrato bancário</h1>
+          <h1 className="text-2xl font-bold tracking-[-0.02em] text-foreground">Conciliação bancária</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Transações trazidas pelo banco, classificadas pela IA e aguardando a sua revisão
+            Extrato de <strong className="text-foreground">qualquer banco</strong> via Open Finance, classificado pela
+            IA e casado com o que você já lançou — só falta a sua revisão
           </p>
         </div>
         {connections.length > 0 && (
