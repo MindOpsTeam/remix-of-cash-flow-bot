@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageSquare, Building2, Pencil, Trash2 } from "lucide-react";
 import { RatearLancamento } from "@/components/lancamentos/RatearLancamento";
+import { useDetalhe } from "@/components/detalhe/DetalheProvider";
 
 const sourceIcons: Record<string, React.ReactNode> = {
   whatsapp: <MessageSquare className="h-3 w-3" />,
@@ -39,8 +40,29 @@ export function TransactionRow({ transaction, onEdit, onDelete }: TransactionRow
   const isRevenue = transaction.type === "revenue";
   const isExternal = transaction.source === "asaas" || transaction.source === "bank";
 
+  const { abrirDetalhe } = useDetalhe();
+  // A própria linha tem role="button": excluir currentTarget, senão o closest
+  // encontra a si mesma e nenhum clique passa.
+  const alvoInterativo = (e: { target: unknown; currentTarget: unknown }) => {
+    const alvo = (e.target as HTMLElement | null)?.closest?.("button, a, input, [role='button']");
+    return !!alvo && alvo !== e.currentTarget;
+  };
+
   return (
-    <div className="group flex items-center justify-between border-b border-border/70 px-4 py-3 transition-colors duration-150 hover:bg-muted/40">
+    // A linha inteira abre o lançamento; os botões de ação seguem intactos.
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Abrir detalhes de ${transaction.description}`}
+      onClick={(e) => { if (!alvoInterativo(e)) abrirDetalhe({ tipo: "transaction", id: transaction.id }); }}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        if (alvoInterativo(e)) return;
+        e.preventDefault();
+        abrirDetalhe({ tipo: "transaction", id: transaction.id });
+      }}
+      className="group flex cursor-pointer items-center justify-between border-b border-border/70 px-4 py-3 transition-colors duration-150 hover:bg-muted/40 focus:outline-none focus-visible:bg-muted/50 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40"
+    >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className={`h-8 w-8 rounded-md flex items-center justify-center shrink-0 ${
           isRevenue ? "bg-success/[0.08] text-revenue" : "bg-destructive/[0.08] text-expense"

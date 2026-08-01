@@ -23,6 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { ProntoParaAgosto } from "@/components/produtos/ProntoParaAgosto";
+import { useDetalhe } from "@/components/detalhe/DetalheProvider";
 
 interface Product {
   id: string;
@@ -75,6 +76,7 @@ const emptyForm = {
 };
 
 export default function ProductsPage() {
+  const { abrirDetalhe } = useDetalhe();
   const { company } = useCompany();
   const queryClient = useQueryClient();
 
@@ -310,7 +312,10 @@ export default function ProductsPage() {
         ) : (
           <div className="bg-card border border-border rounded-lg divide-y divide-border">
             {filtered.map((p) => (
-              <div key={p.id} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors">
+              <div key={p.id} role="button" tabIndex={0} aria-label="Abrir detalhes do registro"
+                onClick={(e) => { const alvo=(e.target as HTMLElement).closest("button,a,input,[role='button']"); if (!alvo || alvo===e.currentTarget) abrirDetalhe({ tipo: "product", id: p.id }); }}
+                onKeyDown={(e) => { if (e.key!=="Enter"&&e.key!==" ") return; const alvo=(e.target as HTMLElement).closest("button,a,input,[role='button']"); if (alvo && alvo!==e.currentTarget) return; e.preventDefault(); abrirDetalhe({ tipo: "product", id: p.id }); }}
+                className="flex cursor-pointer items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30 focus:outline-none focus-visible:bg-muted/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40">
                 <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
                   {p.type === "service" ? <Wrench className="h-4 w-4 text-muted-foreground" /> : <Box className="h-4 w-4 text-muted-foreground" />}
                 </div>

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { CompanyProvider } from "@/hooks/useCompany";
+import { DetalheProvider } from "@/components/detalhe/DetalheProvider";
 import { lazy, Suspense, ReactNode } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -217,7 +218,9 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <CompanyProvider>
-              <AppRoutes />
+              <DetalheProvider>
+                <AppRoutes />
+              </DetalheProvider>
             </CompanyProvider>
           </AuthProvider>
         </BrowserRouter>

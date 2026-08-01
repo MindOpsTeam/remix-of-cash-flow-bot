@@ -9,6 +9,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { useReceivables, type Receivable, type ReceivableInput } from "@/hooks/useReceivables";
 import { ReceivableFormDialog } from "@/components/receivables/ReceivableFormDialog";
 import { DeleteConfirmDialog } from "@/components/fiscal/DeleteConfirmDialog";
+import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   a_receber: { label: "A receber", className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning" },
@@ -86,7 +87,7 @@ export default function Receivables() {
                   </thead>
                   <tbody>
                     {receivables.map((r) => (
-                      <tr key={r.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                      <LinhaDetalhe tipo="receivable" id={r.id} key={r.id} className="border-b last:border-b-0">
                         <td className="px-4 py-3 font-medium">{r.description}</td>
                         <td className="px-4 py-3 text-muted-foreground">{sourceLabel[r.source] ?? r.source}</td>
                         <td className="px-4 py-3 text-muted-foreground">{formatDate(r.due_date)}</td>
@@ -128,7 +129,7 @@ export default function Receivables() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
-                      </tr>
+                      </LinhaDetalhe>
                     ))}
                   </tbody>
                 </table>

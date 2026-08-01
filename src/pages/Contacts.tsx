@@ -21,6 +21,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
+import { useDetalhe } from "@/components/detalhe/DetalheProvider";
 
 interface Contact {
   id: string;
@@ -110,6 +111,7 @@ const emptyForm = {
 };
 
 export default function ContactsPage() {
+  const { abrirDetalhe } = useDetalhe();
   const { company } = useCompany();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -299,7 +301,10 @@ export default function ContactsPage() {
         ) : (
           <div className="bg-card border border-border rounded-lg divide-y divide-border">
             {filtered.map((c) => (
-              <div key={c.id} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors">
+              <div key={c.id} role="button" tabIndex={0} aria-label="Abrir detalhes do registro"
+                onClick={(e) => { const alvo=(e.target as HTMLElement).closest("button,a,input,[role='button']"); if (!alvo || alvo===e.currentTarget) abrirDetalhe({ tipo: "contact", id: c.id }); }}
+                onKeyDown={(e) => { if (e.key!=="Enter"&&e.key!==" ") return; const alvo=(e.target as HTMLElement).closest("button,a,input,[role='button']"); if (alvo && alvo!==e.currentTarget) return; e.preventDefault(); abrirDetalhe({ tipo: "contact", id: c.id }); }}
+                className="flex cursor-pointer items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30 focus:outline-none focus-visible:bg-muted/40 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/40">
                 <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
                   {c.person_type === "pf" ? <User className="h-4 w-4 text-muted-foreground" /> : <Building2 className="h-4 w-4 text-muted-foreground" />}
                 </div>

@@ -11,6 +11,7 @@ import { useContracts } from "@/hooks/useContracts";
 import { ContractFormDialog } from "@/components/contracts/ContractFormDialog";
 import { DeleteConfirmDialog } from "@/components/fiscal/DeleteConfirmDialog";
 import { CYCLE_LABEL } from "@/lib/receivables";
+import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   active: { label: "Ativo", className: "bg-success/[0.08] text-success dark:bg-success/[0.08] dark:text-success" },
@@ -82,7 +83,7 @@ export default function Contracts() {
                   </thead>
                   <tbody>
                     {contracts.map((c) => (
-                      <tr key={c.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                      <LinhaDetalhe tipo="contract" id={c.id} key={c.id} className="border-b last:border-b-0">
                         <td className="px-4 py-3 font-medium">{c.description}</td>
                         <td className="px-4 py-3 text-muted-foreground">{CYCLE_LABEL[c.cycle] ?? c.cycle} · dia {c.billing_day}</td>
                         <td className="px-4 py-3 text-muted-foreground">{c.next_due_date ? formatDate(c.next_due_date) : "—"}</td>
@@ -124,7 +125,7 @@ export default function Contracts() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
-                      </tr>
+                      </LinhaDetalhe>
                     ))}
                   </tbody>
                 </table>

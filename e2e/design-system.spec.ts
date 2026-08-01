@@ -265,6 +265,12 @@ async function installMocks(page: Page, options: MockOptions = {}) {
         { id: "aaaaaaa1-0000-4000-8000-000000000001", name: "Receita de Serviços", code: "3.1", type: "revenue" },
         { id: "aaaaaaa2-0000-4000-8000-000000000002", name: "Despesas Administrativas", code: "5.1", type: "expense" },
       ];
+    } else if (table === "receivables") {
+      body = [
+        { id: "cccc0001-0000-4000-8000-000000000001", description: "Fatura mensal · Horizonte", amount: 4800, due_date: "2026-08-10", status: "a_receber", source: "contrato", payment_date: null, parcela: 1, parcelas_total: 3, boleto_url: null, pix_url: null, external_id: null, created_at: "2026-07-02T10:15:00Z", updated_at: null, contact_id: "dddd0001-0000-4000-8000-000000000001", transaction_id: null, contract_id: "eeee0001-0000-4000-8000-000000000001", sales_order_id: null, contacts: { name: "Comercial Horizonte Ltda" } },
+      ];
+    } else if (table === "autores_da_empresa") {
+      body = [{ user_id: userId, nome: "Operador Financeiro", email: "qa.visual@financeai.local", papel: "admin" }];
     } else if (table === "plataforma_bloqueada") {
       body = options.modoTemplate === true;
     } else if (table === "sou_dono_da_plataforma") {
@@ -548,6 +554,44 @@ test.describe("migração integral do design system", () => {
       page.getByText("Você precisa fazer o remix para cadastrar sua conta nesta plataforma"),
     ).toBeVisible();
     await expect(page.getByText("Remix", { exact: false }).first()).toBeVisible();
+  });
+
+  test("clicar num registro abre o detalhe com quem lançou, quando e para onde ir", async ({ page }) => {
+    await loginWithMocks(page);
+    await page.goto("/receivables");
+
+    const linha = page.getByRole("button", { name: "Abrir detalhes do registro" }).first();
+    await expect(linha).toBeVisible();
+    await linha.click();
+
+    const modal = page.getByRole("dialog");
+    await expect(modal).toBeVisible();
+    // O que é, quanto vale e a que tipo pertence.
+    await expect(modal.getByText("Fatura mensal · Horizonte")).toBeVisible();
+    await expect(modal.getByText("Conta a receber").first()).toBeVisible();
+    // Quem lançou e quando — o rastro que o usuário pediu.
+    await expect(modal.getByText(/Lançado por|gerado pelo sistema/)).toBeVisible();
+    await expect(modal.getByText("Vencimento")).toBeVisible();
+    // Navegabilidade: dá para seguir para os registros ligados e para a lista.
+    await expect(modal.getByText("Registros ligados")).toBeVisible();
+    await expect(modal.getByRole("link", { name: /Ver todos em/ })).toBeVisible();
+
+    // Sem bloqueio: fecha por Esc.
+    await page.keyboard.press("Escape");
+    await expect(modal).not.toBeVisible();
+  });
+
+  test("o detalhe encadeia registros e o voltar desfaz um passo", async ({ page }) => {
+    await loginWithMocks(page);
+    await page.goto("/receivables");
+    await page.getByRole("button", { name: "Abrir detalhes do registro" }).first().click();
+
+    const modal = page.getByRole("dialog");
+    await modal.getByRole("button", { name: /Cliente/ }).first().click();
+    await expect(modal.getByRole("button", { name: "Voltar" })).toBeVisible();
+
+    await modal.getByRole("button", { name: "Voltar" }).click();
+    await expect(modal.getByText("Fatura mensal · Horizonte")).toBeVisible();
   });
 
   test("a sidebar recolhe para só ícones e volta", async ({ page }) => {

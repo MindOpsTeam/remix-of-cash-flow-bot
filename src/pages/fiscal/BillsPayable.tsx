@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
 
 const statusConfig: Record<string, { label: string; className: string; icon: typeof Clock }> = {
   a_vencer: { label: "A Vencer", className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning", icon: Clock },
@@ -85,7 +86,7 @@ export default function BillsPayable() {
                   </thead>
                   <tbody>
                     {bills.map(b => (
-                      <tr key={b.id} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
+                      <LinhaDetalhe tipo="bill" id={b.id} key={b.id} className="border-b last:border-b-0">
                         <td className="px-4 py-3 font-medium">{b.fornecedor}</td>
                         <td className="px-4 py-3 text-muted-foreground">{b.descricao ?? "—"}</td>
                         <td className="px-4 py-3 text-muted-foreground">{formatDate(b.vencimento)}</td>
@@ -144,7 +145,7 @@ export default function BillsPayable() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
-                      </tr>
+                      </LinhaDetalhe>
                     ))}
                   </tbody>
                 </table>
