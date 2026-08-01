@@ -395,7 +395,7 @@ function PersonaSelector({ persona, onChange }: { persona: Persona; onChange: (p
   const current = PERSONAS.find((p) => p.key === persona) ?? PERSONAS[0];
 
   return (
-    <div className="relative px-3 mb-2">
+    <div className="via-persona-wrapper relative px-3 mb-2">
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}

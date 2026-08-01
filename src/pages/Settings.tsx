@@ -104,18 +104,24 @@ export default function SettingsPage() {
         <p className="text-sm text-muted-foreground mt-1">Gerencie sua empresa e preferências</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+      {/* Grade de 3: o card ocupa a altura inteira da linha (h-full + flex), então
+          descrições de tamanhos diferentes não deixam os cards desalinhados. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sections.map((s) => (
-          <Link key={s.title} to={s.available ? s.to : "#"}>
-            <div className={`bg-card border border-border rounded-lg p-5 transition-colors ${s.available ? "cursor-pointer hover:bg-accent/40" : "opacity-50 cursor-not-allowed"}`}>
-              <div className="flex items-start justify-between mb-3">
+          <Link key={s.title} to={s.available ? s.to : "#"} className="h-full">
+            <div
+              className={`flex h-full flex-col rounded-lg border border-border bg-card p-5 transition-colors ${
+                s.available ? "cursor-pointer hover:bg-accent/40" : "cursor-not-allowed opacity-50"
+              }`}
+            >
+              <div className="mb-3 flex items-start justify-between">
                 <s.icon className="h-5 w-5 text-primary" />
                 {!s.available && (
-                  <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Em breve</span>
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">Em breve</span>
                 )}
               </div>
-              <h3 className="text-sm font-semibold text-foreground mb-1">{s.title}</h3>
-              <p className="text-xs text-muted-foreground">{s.description}</p>
+              <h3 className="mb-1 text-sm font-semibold text-foreground">{s.title}</h3>
+              <p className="text-xs leading-5 text-muted-foreground">{s.description}</p>
             </div>
           </Link>
         ))}

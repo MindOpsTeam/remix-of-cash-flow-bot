@@ -501,6 +501,25 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByText("Comercial Horizonte Ltda")).toBeVisible();
   });
 
+  test("o dropdown de perfil cobre a navegação e as configurações usam grade de 3", async ({ page }) => {
+    await loginWithMocks(page);
+    // Regressão: `.via-sidebar > *` dá z-index:1 a cada filho; sem elevar o
+    // contexto do seletor, a <nav> empilhava por cima e o menu parecia "sem fundo".
+    await page.getByRole("button", { name: /Perfil/ }).click();
+    const wrapper = page.locator(".via-persona-wrapper");
+    await expect(wrapper).toHaveCSS("z-index", "40");
+    await expect(page.getByText("visão e decisão")).toBeVisible();
+
+    await page.goto("/settings");
+    const grade = page.locator("main div.grid").first();
+    await expect(grade).toHaveClass(/lg:grid-cols-3/);
+    // Cards da mesma linha têm exatamente a mesma altura.
+    const alturas = await grade.locator("> a > div").evaluateAll((els) =>
+      els.slice(0, 3).map((el) => Math.round(el.getBoundingClientRect().height)),
+    );
+    expect(new Set(alturas).size).toBe(1);
+  });
+
   test("a sidebar recolhe para só ícones e volta", async ({ page }) => {
     await loginWithMocks(page);
     const sidebar = page.getByRole("complementary", { name: "Navegação principal" });

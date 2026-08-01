@@ -68,6 +68,15 @@
   background: hsl(var(--sidebar-foreground) / 0.32);
 }
 
+/* Seletor de perfil: o dropdown precisa empilhar ACIMA da navegação. Como
+   `.via-sidebar > *` dá z-index:1 a todos os filhos diretos, cada um vira um
+   contexto de empilhamento irmão — e a <nav>, por vir depois no DOM, cobria o
+   menu aberto (parecia "transparente", mas era a nav por cima). Elevar o
+   contexto do seletor resolve na raiz. */
+.via-persona-wrapper {
+  z-index: 40;
+}
+
 /* Alça de redimensionar: FORA do fluxo. `.via-sidebar > *` acima força
    position:relative nos filhos diretos e venceria o `absolute` do Tailwind,
    jogando a alça pro fluxo e roubando a altura da navegação. Reafirmar aqui
