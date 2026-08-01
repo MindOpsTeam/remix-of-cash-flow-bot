@@ -43,6 +43,11 @@ function formatar(valor: unknown, formato?: string): string {
   }
 }
 
+/** Documento que dá para mostrar aqui dentro em vez de mandar para outra aba. */
+function ehImagem(url: string): boolean {
+  return url.startsWith("data:image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(url.split("?")[0]);
+}
+
 /** Relacionados de cada tipo: é isso que torna a navegação encadeada. */
 function relacionados(tipo: TipoRegistro, r: Registro): ReferenciaRegistro[] {
   const refs: ReferenciaRegistro[] = [];
@@ -208,18 +213,32 @@ export function DetalheRegistroDialog() {
                 ) : null}
               </div>
 
-              {/* Documento original */}
+              {/* Documento original: imagem aparece aqui mesmo; o resto abre fora. */}
               {documento ? (
-                <a
-                  href={String(documento)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 rounded-md border border-primary/25 bg-primary/5 px-3 py-2.5 text-sm text-primary transition-colors hover:bg-primary/10"
-                >
-                  <FileText className="h-4 w-4 shrink-0" />
-                  Abrir documento original
-                  <ExternalLink className="ml-auto h-3.5 w-3.5" />
-                </a>
+                ehImagem(String(documento)) ? (
+                  <figure className="overflow-hidden rounded-md border border-border">
+                    <figcaption className="flex items-center gap-2 border-b border-border bg-muted/40 px-3 py-2 text-xs font-medium text-foreground">
+                      <FileText className="h-3.5 w-3.5 text-primary" /> Documento original
+                    </figcaption>
+                    <img
+                      src={String(documento)}
+                      alt="Documento original do registro"
+                      className="max-h-72 w-full bg-white object-contain"
+                      loading="lazy"
+                    />
+                  </figure>
+                ) : (
+                  <a
+                    href={String(documento)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 rounded-md border border-primary/25 bg-primary/5 px-3 py-2.5 text-sm text-primary transition-colors hover:bg-primary/10"
+                  >
+                    <FileText className="h-4 w-4 shrink-0" />
+                    Abrir documento original
+                    <ExternalLink className="ml-auto h-3.5 w-3.5" />
+                  </a>
+                )
               ) : null}
 
               {/* Campos */}
