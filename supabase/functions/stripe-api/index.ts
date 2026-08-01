@@ -49,9 +49,14 @@ Deno.serve(async (req) => {
     const readonly = await assertCanWrite(supabase, user.id, companyId, corsHeaders);
     if (readonly) return readonly;
 
+    // Conciliar só lê o que já foi guardado e escreve no ERP: não fala com o
+    // Stripe. Exigir a chave aí travaria a conciliação de um repasse já
+    // sincronizado sempre que a credencial fosse rotacionada ou removida.
+    const precisaDaChave = action !== "conciliar";
+
     const { data: cred } = await service.rpc("get_stripe_credentials", { p_company_id: companyId });
     const secretKey = (cred?.secret_key as string) ?? Deno.env.get("STRIPE_SECRET_KEY") ?? "";
-    if (!secretKey) {
+    if (precisaDaChave && !secretKey) {
       return jsonResp(
         { error: "Stripe não configurado: informe a chave secreta em Configurações." },
         400,

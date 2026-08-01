@@ -333,7 +333,17 @@ export async function conciliaRepasse(
     .maybeSingle();
 
   if (!payout) return { status: "sem_credito", mensagem: "Repasse não encontrado." };
+
   if (payout.bank_raw_id || payout.bank_transaction_id) {
+    // Já conciliado, mas a taxa pode ter ficado para trás (mês fechado na hora,
+    // conta da taxa ainda não definida). Sem esta segunda chance a despesa se
+    // perderia para sempre e o lucro ficaria maior do que é.
+    if (Number(payout.amount_taxa) > 0 && !payout.taxa_transaction_id) {
+      const t = await lancaTaxaDoRepasse(supabase, companyId, payout);
+      return t.txId
+        ? { status: "conciliado", mensagem: `Faltava só a taxa, agora lançada. ${t.aviso}`.trim(), taxa_lancada: true }
+        : { status: "nao_fecha", mensagem: `Repasse já conciliado, mas a taxa continua pendente. ${t.aviso}`.trim() };
+    }
     return { status: "ja_conciliado", mensagem: "Este repasse já foi conciliado." };
   }
   if (!payout.composicao_fecha) {
@@ -413,69 +423,119 @@ export async function conciliaRepasse(
   }
 
   // 3) Taxa vira despesa do período, uma vez por repasse.
-  let taxaTxId: string | null = null;
-  let taxaLancada = false;
-  if (composicao.taxa > 0) {
-    const { data: config } = await supabase
-      .from("stripe_config")
-      .select("conta_taxa_id, centro_custo_taxa_id")
-      .eq("company_id", companyId)
-      .maybeSingle();
-
-    const externalId = externalIdDaTaxa(payoutStripeId);
-    const { data: taxaExistente } = await supabase
-      .from("transactions")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("external_id", externalId)
-      .maybeSingle();
-
-    if (taxaExistente?.id) {
-      taxaTxId = taxaExistente.id as string;
-    } else if (config?.conta_taxa_id && config?.centro_custo_taxa_id) {
-      const userId = await resolveUserId(supabase, companyId);
-      if (userId) {
-        const { data: tx } = await supabase
-          .from("transactions")
-          .insert({
-            company_id: companyId,
-            user_id: userId,
-            date: payout.arrival_date ?? new Date().toISOString().slice(0, 10),
-            description: descricaoDaTaxa(payoutStripeId, composicao),
-            amount: paraReais(composicao.taxa),
-            type: "expense",
-            account_id: config.conta_taxa_id,
-            cost_center_id: config.centro_custo_taxa_id,
-            status: "confirmed",
-            source: "reconciled",
-            external_id: externalId,
-          })
-          .select("id")
-          .single();
-        taxaTxId = (tx?.id as string) ?? null;
-        taxaLancada = !!taxaTxId;
-      }
-    }
-  }
+  const taxa = await lancaTaxaDoRepasse(supabase, companyId, {
+    stripe_id: payoutStripeId,
+    arrival_date: payout.arrival_date,
+    amount_taxa: composicao.taxa,
+    itens: composicao.quantidade,
+    amount_bruto: composicao.bruto,
+    amount_liquido: liquido,
+  });
 
   await supabase
     .from("stripe_payouts")
     .update({
       bank_raw_id: linha.id,
-      taxa_transaction_id: taxaTxId,
+      taxa_transaction_id: taxa.txId,
       conciliado_em: new Date().toISOString(),
     })
     .eq("company_id", companyId)
     .eq("stripe_id", payoutStripeId);
 
-  const aviso =
-    composicao.taxa > 0 && !taxaTxId
-      ? " A taxa não foi lançada: defina a conta e o centro de custo da taxa nas configurações."
-      : "";
-
   return {
     status: "conciliado",
-    mensagem: `${descricaoDoPayout(payoutStripeId, composicao)}.${aviso}`,
-    taxa_lancada: taxaLancada,
+    mensagem: `${descricaoDoPayout(payoutStripeId, composicao)}. ${taxa.aviso}`.trim(),
+    taxa_lancada: taxa.lancadaAgora,
   };
+}
+
+/**
+ * Lança a taxa do repasse como despesa do período — e nunca falha calado.
+ *
+ * Este lançamento é o que impede o lucro de ficar maior do que é. Ele pode ser
+ * legitimamente recusado (mês fechado é uma proteção do sistema, não um bug), e
+ * quando isso acontece o motivo tem que chegar à tela: a conciliação continua
+ * válida, mas com uma despesa pendente que alguém precisa resolver.
+ */
+async function lancaTaxaDoRepasse(
+  supabase: Supa,
+  companyId: string,
+  payout: {
+    stripe_id: string;
+    arrival_date: string | null;
+    amount_taxa: number;
+    itens: number;
+    amount_bruto: number;
+    amount_liquido: number;
+  },
+): Promise<{ txId: string | null; lancadaAgora: boolean; aviso: string }> {
+  const valorTaxa = Number(payout.amount_taxa);
+  if (valorTaxa <= 0) return { txId: null, lancadaAgora: false, aviso: "" };
+
+  const externalId = externalIdDaTaxa(payout.stripe_id);
+
+  const { data: existente } = await supabase
+    .from("transactions").select("id")
+    .eq("company_id", companyId).eq("external_id", externalId).maybeSingle();
+  if (existente?.id) return { txId: existente.id as string, lancadaAgora: false, aviso: "" };
+
+  const { data: config } = await supabase
+    .from("stripe_config").select("conta_taxa_id, centro_custo_taxa_id")
+    .eq("company_id", companyId).maybeSingle();
+  if (!config?.conta_taxa_id || !config?.centro_custo_taxa_id) {
+    return {
+      txId: null,
+      lancadaAgora: false,
+      aviso:
+        `A taxa de ${paraReais(valorTaxa).toFixed(2)} NÃO foi lançada: defina a conta ` +
+        "e o centro de custo da taxa nas configurações do Stripe. Enquanto isso o lucro fica maior do que é.",
+    };
+  }
+
+  const userId = await resolveUserId(supabase, companyId);
+  if (!userId) {
+    return { txId: null, lancadaAgora: false, aviso: "A taxa não foi lançada: a empresa não tem membro que possa escrever." };
+  }
+
+  const composicao = {
+    quantidade: Number(payout.itens),
+    bruto: Number(payout.amount_bruto),
+    taxa: valorTaxa,
+    liquido: Number(payout.amount_liquido),
+  };
+
+  const { data: tx, error } = await supabase
+    .from("transactions")
+    .insert({
+      company_id: companyId,
+      user_id: userId,
+      date: payout.arrival_date ?? new Date().toISOString().slice(0, 10),
+      description: descricaoDaTaxa(payout.stripe_id, composicao),
+      amount: paraReais(valorTaxa),
+      type: "expense",
+      account_id: config.conta_taxa_id,
+      cost_center_id: config.centro_custo_taxa_id,
+      status: "confirmed",
+      source: "reconciled",
+      external_id: externalId,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    // Mês fechado é o caso comum e é proteção legítima. Silenciar aqui seria o
+    // pior desfecho possível: conciliação "bem-sucedida" com despesa sumida.
+    console.error("[stripe] taxa do repasse não pôde ser lançada", error);
+    const fechado = String(error.message ?? "").includes("fechado");
+    return {
+      txId: null,
+      lancadaAgora: false,
+      aviso: fechado
+        ? `A taxa de ${paraReais(valorTaxa).toFixed(2)} NÃO entrou porque o mês do repasse está fechado. ` +
+          "Reabra o período e concilie de novo só para lançar a taxa."
+        : `A taxa de ${paraReais(valorTaxa).toFixed(2)} NÃO foi lançada: ${error.message}`,
+    };
+  }
+
+  return { txId: (tx?.id as string) ?? null, lancadaAgora: !!tx?.id, aviso: "" };
 }
