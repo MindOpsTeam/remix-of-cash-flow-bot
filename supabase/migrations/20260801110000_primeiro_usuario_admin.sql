@@ -28,6 +28,11 @@ CREATE OR REPLACE FUNCTION public.consagra_primeiro_usuario()
  SET search_path TO 'public'
 AS $function$
 BEGIN
+  -- A conta de demonstração nunca é a dona da instalação: ela é viewer e
+  -- existe só para a vitrine. O dono é o primeiro usuário REAL que se cadastra.
+  IF NEW.email IN ('demo@financeai.app', 'dono-demo@financeai.app') THEN
+    RETURN NEW;
+  END IF;
   INSERT INTO public.platform_owner (id, user_id)
   VALUES (true, NEW.id)
   ON CONFLICT (id) DO NOTHING;  -- já existe dono: nada muda

@@ -100,8 +100,11 @@ CREATE OR REPLACE FUNCTION public.bloqueia_cadastro_no_template()
  SET search_path TO 'public'
 AS $function$
 BEGIN
-  IF public.plataforma_bloqueada() THEN
-    RAISE EXCEPTION 'Este é o projeto original (somente leitura). Remixe o projeto para ter o seu próprio ambiente com cadastro liberado.'
+  -- A conta de DEMONSTRAÇÃO é a única exceção: é viewer (a RLS impede qualquer
+  -- escrita) e existe justamente para quem quer ver o produto antes de remixar.
+  IF public.plataforma_bloqueada()
+     AND NEW.email NOT IN ('demo@financeai.app', 'dono-demo@financeai.app') THEN
+    RAISE EXCEPTION 'REMIX_NECESSARIO: este é o projeto original (somente leitura). Faça o remix do projeto para cadastrar a sua conta.'
       USING ERRCODE = '42501';
   END IF;
   RETURN NEW;
