@@ -143,6 +143,8 @@ interface MockOptions {
   demoUser?: boolean;
   /** Simula o banco original do template (cadastro bloqueado). */
   modoTemplate?: boolean;
+  /** Simula um REMIX: a vitrine veio por clonagem e não pertence a este banco. */
+  semDemonstracao?: boolean;
   bankRaw?: Array<{ id: string; date: string; description: string; amount: number; direction: string }>;
   bankConnections?: Array<{ id: string; provider: string; external_id: string; institution_name: string; institution_image: null; status: string; last_synced_at: string | null; consent_expires_at: null }>;
 }
@@ -275,6 +277,12 @@ async function installMocks(page: Page, options: MockOptions = {}) {
       body = options.modoTemplate === true;
     } else if (table === "sou_dono_da_plataforma") {
       body = false;
+    } else if (table === "demonstracao_disponivel") {
+      // A vitrine só é oferecida no banco de origem. Num remix esta RPC responde
+      // false e o botão tem que sumir da tela.
+      body = options.semDemonstracao !== true;
+    } else if (table === "limpar_demonstracao_se_remixado") {
+      body = { removida: false, motivo: "a vitrine deste banco é daqui" };
     } else if (table === "v_mrr_movimentos") {
       body = Array.from({ length: 12 }, (_, k) => {
         const d = new Date();
@@ -827,6 +835,18 @@ test.describe("migração integral do design system", () => {
 
     await expect(page.getByRole("button", { name: "Ver demonstração guiada" })).toBeVisible();
     await expect(page.getByText("Conta compartilhada e somente leitura", { exact: false })).toBeVisible();
+  });
+
+  test("no remix a demonstração some da tela de login", async ({ page }) => {
+    // O remix clona o banco, então a vitrine viaja junto — mas não é dali. O
+    // botão não pode ser oferecido: aquela conta está prestes a deixar de
+    // existir, e oferecer um login que vai falhar é pior que não oferecer.
+    await installMocks(page, { semDemonstracao: true });
+    await page.goto("/");
+
+    await expect(page.getByRole("heading", { name: "Bem-vindo de volta." })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ver demonstração guiada" })).toHaveCount(0);
+    await expect(page.getByText("Conta compartilhada e somente leitura", { exact: false })).toHaveCount(0);
   });
 
   test("o botão de demonstração entra na conta demo e conduz o tour", async ({ page }) => {

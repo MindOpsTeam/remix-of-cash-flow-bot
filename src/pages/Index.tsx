@@ -122,7 +122,6 @@ export default function Dashboard() {
 
       <ChecklistAtivacao />
       <ReformaReadinessCard />
-      <GroupApArCard />
 
       {isLoading ? (
         <div className="flex h-64 items-center justify-center">
@@ -164,6 +163,11 @@ export default function Dashboard() {
               periodoDescricao="no período"
             />
           </div>
+
+          {/* A pagar, a receber e orçamento do grupo vêm DEPOIS do resultado.
+              São compromisso e saldo — leitura que faz sentido quando já se sabe
+              quanto entrou e quanto sobrou, não antes. */}
+          <GroupApArCard />
 
           {cockpit.data && (
             <>

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_TOUR_DISMISSED_KEY, DEMO_TOUR_STEP_KEY } from "@/lib/demo";
-import { plataformaBloqueada } from "@/lib/rpc-plataforma";
+import { plataformaBloqueada, demonstracaoDisponivel, limparDemonstracaoSeRemixado } from "@/lib/rpc-plataforma";
 import appIcon from "@/assets/via/app-icon.png";
 import wordmarkWhite from "@/assets/via/wordmark-white.png";
 
@@ -22,12 +22,23 @@ const LoginSignupForm = () => {
   // Descobrir isso ANTES de o usuário preencher o formulário e tomar um erro
   // técnico ("Database error saving new user") que não explica nada.
   const [modoTemplate, setModoTemplate] = useState(false);
+  // A demonstração é do projeto ORIGINAL. Num remix ela veio por clonagem e está
+  // sendo removida — oferecer o botão seria oferecer um login que vai sumir.
+  const [temDemonstracao, setTemDemonstracao] = useState(false);
 
   useEffect(() => {
     let vivo = true;
     plataformaBloqueada().then((b) => {
       if (vivo) setModoTemplate(b);
     });
+    // Primeiro varre a vitrine herdada (no original é no-op), só então pergunta
+    // se existe demonstração. A ordem importa: perguntar antes devolveria "sim"
+    // por um instante e o botão piscaria numa instalação que não tem demo.
+    limparDemonstracaoSeRemixado()
+      .then(demonstracaoDisponivel)
+      .then((tem) => {
+        if (vivo) setTemDemonstracao(tem);
+      });
     return () => {
       vivo = false;
     };
@@ -226,9 +237,13 @@ const LoginSignupForm = () => {
                   Lovable para criar a sua própria cópia — lá o cadastro é liberado automaticamente e a primeira
                   conta criada vira a administradora da plataforma.
                 </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Quer só conhecer antes? Use a <strong className="text-foreground">demonstração guiada</strong> abaixo.
-                </p>
+                {/* Só aponta para o botão se ele existir: instrução para algo
+                    que não está na tela é pior do que instrução nenhuma. */}
+                {temDemonstracao && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Quer só conhecer antes? Use a <strong className="text-foreground">demonstração guiada</strong> abaixo.
+                  </p>
+                )}
               </div>
             )}
             <form onSubmit={handleSignup} className="space-y-5" aria-label="Criar conta">
@@ -331,6 +346,7 @@ const LoginSignupForm = () => {
             </form>
           )}
 
+          {temDemonstracao && (
           <div className="mt-7">
             <div className="flex items-center gap-3" aria-hidden="true">
               <span className="h-px flex-1 bg-border" />
@@ -358,6 +374,7 @@ const LoginSignupForm = () => {
               Conta compartilhada e somente leitura, com uma empresa fictícia de 3 CNPJs. Nada é salvo.
             </p>
           </div>
+          )}
 
           <Alert className="mt-8" role="note">
             <ShieldCheck className="h-4 w-4" aria-hidden="true" />
