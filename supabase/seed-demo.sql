@@ -195,3 +195,8 @@ BEGIN
 
   RAISE NOTICE 'Palco DEMO recriado: 3 CNPJs Aurora, demo@financeai.app viewer.';
 END $$;
+
+-- Reregistra a vitrine como pertencente a ESTE cluster. Sem isto, um seed novo
+-- criaria empresas que a limpeza de remix não conhece — e elas viajariam para o
+-- banco de quem remixar. Ver 20260801190000_demonstracao_so_no_original.sql.
+SELECT public.registrar_demonstracao();
