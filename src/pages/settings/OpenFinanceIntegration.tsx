@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
@@ -105,7 +106,7 @@ export default function OpenFinanceIntegration() {
       queryClient.invalidateQueries({ queryKey: ["openfinance_config", company.id] });
       toast.success("Credenciais do Open Finance salvas no cofre");
     } catch (e) {
-      toast.error("Não foi possível salvar: " + (e as Error).message);
+      toast.error("Não foi possível salvar: " + mensagemDeErro(e));
     } finally {
       setSalvando(false);
     }
@@ -139,7 +140,7 @@ export default function OpenFinanceIntegration() {
         .eq("provider", "pluggy");
       queryClient.invalidateQueries({ queryKey: ["openfinance_config", company.id] });
     } catch (e) {
-      toast.error("Falha no teste: " + (e as Error).message);
+      toast.error("Falha no teste: " + mensagemDeErro(e));
     } finally {
       setTestando(false);
     }

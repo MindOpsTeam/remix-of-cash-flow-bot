@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CloudDownload, KeyRound, Loader2, PlugZap, Users, Wallet } from "lucide-react";
@@ -78,7 +79,7 @@ export default function ContaAzulIntegration() {
       setRefreshToken("");
       queryClient.invalidateQueries({ queryKey: ["contaazul_config", company?.id] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   async function importar(tipo: "cadastros" | "financeiro") {
@@ -97,7 +98,7 @@ export default function ContaAzulIntegration() {
       toast.success(`Importado: ${partes.join(" · ")}.`);
       queryClient.invalidateQueries({ queryKey: ["contaazul_config", company.id] });
     } catch (e) {
-      toast.error("Importação falhou: " + (e as Error).message);
+      toast.error("Importação falhou: " + mensagemDeErro(e));
     } finally {
       setImportando(null);
     }

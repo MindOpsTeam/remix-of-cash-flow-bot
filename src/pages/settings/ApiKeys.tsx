@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -72,7 +73,7 @@ export default function ApiKeys() {
       setName("");
       qc.invalidateQueries({ queryKey: ["api_keys", company?.id] });
     },
-    onError: (e: Error) => toast.error("Erro ao criar chave: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao criar chave: " + mensagemDeErro(e)),
   });
 
   const revoke = useMutation({

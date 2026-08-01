@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Building2, Check, Compass, GitFork, Loader2, Lock, Mail, ShieldCheck, User } from "lucide-react";
@@ -55,7 +56,7 @@ const LoginSignupForm = () => {
       password: loginPassword,
     });
     if (error) {
-      toast.error(error.message);
+      toast.error(mensagemDeErro(e));
     } else {
       navigate(nextParam ?? "/dashboard");
     }

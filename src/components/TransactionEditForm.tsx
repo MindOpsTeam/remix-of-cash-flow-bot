@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -122,7 +123,7 @@ export function TransactionEditForm({ open, onOpenChange, transaction, onSuccess
     }
 
     const { error } = await supabase.from("transactions").update(updates).eq("id", transaction.id);
-    if (error) { toast.error("Erro ao salvar: " + error.message); }
+    if (error) { toast.error("Erro ao salvar: " + mensagemDeErro(e)); }
     else {
       toast.success("Lançamento atualizado!");
       onSuccess();

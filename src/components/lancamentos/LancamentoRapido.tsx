@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Compass, Loader2, Check, CornerDownLeft } from "lucide-react";
@@ -113,7 +114,7 @@ export function LancamentoRapido({ onLancado }: { onLancado?: () => void }) {
       limpar();
       onLancado?.();
     } catch (e) {
-      toast.error("Não consegui lançar: " + (e as Error).message);
+      toast.error("Não consegui lançar: " + mensagemDeErro(e));
     } finally {
       setSalvando(false);
     }

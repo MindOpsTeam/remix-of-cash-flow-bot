@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -270,7 +271,7 @@ export function AsaasIntegrationBase({
         .from(configTable as any)
         .update(payload)
         .eq("id", config.id);
-      if (error) toast.error("Erro ao salvar: " + error.message);
+      if (error) toast.error("Erro ao salvar: " + mensagemDeErro(error));
       else toast.success("Configurações salvas com sucesso!");
     } else {
       payload.api_key_production = apiKeyProduction || null;
@@ -278,7 +279,7 @@ export function AsaasIntegrationBase({
       const { error } = await supabase
         .from(configTable as any)
         .insert(payload as any);
-      if (error) toast.error("Erro ao salvar: " + error.message);
+      if (error) toast.error("Erro ao salvar: " + mensagemDeErro(error));
       else toast.success("Configurações salvas com sucesso!");
     }
 

@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -102,7 +103,7 @@ function PerguntaConversacional() {
         }
       }
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setPensando(false);
     }
@@ -187,7 +188,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
         if (error) throw error;
       }
     } catch (e) {
-      toast.error("Erro ao salvar dados da empresa: " + (e as Error).message);
+      toast.error("Erro ao salvar dados da empresa: " + mensagemDeErro(e));
     } finally {
       setSaving(false);
     }
@@ -210,7 +211,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
       setNovoCnpj("");
       queryClient.invalidateQueries();
     } catch (e) {
-      toast.error("Não consegui adicionar: " + (e as Error).message);
+      toast.error("Não consegui adicionar: " + mensagemDeErro(e));
     } finally {
       setAdicionandoCnpj(false);
     }
@@ -232,7 +233,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
       setTimeout(() => setConviteCopiado(false), 2500);
       toast.success("Convite copiado! Vale 7 dias, para 1 pessoa.");
     } catch (e) {
-      toast.error("Não consegui gerar o convite: " + (e as Error).message);
+      toast.error("Não consegui gerar o convite: " + mensagemDeErro(e));
     }
   };
 
@@ -246,7 +247,7 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
       if (error) throw error;
       onComplete();
     } catch (e) {
-      toast.error("Erro ao finalizar: " + (e as Error).message);
+      toast.error("Erro ao finalizar: " + mensagemDeErro(e));
     } finally {
       setSaving(false);
     }

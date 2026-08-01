@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { AppLayout } from "@/components/AppLayout";
@@ -400,7 +401,7 @@ export default function SalesOrdersPage() {
                           p_sales_order_id: o.id,
                           p_dias_validade: 15,
                         } as never);
-                        if (error) { toast.error("Não consegui gerar: " + error.message); return; }
+                        if (error) { toast.error("Não consegui gerar: " + mensagemDeErro(e)); return; }
                         const { token, validade } = data as unknown as { token: string; validade: string };
                         const url = `${window.location.origin}/proposta/${token}`;
                         await navigator.clipboard.writeText(url).catch(() => undefined);

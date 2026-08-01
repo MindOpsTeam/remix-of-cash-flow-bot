@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Users, Plus, Loader2, HandCoins, Target } from "lucide-react";
@@ -106,7 +107,7 @@ export default function SalespeoplePage() {
       setDialogo(false);
       setForm({ name: "", email: "", comissao_padrao: "0" });
     },
-    onError: (e: Error) => toast.error("Não consegui salvar: " + e.message),
+    onError: (e: Error) => toast.error("Não consegui salvar: " + mensagemDeErro(e)),
   });
 
   async function salvarMeta(vendedorId: string) {
@@ -119,7 +120,7 @@ export default function SalespeoplePage() {
       { company_id: company!.id, salesperson_id: vendedorId, mes, meta: valor } as never,
       { onConflict: "company_id,salesperson_id,mes" } as never,
     );
-    if (error) { toast.error("Não consegui salvar a meta: " + error.message); return; }
+    if (error) { toast.error("Não consegui salvar a meta: " + mensagemDeErro(error)); return; }
     toast.success("Meta salva.");
     qc.invalidateQueries({ queryKey: ["meta_vendedor", company?.id, mes] });
   }
@@ -140,7 +141,7 @@ export default function SalespeoplePage() {
       }
       qc.invalidateQueries({ queryKey: ["bills_payable"] });
     } catch (e) {
-      toast.error("Não consegui fechar: " + (e as Error).message);
+      toast.error("Não consegui fechar: " + mensagemDeErro(e));
     } finally {
       setFechando(false);
     }

@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -58,7 +59,7 @@ export function useBankConnections() {
       qc.invalidateQueries({ queryKey: ["bank_connections", company?.id] });
       qc.invalidateQueries({ queryKey: ["bank_raw_pending", company?.id] });
     },
-    onError: (e: Error) => toast.error("Erro ao sincronizar: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao sincronizar: " + mensagemDeErro(e)),
   });
 
   const disconnect = useMutation({
@@ -70,7 +71,7 @@ export function useBankConnections() {
       toast.success("Conexão removida");
       qc.invalidateQueries({ queryKey: ["bank_connections", company?.id] });
     },
-    onError: (e: Error) => toast.error("Erro: " + e.message),
+    onError: (e: Error) => toast.error("Erro: " + mensagemDeErro(e)),
   });
 
   return {

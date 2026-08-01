@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -81,7 +82,7 @@ export function useReceivables() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Conta a receber criada");
     },
-    onError: (e: Error) => toast.error("Erro ao criar: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao criar: " + mensagemDeErro(e)),
   });
 
   const updateReceivable = useMutation({
@@ -93,7 +94,7 @@ export function useReceivables() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Conta atualizada");
     },
-    onError: (e: Error) => toast.error("Erro ao atualizar: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao atualizar: " + mensagemDeErro(e)),
   });
 
   // Baixa manual: FECHA O LOOP no DRE — cria 1 lançamento de receita classificado
@@ -137,7 +138,7 @@ export function useReceivables() {
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       toast.success("Recebimento registrado — receita lançada no DRE");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const cancelReceivable = useMutation({
@@ -152,7 +153,7 @@ export function useReceivables() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Conta cancelada");
     },
-    onError: (e: Error) => toast.error("Erro ao cancelar: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao cancelar: " + mensagemDeErro(e)),
   });
 
   const deleteReceivable = useMutation({
@@ -164,7 +165,7 @@ export function useReceivables() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Conta removida");
     },
-    onError: (e: Error) => toast.error("Erro ao remover: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao remover: " + mensagemDeErro(e)),
   });
 
   return {

@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
@@ -110,7 +111,7 @@ export default function GroupConsolidation() {
       });
       qc.invalidateQueries({ queryKey: ["group_consolidation_accounts"] });
     },
-    onError: (e: Error) => toast.error("Erro ao salvar: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao salvar: " + mensagemDeErro(e)),
   });
 
   const autoFill = () => {

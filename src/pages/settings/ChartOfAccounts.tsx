@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,11 +63,11 @@ export default function ChartOfAccountsPage() {
     if (!company || !form.name.trim()) return;
     if (editing) {
       const { error } = await supabase.from("chart_of_accounts").update({ name: form.name.trim(), code: form.code.trim() || null, type: form.type, deducao: form.deducao }).eq("id", editing.id);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(mensagemDeErro(error)); return; }
       toast.success("Conta atualizada!");
     } else {
       const { error } = await supabase.from("chart_of_accounts").insert({ company_id: company.id, name: form.name.trim(), code: form.code.trim() || null, type: form.type, deducao: form.deducao });
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(mensagemDeErro(error)); return; }
       toast.success("Conta criada!");
     }
     setDialogOpen(false);
@@ -76,7 +77,7 @@ export default function ChartOfAccountsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir esta conta contábil?")) return;
     const { error } = await supabase.from("chart_of_accounts").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(mensagemDeErro(error)); return; }
     toast.success("Conta excluída!");
     fetch();
   };

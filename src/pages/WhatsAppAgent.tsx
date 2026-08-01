@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -234,7 +235,7 @@ export default function WhatsApp() {
       webhook_secret: formWebhookSecret,
     } as any);
     if (error) {
-      toast.error("Erro ao salvar: " + error.message);
+      toast.error("Erro ao salvar: " + mensagemDeErro(error));
     } else {
       toast.success("WhatsApp conectado com sucesso!");
       loadConfigs();
@@ -616,7 +617,7 @@ export default function WhatsApp() {
       .update({ group_jid: groupJid, group_name: groupName } as any)
       .eq("id", groupDialogConfig.id);
     if (error) {
-      toast.error("Erro ao salvar grupo: " + error.message);
+      toast.error("Erro ao salvar grupo: " + mensagemDeErro(error));
     } else {
       toast.success(`Grupo "${groupName}" configurado com sucesso!`);
       setAvailableGroups([]);

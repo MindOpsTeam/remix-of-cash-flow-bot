@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ClipboardPaste, Loader2, Check, Compass, AlertCircle } from "lucide-react";
@@ -112,7 +113,7 @@ export function ImportarExtrato({ trigger, onImportado }: ImportarExtratoProps) 
       setResumoIa(resposta.resumo ?? null);
       setIgnoradas(leitura.ignoradas.length);
     } catch (e) {
-      toast.error("Não consegui classificar agora: " + (e as Error).message);
+      toast.error("Não consegui classificar agora: " + mensagemDeErro(e));
       // Mesmo sem IA o usuário segue: as linhas foram lidas, só falta a conta.
       setLinhas(
         leitura.linhas.map((l) => ({
@@ -184,7 +185,7 @@ export function ImportarExtrato({ trigger, onImportado }: ImportarExtratoProps) 
       reiniciar();
       onImportado?.();
     } catch (e) {
-      toast.error("Não consegui importar: " + (e as Error).message);
+      toast.error("Não consegui importar: " + mensagemDeErro(e));
     } finally {
       setSalvando(false);
     }

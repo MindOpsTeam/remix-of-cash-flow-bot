@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -42,7 +43,7 @@ export function useAceitarConvite() {
     ).then(({ data, error }) => {
       localStorage.removeItem(CHAVE);
       if (error) {
-        toast.error("Convite não aceito: " + error.message);
+        toast.error("Convite não aceito: " + mensagemDeErro(error));
         return;
       }
       const r = data as { empresa?: string; ja_era_membro?: boolean };

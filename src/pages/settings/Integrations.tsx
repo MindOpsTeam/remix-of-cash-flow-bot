@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { Shield, ChevronRight, Landmark, Webhook, Plus, ArrowDownLeft, ArrowUpRight, Copy, Trash2, Eye, EyeOff, Activity, CheckCircle2, XCircle, Clock, FileText, Layers, Receipt, PlugZap } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -158,7 +159,7 @@ export default function IntegrationsPage() {
 
     const { error } = await supabase.from("webhooks").insert(payload as any);
     if (error) {
-      toast.error("Erro ao criar webhook: " + error.message);
+      toast.error("Erro ao criar webhook: " + mensagemDeErro(error));
     } else {
       toast.success("Webhook criado com sucesso!");
       resetForm();

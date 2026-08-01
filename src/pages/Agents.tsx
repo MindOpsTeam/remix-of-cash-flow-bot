@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -165,7 +166,7 @@ export default function Agents() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["agent_actions", company?.id] }),
-    onError: (e: Error) => toast.error("Erro ao atualizar ação: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao atualizar ação: " + mensagemDeErro(e)),
   });
 
   const handleScan = async () => {

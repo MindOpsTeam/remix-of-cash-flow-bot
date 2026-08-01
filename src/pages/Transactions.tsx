@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { TransactionRow } from "@/components/TransactionRow";
@@ -242,7 +243,7 @@ export default function Transactions() {
               onClick={async () => {
                 if (!deletingTransaction) return;
                 const { error } = await supabase.from("transactions").delete().eq("id", deletingTransaction.id);
-                if (error) toast.error("Erro ao excluir: " + error.message);
+                if (error) toast.error("Erro ao excluir: " + mensagemDeErro(error));
                 else { toast.success("Lançamento excluído!"); setRefreshKey((k) => k + 1); }
                 setDeletingTransaction(null);
               }}

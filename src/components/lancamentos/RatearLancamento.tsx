@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Split, Loader2, Plus, Trash2 } from "lucide-react";
@@ -92,7 +93,7 @@ export function RatearLancamento({ transactionId, descricao, valor, onRateado }:
       setAberto(false);
       onRateado?.();
     } catch (e) {
-      toast.error("Não consegui salvar o rateio: " + (e as Error).message);
+      toast.error("Não consegui salvar o rateio: " + mensagemDeErro(e));
     } finally {
       setSalvando(false);
     }

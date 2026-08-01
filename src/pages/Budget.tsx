@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -171,7 +172,7 @@ export default function Budget() {
       });
       qc.invalidateQueries({ queryKey: ["budgets", company?.id] });
     },
-    onError: (e: Error) => toast.error("Erro: " + e.message),
+    onError: (e: Error) => toast.error("Erro: " + mensagemDeErro(e)),
   });
 
   const salvarTudo = useMutation({
@@ -205,7 +206,7 @@ export default function Budget() {
       setDrafts({});
       qc.invalidateQueries({ queryKey: ["budgets", company?.id] });
     },
-    onError: (e: Error) => toast.error("Erro: " + e.message),
+    onError: (e: Error) => toast.error("Erro: " + mensagemDeErro(e)),
   });
 
   const totalDrafts = Object.keys(drafts).length;

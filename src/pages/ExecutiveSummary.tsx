@@ -7,7 +7,7 @@ import {
   Loader2, FileText, RefreshCw, TrendingUp, TrendingDown, DollarSign,
   AlertTriangle, CheckCircle, Lightbulb, BarChart3, Target, Compass,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 
 // Parse markdown sections into structured blocks
 function parseSections(md: string) {
@@ -108,7 +108,7 @@ function SectionCard({
         </div>
       )}
       <div className="prose prose-sm dark:prose-invert max-w-none [&>ul]:space-y-1 [&>p]:text-muted-foreground [&>ul>li]:text-muted-foreground [&_strong]:text-foreground [&_em]:text-primary/80">
-        <ReactMarkdown>{content}</ReactMarkdown>
+        <MarkdownMessage content={content} />
       </div>
     </div>
   );

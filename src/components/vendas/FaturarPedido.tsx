@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { HandCoins, Loader2, AlertTriangle } from "lucide-react";
@@ -90,7 +91,7 @@ export function FaturarPedido({
       setAberto(false);
       onFaturado?.();
     } catch (e) {
-      toast.error("Não consegui faturar: " + (e as Error).message);
+      toast.error("Não consegui faturar: " + mensagemDeErro(e));
     } finally {
       setSalvando(false);
     }

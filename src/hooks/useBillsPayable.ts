@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -101,7 +102,7 @@ export function useBillsPayable() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success(`${r.criadas} ocorrência(s) criadas, até ${new Date(r.ultimo_vencimento + "T00:00:00").toLocaleDateString("pt-BR")}.`);
     },
-    onError: (e: Error) => toast.error("Não consegui criar a recorrência: " + e.message),
+    onError: (e: Error) => toast.error("Não consegui criar a recorrência: " + mensagemDeErro(e)),
   });
 
   /** Encerra o futuro da recorrência e preserva o que já venceu ou foi pago. */
@@ -117,7 +118,7 @@ export function useBillsPayable() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success(`${r.canceladas} ocorrência(s) futuras canceladas. O histórico ficou.`);
     },
-    onError: (e: Error) => toast.error("Não consegui encerrar: " + e.message),
+    onError: (e: Error) => toast.error("Não consegui encerrar: " + mensagemDeErro(e)),
   });
 
   const createBill = useMutation({
@@ -142,7 +143,7 @@ export function useBillsPayable() {
           : "Conta adicionada",
       );
     },
-    onError: (e: Error) => toast.error("Erro ao criar conta: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao criar conta: " + mensagemDeErro(e)),
   });
 
   const updateBill = useMutation({
@@ -154,7 +155,7 @@ export function useBillsPayable() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Conta atualizada");
     },
-    onError: (e: Error) => toast.error("Erro ao atualizar: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao atualizar: " + mensagemDeErro(e)),
   });
 
   const deleteBill = useMutation({
@@ -166,7 +167,7 @@ export function useBillsPayable() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Conta removida");
     },
-    onError: (e: Error) => toast.error("Erro ao remover: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao remover: " + mensagemDeErro(e)),
   });
 
   const decideBill = useMutation({
@@ -190,7 +191,7 @@ export function useBillsPayable() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Decisão registrada");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const markAsPaid = useMutation({
@@ -208,7 +209,7 @@ export function useBillsPayable() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Conta marcada como paga");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return {

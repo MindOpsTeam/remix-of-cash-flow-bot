@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Banknote, CheckCircle2, Loader2, Minus, Plus, Printer, ShoppingCart, Trash2 } from "lucide-react";
@@ -158,7 +159,7 @@ export default function PDV() {
         throw new Error("A SEFAZ recusou o envio. Confira os dados fiscais na tela de emissão.");
       }
     } catch (e) {
-      toast.error("NFC-e não emitida: " + (e as Error).message);
+      toast.error("NFC-e não emitida: " + mensagemDeErro(e));
     } finally {
       setEmitindoNfce(false);
     }
@@ -262,7 +263,7 @@ export default function PDV() {
       produtos.refetch();
       toast.success(`Venda ${r.order_number} registrada: ${formatCurrency(r.total)}.`);
     } catch (e) {
-      toast.error("Venda não registrada: " + (e as Error).message);
+      toast.error("Venda não registrada: " + mensagemDeErro(e));
     } finally {
       setFinalizando(false);
     }
@@ -327,7 +328,7 @@ export default function PDV() {
       source: "pdv",
       payment_method: "dinheiro",
     } as never);
-    if (error) toast.error("Não registrei: " + error.message);
+    if (error) toast.error("Não registrei: " + mensagemDeErro(error));
     else {
       toast.success(movimento === "sangria" ? "Sangria registrada." : "Suprimento registrado.");
       setMovimento(null);

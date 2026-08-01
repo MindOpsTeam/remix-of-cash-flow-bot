@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LayoutDashboard, Plus, Loader2 } from "lucide-react";
@@ -113,7 +114,7 @@ export function MinhasVisoes() {
       setTipo("");
       invalidar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const remover = useMutation({
@@ -122,7 +123,7 @@ export function MinhasVisoes() {
       if (error) throw new Error(error.message);
     },
     onSuccess: invalidar,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const mover = useMutation({
@@ -137,7 +138,7 @@ export function MinhasVisoes() {
       await widgetsTable().update({ posicao: widgets[idx].posicao }).eq("id", alvo.id);
     },
     onSuccess: invalidar,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const metricaDef = metrica ? METRICA_POR_KEY[metrica] : undefined;

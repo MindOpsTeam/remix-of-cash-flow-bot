@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Target, Plus, Trash2, Loader2 } from "lucide-react";
@@ -64,7 +65,7 @@ export function KpiMetasCard({ metas, realizado, companyId, isCombined }: KpiMet
       setAlvo("");
       invalidar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const remover = useMutation({
@@ -76,7 +77,7 @@ export function KpiMetasCard({ metas, realizado, companyId, isCombined }: KpiMet
       toast.success("Meta removida.");
       invalidar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const disponiveis = Object.entries(METAS_CATALOGO).filter(

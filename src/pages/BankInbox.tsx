@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
@@ -217,7 +218,7 @@ export default function BankInbox() {
       setSugestoes({});
       recarregar();
     } catch (e) {
-      toast.error("Não consegui importar: " + (e as Error).message);
+      toast.error("Não consegui importar: " + mensagemDeErro(e));
     } finally {
       setImportando(false);
     }
@@ -235,7 +236,7 @@ export default function BankInbox() {
       setSugestoes({});
       recarregar();
     } catch (e) {
-      toast.error("Não consegui ignorar: " + (e as Error).message);
+      toast.error("Não consegui ignorar: " + mensagemDeErro(e));
     } finally {
       setIgnorando(false);
     }

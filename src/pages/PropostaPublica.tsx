@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, Check, FileText, Clock, Ban } from "lucide-react";
@@ -89,7 +90,7 @@ export default function PropostaPublica() {
       if (error) throw error;
       setProposta({ estado: "aceita", aceite_nome: nome.trim(), aceite_em: new Date().toISOString() });
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setAceitando(false);
     }

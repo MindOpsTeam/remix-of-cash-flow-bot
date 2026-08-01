@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -174,7 +175,7 @@ export function useContracts() {
       else if (outcome === "sem_integracao") toast.warning("Contrato criado, mas o Asaas não está configurado/conectado — cobrança automática desativada");
       else toast.warning("Contrato criado, mas a assinatura no Asaas falhou — revise a integração e reative");
     },
-    onError: (e: Error) => toast.error("Erro ao criar contrato: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao criar contrato: " + mensagemDeErro(e)),
   });
 
   const setStatus = useMutation({
@@ -183,7 +184,7 @@ export function useContracts() {
       if (error) throw error;
     },
     onSuccess: () => { invalidate(); toast.success("Contrato atualizado"); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const deleteContract = useMutation({
@@ -192,7 +193,7 @@ export function useContracts() {
       if (error) throw error;
     },
     onSuccess: () => { invalidate(); toast.success("Contrato removido"); },
-    onError: (e: Error) => toast.error("Erro ao remover: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao remover: " + mensagemDeErro(e)),
   });
 
   return {

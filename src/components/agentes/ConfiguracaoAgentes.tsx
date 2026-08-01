@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Settings2, Loader2, Save } from "lucide-react";
@@ -111,7 +112,7 @@ export function ConfiguracaoAgentes() {
       qc.invalidateQueries({ queryKey: ["agent_rules", company?.id] });
       setAberto(false);
     },
-    onError: (e: Error) => toast.error("Não consegui salvar: " + e.message),
+    onError: (e: Error) => toast.error("Não consegui salvar: " + mensagemDeErro(e)),
   });
 
   const diasDepoisTexto = cobranca.dias_depois.join(", ");

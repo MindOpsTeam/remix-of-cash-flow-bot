@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { FlaskConical, Loader2, Send, Lightbulb } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import ReactMarkdown from "react-markdown";
+import { MarkdownMessage } from "@/components/cfo/MarkdownMessage";
 
 const SCENARIOS = [
   { label: "Demitir 1 funcionário", question: "E se eu demitir 1 funcionário? Qual o impacto no fluxo de caixa e resultado?" },
@@ -151,9 +151,9 @@ export default function Simulator() {
                   <span className="text-sm">Calculando cenário...</span>
                 </div>
               ) : (
-                <div className="prose prose-sm max-w-none">
-                  <ReactMarkdown>{result}</ReactMarkdown>
-                </div>
+                // Tabela markdown só renderiza com remark-gfm; o ReactMarkdown
+                // cru deixava "| Métrica | Cenário |" na tela como texto.
+                <MarkdownMessage content={result} className="text-[13px]" />
               )}
             </CardContent>
           </Card>

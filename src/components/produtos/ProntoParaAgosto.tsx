@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldAlert, Compass, Loader2, Check, AlertCircle } from "lucide-react";
@@ -104,7 +105,7 @@ export function ProntoParaAgosto() {
         });
       }
     } catch (e) {
-      toast.error("Não consegui sugerir agora: " + (e as Error).message);
+      toast.error("Não consegui sugerir agora: " + mensagemDeErro(e));
     } finally {
       setSugerindo(false);
     }
@@ -146,7 +147,7 @@ export function ProntoParaAgosto() {
       setEdicoes({});
       setResumo(null);
     } catch (e) {
-      toast.error("Não consegui salvar: " + (e as Error).message);
+      toast.error("Não consegui salvar: " + mensagemDeErro(e));
     } finally {
       setSalvando(false);
     }

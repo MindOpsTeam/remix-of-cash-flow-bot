@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -155,7 +156,7 @@ export default function MonthlyClose() {
       });
       qc.invalidateQueries({ queryKey: ["monthly_close", company?.id] });
     },
-    onError: (e: Error) => toast.error("Erro ao fechar: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao fechar: " + mensagemDeErro(e)),
   });
 
   const reopenMutation = useMutation({
@@ -171,7 +172,7 @@ export default function MonthlyClose() {
       toast.success("Mês reaberto. O motivo ficou registrado no fechamento.");
       qc.invalidateQueries({ queryKey: ["monthly_close", company?.id] });
     },
-    onError: (e: Error) => toast.error("Erro ao reabrir: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao reabrir: " + mensagemDeErro(e)),
   });
 
   const months = [monthKey(0), monthKey(-1), monthKey(-2), monthKey(-3)];
@@ -231,7 +232,7 @@ export default function MonthlyClose() {
       });
       qc.invalidateQueries({ queryKey: ["close_checklist", company.id, selected] });
     } catch (e) {
-      toast.error("Não consegui classificar agora: " + (e as Error).message);
+      toast.error("Não consegui classificar agora: " + mensagemDeErro(e));
     } finally {
       setClassifying(false);
     }

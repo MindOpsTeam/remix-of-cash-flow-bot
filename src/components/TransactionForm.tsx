@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect, useCallback, useRef, ChangeEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -158,7 +159,7 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
       counterparty_company_id: form.is_intercompany && form.counterparty_company_id ? form.counterparty_company_id : null,
     } as any);
 
-    if (error) { toast.error("Erro ao salvar: " + error.message); }
+    if (error) { toast.error("Erro ao salvar: " + mensagemDeErro(e)); }
     else {
       toast.success("Lançamento criado com sucesso!");
       setForm({ date: new Date().toISOString().split("T")[0], competencia_date: "", description: "", amount: "", type: "expense", account_id: "", cost_center_id: "", bank_account_id: "", payment_method: "", project: "", is_intercompany: false, counterparty_company_id: "" });

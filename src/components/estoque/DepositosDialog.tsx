@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Warehouse, Plus, Loader2, Star } from "lucide-react";
@@ -61,7 +62,7 @@ export function DepositosDialog() {
       setNome("");
       invalidar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const tornarPadrao = useMutation({
@@ -71,7 +72,7 @@ export function DepositosDialog() {
       if (error) throw new Error(error.message);
     },
     onSuccess: invalidar,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (

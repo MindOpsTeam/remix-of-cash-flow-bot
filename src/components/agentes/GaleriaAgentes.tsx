@@ -1,9 +1,11 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Bot, Loader2, Play, Settings2, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { useSomenteLeitura } from "@/hooks/useSomenteLeitura";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -119,7 +121,7 @@ function ConfigDialog({
       queryClient.invalidateQueries({ queryKey: ["agent_instances", company?.id] });
       onOpenChange(false);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (
@@ -195,6 +197,7 @@ function TemplateCard({ template, instance }: { template: TemplateAgente; instan
   const { company } = useCompany();
   const queryClient = useQueryClient();
   const [configAberta, setConfigAberta] = useState(false);
+  const somenteLeitura = useSomenteLeitura();
   const invalidar = () => queryClient.invalidateQueries({ queryKey: ["agent_instances", company?.id] });
 
   const ativar = useMutation({
@@ -212,7 +215,7 @@ function TemplateCard({ template, instance }: { template: TemplateAgente; instan
       toast.success(`${template.nome} ativado.`);
       invalidar();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   const alternar = useMutation({
@@ -223,7 +226,7 @@ function TemplateCard({ template, instance }: { template: TemplateAgente; instan
       if (error) throw new Error(error.message);
     },
     onSuccess: invalidar,
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
   return (
@@ -245,6 +248,8 @@ function TemplateCard({ template, instance }: { template: TemplateAgente; instan
           <Switch
             checked={instance.ativo}
             onCheckedChange={(v) => alternar.mutate(v)}
+            disabled={somenteLeitura.bloqueado}
+            title={somenteLeitura.motivo || undefined}
             aria-label={`${template.nome} ${instance.ativo ? "ativo" : "inativo"}`}
           />
         ) : null}
@@ -263,9 +268,15 @@ function TemplateCard({ template, instance }: { template: TemplateAgente; instan
             </Button>
           </>
         ) : (
-          <Button size="sm" className="ml-auto gap-1.5" onClick={() => ativar.mutate()} disabled={ativar.isPending}>
+          <Button
+            size="sm"
+            className="ml-auto gap-1.5"
+            onClick={() => ativar.mutate()}
+            disabled={ativar.isPending || somenteLeitura.bloqueado}
+            title={somenteLeitura.motivo || undefined}
+          >
             {ativar.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            Ativar
+            {somenteLeitura.bloqueado ? somenteLeitura.rotulo : "Ativar"}
           </Button>
         )}
       </div>
@@ -291,7 +302,7 @@ export function GaleriaAgentes() {
       if (error) throw error;
       toast.success(`Agentes executados: ${data?.instancias ?? 0} instância(s).`);
     } catch (e) {
-      toast.error("Erro ao executar: " + (e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setRodando(false);
     }

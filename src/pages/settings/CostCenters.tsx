@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,11 +65,11 @@ export default function CostCentersPage() {
     if (!company || !form.name.trim()) return;
     if (editing) {
       const { error } = await supabase.from("cost_centers").update({ name: form.name.trim(), category: form.category }).eq("id", editing.id);
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(mensagemDeErro(error)); return; }
       toast.success("Centro de custo atualizado!");
     } else {
       const { error } = await supabase.from("cost_centers").insert({ company_id: company.id, name: form.name.trim(), category: form.category });
-      if (error) { toast.error(error.message); return; }
+      if (error) { toast.error(mensagemDeErro(error)); return; }
       toast.success("Centro de custo criado!");
     }
     setDialogOpen(false);
@@ -78,7 +79,7 @@ export default function CostCentersPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Excluir este centro de custo?")) return;
     const { error } = await supabase.from("cost_centers").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(mensagemDeErro(error)); return; }
     toast.success("Centro de custo excluído!");
     fetch();
   };

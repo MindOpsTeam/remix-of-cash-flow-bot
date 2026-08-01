@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -54,7 +55,7 @@ export function useFiscalFiles() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Arquivo adicionado");
     },
-    onError: (e: Error) => toast.error("Erro ao criar arquivo: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao criar arquivo: " + mensagemDeErro(e)),
   });
 
   const updateFile = useMutation({
@@ -66,7 +67,7 @@ export function useFiscalFiles() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Arquivo atualizado");
     },
-    onError: (e: Error) => toast.error("Erro ao atualizar: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao atualizar: " + mensagemDeErro(e)),
   });
 
   const deleteFile = useMutation({
@@ -78,7 +79,7 @@ export function useFiscalFiles() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Arquivo removido");
     },
-    onError: (e: Error) => toast.error("Erro ao remover: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao remover: " + mensagemDeErro(e)),
   });
 
   const uploadFile = useMutation({
@@ -105,7 +106,7 @@ export function useFiscalFiles() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Arquivo enviado");
     },
-    onError: (e: Error) => toast.error("Erro no upload: " + e.message),
+    onError: (e: Error) => toast.error("Erro no upload: " + mensagemDeErro(e)),
   });
 
   return { ...query, files: query.data ?? [], createFile, updateFile, deleteFile, uploadFile };

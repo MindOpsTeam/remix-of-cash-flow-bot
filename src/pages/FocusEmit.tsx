@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { Link } from "react-router-dom";
 import { useState } from "react";
@@ -96,7 +97,7 @@ export default function FocusEmit() {
       setRazaoTomador(d?.razao_social ?? d?.nome ?? "");
       toast.success("Dados do tomador preenchidos pela Receita");
     } catch (e) {
-      toast.error("Não achei esse CNPJ: " + (e as Error).message);
+      toast.error("Não achei esse CNPJ: " + mensagemDeErro(e));
     } finally {
       setBuscando(false);
     }
@@ -136,7 +137,7 @@ export default function FocusEmit() {
       setResultado(r.data as Resultado);
       toast.success(`Enviada em ${r.ambiente}. A prefeitura processa de forma assíncrona: consulte o status.`);
     } catch (e) {
-      toast.error("A Focus recusou: " + (e as Error).message);
+      toast.error("A Focus recusou: " + mensagemDeErro(e));
     } finally {
       setEmitindo(false);
     }
@@ -150,7 +151,7 @@ export default function FocusEmit() {
       setResultado(r.data as Resultado);
       toast.success("Status atualizado");
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setConsultando(false);
     }

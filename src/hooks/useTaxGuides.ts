@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
@@ -63,7 +64,7 @@ export function useTaxGuides() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Guia adicionada");
     },
-    onError: (e: Error) => toast.error("Erro ao criar guia: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao criar guia: " + mensagemDeErro(e)),
   });
 
   const updateGuide = useMutation({
@@ -75,7 +76,7 @@ export function useTaxGuides() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Guia atualizada");
     },
-    onError: (e: Error) => toast.error("Erro ao atualizar: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao atualizar: " + mensagemDeErro(e)),
   });
 
   const deleteGuide = useMutation({
@@ -87,7 +88,7 @@ export function useTaxGuides() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Guia removida");
     },
-    onError: (e: Error) => toast.error("Erro ao remover: " + e.message),
+    onError: (e: Error) => toast.error("Erro ao remover: " + mensagemDeErro(e)),
   });
 
   const markAsPaid = useMutation({
@@ -99,7 +100,7 @@ export function useTaxGuides() {
       queryClient.invalidateQueries({ queryKey: qk });
       toast.success("Guia marcada como paga");
     },
-    onError: (e: Error) => toast.error("Erro: " + e.message),
+    onError: (e: Error) => toast.error("Erro: " + mensagemDeErro(e)),
   });
 
   return { ...query, guides: query.data ?? [], createGuide, updateGuide, deleteGuide, markAsPaid };

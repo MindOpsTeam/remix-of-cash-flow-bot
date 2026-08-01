@@ -1,3 +1,4 @@
+import { mensagemDeErro } from "@/lib/erros";
 import { useState } from "react";
 import { Brain, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,7 @@ export function AiInsightsCard({ companyId, companyName }: AiInsightsCardProps) 
       }
       if (acumulado) sessionStorage.setItem(cacheKey(companyId), acumulado);
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(mensagemDeErro(e));
     } finally {
       setGerando(false);
     }
