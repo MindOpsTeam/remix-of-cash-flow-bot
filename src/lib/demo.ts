@@ -21,66 +21,39 @@ export interface PassoDoTour {
   texto: string;
 }
 
-/** Ordem wow-first: consolidação e automação antes de cadastros e ajustes. */
+/**
+ * Tour de 5 passos: cada um mostra UMA capacidade que o cliente sente na pele,
+ * e o último converte. Mais que isso vira aula e o visitante abandona no meio.
+ */
 export const PASSOS_DO_TOUR: PassoDoTour[] = [
   {
     rota: "/dashboard",
     titulo: "O cockpit do seu dinheiro",
     texto:
-      "Receita, margem e metas dos últimos 12 meses num painel só. Tudo o que você vê é o grupo Aurora, uma operação fictícia com 3 CNPJs.",
+      "Receita, margem, caixa e metas dos últimos 12 meses numa tela. O que você vê é o grupo Aurora, uma operação fictícia com 3 CNPJs.",
   },
   {
     rota: "/bank-inbox",
-    titulo: "Extrato que chega sozinho",
+    titulo: "O extrato chega sozinho",
     texto:
-      "O banco da matriz sincroniza via Open Finance: 12 lançamentos esperando um clique para virar caixa classificado. Sem colar extrato, sem digitação.",
-  },
-  {
-    rota: "/agents",
-    titulo: "Agentes de olho no caixa",
-    texto:
-      "O Vigia de Caixa e a Sentinela de Contas rodam todo dia e avisam antes do problema. Repare no sino de notificações no topo: eles já deixaram recado.",
+      "O banco sincroniza e a IA já classifica: 12 lançamentos esperando um clique para virar caixa contabilizado. Sem digitar, sem colar planilha.",
   },
   {
     rota: "/consolidado",
-    titulo: "O grupo inteiro numa tela",
+    titulo: "Três CNPJs, um resultado",
     texto:
-      "Matriz, Digital e Varejo consolidados: caixa, resultado e obrigações dos 3 CNPJs lado a lado, sem abrir três sistemas.",
+      "Matriz, Digital e Varejo consolidados de verdade: DRE do grupo inteiro, com as operações entre empresas eliminadas.",
   },
   {
-    rota: "/dashboard",
-    titulo: "BI do seu jeito",
+    rota: "/recorrencia",
+    titulo: "Receita previsível e quem vai comprar de novo",
     texto:
-      "Em Minhas visões você monta os próprios widgets: receita por período, aging de recebíveis, centro de custo. Sem depender de ninguém para criar relatório.",
-  },
-  {
-    rota: "/pdv",
-    titulo: "Frente de caixa",
-    texto:
-      "Venda de balcão com produto, estoque e NFC-e nativa. O turno do dia fecha com sangria e suprimento registrados.",
-  },
-  {
-    rota: "/contador",
-    titulo: "Central do Contador",
-    texto:
-      "Exportações contábeis prontas para fechar o mês: lançamentos classificados, DRE e razão saem daqui direto para o seu contador.",
-  },
-  {
-    rota: "/reforma",
-    titulo: "Reforma tributária sem susto",
-    texto:
-      "Simule o impacto de CBS e IBS na sua operação com os seus números, antes de a regra virar boleto.",
-  },
-  {
-    rota: "/settings/integrations",
-    titulo: "Conecte no seu ritmo",
-    texto:
-      "Open Finance, Asaas, Inter, Conta Azul, notas fiscais e WhatsApp. Tudo opcional: o produto funciona no manual e melhora a cada integração ligada.",
+      "MRR, churn e o radar de recompra dizendo quem está na janela de comprar agora. Agentes vigiam isso todo dia e avisam no WhatsApp.",
   },
   {
     rota: "/dashboard",
     titulo: "Pronto para o seu CNPJ?",
     texto:
-      "Isso foi a Aurora. Crie sua conta grátis, cadastre sua empresa e o assistente de instalação te guia do zero ao primeiro fechamento.",
+      "Isso foi a Aurora. Crie sua conta e o assistente de instalação te leva do zero ao primeiro fechamento, com todas as integrações explicadas.",
   },
 ];

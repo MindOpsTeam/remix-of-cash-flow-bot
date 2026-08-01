@@ -1,6 +1,6 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Building2, Check, Compass, Loader2, Lock, Mail, ShieldCheck, User } from "lucide-react";
+import { ArrowRight, Building2, Check, Compass, GitFork, Loader2, Lock, Mail, ShieldCheck, User } from "lucide-react";
 import { Pill } from "@viverdeia/design-system";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_TOUR_DISMISSED_KEY, DEMO_TOUR_STEP_KEY } from "@/lib/demo";
+import { plataformaBloqueada } from "@/lib/rpc-plataforma";
 import appIcon from "@/assets/via/app-icon.png";
 import wordmarkWhite from "@/assets/via/wordmark-white.png";
 
@@ -16,6 +17,20 @@ const LoginSignupForm = () => {
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  // Projeto original do template: cadastrar aqui é impossível por design.
+  // Descobrir isso ANTES de o usuário preencher o formulário e tomar um erro
+  // técnico ("Database error saving new user") que não explica nada.
+  const [modoTemplate, setModoTemplate] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    plataformaBloqueada().then((b) => {
+      if (vivo) setModoTemplate(b);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -59,7 +74,16 @@ const LoginSignupForm = () => {
       },
     });
     if (error) {
-      toast.error(error.message);
+      // O GoTrue devolve "Database error saving new user" quando o trigger do
+      // template barra o cadastro. Traduzir para o que o usuário precisa fazer.
+      const barradoPeloTemplate =
+        modoTemplate || /database error saving new user|remix_necessario/i.test(error.message);
+      toast.error(
+        barradoPeloTemplate
+          ? "Você precisa fazer o remix para cadastrar sua conta nesta plataforma."
+          : error.message,
+      );
+      if (barradoPeloTemplate) setModoTemplate(true);
     } else {
       toast.success("Verifique seu email para confirmar o cadastro.");
     }
@@ -188,6 +212,24 @@ const LoginSignupForm = () => {
           </div>
 
           {isActive ? (
+            <>
+            {modoTemplate && (
+              <div className="mb-5 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/[0.08] p-4" role="alert">
+                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <GitFork className="h-4 w-4 text-[hsl(var(--warning))]" aria-hidden="true" />
+                  Você precisa fazer o remix para cadastrar sua conta nesta plataforma
+                </p>
+                <p className="mt-1.5 text-xs leading-5 text-muted-foreground">
+                  Este é o projeto <strong className="text-foreground">original</strong>, publicado apenas como
+                  modelo: ele não aceita cadastro nem edição. Clique em <strong className="text-foreground">Remix</strong> no
+                  Lovable para criar a sua própria cópia — lá o cadastro é liberado automaticamente e a primeira
+                  conta criada vira a administradora da plataforma.
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Quer só conhecer antes? Use a <strong className="text-foreground">demonstração guiada</strong> abaixo.
+                </p>
+              </div>
+            )}
             <form onSubmit={handleSignup} className="space-y-5" aria-label="Criar conta">
               <Field
                 id="register-name"
@@ -244,6 +286,7 @@ const LoginSignupForm = () => {
                 {!loading ? <ArrowRight aria-hidden="true" /> : null}
               </Button>
             </form>
+            </>
           ) : (
             <form onSubmit={handleLogin} className="space-y-5" aria-label="Entrar no FinanceAI">
               <Field

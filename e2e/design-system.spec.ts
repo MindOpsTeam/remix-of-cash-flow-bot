@@ -141,6 +141,8 @@ interface MockOptions {
   marginRows?: ReturnType<typeof mockMarginRows>;
   onboardingIncompleto?: boolean;
   demoUser?: boolean;
+  /** Simula o banco original do template (cadastro bloqueado). */
+  modoTemplate?: boolean;
   bankRaw?: Array<{ id: string; date: string; description: string; amount: number; direction: string }>;
   bankConnections?: Array<{ id: string; provider: string; external_id: string; institution_name: string; institution_image: null; status: string; last_synced_at: string | null; consent_expires_at: null }>;
 }
@@ -263,6 +265,10 @@ async function installMocks(page: Page, options: MockOptions = {}) {
         { id: "aaaaaaa1-0000-4000-8000-000000000001", name: "Receita de Serviços", code: "3.1", type: "revenue" },
         { id: "aaaaaaa2-0000-4000-8000-000000000002", name: "Despesas Administrativas", code: "5.1", type: "expense" },
       ];
+    } else if (table === "plataforma_bloqueada") {
+      body = options.modoTemplate === true;
+    } else if (table === "sou_dono_da_plataforma") {
+      body = false;
     } else if (table === "v_mrr_movimentos") {
       body = Array.from({ length: 12 }, (_, k) => {
         const d = new Date();
@@ -532,6 +538,18 @@ test.describe("migração integral do design system", () => {
     expect(caixa?.y ?? 99).toBeLessThan(80);
   });
 
+  test("o template avisa que é preciso remixar para cadastrar", async ({ page }) => {
+    await installMocks(page, { modoTemplate: true });
+    await page.goto("/");
+    await page.getByRole("tab", { name: "Criar conta" }).click();
+
+    // O aviso tem que ser explícito sobre a AÇÃO necessária, não um erro técnico.
+    await expect(
+      page.getByText("Você precisa fazer o remix para cadastrar sua conta nesta plataforma"),
+    ).toBeVisible();
+    await expect(page.getByText("Remix", { exact: false }).first()).toBeVisible();
+  });
+
   test("a sidebar recolhe para só ícones e volta", async ({ page }) => {
     await loginWithMocks(page);
     const sidebar = page.getByRole("complementary", { name: "Navegação principal" });
@@ -776,7 +794,7 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByRole("heading", { name: "Painel Consolidado" })).toBeVisible();
     await expect(page.getByText("Modo demonstração · somente leitura")).toBeVisible();
     const tour = page.getByRole("complementary", { name: "Tour da demonstração" });
-    await expect(tour.getByText("Passo 1 de 10")).toBeVisible();
+    await expect(tour.getByText("Passo 1 de 5")).toBeVisible();
     await expect(tour.getByText("O cockpit do seu dinheiro")).toBeVisible();
     // Na demo o widget flutuante do CFO some (colidia com os botões do tour).
     await expect(page.getByRole("button", { name: "Abrir CFO Digital" })).toHaveCount(0);
@@ -784,7 +802,7 @@ test.describe("migração integral do design system", () => {
     // Continuar navega para o passo 2 (caixa de entrada bancária).
     await tour.getByRole("button", { name: "Continuar" }).click();
     await expect(page).toHaveURL(/\/bank-inbox$/);
-    await expect(tour.getByText("Passo 2 de 10")).toBeVisible();
+    await expect(tour.getByText("Passo 2 de 5")).toBeVisible();
     await expect(tour.getByRole("button", { name: "Passo anterior" })).toBeVisible();
 
     // Fechar vira o atalho "Retomar tour"; retomar volta ao mesmo passo.
@@ -792,7 +810,7 @@ test.describe("migração integral do design system", () => {
     const retomar = page.getByRole("button", { name: "Retomar tour" });
     await expect(retomar).toBeVisible();
     await retomar.click();
-    await expect(tour.getByText("Passo 2 de 10")).toBeVisible();
+    await expect(tour.getByText("Passo 2 de 5")).toBeVisible();
   });
 
   test("o dashboard redesenhado preserva o viewport @mobile", async ({ page }) => {
