@@ -24,6 +24,8 @@ export interface Receivable {
   asaas_payment_id: string | null;
   boleto_url: string | null;
   pix_url: string | null;
+  stripe_checkout_url: string | null;
+  stripe_payment_intent_id: string | null;
   payment_date: string | null;
   transaction_id: string | null;
   account_id: string | null;

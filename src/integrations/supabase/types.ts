@@ -3766,6 +3766,8 @@ export type Database = {
           sales_order_id: string | null
           source: string
           status: string
+          stripe_checkout_url: string | null
+          stripe_payment_intent_id: string | null
           transaction_id: string | null
           updated_at: string
         }
@@ -3791,6 +3793,8 @@ export type Database = {
           sales_order_id?: string | null
           source?: string
           status?: string
+          stripe_checkout_url?: string | null
+          stripe_payment_intent_id?: string | null
           transaction_id?: string | null
           updated_at?: string
         }
@@ -3816,6 +3820,8 @@ export type Database = {
           sales_order_id?: string | null
           source?: string
           status?: string
+          stripe_checkout_url?: string | null
+          stripe_payment_intent_id?: string | null
           transaction_id?: string | null
           updated_at?: string
         }
@@ -4367,6 +4373,254 @@ export type Database = {
             columns: ["warehouse_id"]
             isOneToOne: false
             referencedRelation: "warehouses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_charges: {
+        Row: {
+          amount_bruto: number
+          amount_liquido: number
+          amount_taxa: number
+          balance_transaction_id: string | null
+          company_id: string
+          created_at: string
+          currency: string
+          customer_email: string | null
+          description: string | null
+          id: string
+          paid_at: string | null
+          payout_id: string | null
+          raw: Json | null
+          receivable_id: string | null
+          status: string | null
+          stripe_id: string
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_bruto?: number
+          amount_liquido?: number
+          amount_taxa?: number
+          balance_transaction_id?: string | null
+          company_id: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          description?: string | null
+          id?: string
+          paid_at?: string | null
+          payout_id?: string | null
+          raw?: Json | null
+          receivable_id?: string | null
+          status?: string | null
+          stripe_id: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_bruto?: number
+          amount_liquido?: number
+          amount_taxa?: number
+          balance_transaction_id?: string | null
+          company_id?: string
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          description?: string | null
+          id?: string
+          paid_at?: string | null
+          payout_id?: string | null
+          raw?: Json | null
+          receivable_id?: string | null
+          status?: string | null
+          stripe_id?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_charges_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_config: {
+        Row: {
+          active: boolean
+          bank_account_id: string | null
+          centro_custo_taxa_id: string | null
+          company_id: string
+          conta_taxa_id: string | null
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          last_test_at: string | null
+          last_test_status: string | null
+          mode: string
+          publishable_key: string | null
+          secret_key_preview: string | null
+          stripe_account_id: string | null
+          updated_at: string
+          webhook_configurado: boolean
+        }
+        Insert: {
+          active?: boolean
+          bank_account_id?: string | null
+          centro_custo_taxa_id?: string | null
+          company_id: string
+          conta_taxa_id?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          mode?: string
+          publishable_key?: string | null
+          secret_key_preview?: string | null
+          stripe_account_id?: string | null
+          updated_at?: string
+          webhook_configurado?: boolean
+        }
+        Update: {
+          active?: boolean
+          bank_account_id?: string | null
+          centro_custo_taxa_id?: string | null
+          company_id?: string
+          conta_taxa_id?: string | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          last_test_at?: string | null
+          last_test_status?: string | null
+          mode?: string
+          publishable_key?: string | null
+          secret_key_preview?: string | null
+          stripe_account_id?: string | null
+          updated_at?: string
+          webhook_configurado?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_config_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_events: {
+        Row: {
+          company_id: string | null
+          erro: string | null
+          id: string
+          processed_at: string
+          raw: Json | null
+          stripe_event_id: string
+          type: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          erro?: string | null
+          id?: string
+          processed_at?: string
+          raw?: Json | null
+          stripe_event_id: string
+          type?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          erro?: string | null
+          id?: string
+          processed_at?: string
+          raw?: Json | null
+          stripe_event_id?: string
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_payouts: {
+        Row: {
+          amount_bruto: number
+          amount_liquido: number
+          amount_taxa: number
+          arrival_date: string | null
+          bank_raw_id: string | null
+          bank_transaction_id: string | null
+          company_id: string
+          composicao_fecha: boolean
+          conciliado_em: string | null
+          created_at: string
+          currency: string
+          diferenca: number
+          id: string
+          itens: number
+          raw: Json | null
+          status: string | null
+          stripe_id: string
+          taxa_transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_bruto?: number
+          amount_liquido?: number
+          amount_taxa?: number
+          arrival_date?: string | null
+          bank_raw_id?: string | null
+          bank_transaction_id?: string | null
+          company_id: string
+          composicao_fecha?: boolean
+          conciliado_em?: string | null
+          created_at?: string
+          currency?: string
+          diferenca?: number
+          id?: string
+          itens?: number
+          raw?: Json | null
+          status?: string | null
+          stripe_id: string
+          taxa_transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_bruto?: number
+          amount_liquido?: number
+          amount_taxa?: number
+          arrival_date?: string | null
+          bank_raw_id?: string | null
+          bank_transaction_id?: string | null
+          company_id?: string
+          composicao_fecha?: boolean
+          conciliado_em?: string | null
+          created_at?: string
+          currency?: string
+          diferenca?: number
+          id?: string
+          itens?: number
+          raw?: Json | null
+          status?: string | null
+          stripe_id?: string
+          taxa_transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_payouts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -5094,6 +5348,28 @@ export type Database = {
       }
     }
     Views: {
+      v_stripe_repasses: {
+        Row: {
+          amount_bruto: number | null
+          amount_liquido: number | null
+          amount_taxa: number | null
+          arrival_date: string | null
+          bank_raw_id: string | null
+          bank_transaction_id: string | null
+          cobrancas_ligadas: number | null
+          company_id: string | null
+          composicao_fecha: boolean | null
+          conciliado_em: string | null
+          creditado_no_extrato: boolean | null
+          diferenca: number | null
+          id: string | null
+          itens: number | null
+          status: string | null
+          stripe_id: string | null
+          taxa_transaction_id: string | null
+        }
+        Relationships: []
+      }
       v_ativacao_empresa: {
         Row: {
           andaime_por_lancamento: number | null
@@ -5779,6 +6055,16 @@ export type Database = {
       }
       set_focus_token: {
         Args: { p_company_id: string; p_environment: string; p_token: string }
+        Returns: undefined
+      }
+      set_stripe_credentials: {
+        Args: {
+          p_company_id: string
+          p_mode?: string
+          p_publishable_key?: string
+          p_secret_key: string
+          p_webhook_secret?: string
+        }
         Returns: undefined
       }
       set_pluggy_credentials: {

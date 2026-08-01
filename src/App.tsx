@@ -18,6 +18,7 @@ import OAuthConsent from "./pages/OAuthConsent";
 const Index = lazy(() => import("./pages/Index"));
 const Transactions = lazy(() => import("./pages/Transactions"));
 const BankInbox = lazy(() => import("./pages/BankInbox"));
+const Repasses = lazy(() => import("./pages/Repasses"));
 const DRE = lazy(() => import("./pages/DRE"));
 const Consolidado = lazy(() => import("./pages/Consolidado"));
 const Contador = lazy(() => import("./pages/Contador"));
@@ -135,6 +136,7 @@ const AppRoutes = () => (
       {/* Financeiro */}
       <Route path="/transactions" element={<P><Transactions /></P>} />
       <Route path="/bank-inbox" element={<P><BankInbox /></P>} />
+      <Route path="/repasses" element={<P><Repasses /></P>} />
       <Route path="/pdv" element={<P><PDV /></P>} />
       <Route path="/transfers" element={<P><CompanyTransfers /></P>} />
       <Route path="/receivables" element={<P><ReceivablesPage /></P>} />

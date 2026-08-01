@@ -1,10 +1,14 @@
 import { useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
+import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check, Ban, ExternalLink } from "lucide-react";
+import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check, Ban, ExternalLink, CreditCard, Loader2 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useReceivables, type Receivable, type ReceivableInput } from "@/hooks/useReceivables";
 import { ReceivableFormDialog } from "@/components/receivables/ReceivableFormDialog";
@@ -18,13 +22,41 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   cancelado: { label: "Cancelado", className: "bg-muted text-muted-foreground" },
 };
 
-const sourceLabel: Record<string, string> = { manual: "Manual", contrato: "Contrato", asaas: "Asaas" };
+const sourceLabel: Record<string, string> = { manual: "Manual", contrato: "Contrato", asaas: "Asaas", stripe: "Stripe" };
 
 export default function Receivables() {
   const { receivables, isLoading, createReceivable, updateReceivable, markAsReceived, cancelReceivable, deleteReceivable } = useReceivables();
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<(ReceivableInput & { id: string }) | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [cobrando, setCobrando] = useState<string | null>(null);
+  const { company } = useCompany();
+
+  /**
+   * Gera (ou reaproveita) o link de pagamento por cartão do título.
+   *
+   * Reaproveitar importa: dois links para o mesmo título são dois payment_intents,
+   * e o webhook poderia baixar o mesmo recebível duas vezes.
+   */
+  const cobrarNoCartao = async (r: Receivable) => {
+    if (!company?.id) return;
+    setCobrando(r.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-api", {
+        body: { action: "cobrar", company_id: company.id, receivable_id: r.id },
+      });
+      if (error) throw error;
+      const resp = data as { url?: string; error?: string };
+      if (resp?.error) throw new Error(resp.error);
+      if (!resp?.url) throw new Error("O Stripe não devolveu o link.");
+      window.open(resp.url, "_blank", "noopener,noreferrer");
+      toast.success("Link de pagamento aberto. Envie ao cliente para receber no cartão.");
+    } catch (e) {
+      toast.error(mensagemDeErro(e));
+    } finally {
+      setCobrando(null);
+    }
+  };
 
   const totals = {
     aReceber: receivables.filter((r) => r.status === "a_receber").reduce((s, r) => s + Number(r.amount), 0),
@@ -106,6 +138,17 @@ export default function Receivables() {
                               {r.status !== "recebido" && r.status !== "cancelado" && (
                                 <DropdownMenuItem onClick={() => markAsReceived.mutate(r)}>
                                   <Check className="h-4 w-4 mr-2" /> Dar baixa (receber)
+                                </DropdownMenuItem>
+                              )}
+                              {r.status !== "recebido" && r.status !== "cancelado" && (
+                                <DropdownMenuItem
+                                  disabled={cobrando === r.id}
+                                  onClick={() => cobrarNoCartao(r)}
+                                >
+                                  {cobrando === r.id
+                                    ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    : <CreditCard className="h-4 w-4 mr-2" />}
+                                  {r.stripe_checkout_url ? "Abrir link do cartão" : "Cobrar no cartão"}
                                 </DropdownMenuItem>
                               )}
                               {(r.boleto_url || r.pix_url) && (

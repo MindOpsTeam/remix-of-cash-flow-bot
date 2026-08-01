@@ -134,6 +134,66 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     },
   },
   {
+    id: "stripe",
+    nome: "Stripe — cartão e repasse conciliado",
+    ganho:
+      "Recebe por cartão e concilia o repasse do jeito que ele realmente cai: líquido e em lote, com a taxa lançada como despesa.",
+    categoria: "cobranca",
+    ondeFicaGuardado: "vault",
+    testavel: true,
+    telaDedicada: "/repasses",
+    campos: [
+      {
+        key: "mode",
+        label: "Ambiente",
+        tipo: "select",
+        opcoes: [
+          { value: "test", label: "Teste (sandbox, não move dinheiro)" },
+          { value: "live", label: "Produção (dinheiro de verdade)" },
+        ],
+        dica: "No modo teste as chaves começam com sk_test_ e pk_test_.",
+      },
+      {
+        key: "secret_key",
+        label: "Chave secreta",
+        tipo: "password",
+        segredo: true,
+        obrigatorioParaSalvar: true,
+        placeholder: "sk_test_...",
+        dica: "Começa com sk_. Vai para o cofre e nunca aparece de novo na tela.",
+      },
+      {
+        key: "publishable_key",
+        label: "Chave publicável",
+        tipo: "text",
+        placeholder: "pk_test_...",
+        dica: "Começa com pk_. Essa pode aparecer no navegador, é pública por definição.",
+      },
+      {
+        key: "webhook_secret",
+        label: "Segredo do webhook",
+        tipo: "password",
+        segredo: true,
+        placeholder: "whsec_...",
+        dica: "Sem ele o recebimento não baixa sozinho: é o que prova que o aviso veio mesmo do Stripe.",
+      },
+    ],
+    guia: {
+      passos: [
+        "Crie a conta em stripe.com e mantenha o botão Modo de teste ligado enquanto estiver experimentando.",
+        "Vá em Desenvolvedores e depois em Chaves de API; copie a chave publicável (pk_) e revele a secreta (sk_).",
+        "Ainda em Desenvolvedores, abra Webhooks e clique em Adicionar endpoint.",
+        "Na URL cole o endereço do FinanceAI terminando em /stripe-webhook?company=SUA_EMPRESA e assine os eventos checkout.session.completed, payment_intent.succeeded, charge.succeeded e payout.paid.",
+        "Copie o Signing secret (whsec_) do endpoint recém-criado, cole aqui e clique em Testar conexão.",
+      ],
+      custo:
+        "Não tem mensalidade. No Brasil o Stripe cobra por transação aprovada, na casa de 3,99% + R$ 0,39 no cartão nacional, com percentual maior em cartão internacional. Consulte stripe.com/br/pricing.",
+      site: "https://dashboard.stripe.com",
+      quandoNaoUsar:
+        "Se a maioria das suas vendas é boleto ou Pix, o Asaas sai mais barato. O Stripe compensa quando a entrada é cartão.",
+    },
+  },
+  {
     id: "inter",
     nome: "Banco Inter — extrato e saldo",
     ganho: "Saldo e extrato oficiais do Inter direto na conciliação, sem intermediário e sem custo.",

@@ -101,3 +101,9 @@ verify_jwt = false
 
 [functions.evolution-proxy]
 verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.stripe-api]
+verify_jwt = false

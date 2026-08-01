@@ -55,6 +55,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Repeat,
+  ArrowDownToLine,
 } from "lucide-react";
 
 // ---------- Personas (níveis de decisão do usuário do ERP) ----------
@@ -160,6 +161,7 @@ const sections: NavGroup[] = [
       { to: "/transfers?tab=anticipations", label: "Antecipações", icon: TrendingUp },
       { to: "/owner-transactions", label: "Sócio ↔ Empresa", icon: Scale },
       { to: "/bank-inbox", label: "Conciliação bancária", icon: Inbox },
+      { to: "/repasses", label: "Repasses do gateway", icon: ArrowDownToLine },
       { to: "/inter", label: "Banco Inter (API direta)", icon: Landmark },
       { to: "/settings/bank-accounts", label: "Bancos & Open Finance", icon: Link2 },
     ],

@@ -60,6 +60,23 @@ export async function salvarIntegracao(
         return { ok: true, mensagem: `Chave do Asaas salva no ambiente de ${producao ? "produção" : "sandbox"}.` };
       }
 
+      case "stripe": {
+        // A secret e o segredo do webhook vão para o cofre; modo e chave
+        // publicável ficam na tabela porque não são segredo e a tela precisa deles.
+        const { error } = await supabase.rpc("set_stripe_credentials", {
+          p_company_id: companyId,
+          p_secret_key: v.secret_key ?? "",
+          p_webhook_secret: v.webhook_secret ?? "",
+          p_publishable_key: v.publishable_key ?? "",
+          p_mode: v.mode === "live" ? "live" : "test",
+        });
+        if (error) throw error;
+        const aviso = v.webhook_secret
+          ? ""
+          : " Falta o segredo do webhook: sem ele o recebimento não baixa sozinho.";
+        return { ok: true, mensagem: `Chaves do Stripe guardadas no cofre.${aviso}` };
+      }
+
       case "inter": {
         const { error } = await supabase.from("inter_config").upsert(
           {
@@ -166,6 +183,7 @@ export async function testarIntegracao(id: string, companyId: string): Promise<R
   const chamadas: Record<string, { fn: string; body: Record<string, unknown> }> = {
     openfinance: { fn: "openfinance-connect", body: { action: "status", company_id: companyId } },
     asaas: { fn: "company-asaas-api", body: { action: "test-connection", company_id: companyId } },
+    stripe: { fn: "stripe-api", body: { action: "testar", company_id: companyId } },
     inter: { fn: "inter-banking", body: { action: "test", company_id: companyId } },
     contaazul: { fn: "contaazul-import", body: { action: "test", company_id: companyId } },
     plugnotas: { fn: "plugnotas-status", body: { company_id: companyId, operation: "ping" } },
