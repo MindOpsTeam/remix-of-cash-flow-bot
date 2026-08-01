@@ -35,6 +35,7 @@ const SettingsPage = lazy(() => import("./pages/Settings"));
 const ChartOfAccountsPage = lazy(() => import("./pages/settings/ChartOfAccounts"));
 const CostCentersPage = lazy(() => import("./pages/settings/CostCenters"));
 const IntegrationsPage = lazy(() => import("./pages/settings/Integrations"));
+const ConfiguracaoPlataformaPage = lazy(() => import("./pages/settings/ConfiguracaoPlataforma"));
 const AsaasIntegrationPJ = lazy(() => import("./pages/settings/AsaasIntegrationPJ"));
 const PreferencesPage = lazy(() => import("./pages/settings/Preferences"));
 const PlanoPage = lazy(() => import("./pages/settings/Plano"));
@@ -191,6 +192,7 @@ const AppRoutes = () => (
       <Route path="/settings/chart-of-accounts" element={<P><ChartOfAccountsPage /></P>} />
       <Route path="/settings/cost-centers" element={<P><CostCentersPage /></P>} />
       <Route path="/settings/integrations" element={<P><IntegrationsPage /></P>} />
+      <Route path="/settings/plataforma" element={<P><ConfiguracaoPlataformaPage /></P>} />
       <Route path="/settings/integrations/asaas" element={<P><AsaasIntegrationPJ /></P>} />
       <Route path="/settings/integrations/inter" element={<P><InterIntegrationPage /></P>} />
       <Route path="/settings/integrations/nfse" element={<P><NfseIntegrationPage /></P>} />

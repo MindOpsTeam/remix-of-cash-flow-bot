@@ -4,16 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAdminPlataforma } from "@/hooks/useAdminPlataforma";
 import { toast } from "sonner";
 import {
   Rocket, Building2, Link2, CheckCircle2, Users, Layers, Copy, Plus,
-  Loader2, Sparkles, MessageCircleQuestion, Send,
+  Loader2, Sparkles, MessageCircleQuestion, Send, ShieldCheck, SkipForward,
 } from "lucide-react";
 import { OpenFinanceConnect } from "@/components/openfinance/OpenFinanceConnect";
+import { CentralDeConfiguracao } from "@/components/integracoes/CentralDeConfiguracao";
 import { edgeAuthHeaders, edgeUrl } from "@/lib/edge";
 
 function formatCNPJ(value: string) {
@@ -32,11 +34,14 @@ interface OnboardingWizardProps {
 }
 
 /**
- * Guia de instalação da plataforma. TUDO aqui é expressamente opcional: cada
- * passo ensina, oferece e segue em frente sem cobrar nada. Os textos de "como
- * obter" dizem onde a chave nasce e quanto o serviço do provedor custa —
- * transparência primeiro. A caixa de pergunta conversacional chama o CFO
- * Digital para dúvidas no meio do caminho.
+ * Assistente de instalação da plataforma, apresentado ao ADMIN (quem criou a
+ * conta). Ele faz a configuração inteira num lugar só: dados da empresa, mais
+ * CNPJs, equipe e TODAS as chaves de integração — cada uma com botão de testar
+ * conexão, salvar e um guia de "como obter" com o custo do provedor.
+ *
+ * Regra inegociável: NADA é obrigatório. Todo passo tem "Pular", e pular não
+ * penaliza nem esconde nada — o produto funciona no manual e melhora conforme
+ * o admin liga o que fizer sentido.
  */
 
 /* ------------------------------------------------------------------ */
@@ -61,7 +66,7 @@ function PerguntaConversacional() {
           messages: [
             {
               role: "user",
-              content: `Estou no guia de instalação do FinanceAI (onboarding). Responda curto e prático, em português. Pergunta: ${pergunta.trim()}`,
+              content: `Estou no assistente de instalação do FinanceAI. Responda curto e prático, em português. Pergunta: ${pergunta.trim()}`,
             },
           ],
         }),
@@ -131,70 +136,12 @@ function PerguntaConversacional() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Guias de "como obter a chave" (fonte + custo, sem enrolação)        */
+/* Wizard                                                              */
 /* ------------------------------------------------------------------ */
-const GUIAS: Array<{ key: string; titulo: string; comoObter: string; custo: string; linkConfig?: string }> = [
-  {
-    key: "asaas",
-    titulo: "Asaas — cobranças, boletos e Pix",
-    comoObter:
-      "Crie a conta em asaas.com (ou sandbox.asaas.com para testar). Dentro do app: foto de perfil → Integrações → Chave de API → Gerar. Cole a chave aqui.",
-    custo:
-      "Conta gratuita; o Asaas cobra POR COBRANÇA recebida (Pix/boleto a partir de ~R$1,99; cartão por percentual). Consulte asaas.com/precos.",
-  },
-  {
-    key: "inter",
-    titulo: "Banco Inter — extrato e saldo oficiais",
-    comoObter:
-      "Precisa de conta PJ no Inter. No Internet Banking: Menu → Aplicações (API) → Nova aplicação → marque o escopo 'Extrato' → baixe client_id, client_secret e o certificado. Cole os dois códigos aqui; o certificado entra em Configurações → Integrações → Inter.",
-    custo: "Gratuito para correntistas PJ do Inter.",
-    linkConfig: "/settings/integrations/inter",
-  },
-  {
-    key: "whatsapp",
-    titulo: "WhatsApp — avisos e agentes (Evolution API)",
-    comoObter:
-      "A Evolution API é um servidor de WhatsApp que você mesmo hospeda (uma VPS simples resolve) ou contrata gerenciado. Depois de subir, você terá a URL e a API key da instância — cole aqui e leia o QR em Inteligência → WhatsApp.",
-    custo:
-      "O software é aberto; a VPS custa a partir de ~R$25/mês. O número de WhatsApp conecta por QR (não é a API oficial da Meta).",
-  },
-  {
-    key: "contaazul",
-    titulo: "Conta Azul — importe seus dados de lá",
-    comoObter:
-      "1) Crie um app em developers.contaazul.com (recebe client_id e client_secret). 2) Autorize com o login da SUA conta Conta Azul na URL de autorização do portal — o retorno traz um código que vira o refresh_token. 3) Cole os três em Configurações → Integrações → Conta Azul e clique Importar.",
-    custo:
-      "A API é incluída na assinatura Conta Azul (planos com API). A importação pelo FinanceAI não custa nada extra.",
-    linkConfig: "/settings/integrations/contaazul",
-  },
-  {
-    key: "plugnotas",
-    titulo: "PlugNotas — emitir NF-e e NFC-e",
-    comoObter:
-      "Crie a conta em plugnotas.com.br, cadastre o CNPJ emissor com o certificado digital A1 e copie a API key do painel. Configure em Configurações → Integrações → PlugNotas.",
-    custo: "Cobrança por nota emitida (na casa de centavos por documento, conforme volume). Consulte plugnotas.com.br.",
-    linkConfig: "/settings/integrations/plugnotas",
-  },
-  {
-    key: "focus",
-    titulo: "Focus NFe — emissor alternativo",
-    comoObter:
-      "Conta em focusnfe.com.br; o painel gera tokens separados de homologação e produção. Configure em Configurações → Integrações → Focus.",
-    custo: "Mensalidade por CNPJ emissor (a partir de ~R$50/mês). Consulte focusnfe.com.br.",
-    linkConfig: "/settings/integrations/focus",
-  },
-  {
-    key: "nfse",
-    titulo: "NFS-e Nacional — nota de serviço direto na Receita",
-    comoObter:
-      "Exige certificado digital A1 do CNPJ (arquivo .pfx). Compre numa Autoridade Certificadora (Serasa, Certisign, Soluti…) e suba em Configurações → Integrações → NFS-e Nacional.",
-    custo: "Só o certificado A1: ~R$150 a R$250/ano. A emissão em si é gratuita.",
-    linkConfig: "/settings/integrations/nfse",
-  },
-];
 
 export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizardProps) {
   const { company, companies } = useCompany();
+  const { ehAdmin, ehPrimeiroUsuario } = useAdminPlataforma();
   const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -213,25 +160,19 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
   const [inviteRole, setInviteRole] = useState<"admin" | "member" | "viewer">("member");
   const [conviteCopiado, setConviteCopiado] = useState(false);
 
-  // Integrações
-  const [asaasKey, setAsaasKey] = useState("");
-  const [evolutionUrl, setEvolutionUrl] = useState("");
-  const [evolutionKey, setEvolutionKey] = useState("");
-  const [interClientId, setInterClientId] = useState("");
-  const [interClientSecret, setInterClientSecret] = useState("");
-
   const PASSOS = [
     { titulo: "Bem-vindo", icone: Rocket },
     { titulo: "Sua empresa", icone: Building2 },
     { titulo: "Mais CNPJs", icone: Layers },
     { titulo: "Sua equipe", icone: Users },
+    { titulo: "Configuração da plataforma", icone: Sparkles },
     { titulo: "Conectar banco", icone: Link2 },
-    { titulo: "Integrações e chaves", icone: Sparkles },
     { titulo: "Pronto", icone: CheckCircle2 },
   ];
   const totalSteps = PASSOS.length;
   const progress = ((step + 1) / totalSteps) * 100;
   const StepIcon = PASSOS[step].icone;
+  const passoLargo = step === 4; // a central de configuração pede mais espaço
 
   const saveCompanyData = async () => {
     if (!company) return;
@@ -279,12 +220,10 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
     if (!company) return;
     try {
       const { data: sessao } = await supabase.auth.getUser();
-      const { data, error } = await (supabase.from as unknown as (t: string) => {
-        insert: (row: Record<string, unknown>) => {
-          select: (q: string) => { single: () => PromiseLike<{ data: { token: string } | null; error: { message: string } | null }> };
-        };
-      })("company_invites")
-        .insert({ company_id: company.id, role: inviteRole, criado_por: sessao.user?.id })
+      if (!sessao.user) throw new Error("Sessão expirada. Entre de novo.");
+      const { data, error } = await supabase
+        .from("company_invites")
+        .insert({ company_id: company.id, role: inviteRole, criado_por: sessao.user.id })
         .select("token")
         .single();
       if (error || !data) throw new Error(error?.message ?? "sem token");
@@ -297,54 +236,14 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
     }
   };
 
-  const saveIntegrations = async () => {
-    if (!company) return;
-    setSaving(true);
-    try {
-      if (asaasKey.trim()) {
-        const { data: existing } = await supabase
-          .from("company_asaas_config").select("id").eq("company_id", company.id).maybeSingle();
-        const payload: Record<string, string> = {
-          company_id: company.id,
-          environment: "production",
-          api_key_production: asaasKey.trim(),
-        };
-        if (existing) await supabase.from("company_asaas_config").update(payload).eq("id", existing.id);
-        else await supabase.from("company_asaas_config").insert([payload as never]);
-      }
-      if (evolutionUrl.trim() || evolutionKey.trim()) {
-        const { data: existing } = await supabase
-          .from("whatsapp_configs").select("id").eq("company_id", company.id).maybeSingle();
-        const payload: Record<string, string> = { company_id: company.id, instance_name: "default" };
-        if (evolutionUrl.trim()) payload.evolution_api_url = evolutionUrl.trim();
-        if (evolutionKey.trim()) payload.evolution_api_key = evolutionKey.trim();
-        if (existing) await supabase.from("whatsapp_configs").update(payload).eq("id", existing.id);
-        else await supabase.from("whatsapp_configs").insert([payload as never]);
-      }
-      if (interClientId.trim() || interClientSecret.trim()) {
-        const { data: existing } = await supabase
-          .from("inter_config").select("id").eq("company_id", company.id).maybeSingle();
-        const payload: Record<string, string> = { company_id: company.id };
-        if (interClientId.trim()) payload.client_id = interClientId.trim();
-        if (interClientSecret.trim()) payload.client_secret = interClientSecret.trim();
-        if (existing) await supabase.from("inter_config").update(payload).eq("id", existing.id);
-        else await supabase.from("inter_config").insert([payload as never]);
-      }
-    } catch (e) {
-      toast.error("Erro ao salvar integrações: " + (e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const finishOnboarding = async () => {
     setSaving(true);
     try {
-      await supabase
+      const { error } = await supabase
         .from("company_members")
-        .update({ onboarding_completed: true } as never)
+        .update({ onboarding_completed: true })
         .eq("id", memberId);
-      toast.success("Instalação concluída! Reabra o guia quando quiser em Configurações.");
+      if (error) throw error;
       onComplete();
     } catch (e) {
       toast.error("Erro ao finalizar: " + (e as Error).message);
@@ -355,7 +254,6 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
 
   const handleNext = async () => {
     if (step === 1) await saveCompanyData();
-    if (step === 5) await saveIntegrations();
     if (step === totalSteps - 1) {
       await finishOnboarding();
       return;
@@ -366,284 +264,207 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
   return (
     <Dialog open={open}>
       <DialogContent
-        className="sm:max-w-[560px] p-0 gap-0 overflow-hidden [&>button]:hidden"
+        className={`gap-0 overflow-hidden p-0 [&>button]:hidden ${passoLargo ? "sm:max-w-[880px]" : "sm:max-w-[560px]"}`}
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <div className="px-6 pt-6">
           <Progress value={progress} className="h-1.5 bg-muted" />
-          <p className="text-[11px] text-muted-foreground mt-2 tabular-nums">
-            {PASSOS[step].titulo} · etapa {step + 1} de {totalSteps} · tudo opcional
+          <p className="mt-2 text-[11px] tabular-nums text-muted-foreground">
+            Passo {step + 1} de {totalSteps} · {PASSOS[step].titulo}
           </p>
         </div>
 
-        <div className="px-6 pb-6 pt-4 min-h-[340px] max-h-[72vh] overflow-y-auto flex flex-col">
-          {/* 0 — Boas-vindas */}
+        <div className="max-h-[68vh] overflow-y-auto px-6 py-5">
+          <div className="mb-4 flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <StepIcon className="h-4.5 w-4.5" />
+            </span>
+            <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">{PASSOS[step].titulo}</h2>
+          </div>
+
+          {/* 0 — Bem-vindo */}
           {step === 0 && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <StepIcon className="h-7 w-7 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-foreground leading-tight">Guia de instalação</h2>
-                <p className="text-sm text-muted-foreground mt-2 max-w-[400px]">
-                  Vamos montar seu ERP passo a passo: empresa, CNPJs, equipe, banco e integrações.
-                  <span className="font-medium text-foreground"> Nada aqui é obrigatório</span> — pule o que quiser e
-                  volte depois em Configurações. Cada chave vem com o "como obter" e o custo do provedor.
+            <div className="space-y-3">
+              {ehAdmin && (
+                <Badge variant="outline" className="gap-1 border-primary/30 bg-primary/5 text-[11px] text-primary">
+                  <ShieldCheck className="h-3 w-3" />
+                  {ehPrimeiroUsuario ? "Você é o administrador da plataforma" : "Você tem acesso de administrador"}
+                </Badge>
+              )}
+              <p className="text-sm leading-6 text-muted-foreground">
+                Este assistente configura o FinanceAI de ponta a ponta: os dados da empresa, os outros CNPJs,
+                a equipe e todas as chaves de integração — cada uma com teste de conexão e um guia de onde
+                obter, como e quanto custa.
+              </p>
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                  <SkipForward className="h-3.5 w-3.5 text-primary" /> Tudo aqui é opcional
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Nenhum passo trava a sua entrada. Pule o que não fizer sentido agora e volte quando quiser em
+                  Configurações. O sistema já funciona no manual desde o primeiro lançamento.
                 </p>
               </div>
+              <PerguntaConversacional />
             </div>
           )}
 
           {/* 1 — Empresa */}
           {step === 1 && (
-            <div className="flex-1 flex flex-col gap-5">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <StepIcon className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Dados da empresa</h2>
-                  <p className="text-xs text-muted-foreground">Tudo editável depois em Configurações → Empresa</p>
-                </div>
+            <div className="space-y-4">
+              <p className="text-sm leading-6 text-muted-foreground">
+                Estes dados aparecem nos relatórios e definem a régua fiscal. Dá para preencher depois.
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="ob-nome" className="text-xs">Nome da empresa</Label>
+                <Input id="ob-nome" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Minha Empresa Ltda" />
               </div>
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="ob-name">Nome da empresa</Label>
-                  <Input id="ob-name" placeholder="Ex: Minha Empresa Ltda" value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="ob-cnpj">CNPJ <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-                  <Input id="ob-cnpj" placeholder="00.000.000/0001-00" value={cnpj} onChange={(e) => setCnpj(formatCNPJ(e.target.value))} maxLength={18} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="ob-regime">Regime tributário <span className="text-muted-foreground font-normal">(opcional — Reforma CBS/IBS)</span></Label>
-                  <select
-                    id="ob-regime"
-                    value={regime}
-                    onChange={(e) => setRegime(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">Escolher depois</option>
-                    <option value="simples">Simples Nacional</option>
-                    <option value="regular">Regime regular (Lucro Real/Presumido)</option>
-                    <option value="mei">MEI</option>
-                  </select>
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ob-cnpj" className="text-xs">CNPJ</Label>
+                <Input id="ob-cnpj" value={cnpj} onChange={(e) => setCnpj(formatCNPJ(e.target.value))} placeholder="00.000.000/0000-00" />
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ob-regime" className="text-xs">Regime tributário</Label>
+                <select
+                  id="ob-regime"
+                  value={regime}
+                  onChange={(e) => setRegime(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Prefiro definir depois</option>
+                  <option value="simples">Simples Nacional</option>
+                  <option value="presumido">Lucro Presumido</option>
+                  <option value="regular">Lucro Real</option>
+                </select>
+              </div>
+              <PerguntaConversacional />
             </div>
           )}
 
           {/* 2 — Mais CNPJs */}
           {step === 2 && (
-            <div className="flex-1 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <StepIcon className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Sua empresa tem mais de um CNPJ?</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Cada CNPJ vira uma empresa aqui dentro, com DRE próprio e visão consolidada do grupo
-                  </p>
-                </div>
-              </div>
-              {companies.length > 0 && (
-                <div className="space-y-1.5">
-                  {companies.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
-                      <span className="truncate">{c.name}</span>
-                      {c.cnpj && <span className="font-mono text-xs text-muted-foreground">{formatCNPJ(c.cnpj)}</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="space-y-2 rounded-lg bg-muted/30 p-3">
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Input placeholder="Nome da empresa do CNPJ" value={novoCnpjNome} onChange={(e) => setNovoCnpjNome(e.target.value)} aria-label="Nome do novo CNPJ" />
-                  <Input placeholder="CNPJ (opcional)" value={novoCnpj} onChange={(e) => setNovoCnpj(formatCNPJ(e.target.value))} maxLength={18} aria-label="Novo CNPJ" />
-                </div>
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={adicionarCnpj} disabled={adicionandoCnpj}>
-                  {adicionandoCnpj ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                  Adicionar CNPJ
-                </Button>
-              </div>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Cada CNPJ pode ter responsáveis diferentes: no próximo passo você convida a equipe, e em
-                Configurações → Usuários define quem cuida de qual CNPJ (trocando de empresa no topo da tela).
+            <div className="space-y-4">
+              <p className="text-sm leading-6 text-muted-foreground">
+                Tem mais de um CNPJ? Adicione agora e o painel passa a consolidar o grupo inteiro. Você alterna
+                entre eles no seletor do topo.
               </p>
+              {companies.length > 1 && (
+                <p className="rounded-md border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+                  Já cadastrados: {companies.map((c) => c.name).join(", ")}
+                </p>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="ob-novo-nome" className="text-xs">Nome da empresa</Label>
+                <Input id="ob-novo-nome" value={novoCnpjNome} onChange={(e) => setNovoCnpjNome(e.target.value)} placeholder="Filial ou outra razão social" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ob-novo-cnpj" className="text-xs">CNPJ (opcional)</Label>
+                <Input id="ob-novo-cnpj" value={novoCnpj} onChange={(e) => setNovoCnpj(formatCNPJ(e.target.value))} placeholder="00.000.000/0000-00" />
+              </div>
+              <Button variant="outline" className="w-full gap-1.5" onClick={adicionarCnpj} disabled={adicionandoCnpj}>
+                {adicionandoCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                Adicionar CNPJ
+              </Button>
             </div>
           )}
 
           {/* 3 — Equipe */}
           {step === 3 && (
-            <div className="flex-1 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <StepIcon className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Convide sua equipe</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Todo mundo na MESMA organização — nada de cada um criar a própria empresa duplicada
-                  </p>
-                </div>
+            <div className="space-y-4">
+              <p className="text-sm leading-6 text-muted-foreground">
+                Convide quem vai operar com você. O convite entra na MESMA organização e vale 7 dias, para uma
+                pessoa só.
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="ob-papel" className="text-xs">Papel de quem receber</Label>
+                <select
+                  id="ob-papel"
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as "admin" | "member" | "viewer")}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="admin">Administrador — configura tudo</option>
+                  <option value="member">Operador — lança e edita</option>
+                  <option value="viewer">Visualizador — somente leitura</option>
+                </select>
               </div>
-              <div className="space-y-3 rounded-lg bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground">
-                  O convite é um link único: vale 7 dias, serve para 1 pessoa e já entra com o papel certo em{" "}
-                  <span className="font-medium text-foreground">{company?.name}</span>.
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as typeof inviteRole)}
-                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-                    aria-label="Papel do convidado"
-                  >
-                    <option value="member">Membro — lança e edita</option>
-                    <option value="admin">Admin — tudo, inclusive convidar</option>
-                    <option value="viewer">Leitura — só visualiza</option>
-                  </select>
-                  <Button size="sm" className="gap-2" onClick={gerarConvite}>
-                    <Copy className="h-3.5 w-3.5" />
-                    {conviteCopiado ? "Copiado!" : "Gerar e copiar convite"}
-                  </Button>
-                </div>
-              </div>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                O papel vale de verdade: quem entra como Leitura não consegue alterar nada, nem pela API. Para os
-                outros CNPJs, troque de empresa no topo e gere o convite de lá — assim cada CNPJ tem os próprios
-                responsáveis.
+              <Button variant="outline" className="w-full gap-1.5" onClick={gerarConvite}>
+                {conviteCopiado ? <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" /> : <Copy className="h-4 w-4" />}
+                {conviteCopiado ? "Link copiado!" : "Gerar e copiar convite"}
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                Cole o link para a pessoa. Ao entrar, ela cai direto nesta empresa com o papel escolhido.
               </p>
             </div>
           )}
 
-          {/* 4 — Banco */}
+          {/* 4 — Configuração da plataforma */}
           {step === 4 && (
-            <div className="flex-1 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <StepIcon className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Conecte seu banco</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Sem chave nenhuma: Open Finance regulado pelo Banco Central. O extrato entra sozinho e a IA classifica.
-                  </p>
-                </div>
-              </div>
+            <div className="space-y-4">
+              <p className="text-sm leading-6 text-muted-foreground">
+                Aqui mora a configuração inteira da plataforma. Cada integração abre um formulário com os campos
+                reais, um botão para <strong className="text-foreground">testar a conexão</strong> antes de
+                confiar, e um guia de <strong className="text-foreground">como obter a chave</strong> com o custo
+                do provedor. Ligue só o que fizer sentido.
+              </p>
+              <CentralDeConfiguracao compacto />
+              <PerguntaConversacional />
+            </div>
+          )}
+
+          {/* 5 — Conectar banco */}
+          {step === 5 && (
+            <div className="space-y-4">
+              <p className="text-sm leading-6 text-muted-foreground">
+                Com o Open Finance configurado no passo anterior, conecte o banco aqui: o extrato passa a chegar
+                sozinho e vira lançamento classificado, sem digitação.
+              </p>
               <OpenFinanceConnect />
               <p className="text-[11px] text-muted-foreground">
-                Custo: incluído no FinanceAI. Já usa Conta Azul? O passo seguinte mostra como importar tudo de lá.
+                Ainda não configurou a credencial? Volte um passo ou siga em frente — dá para conectar depois em
+                Bancos &amp; Open Finance.
               </p>
-            </div>
-          )}
-
-          {/* 5 — Integrações e chaves */}
-          {step === 5 && (
-            <div className="flex-1 flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <StepIcon className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">Integrações e chaves</h2>
-                  <p className="text-xs text-muted-foreground">
-                    Todas opcionais. Cada uma explica onde a chave nasce e o custo do provedor.
-                  </p>
-                </div>
-              </div>
-
-              <Accordion type="single" collapsible className="w-full">
-                {GUIAS.map((g) => (
-                  <AccordionItem key={g.key} value={g.key}>
-                    <AccordionTrigger className="text-sm">{g.titulo}</AccordionTrigger>
-                    <AccordionContent className="space-y-3">
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        <span className="font-medium text-foreground">Como obter: </span>
-                        {g.comoObter}
-                      </p>
-                      <p className="text-xs leading-relaxed text-muted-foreground">
-                        <span className="font-medium text-foreground">Custo: </span>
-                        {g.custo}
-                      </p>
-                      {g.key === "asaas" && (
-                        <Input placeholder="$aact_… (API key do Asaas)" value={asaasKey} onChange={(e) => setAsaasKey(e.target.value)} aria-label="API key do Asaas" />
-                      )}
-                      {g.key === "inter" && (
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <Input placeholder="client_id" value={interClientId} onChange={(e) => setInterClientId(e.target.value)} aria-label="Client ID do Inter" />
-                          <Input placeholder="client_secret" value={interClientSecret} onChange={(e) => setInterClientSecret(e.target.value)} aria-label="Client secret do Inter" />
-                        </div>
-                      )}
-                      {g.key === "whatsapp" && (
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <Input placeholder="https://sua-evolution.com" value={evolutionUrl} onChange={(e) => setEvolutionUrl(e.target.value)} aria-label="URL da Evolution" />
-                          <Input placeholder="API key da instância" value={evolutionKey} onChange={(e) => setEvolutionKey(e.target.value)} aria-label="API key da Evolution" />
-                        </div>
-                      )}
-                      {g.linkConfig && (
-                        <a href={g.linkConfig} className="inline-block text-xs text-primary underline underline-offset-2">
-                          Abrir a configuração completa
-                        </a>
-                      )}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-
-              <div className="rounded-lg border border-primary/20 bg-primary/[0.04] p-3">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" /> Não achou a integração que precisa? Crie a sua.
-                </p>
-                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                  O FinanceAI expõe uma API pública (Configurações → Chaves de API). Descreva no Lovable o conector
-                  que você quer ("leia os pedidos do meu sistema X e lance as vendas no FinanceAI pela API") e ele
-                  constrói para você — o ERP não te prende ao nosso catálogo.
-                </p>
-              </div>
             </div>
           )}
 
           {/* 6 — Pronto */}
           {step === 6 && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <CheckCircle2 className="h-7 w-7 text-primary" />
+            <div className="space-y-3">
+              <p className="text-sm leading-6 text-muted-foreground">
+                Instalação concluída. O painel já está de pé e tudo que você pulou continua disponível em
+                Configurações, com o mesmo guia e o mesmo teste de conexão.
+              </p>
+              <div className="rounded-lg border border-border bg-muted/30 p-3">
+                <p className="text-xs font-medium text-foreground">Por onde começar</p>
+                <ul className="mt-1.5 space-y-1 text-xs leading-5 text-muted-foreground">
+                  <li>· Lance a primeira movimentação ou importe o extrato do banco.</li>
+                  <li>· Ative um agente para vigiar caixa, contas e recompra por você.</li>
+                  <li>· Defina as metas do cockpit para o painel comparar realizado x alvo.</li>
+                </ul>
               </div>
-              <div>
-                <h2 className="text-xl font-semibold text-foreground leading-tight">Instalação concluída</h2>
-                <p className="text-sm text-muted-foreground mt-2 max-w-[400px]">
-                  O que ficou para depois mora em Configurações — e este guia reabre por lá quando você quiser.
-                  O checklist no painel mostra os próximos passos até o DRE montar sozinho.
-                </p>
-              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Para rever este assistente depois: Configurações → Guia de instalação.
+              </p>
             </div>
           )}
+        </div>
 
-          {/* Pergunta conversacional + ações */}
-          <div className="mt-6 space-y-3 border-t border-border pt-4">
-            {step > 0 && step < totalSteps - 1 && <PerguntaConversacional />}
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
-                {step > 0 && step < totalSteps - 1 && (
-                  <Button variant="outline" size="sm" onClick={() => setStep((s) => s - 1)} disabled={saving}>
-                    Voltar
-                  </Button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {step > 0 && step < totalSteps - 1 && (
-                  <Button variant="ghost" size="sm" onClick={() => setStep((s) => s + 1)} disabled={saving}>
-                    Pular
-                  </Button>
-                )}
-                <Button onClick={handleNext} disabled={saving} size="sm">
-                  {saving ? "Salvando..." : step === totalSteps - 1 ? "Ir para o painel" : "Próximo"}
-                </Button>
-              </div>
-            </div>
+        <div className="flex items-center justify-between gap-2 border-t border-border bg-muted/20 px-6 py-4">
+          <Button variant="ghost" size="sm" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
+            Voltar
+          </Button>
+          <div className="flex items-center gap-2">
+            {step < totalSteps - 1 && (
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setStep((s) => s + 1)}>
+                <SkipForward className="h-3.5 w-3.5" />
+                Pular
+              </Button>
+            )}
+            <Button size="sm" onClick={handleNext} disabled={saving}>
+              {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+              {step === totalSteps - 1 ? "Concluir" : "Próximo"}
+            </Button>
           </div>
         </div>
       </DialogContent>

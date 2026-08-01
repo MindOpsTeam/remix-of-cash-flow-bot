@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers, KeyRound, Crown, Rocket } from "lucide-react";
+import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers, KeyRound, Crown, Rocket, Settings2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -50,6 +50,13 @@ const sections = [
     title: "Centros de Custo",
     description: "Departamentos, projetos e clientes",
     to: "/settings/cost-centers",
+    available: true,
+  },
+  {
+    icon: Settings2,
+    title: "Configuração da plataforma",
+    description: "Todas as chaves num lugar só, com teste de conexão e guia de como obter",
+    to: "/settings/plataforma",
     available: true,
   },
   {

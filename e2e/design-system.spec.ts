@@ -55,6 +55,7 @@ const protectedRoutes = [
   "/settings/chart-of-accounts",
   "/settings/cost-centers",
   "/settings/integrations",
+  "/settings/plataforma",
   "/settings/integrations/asaas",
   "/settings/integrations/inter",
   "/settings/integrations/nfse",
@@ -338,7 +339,7 @@ async function loginWithMocks(page: Page, options?: MockOptions) {
   // Onboarding incompleto abre o wizard como modal e marca o fundo com
   // aria-hidden — o heading do dashboard sai da árvore de acessibilidade.
   // Esperar o marco certo em cada caso.
-  const marco = options?.onboardingIncompleto ? "Guia de instalação" : "Painel Consolidado";
+  const marco = options?.onboardingIncompleto ? "Bem-vindo" : "Painel Consolidado";
   await expect(page.getByRole("heading", { name: marco })).toBeVisible();
 }
 
@@ -392,11 +393,11 @@ test.describe("migração integral do design system", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   });
 
-  test("as 56 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
+  test("as 57 rotas protegidas montam sem crash ou overflow horizontal", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);
-    expect(protectedRoutes).toHaveLength(56);
+    expect(protectedRoutes).toHaveLength(57);
 
     for (const route of protectedRoutes) {
       await page.goto(route, { waitUntil: "domcontentloaded" });
@@ -591,35 +592,58 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByText("2 importado(s)")).toBeVisible();
   });
 
-  test("o guia de instalação percorre os 7 passos com tudo opcional", async ({ page }) => {
+  test("o assistente de instalação percorre os 7 passos com tudo pulável", async ({ page }) => {
     await loginWithMocks(page, { onboardingIncompleto: true });
 
-    await expect(page.getByRole("heading", { name: "Guia de instalação" })).toBeVisible();
-    await expect(page.getByText("tudo opcional")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Bem-vindo" })).toBeVisible();
+    await expect(page.getByText("Tudo aqui é opcional")).toBeVisible();
 
     await page.getByRole("button", { name: "Próximo" }).click();
-    await expect(page.getByRole("heading", { name: "Dados da empresa" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sua empresa" })).toBeVisible();
     await expect(page.getByPlaceholder("Ex.: preciso mesmo de CNPJ? O que é a API do Asaas?")).toBeVisible();
 
     await page.getByRole("button", { name: "Pular" }).click();
-    await expect(page.getByRole("heading", { name: "Sua empresa tem mais de um CNPJ?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Mais CNPJs" })).toBeVisible();
 
     await page.getByRole("button", { name: "Pular" }).click();
-    await expect(page.getByRole("heading", { name: "Convide sua equipe" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Sua equipe" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Gerar e copiar convite" })).toBeVisible();
 
+    // Passo central: TODA a configuração da plataforma num lugar só.
     await page.getByRole("button", { name: "Pular" }).click();
-    await expect(page.getByRole("heading", { name: "Conecte seu banco" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Configuração da plataforma" })).toBeVisible();
+    for (const nome of ["Open Finance (Pluggy)", "Asaas — cobrança automática", "WhatsApp (Evolution API)", "NFS-e Nacional — nota de serviço"]) {
+      await expect(page.getByText(nome, { exact: true })).toBeVisible();
+    }
 
     await page.getByRole("button", { name: "Pular" }).click();
-    await expect(page.getByRole("heading", { name: "Integrações e chaves" })).toBeVisible();
-    await page.getByRole("button", { name: "Conta Azul — importe seus dados de lá" }).click();
-    await expect(page.getByText("developers.contaazul.com", { exact: false })).toBeVisible();
-    await expect(page.getByText("Custo:", { exact: false }).first()).toBeVisible();
-    await expect(page.getByText("Crie a sua", { exact: false })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Conectar banco" })).toBeVisible();
 
     await page.getByRole("button", { name: "Pular" }).click();
-    await expect(page.getByRole("heading", { name: "Instalação concluída" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pronto" })).toBeVisible();
+  });
+
+  test("cada integração abre com testar conexão, salvar e guia de como obter", async ({ page }) => {
+    await loginWithMocks(page, { onboardingIncompleto: true });
+    for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Pular" }).click();
+    await expect(page.getByRole("heading", { name: "Configuração da plataforma" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Configurar" }).first().click();
+
+    // As três ações que o admin precisa: salvar, testar e pedir ajuda.
+    await expect(page.getByRole("button", { name: "Salvar configuração" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Testar conexão" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Como obter esta chave" })).toBeVisible();
+    // Salvar começa desabilitado até os campos obrigatórios existirem.
+    await expect(page.getByRole("button", { name: "Salvar configuração" })).toBeDisabled();
+
+    // O guia traz passo a passo e o custo estimado do provedor.
+    await page.getByRole("button", { name: "Como obter esta chave" }).click();
+    await expect(page.getByText("Como obter, passo a passo")).toBeVisible();
+    await expect(page.getByText("Custo estimado")).toBeVisible();
+
+    // Nada é obrigatório: dá para sair sem configurar.
+    await expect(page.getByRole("button", { name: "Pular por enquanto" })).toBeVisible();
   });
 
   test("favoritos salvos aparecem no topo do sidebar", async ({ page }) => {
@@ -761,7 +785,7 @@ test.describe("migração integral do design system", () => {
     }
   });
 
-  test("as 56 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
+  test("as 57 rotas protegidas preservam o viewport @mobile", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     await loginWithMocks(page);
