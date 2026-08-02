@@ -23,6 +23,15 @@ async function rpcBooleana(nome: string): Promise<boolean> {
 /** Estamos no banco original do template (escrita bloqueada)? */
 export const plataformaBloqueada = () => rpcBooleana("plataforma_bloqueada");
 
+/**
+ * Consagra quem está logado como dono, se ainda não houver um.
+ *
+ * Existe porque gatilho em auth.users NÃO sobrevive ao remix do Lovable: as
+ * funções vêm, os gatilhos não. Sem esta chamada, o primeiro usuário de um remix
+ * nunca virava dono — e sem dono a trava de convite nunca engatava.
+ */
+export const consagrarDonoSePrimeiro = () => rpcBooleana("consagrar_dono_se_primeiro");
+
 /** Sou o primeiro usuário cadastrado, o dono da instalação? */
 export const souDonoDaPlataforma = () => rpcBooleana("sou_dono_da_plataforma");
 

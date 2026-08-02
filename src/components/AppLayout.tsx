@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { AppSidebar, SidebarContent } from "./AppSidebar";
 import { CFOChatWidget } from "./CFOChatWidget";
 import { DemoTour } from "./DemoTour";
@@ -9,6 +9,7 @@ import { Eye, Menu } from "lucide-react";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { useAceitarConvite } from "@/hooks/useConvite";
+import { consagrarDonoSePrimeiro } from "@/lib/rpc-plataforma";
 import { BotaoConcluirConfiguracao } from "@/components/integracoes/BotaoConcluirConfiguracao";
 import { isDemoUser } from "@/lib/demo";
 
@@ -21,6 +22,14 @@ export function AppLayout({ children }: AppLayoutProps) {
   const { user } = useAuth();
   const ehDemo = isDemoUser(user?.email);
   useAceitarConvite();
+
+  // Consagra o dono da instalação na primeira vez que alguém entra logado.
+  // Roda aqui, e não só no painel, porque quem entra por link de convite ou
+  // deep link também precisa que a instalação tenha dono definido.
+  useEffect(() => {
+    if (!user) return;
+    consagrarDonoSePrimeiro();
+  }, [user]);
 
   return (
     <div className="via-app-shell flex min-h-screen">
