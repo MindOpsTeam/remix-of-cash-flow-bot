@@ -63,18 +63,22 @@ export async function salvarIntegracao(
       case "stripe": {
         // A secret e o segredo do webhook vão para o cofre; modo e chave
         // publicável ficam na tabela porque não são segredo e a tela precisa deles.
+        // O apelido é a identidade do canal: reenviar o mesmo apelido edita o
+        // canal existente, um apelido novo cria outro canal na mesma empresa.
+        const apelido = (v.apelido ?? "").trim() || "Principal";
         const { error } = await supabase.rpc("set_stripe_credentials", {
           p_company_id: companyId,
           p_secret_key: v.secret_key ?? "",
           p_webhook_secret: v.webhook_secret ?? "",
           p_publishable_key: v.publishable_key ?? "",
           p_mode: v.mode === "live" ? "live" : "test",
+          p_apelido: apelido,
         });
         if (error) throw error;
         const aviso = v.webhook_secret
           ? ""
           : " Falta o segredo do webhook: sem ele o recebimento não baixa sozinho.";
-        return { ok: true, mensagem: `Chaves do Stripe guardadas no cofre.${aviso}` };
+        return { ok: true, mensagem: `Canal "${apelido}" guardado no cofre.${aviso}` };
       }
 
       case "inter": {
@@ -93,19 +97,27 @@ export async function salvarIntegracao(
       }
 
       case "whatsapp": {
+        // Conflito por (empresa, instância): uma empresa tem N canais, e o que
+        // identifica cada um é o nome da instância. Antes o conflito era só por
+        // company_id — constraint que nem existia, então o salvamento falhava
+        // com 42P10 e a integração não gravava nunca.
+        const instancia = v.instance_name || "financeai";
         const { error } = await supabase.from("whatsapp_configs").upsert(
           {
             company_id: companyId,
             evolution_api_url: v.evolution_api_url || null,
             evolution_api_key: v.evolution_api_key || null,
-            instance_name: v.instance_name || "financeai",
+            instance_name: instancia,
             notify_number: (v.notify_number ?? "").replace(/\D/g, "") || null,
             active: true,
           },
-          { onConflict: "company_id" },
+          { onConflict: "company_id,instance_name" },
         );
         if (error) throw error;
-        return { ok: true, mensagem: "Servidor Evolution salvo. Leia o QR Code em Inteligência → WhatsApp." };
+        return {
+          ok: true,
+          mensagem: `Canal "${instancia}" salvo. Leia o QR Code em Inteligência → WhatsApp.`,
+        };
       }
 
       case "contaazul": {
@@ -216,10 +228,14 @@ export async function testarIntegracao(id: string, companyId: string): Promise<R
 
 async function testarWhatsapp(companyId: string): Promise<ResultadoAcao> {
   try {
+    // Com N canais, maybeSingle() sem limite estoura ("multiple rows"). A
+    // central testa o primeiro canal; a tela dedicada testa um a um.
     const { data: config, error } = await supabase
       .from("whatsapp_configs")
       .select("id, instance_name")
       .eq("company_id", companyId)
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle();
     if (error) throw error;
     if (!config) return { ok: false, mensagem: "Salve a configuração antes de testar." };
@@ -269,8 +285,12 @@ export async function carregarConfiguradas(companyId: string): Promise<string[]>
       return !!data;
     }],
     ["whatsapp", async () => {
+      // Basta UM canal configurado. Sem o limit, duas instâncias fariam o
+      // maybeSingle() falhar e a integração apareceria como não configurada
+      // justamente na empresa que tem mais canais.
       const { data } = await supabase.from("whatsapp_configs").select("evolution_api_url")
-        .eq("company_id", companyId).not("evolution_api_url", "is", null).maybeSingle();
+        .eq("company_id", companyId).not("evolution_api_url", "is", null)
+        .limit(1).maybeSingle();
       return !!data;
     }],
     ["contaazul", async () => {

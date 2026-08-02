@@ -25,9 +25,19 @@ import { formatCurrency } from "@/lib/utils";
  * Conciliar aqui marca o crédito como transferência e lança a taxa como despesa.
  */
 
+interface Canal {
+  id: string;
+  apelido: string;
+  secret_key_preview: string | null;
+  conta_taxa_id: string | null;
+  centro_custo_taxa_id: string | null;
+}
+
 interface Repasse {
   id: string;
   stripe_id: string;
+  config_id: string | null;
+  canal: string | null;
   status: string | null;
   arrival_date: string | null;
   itens: number;
@@ -64,29 +74,43 @@ export default function Repasses() {
   const [sincronizando, setSincronizando] = useState(false);
   const [conciliando, setConciliando] = useState<string | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
+  // Uma empresa pode ter N canais Stripe. Sem escolher, sincronizar e conciliar
+  // seriam ambíguos — e ambiguidade aqui move dinheiro na conta errada.
+  const [canalId, setCanalId] = useState<string | null>(null);
 
-  const { data: config, isPending: configCarregando } = useQuery({
-    queryKey: ["stripe-config", companyId],
+  const { data: canais, isPending: configCarregando } = useQuery({
+    queryKey: ["stripe-canais", companyId],
     enabled: !!companyId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("stripe_config")
-        .select("mode, secret_key_preview, webhook_configurado, conta_taxa_id, centro_custo_taxa_id, last_sync_at")
+        .select("id, apelido, secret_key_preview, conta_taxa_id, centro_custo_taxa_id")
         .eq("company_id", companyId!)
-        .maybeSingle();
+        .order("apelido");
       if (error) throw error;
-      return data;
+      return (data ?? []) as Canal[];
     },
   });
 
+  // Com um canal só, ele é o escolhido sem perguntar nada.
+  const canalAtivo = useMemo(() => {
+    const lista = canais ?? [];
+    if (lista.length === 0) return null;
+    return lista.find((c) => c.id === canalId) ?? (lista.length === 1 ? lista[0] : null);
+  }, [canais, canalId]);
+
   const { data: repasses, isLoading } = useQuery({
-    queryKey: ["stripe-repasses", companyId],
+    queryKey: ["stripe-repasses", companyId, canalAtivo?.id ?? "todos"],
     enabled: !!companyId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("v_stripe_repasses")
         .select("*")
-        .eq("company_id", companyId!)
+        .eq("company_id", companyId!);
+      // Sem canal escolhido (empresa com vários), mostra todos e identifica cada
+      // um pelo nome — ver o conjunto ajuda; agir sobre ele exige escolher.
+      if (canalAtivo) q = q.eq("config_id", canalAtivo.id);
+      const { data, error } = await q
         .order("arrival_date", { ascending: false, nullsFirst: false })
         .limit(100);
       if (error) throw error;
@@ -118,22 +142,24 @@ export default function Repasses() {
     };
   }, [repasses]);
 
-  const configurado = !!config?.secret_key_preview;
-  const faltaContaDaTaxa = configurado && (!config?.conta_taxa_id || !config?.centro_custo_taxa_id);
+  const configurado = (canais ?? []).some((c) => c.secret_key_preview);
+  const varios = (canais ?? []).length > 1;
+  const faltaContaDaTaxa =
+    !!canalAtivo && (!canalAtivo.conta_taxa_id || !canalAtivo.centro_custo_taxa_id);
 
   async function sincronizar() {
     if (!companyId) return;
     setSincronizando(true);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-api", {
-        body: { action: "sincronizar", company_id: companyId, dias: 60 },
+        body: { action: "sincronizar", company_id: companyId, dias: 60, config_id: canalAtivo?.id },
       });
       if (error) throw error;
       const r = data as { repasses?: number; cobrancas?: number; nao_fecham?: number; error?: string };
       if (r?.error) throw new Error(r.error);
       const alerta = r?.nao_fecham ? ` ${r.nao_fecham} não fecham e não podem ser conciliados ainda.` : "";
       toast.success(`${r?.repasses ?? 0} repasses e ${r?.cobrancas ?? 0} cobranças atualizados.${alerta}`);
-      queryClient.invalidateQueries({ queryKey: ["stripe-repasses", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["stripe-repasses", companyId, canalAtivo?.id ?? "todos"] });
     } catch (e) {
       toast.error(mensagemDeErro(e));
     } finally {
@@ -141,12 +167,12 @@ export default function Repasses() {
     }
   }
 
-  async function conciliar(stripeId: string) {
+  async function conciliar(stripeId: string, configId: string | null) {
     if (!companyId) return;
     setConciliando(stripeId);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-api", {
-        body: { action: "conciliar", company_id: companyId, payout_id: stripeId },
+        body: { action: "conciliar", company_id: companyId, payout_id: stripeId, config_id: configId },
       });
       if (error) throw error;
       const r = data as { ok?: boolean; status?: string; mensagem?: string; error?: string };
@@ -155,7 +181,7 @@ export default function Repasses() {
       // Duplicidade e "não fecha" não são falha de sistema: são pendência real
       // que a pessoa precisa ver por inteiro, não um toast de erro genérico.
       else toast.warning(r?.mensagem ?? "Não foi possível conciliar.", { duration: 10000 });
-      queryClient.invalidateQueries({ queryKey: ["stripe-repasses", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["stripe-repasses", companyId, canalAtivo?.id ?? "todos"] });
     } catch (e) {
       toast.error(mensagemDeErro(e));
     } finally {
@@ -175,10 +201,31 @@ export default function Repasses() {
               linha só do extrato.
             </p>
           </div>
-          <Button onClick={sincronizar} disabled={sincronizando || !configurado || somenteLeitura.bloqueado}>
-            {sincronizando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            Sincronizar
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Só aparece quando há escolha a fazer. Com um canal, perguntar seria
+                ruído; com vários, não perguntar seria adivinhar. */}
+            {varios && (
+              <select
+                aria-label="Canal do Stripe"
+                value={canalAtivo?.id ?? ""}
+                onChange={(e) => setCanalId(e.target.value || null)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                <option value="">Todos os canais (só leitura)</option>
+                {(canais ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>{c.apelido}</option>
+                ))}
+              </select>
+            )}
+            <Button
+              onClick={sincronizar}
+              disabled={sincronizando || !configurado || !canalAtivo || somenteLeitura.bloqueado}
+              title={!canalAtivo && varios ? "Escolha um canal para sincronizar." : undefined}
+            >
+              {sincronizando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Sincronizar
+            </Button>
+          </div>
         </header>
 
         {/* Só afirma "não está ligado" depois de saber. Enquanto a consulta corre,
@@ -255,6 +302,7 @@ export default function Repasses() {
                         </span>
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
+                        {varios && r.canal ? `${r.canal} · ` : ""}
                         {r.arrival_date ?? "sem data"} · bruto {emReais(r.amount_bruto)} · taxa{" "}
                         {emReais(r.amount_taxa)} · {r.stripe_id}
                       </p>
@@ -276,9 +324,10 @@ export default function Repasses() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => conciliar(r.stripe_id)}
+                        onClick={() => conciliar(r.stripe_id, r.config_id)}
                         disabled={
-                          conciliando === r.stripe_id || !r.composicao_fecha || somenteLeitura.bloqueado
+                          conciliando === r.stripe_id || !r.composicao_fecha ||
+                          somenteLeitura.bloqueado || (varios && !canalAtivo)
                         }
                         title={
                           somenteLeitura.bloqueado

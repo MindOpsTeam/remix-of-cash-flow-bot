@@ -82,6 +82,7 @@ export async function reconheceCobranca(
   companyId: string,
   charge: Record<string, unknown>,
   secretKey: string,
+  configId: string,
 ): Promise<void> {
   const stripeId = (charge.id as string) ?? null;
   if (!stripeId) return;
@@ -110,6 +111,9 @@ export async function reconheceCobranca(
   await supabase.from("stripe_charges").upsert(
     {
       company_id: companyId,
+      // O canal é parte da identidade: dois canais da mesma empresa podem, em
+      // tese, ter cobranças de mesmo id, e sem isto uma sobrescreveria a outra.
+      config_id: configId,
       stripe_id: stripeId,
       balance_transaction_id: btId,
       payout_id: payoutId,
@@ -126,7 +130,7 @@ export async function reconheceCobranca(
       paid_at: charge.created ? new Date(Number(charge.created) * 1000).toISOString() : null,
       raw: charge,
     },
-    { onConflict: "company_id,stripe_id" },
+    { onConflict: "config_id,stripe_id" },
   );
 
   if (!estaPago((charge.status as string) ?? null)) return;
@@ -165,7 +169,7 @@ export async function reconheceCobranca(
 
   const ligaCobranca = (patch: Record<string, unknown>) =>
     supabase.from("stripe_charges").update(patch)
-      .eq("company_id", companyId).eq("stripe_id", stripeId);
+      .eq("config_id", configId).eq("stripe_id", stripeId);
 
   if (titulo.transaction_id) {
     await ligaCobranca({ receivable_id: titulo.id, transaction_id: titulo.transaction_id });
@@ -228,6 +232,7 @@ export async function componhoRepasse(
   companyId: string,
   secretKey: string,
   payout: Record<string, unknown>,
+  configId: string,
 ): Promise<{ fecha: boolean; diferenca: number; itens: number }> {
   const payoutId = payout.id as string;
   if (!payoutId) return { fecha: false, diferenca: 0, itens: 0 };
@@ -264,6 +269,7 @@ export async function componhoRepasse(
   await supabase.from("stripe_payouts").upsert(
     {
       company_id: companyId,
+      config_id: configId,
       stripe_id: payoutId,
       status: (payout.status as string) ?? null,
       amount_liquido: Number(payout.amount ?? 0),
@@ -278,7 +284,7 @@ export async function componhoRepasse(
       diferenca: conferencia.diferenca,
       raw: payout,
     },
-    { onConflict: "company_id,stripe_id" },
+    { onConflict: "config_id,stripe_id" },
   );
 
   // Liga cada cobrança ao repasse: é por aqui que a tela mostra "este depósito de
@@ -293,7 +299,7 @@ export async function componhoRepasse(
         amount_liquido: item.liquido,
         balance_transaction_id: item.id,
       })
-      .eq("company_id", companyId)
+      .eq("config_id", configId)
       .eq("stripe_id", item.origem);
   }
 
@@ -324,11 +330,13 @@ export async function conciliaRepasse(
   supabase: Supa,
   companyId: string,
   payoutStripeId: string,
+  configId: string,
 ): Promise<ResultadoConciliacao> {
   const { data: payout } = await supabase
     .from("stripe_payouts")
     .select("*")
     .eq("company_id", companyId)
+    .eq("config_id", configId)
     .eq("stripe_id", payoutStripeId)
     .maybeSingle();
 
@@ -439,7 +447,7 @@ export async function conciliaRepasse(
       taxa_transaction_id: taxa.txId,
       conciliado_em: new Date().toISOString(),
     })
-    .eq("company_id", companyId)
+    .eq("config_id", configId)
     .eq("stripe_id", payoutStripeId);
 
   return {

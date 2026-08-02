@@ -189,6 +189,19 @@ describe("conferência completa da assinatura — a fronteira de confiança", ()
     expect(await assinaturaStripeConfere(h, CORPO, SEGREDO, AGORA)).toBe(false);
   });
 
+  it("isola CANAIS da mesma empresa, não só empresas diferentes", async () => {
+    // "Loja SP" e "Checkout site" são contas Stripe distintas dentro do mesmo
+    // CNPJ, cada uma com o seu whsec. Um evento da loja endereçado ao canal do
+    // site não pode passar: seria dinheiro entrando na conta errada, dentro de
+    // casa, onde a fronteira de empresa não protege.
+    const segredoLoja = "whsec_canal_loja";
+    const segredoSite = "whsec_canal_site";
+    const h = await assinaComo(CORPO, AGORA, segredoLoja);
+
+    expect(await assinaturaStripeConfere(h, CORPO, segredoLoja, AGORA)).toBe(true);
+    expect(await assinaturaStripeConfere(h, CORPO, segredoSite, AGORA)).toBe(false);
+  });
+
   it("recusa replay: assinatura legítima, porém velha", async () => {
     const h = await assinaComo(CORPO, AGORA);
     expect(await assinaturaStripeConfere(h, CORPO, SEGREDO, AGORA + 301)).toBe(false);

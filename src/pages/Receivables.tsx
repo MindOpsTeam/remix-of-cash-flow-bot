@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useQuery } from "@tanstack/react-query";
 import { mensagemDeErro } from "@/lib/erros";
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,18 +33,35 @@ export default function Receivables() {
   const [cobrando, setCobrando] = useState<string | null>(null);
   const { company } = useCompany();
 
+  // Canais Stripe da empresa. Com mais de um, o menu passa a listar cada canal:
+  // cobrar sem dizer onde colocaria o dinheiro na conta errada.
+  const { data: canaisStripe } = useQuery({
+    queryKey: ["stripe-canais-cobranca", company?.id],
+    enabled: !!company?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stripe_config")
+        .select("id, apelido")
+        .eq("company_id", company!.id)
+        .not("secret_key_preview", "is", null)
+        .order("apelido");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; apelido: string }>;
+    },
+  });
+
   /**
    * Gera (ou reaproveita) o link de pagamento por cartão do título.
    *
    * Reaproveitar importa: dois links para o mesmo título são dois payment_intents,
    * e o webhook poderia baixar o mesmo recebível duas vezes.
    */
-  const cobrarNoCartao = async (r: Receivable) => {
+  const cobrarNoCartao = async (r: Receivable, configId?: string) => {
     if (!company?.id) return;
     setCobrando(r.id);
     try {
       const { data, error } = await supabase.functions.invoke("stripe-api", {
-        body: { action: "cobrar", company_id: company.id, receivable_id: r.id },
+        body: { action: "cobrar", company_id: company.id, receivable_id: r.id, config_id: configId },
       });
       if (error) throw error;
       const resp = data as { url?: string; error?: string };
@@ -141,15 +159,30 @@ export default function Receivables() {
                                 </DropdownMenuItem>
                               )}
                               {r.status !== "recebido" && r.status !== "cancelado" && (
-                                <DropdownMenuItem
-                                  disabled={cobrando === r.id}
-                                  onClick={() => cobrarNoCartao(r)}
-                                >
-                                  {cobrando === r.id
-                                    ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    : <CreditCard className="h-4 w-4 mr-2" />}
-                                  {r.stripe_checkout_url ? "Abrir link do cartão" : "Cobrar no cartão"}
-                                </DropdownMenuItem>
+                                (canaisStripe ?? []).length > 1 && !r.stripe_checkout_url ? (
+                                  (canaisStripe ?? []).map((canal) => (
+                                    <DropdownMenuItem
+                                      key={canal.id}
+                                      disabled={cobrando === r.id}
+                                      onClick={() => cobrarNoCartao(r, canal.id)}
+                                    >
+                                      {cobrando === r.id
+                                        ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        : <CreditCard className="h-4 w-4 mr-2" />}
+                                      Cobrar no cartão · {canal.apelido}
+                                    </DropdownMenuItem>
+                                  ))
+                                ) : (
+                                  <DropdownMenuItem
+                                    disabled={cobrando === r.id}
+                                    onClick={() => cobrarNoCartao(r)}
+                                  >
+                                    {cobrando === r.id
+                                      ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      : <CreditCard className="h-4 w-4 mr-2" />}
+                                    {r.stripe_checkout_url ? "Abrir link do cartão" : "Cobrar no cartão"}
+                                  </DropdownMenuItem>
+                                )
                               )}
                               {(r.boleto_url || r.pix_url) && (
                                 <DropdownMenuItem onClick={() => openLink(r)}>

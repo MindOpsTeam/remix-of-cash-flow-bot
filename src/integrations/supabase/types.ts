@@ -4384,6 +4384,7 @@ export type Database = {
           amount_taxa: number
           balance_transaction_id: string | null
           company_id: string
+          config_id: string | null
           created_at: string
           currency: string
           customer_email: string | null
@@ -4424,6 +4425,7 @@ export type Database = {
           amount_taxa?: number
           balance_transaction_id?: string | null
           company_id?: string
+          config_id?: string | null
           created_at?: string
           currency?: string
           customer_email?: string | null
@@ -4479,6 +4481,7 @@ export type Database = {
       stripe_config: {
         Row: {
           active: boolean
+          apelido: string
           bank_account_id: string | null
           centro_custo_taxa_id: string | null
           company_id: string
@@ -4497,6 +4500,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          apelido?: string
           bank_account_id?: string | null
           centro_custo_taxa_id?: string | null
           company_id: string
@@ -4515,6 +4519,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          apelido?: string
           bank_account_id?: string | null
           centro_custo_taxa_id?: string | null
           company_id?: string
@@ -4637,6 +4642,7 @@ export type Database = {
           bank_raw_id: string | null
           bank_transaction_id: string | null
           company_id: string
+          config_id: string | null
           composicao_fecha: boolean
           conciliado_em: string | null
           created_at: string
@@ -4679,6 +4685,7 @@ export type Database = {
           bank_raw_id?: string | null
           bank_transaction_id?: string | null
           company_id?: string
+          config_id?: string | null
           composicao_fecha?: boolean
           conciliado_em?: string | null
           created_at?: string
@@ -5988,6 +5995,8 @@ export type Database = {
           amount_taxa: number | null
           arrival_date: string | null
           bank_raw_id: string | null
+          canal: string | null
+          config_id: string | null
           bank_transaction_id: string | null
           cobrancas_ligadas: number | null
           company_id: string | null
@@ -6261,13 +6270,18 @@ export type Database = {
       }
       set_stripe_credentials: {
         Args: {
+          p_apelido?: string
           p_company_id: string
           p_mode?: string
           p_publishable_key?: string
           p_secret_key: string
           p_webhook_secret?: string
         }
-        Returns: undefined
+        Returns: string
+      }
+      resolver_canal_stripe_unico: {
+        Args: { p_company_id: string }
+        Returns: string
       }
       sou_dono_da_plataforma: { Args: never; Returns: boolean }
       try_uuid: { Args: { t: string }; Returns: string }

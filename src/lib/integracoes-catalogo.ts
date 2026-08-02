@@ -144,6 +144,13 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     telaDedicada: "/repasses",
     campos: [
       {
+        key: "apelido",
+        label: "Nome do canal",
+        tipo: "text",
+        placeholder: "Loja SP",
+        dica: "Uma empresa pode ter vários canais Stripe. O nome é como você distingue cada um no repasse e na cobrança.",
+      },
+      {
         key: "mode",
         label: "Ambiente",
         tipo: "select",

@@ -2,10 +2,15 @@
  * Stripe — ações que a tela dispara.
  *
  * POST /stripe-api
- *   { action: "testar", company_id }                     → a chave funciona?
- *   { action: "cobrar", company_id, receivable_id }      → link de pagamento do título
- *   { action: "sincronizar", company_id, dias? }         → puxa repasses e cobranças
- *   { action: "conciliar", company_id, payout_id }       → casa o repasse N:1 com o extrato
+ *   { action: "testar", company_id, config_id? }               → a chave funciona?
+ *   { action: "cobrar", company_id, receivable_id, config_id? } → link de pagamento do título
+ *   { action: "sincronizar", company_id, dias?, config_id? }    → puxa repasses e cobranças
+ *   { action: "conciliar", company_id, payout_id, config_id? }  → casa o repasse N:1
+ *
+ * Uma empresa pode ter N canais Stripe ("Loja SP", "Checkout site"). `config_id`
+ * escolhe o canal; quando a empresa tem um só, ele pode ser omitido e o canal é
+ * resolvido sozinho. Com dois ou mais, omitir é ambíguo e a chamada é recusada —
+ * adivinhar o canal moveria dinheiro na conta errada.
  *
  * A secret key nunca sai do Vault: quem lê é o service_role aqui dentro. O browser
  * só conhece a publishable key, que é pública por definição.
@@ -49,16 +54,46 @@ Deno.serve(async (req) => {
     const readonly = await assertCanWrite(supabase, user.id, companyId, corsHeaders);
     if (readonly) return readonly;
 
+    // Qual canal? O informado, ou o único da empresa. Com N canais e nenhum
+    // informado, recusar é a única saída honesta: escolher por conta própria
+    // cobraria na conta errada.
+    let configId = (body.config_id as string | undefined) ?? null;
+    if (!configId) {
+      const { data } = await service.rpc("resolver_canal_stripe_unico", { p_company_id: companyId });
+      configId = (data as string | null) ?? null;
+    }
+    if (!configId) {
+      const { count } = await service
+        .from("stripe_config").select("id", { count: "exact", head: true })
+        .eq("company_id", companyId);
+      return jsonResp(
+        {
+          error: (count ?? 0) > 1
+            ? "Esta empresa tem mais de um canal Stripe. Escolha o canal antes de continuar."
+            : "Stripe não configurado: informe a chave secreta em Configurações.",
+        },
+        400,
+        corsHeaders,
+      );
+    }
+
+    // O canal informado tem que ser DESTA empresa. Sem esta checagem, um membro
+    // da empresa A poderia operar o canal da empresa B passando o id dele.
+    const { data: canal } = await service
+      .from("stripe_config").select("id, apelido")
+      .eq("id", configId).eq("company_id", companyId).maybeSingle();
+    if (!canal) return jsonResp({ error: "Canal Stripe não pertence a esta empresa." }, 403, corsHeaders);
+
     // Conciliar só lê o que já foi guardado e escreve no ERP: não fala com o
     // Stripe. Exigir a chave aí travaria a conciliação de um repasse já
     // sincronizado sempre que a credencial fosse rotacionada ou removida.
     const precisaDaChave = action !== "conciliar";
 
-    const { data: cred } = await service.rpc("get_stripe_credentials", { p_company_id: companyId });
+    const { data: cred } = await service.rpc("get_stripe_credentials", { p_config_id: configId });
     const secretKey = (cred?.secret_key as string) ?? Deno.env.get("STRIPE_SECRET_KEY") ?? "";
     if (precisaDaChave && !secretKey) {
       return jsonResp(
-        { error: "Stripe não configurado: informe a chave secreta em Configurações." },
+        { error: `Canal "${canal.apelido}" sem chave secreta. Informe em Configurações.` },
         400,
         corsHeaders,
       );
@@ -70,7 +105,7 @@ Deno.serve(async (req) => {
       await service
         .from("stripe_config")
         .update({ last_test_at: new Date().toISOString(), last_test_status: "ok" })
-        .eq("company_id", companyId);
+        .eq("id", configId);
       return jsonResp(
         {
           ok: true,
@@ -151,7 +186,7 @@ Deno.serve(async (req) => {
       });
       let cobrancasVistas = 0;
       for (const c of ((cobrancas.data as Record<string, unknown>[]) ?? [])) {
-        await reconheceCobranca(service, companyId, c, secretKey);
+        await reconheceCobranca(service, companyId, c, secretKey, configId);
         cobrancasVistas += 1;
       }
 
@@ -161,14 +196,14 @@ Deno.serve(async (req) => {
       });
       const resultados: Record<string, unknown>[] = [];
       for (const p of ((repasses.data as Record<string, unknown>[]) ?? [])) {
-        const r = await componhoRepasse(service, companyId, secretKey, p);
+        const r = await componhoRepasse(service, companyId, secretKey, p, configId);
         resultados.push({ payout_id: p.id, ...r });
       }
 
       await service
         .from("stripe_config")
         .update({ last_sync_at: new Date().toISOString() })
-        .eq("company_id", companyId);
+        .eq("id", configId);
 
       return jsonResp(
         {
@@ -187,7 +222,7 @@ Deno.serve(async (req) => {
     if (action === "conciliar") {
       const payoutId = body.payout_id as string;
       if (!payoutId) return jsonResp({ error: "payout_id é obrigatório" }, 400, corsHeaders);
-      const r = await conciliaRepasse(service, companyId, payoutId);
+      const r = await conciliaRepasse(service, companyId, payoutId, configId);
       // Só "conciliado" é sucesso; o resto o usuário precisa ver como pendência.
       return jsonResp({ ok: r.status === "conciliado", ...r }, 200, corsHeaders);
     }

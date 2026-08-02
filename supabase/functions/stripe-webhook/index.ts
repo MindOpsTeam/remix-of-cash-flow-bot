@@ -1,12 +1,18 @@
 /**
  * Webhook do Stripe — entradas por cartão/link e repasse em lote.
  *
- * POST /stripe-webhook?company=<uuid>
+ * POST /stripe-webhook?config=<config_id>   (endereço novo, por CANAL)
+ * POST /stripe-webhook?company=<uuid>        (compatibilidade, só com 1 canal)
  *
- * Multi-tenant: o Stripe não sabe qual empresa é, então a empresa vem na URL e a
- * ASSINATURA é conferida contra o webhook secret DAQUELA empresa. Isso é o que
- * impede evento forjado apontando para a empresa dos outros: sem o segredo da
- * empresa certa, a assinatura não fecha.
+ * Multi-tenant e multi-canal: o Stripe não sabe de empresa nem de canal, então o
+ * destino vem na URL e a ASSINATURA é conferida contra o webhook secret DAQUELE
+ * CANAL. É isso que impede evento forjado de entrar na empresa dos outros — e
+ * também que o canal "Loja SP" receba o que era do "Checkout site".
+ *
+ * O endereço por empresa continua aceito enquanto a empresa tiver um canal só:
+ * webhooks já cadastrados no dashboard do Stripe não podem parar no dia do
+ * deploy. A partir do segundo canal a empresa vira ambígua e o endereço precisa
+ * apontar o canal — recusar aí é melhor do que adivinhar.
  *
  * Eventos tratados:
  *   checkout.session.completed / payment_intent.succeeded / charge.succeeded
@@ -39,21 +45,37 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const companyId = new URL(req.url).searchParams.get("company");
-    if (!companyId) return responde({ error: "company ausente na URL" }, 400);
+    const params = new URL(req.url).searchParams;
+    let configId = params.get("config");
+    const companyParam = params.get("company");
+
+    if (!configId && companyParam) {
+      // Compatibilidade: resolve a empresa para o canal único dela. Devolve nulo
+      // quando há mais de um — aí o endereço é genuinamente ambíguo.
+      const { data } = await service.rpc("resolver_canal_stripe_unico", { p_company_id: companyParam });
+      configId = (data as string | null) ?? null;
+      if (!configId) {
+        return responde({
+          error: "Esta empresa tem mais de um canal Stripe. Aponte o webhook para ?config=<id do canal>.",
+        }, 400);
+      }
+    }
+    if (!configId) return responde({ error: "config (ou company) ausente na URL" }, 400);
 
     // Corpo CRU: a assinatura é sobre os bytes exatos. Fazer req.json() e depois
     // re-serializar muda a string e derruba a conferência.
     const corpoCru = await req.text();
 
-    const { data: cred } = await service.rpc("get_stripe_credentials", { p_company_id: companyId });
+    const { data: cred } = await service.rpc("get_stripe_credentials", { p_config_id: configId });
+    const companyId = (cred?.company_id as string) ?? null;
+    if (!companyId) return responde({ error: "canal Stripe não encontrado" }, 404);
     const secretKey = (cred?.secret_key as string) ?? Deno.env.get("STRIPE_SECRET_KEY") ?? "";
     const webhookSecret = (cred?.webhook_secret as string) ?? Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
 
     // Sem segredo configurado não existe como provar autenticidade. Recusar é a
     // única resposta honesta: aceitar seria abrir escrita anônima na empresa.
     if (!webhookSecret) {
-      return responde({ error: "webhook do Stripe não configurado para esta empresa" }, 401);
+      return responde({ error: "webhook do Stripe não configurado para este canal" }, 401);
     }
     if (!(await assinaturaStripeConfere(req.headers.get("stripe-signature"), corpoCru, webhookSecret))) {
       return responde({ error: "assinatura inválida" }, 401);
@@ -79,7 +101,7 @@ Deno.serve(async (req) => {
       switch (tipo) {
         case "charge.succeeded":
         case "charge.updated":
-          await reconheceCobranca(service, companyId, objeto, secretKey);
+          await reconheceCobranca(service, companyId, objeto, secretKey, configId);
           break;
 
         case "payment_intent.succeeded": {
@@ -91,7 +113,7 @@ Deno.serve(async (req) => {
           if (embutidas.length > 0) {
             for (const c of embutidas) {
               await reconheceCobranca(
-                service, companyId, { ...c, payment_intent: objeto.id }, secretKey,
+                service, companyId, { ...c, payment_intent: objeto.id }, secretKey, configId,
               );
             }
             break;
@@ -102,13 +124,13 @@ Deno.serve(async (req) => {
             await reconheceCobranca(
               service, companyId,
               { ...charge, payment_intent: objeto.id, metadata: objeto.metadata ?? charge.metadata },
-              secretKey,
+              secretKey, configId,
             );
           } else if (latest && typeof latest === "object") {
             await reconheceCobranca(
               service, companyId,
               { ...(latest as Record<string, unknown>), payment_intent: objeto.id, metadata: objeto.metadata },
-              secretKey,
+              secretKey, configId,
             );
           }
           break;
@@ -125,7 +147,7 @@ Deno.serve(async (req) => {
               await reconheceCobranca(
                 service, companyId,
                 { ...charge, payment_intent: pi, metadata: objeto.metadata ?? charge.metadata },
-                secretKey,
+                secretKey, configId,
               );
             }
           }
@@ -136,7 +158,7 @@ Deno.serve(async (req) => {
         case "payout.reconciliation_completed":
         case "payout.updated":
           if (!secretKey) throw new Error("secret key do Stripe não configurada");
-          await componhoRepasse(service, companyId, secretKey, objeto);
+          await componhoRepasse(service, companyId, secretKey, objeto, configId);
           break;
 
         default:

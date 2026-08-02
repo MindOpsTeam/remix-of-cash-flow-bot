@@ -26,7 +26,7 @@ DECLARE
   e record;
   c record;
   v_chegada date := CURRENT_DATE;
-  v_conta_taxa uuid; v_centro uuid; v_conn uuid;
+  v_conta_taxa uuid; v_centro uuid; v_conn uuid; v_config uuid;
   v_bruto int; v_taxa int; v_liquido int; v_itens int; v_fee int;
 BEGIN
   FOR e IN
@@ -46,12 +46,14 @@ BEGIN
 
     -- Configuração sem segredo: a demo mostra o fluxo, não empresta credencial.
     -- Sincronizar continua exigindo chave de verdade.
-    INSERT INTO public.stripe_config (company_id, mode, secret_key_preview, publishable_key,
+    -- O conflito é por (empresa, apelido): a empresa pode ter N canais.
+    INSERT INTO public.stripe_config (company_id, apelido, mode, secret_key_preview, publishable_key,
                                       webhook_configurado, conta_taxa_id, centro_custo_taxa_id)
-    VALUES (e.empresa, 'test', '••••demo', 'pk_test_demonstracao', true, v_conta_taxa, v_centro)
-    ON CONFLICT (company_id) DO UPDATE
+    VALUES (e.empresa, 'Principal', 'test', '••••demo', 'pk_test_demonstracao', true, v_conta_taxa, v_centro)
+    ON CONFLICT (company_id, apelido) DO UPDATE
       SET conta_taxa_id = EXCLUDED.conta_taxa_id,
-          centro_custo_taxa_id = EXCLUDED.centro_custo_taxa_id;
+          centro_custo_taxa_id = EXCLUDED.centro_custo_taxa_id
+    RETURNING id INTO v_config;
 
     v_bruto := 0; v_taxa := 0; v_liquido := 0; v_itens := 0;
 
@@ -66,15 +68,15 @@ BEGIN
       v_fee := round(c.bruto * 0.0399) + 39;
 
       INSERT INTO public.stripe_charges (
-        company_id, stripe_id, balance_transaction_id, payout_id, status,
+        company_id, config_id, stripe_id, balance_transaction_id, payout_id, status,
         amount_bruto, amount_taxa, amount_liquido, currency, description, customer_email, paid_at
       ) VALUES (
-        e.empresa, format('ch_demo_%s_%s', e.prefixo, c.n), format('txn_demo_%s_%s', e.prefixo, c.n),
+        e.empresa, v_config, format('ch_demo_%s_%s', e.prefixo, c.n), format('txn_demo_%s_%s', e.prefixo, c.n),
         format('po_demo_%s', e.prefixo), 'succeeded',
         c.bruto, v_fee, c.bruto - v_fee, 'brl', c.descricao, c.email,
         (v_chegada - INTERVAL '3 days')::timestamptz
       )
-      ON CONFLICT (company_id, stripe_id) DO UPDATE
+      ON CONFLICT (config_id, stripe_id) DO UPDATE
         SET payout_id = EXCLUDED.payout_id,
             amount_taxa = EXCLUDED.amount_taxa,
             amount_liquido = EXCLUDED.amount_liquido;
@@ -89,15 +91,15 @@ BEGIN
     -- cobranças conhecidas: falta uma. É o sintoma real de página não lida ou
     -- estorno posterior, e a conciliação tem que parar diante dele.
     INSERT INTO public.stripe_payouts (
-      company_id, stripe_id, status, amount_liquido, amount_bruto, amount_taxa,
+      company_id, config_id, stripe_id, status, amount_liquido, amount_bruto, amount_taxa,
       itens, currency, arrival_date, composicao_fecha, diferenca
     ) VALUES (
-      e.empresa, format('po_demo_%s', e.prefixo), 'paid',
+      e.empresa, v_config, format('po_demo_%s', e.prefixo), 'paid',
       CASE WHEN e.fecha THEN v_liquido ELSE v_liquido + 48350 END,
       v_bruto, v_taxa, v_itens, 'brl', v_chegada,
       e.fecha, CASE WHEN e.fecha THEN 0 ELSE 48350 END
     )
-    ON CONFLICT (company_id, stripe_id) DO UPDATE
+    ON CONFLICT (config_id, stripe_id) DO UPDATE
       SET amount_liquido = EXCLUDED.amount_liquido,
           amount_bruto = EXCLUDED.amount_bruto,
           amount_taxa = EXCLUDED.amount_taxa,
