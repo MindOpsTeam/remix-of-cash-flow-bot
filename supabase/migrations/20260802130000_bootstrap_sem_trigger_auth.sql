@@ -39,6 +39,10 @@ BEGIN
     RETURN false;
   END IF;
 
+  -- Dado de referência que o remix não recebe (ver garantir_planos): sem plano,
+  -- a criação da primeira empresa quebraria por FK logo depois desta chamada.
+  PERFORM public.garantir_planos();
+
   INSERT INTO public.platform_owner (id, user_id)
   VALUES (true, auth.uid())
   ON CONFLICT (id) DO NOTHING;
@@ -101,6 +105,10 @@ BEGIN
   END IF;
 
   clean_cnpj := nullif(regexp_replace(coalesce(company_cnpj, ''), '\D', '', 'g'), '');
+
+  -- Cinto e suspensório: se o app nunca chamou garantir_planos, o INSERT abaixo
+  -- quebraria por FK no plan_key default. Melhor garantir aqui do que falhar.
+  PERFORM public.garantir_planos();
 
   INSERT INTO companies (name, cnpj) VALUES (company_name, clean_cnpj)
   RETURNING id INTO new_company_id;
