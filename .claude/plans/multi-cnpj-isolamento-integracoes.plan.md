@@ -2,6 +2,7 @@
 
 **Origem**: revisão pedida em 02/08/2026
 **Complexidade**: Média (schema + cofre + webhook + UI; sem reescrita de domínio)
+**Status**: EXECUTADO em 02/08/2026 — commit d5335a1. Fases 0 a 4 concluídas e provadas com rollback.
 
 ## Resumo
 
@@ -137,10 +138,10 @@ Mais os smokes SQL com rollback em produção, no padrão já usado nesta base:
 
 ## Aceite
 
-- [ ] Salvar WhatsApp funciona, e dois canais coexistem na mesma empresa
-- [ ] Empresa A com 2 canais Stripe e empresa B com 3, cada um com chave própria no cofre
-- [ ] Evento assinado pelo canal 1 é recusado quando endereçado ao canal 2
-- [ ] Repasse mostra de qual canal veio; conciliação não mistura canais
-- [ ] Webhook antigo (`?company=`) continua funcionando onde há um canal só
-- [ ] Consolidado segue sendo só leitura — nenhuma escrita nova em escopo combinado
-- [ ] Fiscal continua 1:1, com o motivo registrado no schema
+- [x] Salvar WhatsApp funciona, e dois canais coexistem na mesma empresa
+- [x] N canais Stripe por empresa, cada um com chave própria no cofre (provado: canal 2 não lê a chave do canal 1)
+- [x] Evento assinado pelo canal 1 é recusado quando endereçado ao canal 2 (teste unitário)
+- [x] Repasse mostra de qual canal veio; cobrança e repasse são únicos por (canal, id do Stripe)
+- [x] Webhook antigo (`?company=`) continua funcionando onde há um canal só — e recusa com instrução onde há vários (provado na função deployada)
+- [x] Consolidado segue sendo só leitura — nenhuma escrita nova em escopo combinado
+- [x] Fiscal continua 1:1, com o motivo registrado no schema
