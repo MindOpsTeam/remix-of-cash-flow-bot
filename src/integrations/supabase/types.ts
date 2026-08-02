@@ -2402,6 +2402,27 @@ export type Database = {
           },
         ]
       }
+      demo_dataset: {
+        Row: {
+          ref: string
+          registrado_em: string
+          system_identifier: string
+          tipo: string
+        }
+        Insert: {
+          ref: string
+          registrado_em?: string
+          system_identifier: string
+          tipo: string
+        }
+        Update: {
+          ref?: string
+          registrado_em?: string
+          system_identifier?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       fiscal_files: {
         Row: {
           company_id: string
@@ -3265,6 +3286,24 @@ export type Database = {
           definido_em?: string
           id?: boolean
           user_id?: string
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          atualizado_em: string
+          cadastro_aberto: boolean
+          id: boolean
+        }
+        Insert: {
+          atualizado_em?: string
+          cadastro_aberto?: boolean
+          id?: boolean
+        }
+        Update: {
+          atualizado_em?: string
+          cadastro_aberto?: boolean
+          id?: boolean
         }
         Relationships: []
       }
@@ -4405,6 +4444,7 @@ export type Database = {
           amount_taxa?: number
           balance_transaction_id?: string | null
           company_id: string
+          config_id?: string | null
           created_at?: string
           currency?: string
           customer_email?: string | null
@@ -4461,6 +4501,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "stripe_charges_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_config"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "stripe_charges_receivable_id_fkey"
@@ -4554,21 +4601,21 @@ export type Database = {
           {
             foreignKeyName: "stripe_config_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "stripe_config_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_ativacao_empresa"
             referencedColumns: ["company_id"]
           },
           {
             foreignKeyName: "stripe_config_company_id_fkey"
             columns: ["company_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
           },
@@ -4642,9 +4689,9 @@ export type Database = {
           bank_raw_id: string | null
           bank_transaction_id: string | null
           company_id: string
-          config_id: string | null
           composicao_fecha: boolean
           conciliado_em: string | null
+          config_id: string | null
           created_at: string
           currency: string
           diferenca: number
@@ -4666,6 +4713,7 @@ export type Database = {
           company_id: string
           composicao_fecha?: boolean
           conciliado_em?: string | null
+          config_id?: string | null
           created_at?: string
           currency?: string
           diferenca?: number
@@ -4685,9 +4733,9 @@ export type Database = {
           bank_raw_id?: string | null
           bank_transaction_id?: string | null
           company_id?: string
-          config_id?: string | null
           composicao_fecha?: boolean
           conciliado_em?: string | null
+          config_id?: string | null
           created_at?: string
           currency?: string
           diferenca?: number
@@ -4734,6 +4782,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "stripe_payouts_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_config"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "stripe_payouts_taxa_transaction_id_fkey"
@@ -5995,13 +6050,13 @@ export type Database = {
           amount_taxa: number | null
           arrival_date: string | null
           bank_raw_id: string | null
-          canal: string | null
-          config_id: string | null
           bank_transaction_id: string | null
+          canal: string | null
           cobrancas_ligadas: number | null
           company_id: string | null
           composicao_fecha: boolean | null
           conciliado_em: string | null
+          config_id: string | null
           creditado_no_extrato: boolean | null
           diferenca: number | null
           id: string | null
@@ -6009,44 +6064,6 @@ export type Database = {
           status: string | null
           stripe_id: string | null
           taxa_transaction_id: string | null
-        }
-        Insert: {
-          amount_bruto?: number | null
-          amount_liquido?: number | null
-          amount_taxa?: number | null
-          arrival_date?: string | null
-          bank_raw_id?: string | null
-          bank_transaction_id?: string | null
-          cobrancas_ligadas?: never
-          company_id?: string | null
-          composicao_fecha?: boolean | null
-          conciliado_em?: string | null
-          creditado_no_extrato?: never
-          diferenca?: number | null
-          id?: string | null
-          itens?: number | null
-          status?: string | null
-          stripe_id?: string | null
-          taxa_transaction_id?: string | null
-        }
-        Update: {
-          amount_bruto?: number | null
-          amount_liquido?: number | null
-          amount_taxa?: number | null
-          arrival_date?: string | null
-          bank_raw_id?: string | null
-          bank_transaction_id?: string | null
-          cobrancas_ligadas?: never
-          company_id?: string | null
-          composicao_fecha?: boolean | null
-          conciliado_em?: string | null
-          creditado_no_extrato?: never
-          diferenca?: number | null
-          id?: string | null
-          itens?: number | null
-          status?: string | null
-          stripe_id?: string | null
-          taxa_transaction_id?: string | null
         }
         Relationships: [
           {
@@ -6083,6 +6100,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "stripe_payouts_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_config"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "stripe_payouts_taxa_transaction_id_fkey"
@@ -6124,6 +6148,11 @@ export type Database = {
         }[]
       }
       brl: { Args: { p_valor: number }; Returns: string }
+      cadastro_esta_aberto: { Args: never; Returns: boolean }
+      cadastro_permitido: {
+        Args: { p_convite?: string; p_email: string }
+        Returns: Json
+      }
       carregar_cclasstrib: {
         Args: { p_linhas: Json; p_versao: string }
         Returns: Json
@@ -6137,6 +6166,8 @@ export type Database = {
         Args: { company_cnpj?: string; company_name: string }
         Returns: Json
       }
+      definir_cadastro_aberto: { Args: { p_aberto: boolean }; Returns: boolean }
+      demonstracao_disponivel: { Args: never; Returns: boolean }
       encerrar_recorrencia: {
         Args: { p_recurrence_group_id: string }
         Returns: Json
@@ -6180,9 +6211,10 @@ export type Database = {
         Returns: string
       }
       get_pluggy_credentials: { Args: { p_company_id: string }; Returns: Json }
-      get_stripe_credentials: { Args: { p_company_id: string }; Returns: Json }
+      get_stripe_credentials: { Args: { p_config_id: string }; Returns: Json }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       is_demo_account: { Args: never; Returns: boolean }
+      limpar_demonstracao_se_remixado: { Args: never; Returns: Json }
       mes_esta_fechado: {
         Args: { p_company_id: string; p_data: string }
         Returns: boolean
@@ -6228,6 +6260,7 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_demonstracao: { Args: never; Returns: number }
       registrar_movimento_estoque: {
         Args: {
           p_company_id: string
@@ -6243,6 +6276,10 @@ export type Database = {
         Returns: Json
       }
       reserve_next_dps_number: { Args: { config_id: string }; Returns: number }
+      resolver_canal_stripe_unico: {
+        Args: { p_company_id: string }
+        Returns: string
+      }
       rotate_contaazul_refresh_token: {
         Args: { p_company_id: string; p_refresh_token: string }
         Returns: undefined
@@ -6277,10 +6314,6 @@ export type Database = {
           p_secret_key: string
           p_webhook_secret?: string
         }
-        Returns: string
-      }
-      resolver_canal_stripe_unico: {
-        Args: { p_company_id: string }
         Returns: string
       }
       sou_dono_da_plataforma: { Args: never; Returns: boolean }
