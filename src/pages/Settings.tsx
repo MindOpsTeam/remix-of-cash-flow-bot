@@ -81,13 +81,6 @@ const sections = [
     available: true,
   },
   {
-    icon: Crown,
-    title: "Plano",
-    description: "O que está incluso no seu plano e como subir",
-    to: "/settings/plano",
-    available: true,
-  },
-  {
     icon: Rocket,
     title: "Guia de instalação",
     description: "Reabra o passo a passo: CNPJs, equipe, banco e todas as chaves",

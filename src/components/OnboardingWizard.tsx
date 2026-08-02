@@ -31,7 +31,7 @@ function formatCNPJ(value: string) {
 interface OnboardingWizardProps {
   open: boolean;
   onComplete: () => void;
-  memberId: string | null;
+  memberId: string;
 }
 
 /**
@@ -176,35 +176,9 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
   const passoLargo = step === 4; // a central de configuração pede mais espaço
 
   const saveCompanyData = async () => {
+    if (!company) return;
     setSaving(true);
     try {
-      // Instalação nova: não há empresa para atualizar — há uma para CRIAR. Este
-      // é o passo que tira a instalação do zero, e sem ele o wizard pedia dados
-      // de uma empresa que nunca passaria a existir.
-      if (!company) {
-        if (!companyName.trim()) {
-          toast.error("Dê um nome à sua empresa para continuar.");
-          return;
-        }
-        const { error } = await supabase.rpc("create_company_for_user", {
-          company_name: companyName.trim(),
-          company_cnpj: cnpj.replace(/\D/g, "") || undefined,
-        });
-        if (error) throw new Error(error.message);
-        if (regime) {
-          // O regime não vai na criação: aplica logo depois, já com a empresa.
-          const { data: nova } = await supabase
-            .from("company_members").select("company_id")
-            .order("created_at", { ascending: false }).limit(1).maybeSingle();
-          if (nova?.company_id) {
-            await supabase.from("companies")
-              .update({ regime_tributario: regime }).eq("id", nova.company_id);
-          }
-        }
-        await queryClient.invalidateQueries();
-        toast.success(`${companyName.trim()} criada. Você é o administrador da plataforma.`);
-        return;
-      }
       const updates: Record<string, string> = {};
       if (companyName.trim()) updates.name = companyName.trim();
       if (cnpj.trim()) updates.cnpj = cnpj.replace(/\D/g, "");
@@ -266,21 +240,10 @@ export function OnboardingWizard({ open, onComplete, memberId }: OnboardingWizar
   const finishOnboarding = async () => {
     setSaving(true);
     try {
-      // Numa instalação nova o vínculo nasceu durante o wizard, então o id só
-      // existe agora. Resolver aqui evita marcar conclusão em "id nulo" e
-      // deixar o guia reabrindo para sempre.
-      let alvo = memberId;
-      if (!alvo) {
-        const { data } = await supabase
-          .from("company_members").select("id")
-          .order("created_at", { ascending: false }).limit(1).maybeSingle();
-        alvo = (data?.id as string) ?? null;
-      }
-      if (!alvo) { onComplete(); return; }
       const { error } = await supabase
         .from("company_members")
         .update({ onboarding_completed: true })
-        .eq("id", alvo);
+        .eq("id", memberId);
       if (error) throw error;
       onComplete();
     } catch (e) {

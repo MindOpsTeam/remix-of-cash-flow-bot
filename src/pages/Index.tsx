@@ -32,19 +32,9 @@ import { calcularJanela, type PeriodoSel } from "@/lib/periodo";
 
 function useOnboarding() {
   const { user } = useAuth();
-  const { company, loading: carregandoEmpresas } = useCompany();
+  const { company } = useCompany();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [memberId, setMemberId] = useState<string | null>(null);
-
-  // Instalação recém-criada: quem entra ainda não tem empresa nenhuma, e é
-  // justamente ele que precisa do guia — o primeiro passo do wizard é criar a
-  // empresa. Antes o wizard exigia uma empresa que só o wizard criaria, então
-  // num remix novo ele simplesmente nunca abria.
-  useEffect(() => {
-    if (!user || carregandoEmpresas || company) return;
-    setMemberId(null);
-    setShowOnboarding(true);
-  }, [user, company, carregandoEmpresas]);
 
   useEffect(() => {
     if (!user || !company) return;
@@ -106,10 +96,7 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      {/* memberId é nulo na instalação nova: ainda não existe empresa, logo não
-          existe vínculo. O wizard cria a empresa no primeiro passo e resolve o
-          vínculo depois. */}
-      {onboarding.showOnboarding && (
+      {onboarding.showOnboarding && onboarding.memberId && (
         <OnboardingWizard open={onboarding.showOnboarding} onComplete={onboarding.close} memberId={onboarding.memberId} />
       )}
 
