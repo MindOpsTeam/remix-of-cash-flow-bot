@@ -9,7 +9,7 @@ import { Eye, Menu } from "lucide-react";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { useAceitarConvite } from "@/hooks/useConvite";
-import { consagrarDonoSePrimeiro } from "@/lib/rpc-plataforma";
+import { consagrarDonoSePrimeiro, registrarAmbiente } from "@/lib/rpc-plataforma";
 import { BotaoConcluirConfiguracao } from "@/components/integracoes/BotaoConcluirConfiguracao";
 import { isDemoUser } from "@/lib/demo";
 
@@ -28,7 +28,9 @@ export function AppLayout({ children }: AppLayoutProps) {
   // deep link também precisa que a instalação tenha dono definido.
   useEffect(() => {
     if (!user) return;
-    consagrarDonoSePrimeiro();
+    // Ordem importa: consagrar_dono_se_primeiro reagenda os jobs, e reagendar
+    // sem o ambiente registrado não faz nada.
+    registrarAmbiente().then(consagrarDonoSePrimeiro);
   }, [user]);
 
   return (

@@ -24,6 +24,27 @@ async function rpcBooleana(nome: string): Promise<boolean> {
 export const plataformaBloqueada = () => rpcBooleana("plataforma_bloqueada");
 
 /**
+ * Diz ao banco em que ambiente o app está rodando.
+ *
+ * Os agendamentos do pg_cron precisam chamar as edge functions DESTA instalação.
+ * A URL não pode ser constante no SQL: função viaja no remix, e uma URL fixa
+ * faria todo cliente chamar as funções do projeto de origem. Quem sabe o
+ * endereço certo é o app, então é ele quem informa.
+ */
+export async function registrarAmbiente(): Promise<void> {
+  try {
+    const base = import.meta.env.VITE_SUPABASE_URL;
+    if (!base) return;
+    await (supabase.rpc as unknown as (fn: string, args: Record<string, string>) => PromiseLike<unknown>)(
+      "registrar_ambiente",
+      { p_functions_url: `${String(base).replace(/\/+$/, "")}/functions/v1` },
+    );
+  } catch {
+    /* higiene silenciosa: sem isto os agendamentos apenas não rodam */
+  }
+}
+
+/**
  * Consagra quem está logado como dono, se ainda não houver um.
  *
  * Existe porque gatilho em auth.users NÃO sobrevive ao remix do Lovable: as
