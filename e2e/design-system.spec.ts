@@ -751,6 +751,31 @@ test.describe("migração integral do design system", () => {
     await expect(page.getByRole("button", { name: "Pular por enquanto" })).toBeVisible();
   });
 
+  test("o wizard oferece o Stripe com os quatro campos da conta", async ({ page }) => {
+    // Regressão real: o Stripe existia no catálogo e não aparecia na tela de
+    // Integrações, que tinha uma lista escrita à mão. O admin não tinha onde
+    // colar a chave. Aqui o wizard tem que oferecer, e com os campos certos.
+    await loginWithMocks(page, { onboardingIncompleto: true });
+    for (let i = 0; i < 4; i++) await page.getByRole("button", { name: "Pular" }).click();
+    await expect(page.getByRole("heading", { name: "Configuração da plataforma" })).toBeVisible();
+
+    // O card é o menor elemento que contém ao mesmo tempo o nome e o botão.
+    const cartao = page
+      .locator("div")
+      .filter({ has: page.getByText("Stripe — cartão e repasse conciliado") })
+      .filter({ has: page.getByRole("button", { name: /Configurar|Revisar/ }) })
+      .last();
+    await expect(cartao).toBeVisible();
+    await cartao.getByRole("button", { name: /Configurar|Revisar/ }).click();
+
+    await expect(page.getByLabel("Chave secreta")).toBeVisible();
+    await expect(page.getByLabel("Chave publicável")).toBeVisible();
+    await expect(page.getByLabel("Segredo do webhook")).toBeVisible();
+    await expect(page.getByLabel("Ambiente")).toBeVisible();
+    // A secreta é segredo: vai para o cofre, não para a tabela.
+    await expect(page.getByText("Guardado no cofre cifrado do servidor")).toBeVisible();
+  });
+
   test("favoritos salvos aparecem no topo do sidebar", async ({ page }) => {
     await loginWithMocks(page);
 

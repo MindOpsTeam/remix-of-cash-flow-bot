@@ -5,7 +5,9 @@ import { Link } from "react-router-dom";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
-import { useIntegrationsStatus } from "@/hooks/useIntegrationsStatus";
+import { CATALOGO_INTEGRACOES, type CategoriaIntegracao, type Integracao } from "@/lib/integracoes-catalogo";
+import { carregarConfiguradas } from "@/lib/integracoes-io";
+import { DialogIntegracao } from "@/components/integracoes/ConfiguracaoIntegracao";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,71 +17,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
-const integrationCards = [
-  {
-    icon: Shield,
-    iconBg: "bg-primary/10",
-    iconColor: "text-primary",
-    key: "asaas" as const,
-    title: "Asaas — Empresa",
-    description: "Cobranças, transferências e notas fiscais da conta empresarial Asaas",
-    to: "/settings/integrations/asaas",
-  },
-  {
-    icon: Landmark,
-    iconBg: "bg-warning/[0.08]",
-    iconColor: "text-warning",
-    key: "inter" as const,
-    title: "Banco Inter — Empresa",
-    description: "Sincronize extrato e saldo via API oficial (OAuth2 + mTLS)",
-    to: "/settings/integrations/inter",
-  },
-  {
-    icon: PlugZap,
-    iconBg: "bg-primary/10",
-    iconColor: "text-primary",
-    key: "contaazul" as const,
-    title: "Conta Azul",
-    description: "Importe clientes, produtos e o financeiro em aberto de quem migra do Conta Azul",
-    to: "/settings/integrations/contaazul",
-  },
-  {
-    icon: FileText,
-    iconBg: "bg-success/[0.08]",
-    iconColor: "text-success",
-    key: "nfse" as const,
-    title: "NFS-e Nacional",
-    description: "Emissao de NFS-e via API ADN da Receita Federal (certificado A1)",
-    to: "/settings/integrations/nfse",
-  },
-  {
-    icon: Layers,
-    iconBg: "bg-primary/[0.08]",
-    iconColor: "text-primary",
-    key: "plugnotas" as const,
-    title: "PlugNotas",
-    description: "NFe, NFSe, NFCe, CTe e MDFe via API REST (alternativa ao NFS-e Nacional)",
-    to: "/settings/integrations/plugnotas",
-  },
-  {
-    icon: Receipt,
-    iconBg: "bg-primary/[0.08]",
-    iconColor: "text-primary",
-    key: "focus" as const,
-    title: "Focus NFe",
-    description: "NFe, NFCe, NFSe, NFSe Nacional, CTe e MDFe numa API só (com ambiente de teste)",
-    to: "/settings/integrations/focus",
-  },
-  {
-    icon: Landmark,
-    iconBg: "bg-primary/[0.08]",
-    iconColor: "text-primary",
-    key: "openfinance" as const,
-    title: "Open Finance",
-    description: "Extrato, cartão, investimentos e crédito direto do banco via Pluggy",
-    to: "/settings/integrations/openfinance",
-  },
-];
+/**
+ * Ícone por CATEGORIA, não por integração.
+ *
+ * A lista de cards deixou de ser escrita à mão: ela vem de CATALOGO_INTEGRACOES,
+ * a mesma fonte que alimenta a central de configuração e o wizard. Antes eram
+ * duas listas, e elas divergiram — o Stripe e o WhatsApp existiam no catálogo e
+ * simplesmente não apareciam aqui, sem nenhum erro que denunciasse isso.
+ */
+const ICONE_POR_CATEGORIA: Record<CategoriaIntegracao, typeof Shield> = {
+  banco: Landmark,
+  cobranca: Receipt,
+  fiscal: FileText,
+  comunicacao: PlugZap,
+  dados: Layers,
+};
+
+/** Só telas de configuração de verdade viram link; o resto abre o formulário aqui. */
+function telaDeConfiguracao(i: Integracao): string | null {
+  return i.telaDedicada?.startsWith("/settings/") ? i.telaDedicada : null;
+}
 
 interface WebhookConfig {
   id: string;
@@ -109,8 +66,22 @@ interface CostCenter { id: string; name: string }
 
 export default function IntegrationsPage() {
   const { company } = useCompany();
-  const { data: statusIntegracoes } = useIntegrationsStatus();
-  const conectados = Object.values(statusIntegracoes ?? {}).filter((s) => s.configurado).length;
+  // "Configurado" vem da MESMA função que a central de configuração usa, para os
+  // dois lugares nunca discordarem sobre o que já está ligado.
+  const [configuradas, setConfiguradas] = useState<string[]>([]);
+  const [selecionada, setSelecionada] = useState<Integracao | null>(null);
+  const conectados = configuradas.length;
+
+  useEffect(() => {
+    if (!company) return;
+    let vivo = true;
+    carregarConfiguradas(company.id).then((ids) => {
+      if (vivo) setConfiguradas(ids);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [company]);
   const [webhooks, setWebhooks] = useState<WebhookConfig[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
@@ -228,40 +199,60 @@ export default function IntegrationsPage() {
         </p>
         <p className="text-sm mt-1">
           <span className="font-medium text-foreground">{conectados}</span>
-          <span className="text-muted-foreground"> de {integrationCards.length} serviços conectados nesta empresa</span>
+          <span className="text-muted-foreground"> de {CATALOGO_INTEGRACOES.length} serviços conectados nesta empresa</span>
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          {integrationCards.map((item) => {
-            const st = statusIntegracoes?.[item.key];
-            return (
-              <Link key={item.title} to={item.to} className="block">
-                <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-card-hover transition-all cursor-pointer h-full">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-2 rounded-lg ${item.iconBg}`}>
-                      <item.icon className={`h-5 w-5 ${item.iconColor}`} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {st?.configurado ? (
-                        <Badge className="gap-1 text-[10px]">
-                          <CheckCircle2 className="h-3 w-3" />
-                          {st.detalhe ? `Conectado · ${st.detalhe}` : "Conectado"}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                          Não configurado
-                        </Badge>
-                      )}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
+          {CATALOGO_INTEGRACOES.map((item) => {
+            const Icone = ICONE_POR_CATEGORIA[item.categoria];
+            const configurada = configuradas.includes(item.id);
+            const tela = telaDeConfiguracao(item);
+
+            const corpo = (
+              <div className="bg-card border border-border rounded-lg p-5 hover:border-primary/40 hover:shadow-card-hover transition-all cursor-pointer h-full text-left w-full">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Icone className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">{item.description}</p>
+                  <div className="flex items-center gap-2">
+                    {configurada ? (
+                      <Badge className="gap-1 text-[10px]">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Conectado
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        Não configurado
+                      </Badge>
+                    )}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
                 </div>
-              </Link>
+                <h3 className="text-sm font-semibold text-foreground">{item.nome}</h3>
+                <p className="text-xs text-muted-foreground mt-1">{item.ganho}</p>
+              </div>
+            );
+
+            // Quem tem tela de configuração própria continua indo para ela; quem
+            // não tem abre o formulário do catálogo aqui mesmo, em vez de não
+            // aparecer em lugar nenhum — que era o caso do Stripe.
+            return tela ? (
+              <Link key={item.id} to={tela} className="block">{corpo}</Link>
+            ) : (
+              <button key={item.id} type="button" onClick={() => setSelecionada(item)} className="block">
+                {corpo}
+              </button>
             );
           })}
         </div>
       </div>
+
+      <DialogIntegracao
+        integracao={selecionada}
+        companyId={company?.id}
+        aberto={!!selecionada}
+        onFechar={() => setSelecionada(null)}
+        onSalvou={(id) => setConfiguradas((p) => (p.includes(id) ? p : [...p, id]))}
+      />
 
       {/* Webhooks section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">

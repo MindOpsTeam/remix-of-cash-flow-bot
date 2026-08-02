@@ -62,7 +62,7 @@ const sections = [
   {
     icon: Plug,
     title: "Integrações",
-    description: "Open Finance, emissores de nota fiscal, cobrança e banco",
+    description: "Banco, cobrança, cartão, nota fiscal e avisos — com os webhooks da empresa",
     to: "/settings/integrations",
     available: true,
   },

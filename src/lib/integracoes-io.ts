@@ -262,6 +262,12 @@ export async function carregarConfiguradas(companyId: string): Promise<string[]>
         .eq("company_id", companyId).not("client_id", "is", null).maybeSingle();
       return !!data;
     }],
+    ["stripe", async () => {
+      // A chave vive no Vault; o que a tela pode ver é o preview gravado ao salvar.
+      const { data } = await supabase.from("stripe_config").select("secret_key_preview")
+        .eq("company_id", companyId).not("secret_key_preview", "is", null).maybeSingle();
+      return !!data;
+    }],
     ["whatsapp", async () => {
       const { data } = await supabase.from("whatsapp_configs").select("evolution_api_url")
         .eq("company_id", companyId).not("evolution_api_url", "is", null).maybeSingle();
@@ -297,6 +303,19 @@ export async function carregarConfiguradas(companyId: string): Promise<string[]>
     })
     .map(([id]) => id);
 }
+
+/**
+ * Ids que esta função sabe detectar como "já configurado".
+ *
+ * Existe para o teste travar o drift que já aconteceu: o Stripe entrou no
+ * catálogo e ninguém acrescentou a checagem aqui, então ele apareceria como
+ * "não configurado" para sempre, mesmo depois de salvo — e o progresso da
+ * plataforma nunca chegaria a 100%.
+ */
+export const IDS_COM_DETECCAO = [
+  "openfinance", "asaas", "inter", "stripe", "whatsapp",
+  "contaazul", "plugnotas", "focus", "nfse",
+] as const;
 
 /** Lê o arquivo e devolve só o base64 (sem o prefixo data:...). */
 export function arquivoParaBase64(file: File): Promise<string> {

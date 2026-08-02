@@ -3,6 +3,7 @@ import {
   CATALOGO_INTEGRACOES, INTEGRACAO_POR_ID, integracoesPorCategoria,
   camposFaltando, progressoConfiguracao,
 } from "@/lib/integracoes-catalogo";
+import { IDS_COM_DETECCAO } from "@/lib/integracoes-io";
 
 describe("catálogo de integrações", () => {
   it("todo item tem guia com passos, custo e ganho declarados", () => {
@@ -67,5 +68,23 @@ describe("progressoConfiguracao", () => {
 
   it("ignora id desconhecido", () => {
     expect(progressoConfiguracao(["inexistente"]).feitas).toBe(0);
+  });
+});
+
+describe("catálogo e detecção andam juntos", () => {
+  it("toda integração do catálogo sabe ser detectada como configurada", () => {
+    // Drift real que já aconteceu: o Stripe entrou no catálogo e a detecção não
+    // soube dele — ficaria "não configurado" para sempre e o progresso da
+    // plataforma nunca fecharia em 100%.
+    const semDeteccao = CATALOGO_INTEGRACOES
+      .map((i) => i.id)
+      .filter((id) => !(IDS_COM_DETECCAO as readonly string[]).includes(id));
+    expect(semDeteccao).toEqual([]);
+  });
+
+  it("não existe detecção órfã, apontando para integração que saiu do catálogo", () => {
+    const ids = CATALOGO_INTEGRACOES.map((i) => i.id);
+    const orfas = (IDS_COM_DETECCAO as readonly string[]).filter((id) => !ids.includes(id));
+    expect(orfas).toEqual([]);
   });
 });
