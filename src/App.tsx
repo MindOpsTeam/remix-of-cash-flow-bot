@@ -92,13 +92,8 @@ function PageLoader() {
   );
 }
 
-// Bypass temporário de login para testes de UI. Trocar para false para voltar
-// a exigir autenticação. Atenção: sem sessão, o banco (RLS) não devolve dados.
-const BYPASS_LOGIN = true;
-
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
-  if (BYPASS_LOGIN) return <>{children}</>;
   if (loading) {
     return <PageLoader />;
   }
@@ -127,19 +122,7 @@ const P = ({ children }: { children: ReactNode }) => (
 const AppRoutes = () => (
   <Suspense fallback={<PageLoader />}>
     <Routes>
-      <Route
-        path="/"
-        element={
-          BYPASS_LOGIN ? (
-            <Navigate to="/dashboard" replace />
-          ) : (
-            <PublicRoute>
-              <Auth />
-            </PublicRoute>
-          )
-        }
-      />
-
+      <Route path="/" element={<PublicRoute><Auth /></PublicRoute>} />
       <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
 
       {/* Proposta que o cliente abre: pública de propósito, o token da URL é a
