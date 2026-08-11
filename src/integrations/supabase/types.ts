@@ -2670,6 +2670,64 @@ export type Database = {
           },
         ]
       }
+      invoice_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          product_id: string | null
+          quantity: number
+          sort_order: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          product_id?: string | null
+          quantity?: number
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          product_id?: string | null
+          quantity?: number
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_produtos_pendencia_fiscal"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           access_key: string | null
@@ -3542,11 +3600,15 @@ export type Database = {
         Row: {
           account_id: string | null
           active: boolean
+          aliquota_iss: number | null
           average_cost: number | null
           barcode: string | null
           category: string | null
           cclasstrib: string | null
           cfop: string | null
+          cnae: string | null
+          codigo_servico_municipal: string | null
+          codigo_trib_nac: string | null
           company_id: string
           cost_price: number | null
           created_at: string
@@ -3557,8 +3619,10 @@ export type Database = {
           fiscal_confirmado_por: string | null
           fiscal_origem: string | null
           id: string
+          item_lista_servico: string | null
           min_stock: number | null
           name: string
+          nbs: string | null
           ncm: string | null
           sell_price: number
           sku: string | null
@@ -3571,11 +3635,15 @@ export type Database = {
         Insert: {
           account_id?: string | null
           active?: boolean
+          aliquota_iss?: number | null
           average_cost?: number | null
           barcode?: string | null
           category?: string | null
           cclasstrib?: string | null
           cfop?: string | null
+          cnae?: string | null
+          codigo_servico_municipal?: string | null
+          codigo_trib_nac?: string | null
           company_id: string
           cost_price?: number | null
           created_at?: string
@@ -3586,8 +3654,10 @@ export type Database = {
           fiscal_confirmado_por?: string | null
           fiscal_origem?: string | null
           id?: string
+          item_lista_servico?: string | null
           min_stock?: number | null
           name: string
+          nbs?: string | null
           ncm?: string | null
           sell_price?: number
           sku?: string | null
@@ -3600,11 +3670,15 @@ export type Database = {
         Update: {
           account_id?: string | null
           active?: boolean
+          aliquota_iss?: number | null
           average_cost?: number | null
           barcode?: string | null
           category?: string | null
           cclasstrib?: string | null
           cfop?: string | null
+          cnae?: string | null
+          codigo_servico_municipal?: string | null
+          codigo_trib_nac?: string | null
           company_id?: string
           cost_price?: number | null
           created_at?: string
@@ -3615,8 +3689,10 @@ export type Database = {
           fiscal_confirmado_por?: string | null
           fiscal_origem?: string | null
           id?: string
+          item_lista_servico?: string | null
           min_stock?: number | null
           name?: string
+          nbs?: string | null
           ncm?: string | null
           sell_price?: number
           sku?: string | null
