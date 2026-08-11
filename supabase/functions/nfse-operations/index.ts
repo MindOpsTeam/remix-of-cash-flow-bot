@@ -18,7 +18,6 @@ const VALID_OPERATIONS = [
   "status",          // Check ambiente + cert validity
   "parse_cert",      // Parse PFX, extract CNPJ/razão social/expiry, save to DB
   "validar_dps",     // Validate DPS locally
-  "emitir",          // Emit NFS-e
   "cancelar",        // Cancel NFS-e
   "consultar_chave", // Query by access key
   "parametros_municipio", // Municipal parameters
@@ -159,10 +158,6 @@ Deno.serve(async (req) => {
 
       case "validar_dps":
         result = validarDpsLocal(nfseConfig, params || {});
-        break;
-
-      case "emitir":
-        result = await emitirNfse(supabase, nfseConfig, params || {});
         break;
 
       case "cancelar":
@@ -323,55 +318,10 @@ function validarDpsLocal(
   return { valida: erros.length === 0, erros, avisos };
 }
 
-async function emitirNfse(
-  supabase: ClienteParaConfigNfse,
-  config: NfseConfig,
-  params: Record<string, unknown>,
-): Promise<unknown> {
-  // Validate first
-  const validation = validarDpsLocal(config, params);
-  if (!validation.valida) {
-    return { emitida: false, erros: validation.erros, avisos: validation.avisos };
-  }
-
-  // Increment proximo_numero_dps atomically
-  const numeroDps = String(config.proximo_numero_dps);
-
-  // Note: actual emission requires mTLS with the ADN, which Deno Deploy
-  // supports via Deno.connectTls. For now, we prepare the payload and
-  // increment the counter. Full mTLS integration pending.
-  const { error: updateError } = await supabase
-    .from("nfse_config")
-    .update({
-      proximo_numero_dps: config.proximo_numero_dps + 1,
-      last_emission_at: new Date().toISOString(),
-    })
-    .eq("id", config.id);
-
-  if (updateError) {
-    throw new Error(`Erro ao atualizar numeração: ${updateError.message}`);
-  }
-
-  return {
-    emitida: false,
-    pendente: true,
-    mensagem: "DPS validada com sucesso. Emissão via mTLS requer o MCP server nfse-nacional.",
-    numeroDpsReservado: numeroDps,
-    proximoNumeroDps: config.proximo_numero_dps + 1,
-    dpsPayload: {
-      cnpjPrestador: params.cnpjPrestador || config.cert_cnpj,
-      codigoMunicipio: params.codigoMunicipio || config.codigo_municipio,
-      competencia: params.competencia,
-      serieDps: params.serieDps || config.serie_dps,
-      numeroDps,
-      servico: params.servico,
-      tomador: params.tomador,
-      valores: params.valores,
-      observacoes: params.observacoes,
-    },
-    avisos: validation.avisos,
-  };
-}
+// A emissão real acontece SÓ pela edge `nfse-proxy` (→ worker mTLS → SEFIN),
+// com reserva atômica de número e idempotência. O antigo `emitir` daqui era um
+// stub que não emitia e ainda incrementava o número de forma não-atômica
+// (condição de corrida), então foi removido para não existir uma segunda via.
 
 // ── Helpers ──
 

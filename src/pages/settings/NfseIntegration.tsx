@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
+import NfseSetupWizard from "./NfseSetupWizard";
 
 interface NfseConfig {
   id?: string;
@@ -69,6 +70,8 @@ export default function NfseIntegration() {
 
   const [form, setForm] = useState<NfseConfig>(emptyConfig);
   const [showPassword, setShowPassword] = useState(false);
+  // Assistente guiado por padrão enquanto a instalação não foi concluída.
+  const [showWizard, setShowWizard] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "ok" | "error">("idle");
@@ -305,7 +308,15 @@ export default function NfseIntegration() {
         </a>
       </div>
 
+      {showWizard ? (
+        <div className="max-w-2xl">
+          <button type="button" onClick={() => setShowWizard(false)} className="text-xs text-muted-foreground hover:text-primary mb-3 underline underline-offset-2">Prefiro a configuracao avancada</button>
+          <NfseSetupWizard onFinish={() => setShowWizard(false)} />
+        </div>
+      ) : (
       <div className="max-w-2xl space-y-6">
+
+        <button type="button" onClick={() => setShowWizard(true)} className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2">Voltar ao assistente guiado</button>
 
         {/* Status cards */}
         {existingConfig && (
@@ -722,6 +733,7 @@ export default function NfseIntegration() {
         </section>
 
       </div>
+      )}
     </AppLayout>
   );
 }

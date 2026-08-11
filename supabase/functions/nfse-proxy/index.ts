@@ -90,7 +90,27 @@ Deno.serve(async (req) => {
     let workerPath = "/health";
     let workerBody: Record<string, unknown> = {};
 
+    // Chave de idempotência: o app pode mandar a sua; senão compomos uma
+    // determinística. Antes de reservar número e transmitir, checamos se já
+    // existe uma nota com essa chave — evita nota duplicada em retry/timeout.
+    const idempotencyKey = (body.idempotencyKey as string | undefined)?.trim() ||
+      [companyId, data?.competencia ?? "", (body.salesOrderId as string | undefined) ?? "",
+       String((data?.valores as any)?.valorServicos ?? "")].join(":");
+
     if (operation === "emit") {
+      const { data: jaEmitida } = await supabase
+        .from("invoices")
+        .select("id, number, chave_acesso, status, nfse_xml")
+        .eq("company_id", companyId)
+        .eq("idempotency_key", idempotencyKey)
+        .maybeSingle();
+      if (jaEmitida) {
+        return new Response(
+          JSON.stringify({ success: true, duplicated: true, ...jaEmitida }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
       // Reserva atômica do número da DPS. A função é SECURITY DEFINER e NÃO
       // valida dono, por isso não é executável pelo papel `authenticated`; a
       // membresia já foi provada acima, ao carregar nfse_config sob RLS.
@@ -128,7 +148,8 @@ Deno.serve(async (req) => {
         tomador: data?.tomador,
         valores: data?.valores,
         observacoes: data?.observacoes,
-        optanteSimplesNacional: false,
+        // Regime real da empresa (antes ia `false` cravado → ISS errado p/ Simples).
+        optanteSimplesNacional: config.optante_simples ?? true,
       };
     } else if (operation === "status") {
       workerPath = "/status";
@@ -198,7 +219,13 @@ Deno.serve(async (req) => {
         // conseguia responder "esta nota é de quem?".
         contact_id: (body.contactId as string | undefined) ?? null,
         sales_order_id: (body.salesOrderId as string | undefined) ?? null,
-        xml_content: JSON.stringify(workerData),
+        // Documentos fiscais dedicados (guarda de 5 anos), não só o dump JSON.
+        chave_acesso: workerData.chaveAcesso ?? null,
+        dps_xml: workerData.dpsXml ?? null,
+        nfse_xml: workerData.nfseXml ?? null,
+        sefin_ambiente: workerData.ambiente ?? config.ambiente,
+        idempotency_key: idempotencyKey,
+        xml_content: workerData.nfseXml ?? JSON.stringify(workerData),
       });
     }
 
