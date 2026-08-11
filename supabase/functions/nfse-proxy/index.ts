@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
         .update({ last_emission_at: new Date().toISOString() })
         .eq("id", config.id);
 
-      await supabase.from("invoices").insert({
+      const { data: invRow } = await supabase.from("invoices").insert({
         company_id: companyId,
         type: "nfse",
         status: "authorized",
@@ -226,7 +226,20 @@ Deno.serve(async (req) => {
         sefin_ambiente: workerData.ambiente ?? config.ambiente,
         idempotency_key: idempotencyKey,
         xml_content: workerData.nfseXml ?? JSON.stringify(workerData),
-      });
+      }).select("id").single();
+
+      // Item da nota (NFS-e = 1 serviço), ligando a nota ao catálogo/venda.
+      if (invRow?.id) {
+        const valorServ = Number((data?.valores as { valorServicos?: number } | undefined)?.valorServicos) || 0;
+        await supabase.from("invoice_items").insert({
+          invoice_id: invRow.id,
+          product_id: (body.productId as string | undefined) ?? null,
+          description: (data?.servico as { descricao?: string } | undefined)?.descricao ?? "Serviço",
+          quantity: 1,
+          unit_price: valorServ,
+          total: valorServ,
+        });
+      }
     }
 
     return new Response(JSON.stringify(workerData), {

@@ -80,24 +80,25 @@ flowchart LR
 cClassTrib, ISS) vivem no mesmo cadastro, então o mesmo item serve emissão de serviço
 (NFS-e) e de produto (NF-e/NFC-e).
 
-## Pontos de atenção (encadeados pelo app, não por trigger)
+## Achados e o que foi implementado (2026-08-11)
 
-1. **Nota → contas a receber não é automático.** A estrutura existe (`receivables.invoice_id`,
-   `sales_order_id`, `transaction_id`), mas não há trigger que crie o recebível ao emitir a nota;
-   hoje o `nfse-proxy` grava a `invoice` e a guia (via trigger), porém **não cria/vincula o
-   recebível**. Decisão a alinhar: a NFS-e emitida deve abrir a conta a receber, ou o recebível
-   nasce do pedido/contrato? Recomendação: gerar o recebível ligado à nota (idempotente por
-   `invoice_id`) para não duplicar quando já houver um do pedido.
-2. **Nota sem tabela de itens.** Não existe `invoice_items` ligando a nota aos produtos; o rastreio
-   produto↔nota é indireto (via `sales_order_id` → `sales_order_items`). Para NFS-e (um serviço) é
-   suficiente; para NF-e multi-item, considerar itens estruturados no futuro.
-3. **Baixa de estoque sem FK ao pedido.** `stock_movements` liga a `products`/`warehouses`, e a
-   baixa é disparada pelo trigger do pedido, mas não guarda `sales_order_id` como chave. Rastreio da
-   origem da movimentação fica pelo histórico, não por FK.
+1. **Nota → contas a receber agora é automático.** Trigger `trg_receivable_from_invoice`
+   (`AFTER INSERT OR UPDATE OF status ON invoices`): ao autorizar a nota, abre o recebível ligado
+   por `invoice_id`, de forma **idempotente** — não duplica se já existir, e **vincula** o recebível
+   do pedido (quando a nota nasce de um `sales_order` que já tinha recebível). `source = 'nota_fiscal'`.
+   Validado: nota de teste gerou 1 recebível ligado, e o re-disparo não duplicou.
+2. **Itens da nota: tabela `invoice_items`** criada (FK para `invoices` e `products`, RLS espelhando
+   `sales_order_items`). O `nfse-proxy` passou a gravar o item do serviço ao emitir. Fecha o rastreio
+   produto/serviço ↔ nota de forma estruturada.
+3. **Baixa de estoque × pedido: já estava resolvido por design.** O trigger de estoque grava
+   `stock_movements.reference_type = 'sales_order'` e `reference_id = <pedido>` (referência
+   polimórfica, o mesmo campo cobre pedido, cancelamento e ajuste). O rastreio da origem existe; uma
+   FK formal quebraria o polimorfismo, então foi mantido como está.
 
 ## Conclusão
 
-O medo de "tabelas que não se conversam" não se confirma no caminho crítico: o núcleo é
-compartilhado, a nota fiscal está encadeada com cliente, pedido, recebível, guia e provedor, e há
-automação real entre comercial, fiscal, financeiro e contábil. Os três pontos acima são
-oportunidades de reforço (principalmente o nº 1, nota → recebível), não rupturas.
+O medo de "tabelas que não se conversam" não se confirma: o núcleo é compartilhado, a nota fiscal
+está encadeada com cliente, pedido, recebível, itens, guia e provedor, e há automação real entre
+comercial, fiscal, financeiro, estoque e contábil. Os três achados foram fechados: nota gera
+recebível (novo trigger), nota tem itens (nova tabela), e a origem do pedido na baixa de estoque já
+era rastreada por design.
