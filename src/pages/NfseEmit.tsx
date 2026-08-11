@@ -170,6 +170,35 @@ export default function NfseEmitPage() {
     }
   };
 
+  // Serviços cadastrados (Produtos e Serviços, tipo Serviço) para preencher a emissão.
+  const { data: servicos = [] } = useQuery({
+    queryKey: ["servicos-nfse", company?.id],
+    enabled: !!company,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("products")
+        .select("id, name, description, codigo_trib_nac, sell_price")
+        .eq("company_id", company!.id)
+        .eq("type", "service")
+        .eq("active", true)
+        .order("name");
+      return data || [];
+    },
+  });
+
+  const handleServicoSelect = (id: string) => {
+    const s = (servicos as any[]).find((x) => x.id === id);
+    if (!s) return;
+    setForm((f) => ({
+      ...f,
+      codigoServico: s.codigo_trib_nac || f.codigoServico,
+      descricao: s.description || s.name || f.descricao,
+      valorServicos: s.sell_price != null
+        ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2 }).format(Number(s.sell_price))
+        : f.valorServicos,
+    }));
+  };
+
   const handleEmit = async () => {
     if (!form.tomadorCpfCnpj || !form.codigoServico || !form.valorServicos || !form.descricao) {
       toast.error("Preencha todos os campos obrigatorios");
@@ -450,6 +479,24 @@ export default function NfseEmitPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {servicos.length > 0 && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Servico cadastrado</Label>
+                    <Select onValueChange={handleServicoSelect}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Escolher um servico do catalogo..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(servicos as any[]).map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}{s.codigo_trib_nac ? ` (${s.codigo_trib_nac})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Preenche codigo, descricao e valor. Cadastre em Produtos e Servicos.</p>
+                  </div>
+                )}
                 <div>
                   <Label className="text-xs text-muted-foreground">Codigo de Tributacao Nacional *</Label>
                   <Select value={form.codigoServico} onValueChange={(v) => set("codigoServico", v)}>
@@ -457,6 +504,9 @@ export default function NfseEmitPage() {
                       <SelectValue placeholder="Selecione o codigo do servico..." />
                     </SelectTrigger>
                     <SelectContent>
+                      {form.codigoServico && !serviceCodes.some((s) => s.code === form.codigoServico) && (
+                        <SelectItem value={form.codigoServico}>{form.codigoServico} (do servico cadastrado)</SelectItem>
+                      )}
                       {serviceCodes.map((s) => (
                         <SelectItem key={s.code} value={s.code}>
                           {s.label}

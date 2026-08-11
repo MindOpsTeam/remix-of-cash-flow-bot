@@ -69,6 +69,12 @@ const emptyForm = {
   cclasstrib: "",
   cfop: "",
   tax_origin: "",
+  // Fiscais de serviço (NFS-e)
+  codigo_trib_nac: "",
+  codigo_servico_municipal: "",
+  nbs: "",
+  aliquota_iss: "",
+  cnae: "",
   account_id: "",
   track_stock: false,
   min_stock: "",
@@ -119,7 +125,7 @@ export default function ProductsPage() {
       const to = from + PAGE_SIZE - 1;
       let query = supabase
         .from("products")
-        .select("id, name, description, type, sku, barcode, ncm, cclasstrib, cfop, tax_origin, account_id, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
+        .select("id, name, description, type, sku, barcode, ncm, cclasstrib, cfop, tax_origin, codigo_trib_nac, codigo_servico_municipal, nbs, aliquota_iss, cnae, account_id, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
         .eq("company_id", company.id)
         .eq("active", true);
 
@@ -156,6 +162,11 @@ export default function ProductsPage() {
         cclasstrib: form.cclasstrib.trim() || null,
         cfop: form.cfop.trim() || null,
         tax_origin: form.tax_origin.trim() || null,
+        codigo_trib_nac: form.codigo_trib_nac.trim() || null,
+        codigo_servico_municipal: form.codigo_servico_municipal.trim() || null,
+        nbs: form.nbs.trim() || null,
+        aliquota_iss: form.aliquota_iss ? parseFloat(String(form.aliquota_iss).replace(",", ".")) : null,
+        cnae: form.cnae.trim() || null,
         // A conta contábil do produto existia no banco desde sempre e a tela
         // nunca a expôs: 22 de 22 produtos estavam sem ela. É o que faz a venda
         // nascer classificada em vez de cair no balaio "a classificar" do DRE.
@@ -219,6 +230,11 @@ export default function ProductsPage() {
       cclasstrib: p.cclasstrib || "",
       cfop: p.cfop || "",
       tax_origin: p.tax_origin || "",
+      codigo_trib_nac: p.codigo_trib_nac || "",
+      codigo_servico_municipal: p.codigo_servico_municipal || "",
+      nbs: p.nbs || "",
+      aliquota_iss: p.aliquota_iss != null ? String(p.aliquota_iss) : "",
+      cnae: p.cnae || "",
       account_id: p.account_id || "",
       track_stock: p.track_stock,
       min_stock: p.min_stock != null ? String(p.min_stock) : "",
@@ -475,6 +491,35 @@ export default function ProductsPage() {
                 </p>
               </div>
             </div>
+
+            {form.type === "service" && (
+              <div className="space-y-3 pt-2 border-t border-border">
+                <p className="text-sm font-medium">Dados fiscais do serviço (NFS-e)</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Código de tributação nacional *</Label>
+                    <Input className="mt-1 font-mono" value={form.codigo_trib_nac} onChange={(e) => set("codigo_trib_nac", e.target.value.replace(/[^\d.]/g, ""))} placeholder="01.07.01" />
+                    <p className="mt-1 text-[11px] text-muted-foreground">Puxado na emissão da NFS-e (cTribNac).</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Alíquota ISS (%)</Label>
+                    <Input className="mt-1 font-mono" value={form.aliquota_iss} onChange={(e) => set("aliquota_iss", e.target.value.replace(/[^\d.,]/g, ""))} placeholder="5" inputMode="decimal" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Código de serviço municipal</Label>
+                    <Input className="mt-1 font-mono" value={form.codigo_servico_municipal} onChange={(e) => set("codigo_servico_municipal", e.target.value)} placeholder="opcional" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">NBS</Label>
+                    <Input className="mt-1 font-mono" value={form.nbs} onChange={(e) => set("nbs", e.target.value)} placeholder="opcional" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">CNAE</Label>
+                    <Input className="mt-1 font-mono" value={form.cnae} onChange={(e) => set("cnae", e.target.value.replace(/\D/g, "").slice(0, 7))} placeholder="0000000" />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {form.type === "product" && (
               <div className="space-y-3 pt-2 border-t border-border">
