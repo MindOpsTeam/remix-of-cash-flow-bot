@@ -26,6 +26,13 @@ export interface ProductOption {
   cfop: string | null;
   tax_origin: string | null;
   cclasstrib: string | null;
+  // Fiscais de serviço (NFS-e)
+  codigo_trib_nac: string | null;
+  codigo_servico_municipal: string | null;
+  item_lista_servico: string | null;
+  aliquota_iss: number | null;
+  nbs: string | null;
+  cnae: string | null;
 }
 
 interface Props {
@@ -44,7 +51,7 @@ export function ProductPicker({ productType = "any", onSelect, placeholder = "Se
     queryFn: async () => {
       let q = (supabase as any)
         .from("products")
-        .select("id, name, description, type, sku, unit, sell_price, ncm, cfop, tax_origin, cclasstrib, active")
+        .select("id, name, description, type, sku, unit, sell_price, ncm, cfop, tax_origin, cclasstrib, codigo_trib_nac, codigo_servico_municipal, item_lista_servico, aliquota_iss, nbs, cnae, active")
         .eq("company_id", company!.id)
         .eq("active", true)
         .order("name")

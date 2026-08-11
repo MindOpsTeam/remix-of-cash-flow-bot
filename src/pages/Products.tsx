@@ -72,6 +72,7 @@ const emptyForm = {
   // Fiscais de serviço (NFS-e)
   codigo_trib_nac: "",
   codigo_servico_municipal: "",
+  item_lista_servico: "",
   nbs: "",
   aliquota_iss: "",
   cnae: "",
@@ -125,7 +126,7 @@ export default function ProductsPage() {
       const to = from + PAGE_SIZE - 1;
       let query = supabase
         .from("products")
-        .select("id, name, description, type, sku, barcode, ncm, cclasstrib, cfop, tax_origin, codigo_trib_nac, codigo_servico_municipal, nbs, aliquota_iss, cnae, account_id, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
+        .select("id, name, description, type, sku, barcode, ncm, cclasstrib, cfop, tax_origin, codigo_trib_nac, codigo_servico_municipal, item_lista_servico, nbs, aliquota_iss, cnae, account_id, unit, sell_price, cost_price, track_stock, current_stock, min_stock, category, active", { count: "exact" })
         .eq("company_id", company.id)
         .eq("active", true);
 
@@ -164,6 +165,7 @@ export default function ProductsPage() {
         tax_origin: form.tax_origin.trim() || null,
         codigo_trib_nac: form.codigo_trib_nac.trim() || null,
         codigo_servico_municipal: form.codigo_servico_municipal.trim() || null,
+        item_lista_servico: form.item_lista_servico.trim() || null,
         nbs: form.nbs.trim() || null,
         aliquota_iss: form.aliquota_iss ? parseFloat(String(form.aliquota_iss).replace(",", ".")) : null,
         cnae: form.cnae.trim() || null,
@@ -232,6 +234,7 @@ export default function ProductsPage() {
       tax_origin: p.tax_origin || "",
       codigo_trib_nac: p.codigo_trib_nac || "",
       codigo_servico_municipal: p.codigo_servico_municipal || "",
+      item_lista_servico: p.item_lista_servico || "",
       nbs: p.nbs || "",
       aliquota_iss: p.aliquota_iss != null ? String(p.aliquota_iss) : "",
       cnae: p.cnae || "",
@@ -508,6 +511,11 @@ export default function ProductsPage() {
                   <div>
                     <Label className="text-xs">Código de serviço municipal</Label>
                     <Input className="mt-1 font-mono" value={form.codigo_servico_municipal} onChange={(e) => set("codigo_servico_municipal", e.target.value)} placeholder="opcional" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Item da lista LC 116</Label>
+                    <Input className="mt-1 font-mono" value={form.item_lista_servico} onChange={(e) => set("item_lista_servico", e.target.value)} placeholder="ex.: 1.07" />
+                    <p className="mt-1 text-[11px] text-muted-foreground">Exigido por PlugNotas e Focus.</p>
                   </div>
                   <div>
                     <Label className="text-xs">NBS</Label>

@@ -202,6 +202,9 @@ export function NfseForm({ prestadorCnpj, inscricaoMunicipalDefault }: Props) {
               onSelect={(p) => {
                 setDiscriminacao(p.description ?? p.name);
                 if (p.sell_price) setValor(p.sell_price.toFixed(2).replace(".", ","));
+                if (p.codigo_servico_municipal) setCodigoServico(p.codigo_servico_municipal);
+                if (p.item_lista_servico) setItemListaServico(p.item_lista_servico);
+                if (p.aliquota_iss != null) setAliquotaIss(String(p.aliquota_iss).replace(".", ","));
               }}
             />
           </div>

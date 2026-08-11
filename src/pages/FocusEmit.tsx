@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 import { montarGrupoIbsCbsFocus, regimeDestacaEm, CCLASS_TRIB_PADRAO } from "@/lib/reforma";
+import { ProductPicker } from "@/components/plugnotas/ProductPicker";
 
 interface FocusCfg {
   environment: "homologacao" | "producao";
@@ -209,6 +210,19 @@ export default function FocusEmit() {
 
         <section className="rounded-lg border p-5 space-y-4">
           <h2 className="font-medium">Serviço</h2>
+          <div className="space-y-1.5">
+            <Label>Carregar de serviço cadastrado</Label>
+            <ProductPicker
+              productType="service"
+              placeholder="Buscar serviço cadastrado..."
+              onSelect={(p) => {
+                setDescricao(p.description ?? p.name);
+                if (p.sell_price) setValor(p.sell_price.toFixed(2).replace(".", ","));
+                if (p.item_lista_servico) setItemLista(p.item_lista_servico);
+                if (p.aliquota_iss != null) setAliquota(String(p.aliquota_iss).replace(".", ","));
+              }}
+            />
+          </div>
           <div className="space-y-1.5">
             <Label>Discriminação</Label>
             <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={3}
