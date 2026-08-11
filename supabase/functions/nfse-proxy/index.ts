@@ -1,7 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 
-const WORKER_URL = Deno.env.get("NFSE_WORKER_URL") || "http://localhost:3000";
-const WORKER_KEY = Deno.env.get("NFSE_WORKER_API_KEY") || "";
+// Fallback global (modelo antigo, single-tenant). No modelo de remix distribuído,
+// cada EMPRESA aponta para o SEU worker via nfse_config.worker_url / worker_api_key
+// (preenchidos na tela de Integrações). O env só entra se a config não trouxer nada,
+// mantendo compatibilidade com instalações que ainda usam um worker único.
+const WORKER_URL_ENV = Deno.env.get("NFSE_WORKER_URL") || "";
+const WORKER_KEY_ENV = Deno.env.get("NFSE_WORKER_API_KEY") || "";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,6 +70,20 @@ Deno.serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Resolve o worker DESTA empresa (multi-tenant): config primeiro, env como fallback.
+    // Cada remix roda o próprio worker — o certificado nunca sai do ambiente do cliente.
+    const workerUrl = (config.worker_url?.trim() || WORKER_URL_ENV).replace(/\/+$/, "");
+    const workerKey = config.worker_api_key?.trim() || WORKER_KEY_ENV;
+    if (!workerUrl) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Servidor de emissao nao configurado. Em Configuracoes > NFS-e, informe a URL do seu worker (via 'servidor proprio') ou use a via provedor.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // Route to worker
@@ -141,11 +159,11 @@ Deno.serve(async (req) => {
 
     let workerRes: Response;
     try {
-      workerRes = await fetch(`${WORKER_URL}${workerPath}`, {
+      workerRes = await fetch(`${workerUrl}${workerPath}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-API-Key": WORKER_KEY,
+          "X-API-Key": workerKey,
         },
         body: JSON.stringify(workerBody),
         signal: controller.signal,

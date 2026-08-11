@@ -2,6 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import {
   ArrowLeft, Save, Plug, CheckCircle2, XCircle, Upload,
   FileCheck, Eye, EyeOff, ExternalLink, FileText, ShieldCheck,
+  ServerCog, Cloud, Rocket,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
@@ -30,10 +31,16 @@ interface NfseConfig {
   codigo_municipio: string;
   inscricao_municipal: string;
   active: boolean;
+  nfse_via: "worker_proprio" | "provedor";
+  worker_url: string;
+  worker_api_key: string;
   last_test_at: string | null;
   last_test_status: string | null;
   last_emission_at: string | null;
 }
+
+// Repo público do worker + botão de deploy 1-clique (ver README do repo).
+const WORKER_REPO_URL = "https://github.com/MindOpsTeam/nfse-worker";
 
 const emptyConfig: NfseConfig = {
   cert_pfx_base64: "",
@@ -47,6 +54,9 @@ const emptyConfig: NfseConfig = {
   codigo_municipio: "",
   inscricao_municipal: "",
   active: true,
+  nfse_via: "worker_proprio",
+  worker_url: "",
+  worker_api_key: "",
   last_test_at: null,
   last_test_status: null,
   last_emission_at: null,
@@ -63,6 +73,8 @@ export default function NfseIntegration() {
   const [testing, setTesting] = useState(false);
   const [testStatus, setTestStatus] = useState<"idle" | "ok" | "error">("idle");
   const [testMsg, setTestMsg] = useState("");
+  const [workerTesting, setWorkerTesting] = useState(false);
+  const [workerTest, setWorkerTest] = useState<{ status: "idle" | "ok" | "error"; msg: string }>({ status: "idle", msg: "" });
   const [pfxFileName, setPfxFileName] = useState<string | null>(null);
   const pfxInputRef = useRef<HTMLInputElement>(null);
 
@@ -95,6 +107,9 @@ export default function NfseIntegration() {
         codigo_municipio: existingConfig.codigo_municipio ?? "",
         inscricao_municipal: existingConfig.inscricao_municipal ?? "",
         active: existingConfig.active,
+        nfse_via: (existingConfig.nfse_via as "worker_proprio" | "provedor") ?? "worker_proprio",
+        worker_url: existingConfig.worker_url ?? "",
+        worker_api_key: existingConfig.worker_api_key ?? "",
         last_test_at: existingConfig.last_test_at,
         last_test_status: existingConfig.last_test_status,
         last_emission_at: existingConfig.last_emission_at,
@@ -141,6 +156,9 @@ export default function NfseIntegration() {
       codigo_municipio: form.codigo_municipio || null,
       inscricao_municipal: form.inscricao_municipal || null,
       active: form.active,
+      nfse_via: form.nfse_via,
+      worker_url: form.worker_url.trim() || null,
+      worker_api_key: form.worker_api_key.trim() || null,
     };
 
     let error;
@@ -215,6 +233,36 @@ export default function NfseIntegration() {
       setTestMsg(e instanceof Error ? e.message : String(e));
     } finally {
       setTesting(false);
+    }
+  };
+
+  const testWorker = async () => {
+    const url = form.worker_url.trim().replace(/\/+$/, "");
+    if (!url) {
+      setWorkerTest({ status: "error", msg: "Informe a URL do seu worker." });
+      return;
+    }
+    setWorkerTesting(true);
+    setWorkerTest({ status: "idle", msg: "" });
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 12000);
+      // /health é público e libera CORS — testa só se o servidor está de pé.
+      const res = await fetch(`${url}/health`, { signal: ctrl.signal });
+      clearTimeout(t);
+      const body = await res.json().catch(() => ({}));
+      if (res.ok && body?.status === "ok") {
+        setWorkerTest({ status: "ok", msg: `Servidor no ar (v${body.version ?? "?"}). Agora salve e use "Testar conexao" para validar o certificado.` });
+      } else {
+        setWorkerTest({ status: "error", msg: `Respondeu HTTP ${res.status}. Confirme a URL (deve terminar em .up.railway.app, sem barra final).` });
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error && e.name === "AbortError"
+        ? "Sem resposta em 12s. O worker pode estar dormindo/fora do ar ou a URL esta errada."
+        : "Nao foi possivel alcancar o worker. Confira a URL e se o deploy esta ativo.";
+      setWorkerTest({ status: "error", msg });
+    } finally {
+      setWorkerTesting(false);
     }
   };
 
@@ -329,6 +377,114 @@ export default function NfseIntegration() {
 }`}</pre>
           </div>
         </div>
+
+        {/* Servidor de emissão — escolha da via */}
+        <section>
+          <h2 className="text-sm font-semibold text-foreground mb-1">Servidor de emissao</h2>
+          <p className="text-xs text-muted-foreground mb-3">
+            Escolha como suas notas sao transmitidas ao Ambiente Nacional.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => set("nfse_via", "worker_proprio")}
+              className={`text-left rounded-lg border p-4 transition-colors ${
+                form.nfse_via === "worker_proprio"
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  : "border-border hover:border-primary/40"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <ServerCog className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">Servidor proprio</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Voce hospeda um worker (~US$5/mes). <strong>Notas ilimitadas, sem custo por nota.</strong> Deploy em 1 clique.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => set("nfse_via", "provedor")}
+              className={`text-left rounded-lg border p-4 transition-colors ${
+                form.nfse_via === "provedor"
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/30"
+                  : "border-border hover:border-primary/40"
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Cloud className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">Provedor (SaaS)</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Sem servidor pra manter. Emissao via provedor, <strong>pago por nota</strong>. Ideal pra baixo volume.
+              </p>
+            </button>
+          </div>
+
+          {form.nfse_via === "worker_proprio" ? (
+            <div className="bg-card border border-border rounded-lg divide-y divide-border">
+              <div className="p-4 space-y-2">
+                <p className="text-xs text-foreground">
+                  <strong>1.</strong> Publique o seu worker (uma vez). Ele gera a chave sozinho; depois copie a URL de volta pra ca.
+                </p>
+                <a href={WORKER_REPO_URL} target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Rocket className="h-4 w-4" /> Deploy do worker (Railway)
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                </a>
+              </div>
+
+              <div className="p-4 space-y-1.5">
+                <Label>URL do worker *</Label>
+                <Input
+                  value={form.worker_url}
+                  onChange={(e) => set("worker_url", e.target.value)}
+                  placeholder="https://seu-worker.up.railway.app"
+                  className="font-mono text-sm"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  O dominio publico gerado no seu provedor de hospedagem. Sem barra no final.
+                </p>
+              </div>
+
+              <div className="p-4 space-y-1.5">
+                <Label>Chave do worker (X-API-Key) *</Label>
+                <Input
+                  type="password"
+                  value={form.worker_api_key}
+                  onChange={(e) => set("worker_api_key", e.target.value)}
+                  placeholder="valor de NFSE_WORKER_API_KEY"
+                  className="font-mono text-sm"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Copie de Variables no painel do seu worker (Railway/Cloud Run).
+                </p>
+              </div>
+
+              <div className="p-4 flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={testWorker} disabled={workerTesting} className="gap-2">
+                  <Plug className="h-4 w-4" />
+                  {workerTesting ? "Testando..." : "Testar servidor"}
+                </Button>
+                {workerTest.status !== "idle" && (
+                  <span className={`flex items-start gap-1.5 text-[11px] ${workerTest.status === "ok" ? "text-income" : "text-expense"}`}>
+                    {workerTest.status === "ok" ? <CheckCircle2 className="h-3.5 w-3.5 mt-px shrink-0" /> : <XCircle className="h-3.5 w-3.5 mt-px shrink-0" />}
+                    {workerTest.msg}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-xs text-muted-foreground">
+              A via <strong>provedor</strong> emite via SaaS (PlugNotas / Focus NFe), sem servidor proprio.
+              Configure as credenciais do provedor em <strong>Configuracoes &gt; Integracoes &gt; PlugNotas</strong>.
+              O certificado abaixo continua necessario (o provedor assina em nome da sua empresa).
+            </div>
+          )}
+        </section>
 
         {/* Certificado Digital */}
         <section>
