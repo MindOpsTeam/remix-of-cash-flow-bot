@@ -351,7 +351,9 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     testavel: true,
     telaDedicada: "/settings/integrations/nfse",
     campos: [
-      { key: "cert_pfx", label: "Certificado digital A1 (.pfx)", tipo: "file", accept: ".pfx,.p12", obrigatorioParaSalvar: true, dica: "O arquivo fica cifrado; ninguém além do servidor lê." },
+      { key: "worker_url", label: "URL do seu servidor (worker)", tipo: "text", placeholder: "https://seu-worker.up.railway.app", obrigatorioParaSalvar: true, dica: "Crie o servidor no Railway em 1 clique (botão no assistente) e cole aqui a URL gerada, sem barra no final." },
+      { key: "worker_api_key", label: "Chave do servidor", tipo: "password", segredo: true, obrigatorioParaSalvar: true, dica: "No Railway, aba Variables: copie o valor de NFSE_WORKER_API_KEY." },
+      { key: "cert_pfx", label: "Certificado digital A1 (.pfx)", tipo: "file", accept: ".pfx,.p12", obrigatorioParaSalvar: true, dica: "O arquivo fica cifrado; ninguém além do seu servidor lê." },
       { key: "cert_password", label: "Senha do certificado", tipo: "password", segredo: true, obrigatorioParaSalvar: true },
       {
         key: "ambiente",
@@ -366,14 +368,14 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     ],
     guia: {
       passos: [
-        "Compre um certificado digital A1 do CNPJ numa Autoridade Certificadora (Serasa, Certisign, Soluti e outras). É um arquivo .pfx com senha.",
-        "Confirme com a sua prefeitura se o município já emite pelo ambiente nacional da NFS-e.",
-        "Tenha em mãos a inscrição municipal da empresa.",
-        "Suba o arquivo .pfx aqui e informe a senha do certificado.",
-        "Clique em Testar conexão: validamos o certificado e mostramos CNPJ e validade.",
+        "Crie o seu servidor de emissão (worker) no Railway em 1 clique — o assistente na tela dedicada abre o botão. Custa cerca de US$5/mês (é o seu servidor; a emissão de notas é ilimitada e sem custo por nota).",
+        "No Railway, gere o domínio (Settings > Networking) e copie a URL. A chave (NFSE_WORKER_API_KEY) fica na aba Variables.",
+        "Cole a URL e a chave nos campos do servidor acima.",
+        "Compre um certificado digital A1 do CNPJ numa Autoridade Certificadora (Serasa, Certisign, Soluti e outras). É um arquivo .pfx com senha. Suba o arquivo e informe a senha.",
+        "Escolha Homologação e clique em Testar conexão: validamos o servidor e o certificado (mostra CNPJ e validade). Emita uma nota de teste antes de virar para produção.",
       ],
       custo:
-        "Apenas o certificado digital A1: cerca de R$ 150 a R$ 250 por ano. A emissão da nota pelo ambiente nacional é gratuita.",
+        "O certificado digital A1 (cerca de R$ 150 a R$ 250 por ano) e a hospedagem do seu servidor no Railway (cerca de US$5/mês). A emissão das notas pelo ambiente nacional é ilimitada e gratuita.",
       site: "https://www.gov.br/nfse",
       quandoNaoUsar: "Se o seu município ainda não aderiu ao ambiente nacional, use o emissor da prefeitura ou o PlugNotas.",
     },

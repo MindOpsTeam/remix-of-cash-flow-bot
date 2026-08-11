@@ -166,6 +166,9 @@ export async function salvarIntegracao(
         const { error } = await supabase.from("nfse_config").upsert(
           {
             company_id: companyId,
+            nfse_via: "worker_proprio",
+            worker_url: v.worker_url?.trim() || null,
+            worker_api_key: v.worker_api_key?.trim() || null,
             ambiente: v.ambiente ?? "homologacao",
             inscricao_municipal: v.inscricao_municipal || null,
             active: true,
