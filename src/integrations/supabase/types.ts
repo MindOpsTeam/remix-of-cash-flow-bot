@@ -3293,16 +3293,19 @@ export type Database = {
         Row: {
           atualizado_em: string
           cadastro_aberto: boolean
+          functions_url: string | null
           id: boolean
         }
         Insert: {
           atualizado_em?: string
           cadastro_aberto?: boolean
+          functions_url?: string | null
           id?: boolean
         }
         Update: {
           atualizado_em?: string
           cadastro_aberto?: boolean
+          functions_url?: string | null
           id?: boolean
         }
         Relationships: []
@@ -6162,6 +6165,7 @@ export type Database = {
         Args: { p_contact_id: string; p_valor: number }
         Returns: Json
       }
+      consagrar_dono_se_primeiro: { Args: never; Returns: boolean }
       create_company_for_user: {
         Args: { company_cnpj?: string; company_name: string }
         Returns: Json
@@ -6189,6 +6193,8 @@ export type Database = {
         Args: { p_company_id: string; p_mes: string }
         Returns: Json
       }
+      garantir_agendamentos: { Args: never; Returns: number }
+      garantir_planos: { Args: never; Returns: number }
       gen_org_id: { Args: never; Returns: string }
       gerar_conta_recorrente: {
         Args: {
@@ -6260,6 +6266,7 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_ambiente: { Args: { p_functions_url: string }; Returns: string }
       registrar_demonstracao: { Args: never; Returns: number }
       registrar_movimento_estoque: {
         Args: {
