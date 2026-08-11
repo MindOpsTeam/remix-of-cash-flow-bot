@@ -400,7 +400,7 @@ export default function NfseIntegration() {
                 <span className="text-sm font-semibold text-foreground">Servidor proprio</span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Voce hospeda um worker. <strong>Notas ilimitadas, sem custo por nota.</strong> Comeca <strong>gratis</strong> (Netlify, sem cartao) ou ~US$5/mes (Railway).
+                Voce hospeda um worker. <strong>Notas ilimitadas, sem custo por nota.</strong> <strong>Gratis</strong> pra testar (Netlify) ou producao robusta (Cloud Run/Railway).
               </p>
             </button>
 
@@ -427,8 +427,8 @@ export default function NfseIntegration() {
             <div className="bg-card border border-border rounded-lg divide-y divide-border">
               <div className="p-4 space-y-2">
                 <p className="text-xs text-foreground">
-                  <strong>1.</strong> Publique o seu worker (uma vez). Escolha a hospedagem pela friccao:
-                  <strong> Netlify</strong> (gratis, sem cartao) ou <strong>Railway</strong> (~US$5/mes). Depois copie a URL de volta pra ca.
+                  <strong>1.</strong> Publique o seu worker (uma vez). Hospedagens no README: <strong>Netlify</strong> (gratis,
+                  sem cartao, ideal pra testar) ou <strong>Cloud Run/Railway</strong> (producao). Depois copie a URL de volta pra ca.
                 </p>
                 <a href={WORKER_REPO_URL} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" size="sm" className="gap-2">
