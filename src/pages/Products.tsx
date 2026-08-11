@@ -24,6 +24,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { ProntoParaAgosto } from "@/components/produtos/ProntoParaAgosto";
 import { useDetalhe } from "@/components/detalhe/DetalheProvider";
+import { ServiceCodePicker } from "@/components/fiscal/ServiceCodePicker";
 
 interface Product {
   id: string;
@@ -498,6 +499,19 @@ export default function ProductsPage() {
             {form.type === "service" && (
               <div className="space-y-3 pt-2 border-t border-border">
                 <p className="text-sm font-medium">Dados fiscais do serviço (NFS-e)</p>
+                <div>
+                  <Label className="text-xs">Buscar na lista de serviços (LC 116)</Label>
+                  <div className="mt-1">
+                    <ServiceCodePicker
+                      onSelect={(s) => {
+                        set("item_lista_servico", s.item);
+                        set("codigo_trib_nac", s.cTribNac);
+                        if (!form.name.trim()) set("name", s.descricao);
+                      }}
+                    />
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Preenche o item da lista e o código de tributação nacional. Ajuste se precisar.</p>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs">Código de tributação nacional *</Label>
