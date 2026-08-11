@@ -2675,16 +2675,21 @@ export type Database = {
           access_key: string | null
           cbs_valor: number | null
           cclasstrib: string | null
+          chave_acesso: string | null
           company_id: string
           contact_id: string | null
           created_at: string
+          dps_xml: string | null
           ibs_valor: number | null
           id: string
+          idempotency_key: string | null
           issue_date: string
+          nfse_xml: string | null
           notes: string | null
           number: string | null
           pdf_url: string | null
           sales_order_id: string | null
+          sefin_ambiente: string | null
           series: string | null
           status: string
           total: number
@@ -2697,16 +2702,21 @@ export type Database = {
           access_key?: string | null
           cbs_valor?: number | null
           cclasstrib?: string | null
+          chave_acesso?: string | null
           company_id: string
           contact_id?: string | null
           created_at?: string
+          dps_xml?: string | null
           ibs_valor?: number | null
           id?: string
+          idempotency_key?: string | null
           issue_date?: string
+          nfse_xml?: string | null
           notes?: string | null
           number?: string | null
           pdf_url?: string | null
           sales_order_id?: string | null
+          sefin_ambiente?: string | null
           series?: string | null
           status?: string
           total?: number
@@ -2719,16 +2729,21 @@ export type Database = {
           access_key?: string | null
           cbs_valor?: number | null
           cclasstrib?: string | null
+          chave_acesso?: string | null
           company_id?: string
           contact_id?: string | null
           created_at?: string
+          dps_xml?: string | null
           ibs_valor?: number | null
           id?: string
+          idempotency_key?: string | null
           issue_date?: string
+          nfse_xml?: string | null
           notes?: string | null
           number?: string | null
           pdf_url?: string | null
           sales_order_id?: string | null
+          sefin_ambiente?: string | null
           series?: string | null
           status?: string
           total?: number
@@ -2937,9 +2952,14 @@ export type Database = {
           last_emission_at: string | null
           last_test_at: string | null
           last_test_status: string | null
+          nfse_via: string
+          optante_simples: boolean
           proximo_numero_dps: number
           serie_dps: string
+          setup_step: number
           updated_at: string
+          worker_api_key: string | null
+          worker_url: string | null
         }
         Insert: {
           active?: boolean
@@ -2957,9 +2977,14 @@ export type Database = {
           last_emission_at?: string | null
           last_test_at?: string | null
           last_test_status?: string | null
+          nfse_via?: string
+          optante_simples?: boolean
           proximo_numero_dps?: number
           serie_dps?: string
+          setup_step?: number
           updated_at?: string
+          worker_api_key?: string | null
+          worker_url?: string | null
         }
         Update: {
           active?: boolean
@@ -2977,9 +3002,14 @@ export type Database = {
           last_emission_at?: string | null
           last_test_at?: string | null
           last_test_status?: string | null
+          nfse_via?: string
+          optante_simples?: boolean
           proximo_numero_dps?: number
           serie_dps?: string
+          setup_step?: number
           updated_at?: string
+          worker_api_key?: string | null
+          worker_url?: string | null
         }
         Relationships: [
           {
