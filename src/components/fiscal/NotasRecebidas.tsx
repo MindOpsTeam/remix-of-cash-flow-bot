@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileDown, Loader2, X, Inbox } from "lucide-react";
+import { Download, FileDown, Loader2, X, Inbox, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -30,6 +31,20 @@ export function NotasRecebidas() {
   const qc = useQueryClient();
   const [sincronizando, setSincronizando] = useState(false);
   const [agindo, setAgindo] = useState<string | null>(null);
+
+  // Um provedor de distribuição de destinadas (Focus ou PlugNotas) precisa estar
+  // configurado para o "buscar" funcionar. Sem ele, orientamos em vez de dar erro.
+  const { data: temProvedor } = useQuery({
+    queryKey: ["provedor-fiscal-entrada", company?.id],
+    enabled: !!company,
+    queryFn: async () => {
+      const [{ data: fc }, { data: pn }] = await Promise.all([
+        (supabase as any).from("focus_config").select("active").eq("company_id", company!.id).maybeSingle(),
+        (supabase as any).from("plugnotas_config").select("active").eq("company_id", company!.id).maybeSingle(),
+      ]);
+      return !!(fc?.active || pn?.active);
+    },
+  });
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ["inbound-documents", company?.id],
@@ -109,10 +124,18 @@ export function NotasRecebidas() {
           <h2 className="text-sm font-semibold text-foreground">Notas recebidas (entrada)</h2>
           {docs.length > 0 && <Badge variant="secondary" className="text-[10px]">{docs.length}</Badge>}
         </div>
-        <Button size="sm" variant="outline" onClick={sincronizar} disabled={sincronizando} className="gap-2">
-          {sincronizando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-          Buscar notas contra meu CNPJ
-        </Button>
+        {temProvedor === false ? (
+          <Link to="/settings/integrations/focus">
+            <Button size="sm" variant="outline" className="gap-2">
+              <Settings2 className="h-3.5 w-3.5" /> Configurar Focus / PlugNotas
+            </Button>
+          </Link>
+        ) : (
+          <Button size="sm" variant="outline" onClick={sincronizar} disabled={sincronizando} className="gap-2">
+            {sincronizando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            Buscar notas contra meu CNPJ
+          </Button>
+        )}
       </div>
       <p className="mb-3 text-xs text-muted-foreground">
         Notas fiscais que fornecedores emitiram contra a sua empresa (distribuição DF-e). Lance cada
@@ -121,6 +144,15 @@ export function NotasRecebidas() {
 
       {isLoading ? (
         <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+      ) : temProvedor === false ? (
+        <div className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">
+          Para baixar as notas emitidas contra o seu CNPJ, ative a distribuição de destinadas na{" "}
+          <strong className="text-foreground">Focus NFe</strong> ou no{" "}
+          <strong className="text-foreground">PlugNotas</strong> em{" "}
+          <Link to="/settings/integrations" className="text-primary underline underline-offset-2">Integrações</Link>.
+          O fluxo já está pronto: assim que houver um provedor conectado, o botão passa a buscar as notas e
+          lançá-las como contas a pagar.
+        </div>
       ) : docs.length === 0 ? (
         <p className="py-6 text-center text-xs text-muted-foreground">
           Nenhuma nota pendente. Clique em "Buscar notas contra meu CNPJ" para consultar as destinadas.
