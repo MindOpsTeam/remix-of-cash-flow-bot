@@ -649,6 +649,7 @@ export type Database = {
           fornecedor: string
           id: string
           is_recurring: boolean
+          payment_date: string | null
           purchase_order_id: string | null
           recurrence_group_id: string | null
           recurrence_index: number | null
@@ -656,6 +657,7 @@ export type Database = {
           requested_by: string | null
           source: string
           status: string
+          transaction_id: string | null
           updated_at: string
           valor: number
           vencimento: string
@@ -672,6 +674,7 @@ export type Database = {
           fornecedor: string
           id?: string
           is_recurring?: boolean
+          payment_date?: string | null
           purchase_order_id?: string | null
           recurrence_group_id?: string | null
           recurrence_index?: number | null
@@ -679,6 +682,7 @@ export type Database = {
           requested_by?: string | null
           source?: string
           status?: string
+          transaction_id?: string | null
           updated_at?: string
           valor?: number
           vencimento: string
@@ -695,6 +699,7 @@ export type Database = {
           fornecedor?: string
           id?: string
           is_recurring?: boolean
+          payment_date?: string | null
           purchase_order_id?: string | null
           recurrence_group_id?: string | null
           recurrence_index?: number | null
@@ -702,6 +707,7 @@ export type Database = {
           requested_by?: string | null
           source?: string
           status?: string
+          transaction_id?: string | null
           updated_at?: string
           valor?: number
           vencimento?: string
@@ -754,6 +760,13 @@ export type Database = {
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bills_payable_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -2558,6 +2571,92 @@ export type Database = {
             foreignKeyName: "focus_config_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: true
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      inbound_documents: {
+        Row: {
+          bill_id: string | null
+          chave_acesso: string | null
+          company_id: string
+          created_at: string
+          data_emissao: string | null
+          emitente_cnpj: string | null
+          emitente_nome: string | null
+          id: string
+          manifestacao: string | null
+          nsu: string | null
+          numero: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          valor_total: number
+          xml_content: string | null
+        }
+        Insert: {
+          bill_id?: string | null
+          chave_acesso?: string | null
+          company_id: string
+          created_at?: string
+          data_emissao?: string | null
+          emitente_cnpj?: string | null
+          emitente_nome?: string | null
+          id?: string
+          manifestacao?: string | null
+          nsu?: string | null
+          numero?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_total?: number
+          xml_content?: string | null
+        }
+        Update: {
+          bill_id?: string | null
+          chave_acesso?: string | null
+          company_id?: string
+          created_at?: string
+          data_emissao?: string | null
+          emitente_cnpj?: string | null
+          emitente_nome?: string | null
+          id?: string
+          manifestacao?: string | null
+          nsu?: string | null
+          numero?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_total?: number
+          xml_content?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_documents_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "bills_payable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "inbound_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
           },
