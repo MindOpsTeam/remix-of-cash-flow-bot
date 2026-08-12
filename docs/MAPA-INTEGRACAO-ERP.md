@@ -112,6 +112,16 @@ O ciclo completo: **nota → recebível → (cliente paga) → extrato bancário
 - Isso resolve o caso do pagamento por PIX/transferência (via Open Finance), em que o dinheiro cai
   no banco antes da baixa manual: o recebível deixa de ficar preso em `a_receber`.
 
+## Lado das compras (espelho): notas de entrada → contas a pagar → baixa
+
+O mesmo ciclo, na direção da saída de dinheiro (ver `PIPELINE-COMPRAS-ENTRADA.md`):
+
+- **Notas destinadas** (emitidas contra o CNPJ) entram via `inbound_documents`, baixadas da Focus
+  (`sync_nfe`, distribuição DF-e) e transformadas em `bills_payable` (`to_bill`).
+- Conciliação (`reconcile-transactions`): `suggest_payables` casa o **débito** do extrato com a
+  conta a pagar em aberto; `settle_payable` dá baixa (`pago` + `payment_date`, concilia a transação).
+- Fecha `fornecedor → nota destinada → conta a pagar → extrato(débito) → baixa`.
+
 ## Conclusão
 
 O medo de "tabelas que não se conversam" não se confirma: o núcleo é compartilhado, a nota fiscal
