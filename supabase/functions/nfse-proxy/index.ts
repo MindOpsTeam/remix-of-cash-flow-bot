@@ -93,22 +93,37 @@ Deno.serve(async (req) => {
     // Chave de idempotência: o app pode mandar a sua; senão compomos uma
     // determinística. Antes de reservar número e transmitir, checamos se já
     // existe uma nota com essa chave — evita nota duplicada em retry/timeout.
+    // Só deduplica quando há uma chave REAL: idempotencyKey explícita do app OU um
+    // pedido de venda. Emissão avulsa sem chave NÃO é deduplicada por valor — duas
+    // notas legítimas de mesmo valor/competência não podem se bloquear (achado H1).
+    const salesOrderId = (body.salesOrderId as string | undefined)?.trim() || null;
     const idempotencyKey = (body.idempotencyKey as string | undefined)?.trim() ||
-      [companyId, data?.competencia ?? "", (body.salesOrderId as string | undefined) ?? "",
-       String((data?.valores as any)?.valorServicos ?? "")].join(":");
+      (salesOrderId
+        ? [companyId, data?.competencia ?? "", salesOrderId, String((data?.valores as any)?.valorServicos ?? "")].join(":")
+        : null);
 
     if (operation === "emit") {
-      const { data: jaEmitida } = await supabase
-        .from("invoices")
-        .select("id, number, chave_acesso, status, nfse_xml")
-        .eq("company_id", companyId)
-        .eq("idempotency_key", idempotencyKey)
-        .maybeSingle();
-      if (jaEmitida) {
-        return new Response(
-          JSON.stringify({ success: true, duplicated: true, ...jaEmitida }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+      // Emissão é escrita fiscal REAL no SEFIN: perfil somente-leitura não emite (achado H7).
+      const { data: membership } = await supabase
+        .from("company_members").select("role").eq("company_id", companyId).eq("user_id", user.id).maybeSingle();
+      if (!membership || membership.role === "viewer") {
+        return new Response(JSON.stringify({ error: "Sem permissão para emitir nota fiscal (perfil somente leitura)." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      if (idempotencyKey) {
+        const { data: jaEmitida } = await supabase
+          .from("invoices")
+          .select("id, number, chave_acesso, status, nfse_xml")
+          .eq("company_id", companyId)
+          .eq("idempotency_key", idempotencyKey)
+          .maybeSingle();
+        if (jaEmitida) {
+          return new Response(
+            JSON.stringify({ success: true, duplicated: true, ...jaEmitida }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
       }
 
       // Reserva atômica do número da DPS. A função é SECURITY DEFINER e NÃO
@@ -208,17 +223,17 @@ Deno.serve(async (req) => {
         .update({ last_emission_at: new Date().toISOString() })
         .eq("id", config.id);
 
-      const { data: invRow } = await supabase.from("invoices").insert({
+      const { data: invRow, error: invErr } = await supabase.from("invoices").insert({
         company_id: companyId,
         type: "nfse",
         status: "authorized",
-        number: workerData.idDPS || String(config.proximo_numero_dps),
+        number: workerData.idDPS || String(numeroDps),
         issue_date: new Date().toISOString().split("T")[0],
         total: data?.valores?.valorServicos || 0,
         // Antes ia null fixo: a nota nascia órfã de cliente e ninguém
         // conseguia responder "esta nota é de quem?".
         contact_id: (body.contactId as string | undefined) ?? null,
-        sales_order_id: (body.salesOrderId as string | undefined) ?? null,
+        sales_order_id: salesOrderId,
         // Documentos fiscais dedicados (guarda de 5 anos), não só o dump JSON.
         chave_acesso: workerData.chaveAcesso ?? null,
         dps_xml: workerData.dpsXml ?? null,
@@ -227,6 +242,21 @@ Deno.serve(async (req) => {
         idempotency_key: idempotencyKey,
         xml_content: workerData.nfseXml ?? JSON.stringify(workerData),
       }).select("id").single();
+
+      // A nota JÁ foi autorizada no SEFIN. Se falhar ao gravar, NÃO some com ela:
+      // devolve os dados fiscais para não perder a guarda e alerta o operador (achado C1).
+      if (invErr || !invRow) {
+        console.error("[nfse-proxy] NFS-e autorizada mas falhou ao gravar invoice:", invErr?.message, "chave:", workerData.chaveAcesso);
+        return new Response(JSON.stringify({
+          success: false,
+          emitida_no_sefin: true,
+          aviso: "A nota foi AUTORIZADA no SEFIN, mas houve falha ao registrá-la no sistema. Guarde estes dados e contate o suporte.",
+          chaveAcesso: workerData.chaveAcesso ?? null,
+          idDPS: workerData.idDPS ?? null,
+          nfseXml: workerData.nfseXml ?? null,
+          erro: invErr?.message ?? "insert retornou vazio",
+        }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
       // Item da nota (NFS-e = 1 serviço), ligando a nota ao catálogo/venda.
       if (invRow?.id) {

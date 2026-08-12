@@ -19,6 +19,13 @@ interface NotaXml {
 }
 
 const soDigitos = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "") || null;
+/** Número pt-BR ("1.234,56") ou já-numérico, sem zerar por causa do milhar (achado M5). */
+const numBR = (s: string | null | undefined) => {
+  if (!s) return 0;
+  const raw = String(s);
+  const v = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw;
+  return Number(v) || 0;
+};
 
 /**
  * Lê o XML de uma nota fiscal eletrônica (NF-e ou NFS-e) e extrai os dados
@@ -63,7 +70,7 @@ function parseNotaXml(xml: string): NotaXml | null {
       destCnpj: soDigitos(txt("toma > CNPJ") ?? txt("TomadorServico Cnpj") ?? txt("toma > CPF")),
       numero: txt("nNFSe") ?? txt("Numero") ?? txt("nDPS"),
       data: dh ? dh.slice(0, 10) : null,
-      valor: valor ? Number(String(valor).replace(",", ".")) : 0,
+      valor: numBR(valor),
     };
   }
   return null;
@@ -89,8 +96,15 @@ export function ImportarNotaXml() {
       const companyCnpj = soDigitos(company.cnpj);
       const emitida = !!companyCnpj && nota.emitCnpj === companyCnpj;
       const recebida = !!companyCnpj && nota.destCnpj === companyCnpj;
-      // Sem CNPJ da empresa ou sem match, tratamos como entrada (importação de compra é o caso comum).
-      const direcao: "emitida" | "recebida" = emitida ? "emitida" : recebida ? "recebida" : "recebida";
+      // Não adivinhar direção (achado M3): sem CNPJ da empresa ou sem match, parar e avisar,
+      // para não classificar a própria nota emitida como compra (conta a pagar fantasma).
+      if (!emitida && !recebida) {
+        toast.error(companyCnpj
+          ? "Esta nota não tem o CNPJ da sua empresa como emitente nem destinatário. Confira o arquivo."
+          : "Cadastre o CNPJ da sua empresa (Configurações) antes de importar notas.");
+        return;
+      }
+      const direcao: "emitida" | "recebida" = emitida ? "emitida" : "recebida";
       const xmlGuardado = text.slice(0, 40000);
 
       if (direcao === "recebida") {
@@ -106,11 +120,20 @@ export function ImportarNotaXml() {
         toast.success("Nota de entrada importada. Lance-a como conta a pagar na lista abaixo.");
         qc.invalidateQueries({ queryKey: ["inbound-documents", company.id] });
       } else {
+        // Dedup por chave (achado H4): não duplicar nota já emitida/importada.
+        const { data: existeInv } = await (supabase as any)
+          .from("invoices").select("id").eq("company_id", company.id).eq("chave_acesso", nota.chave).maybeSingle();
+        if (existeInv) { toast.info("Essa nota emitida já estava no sistema."); return; }
         const { error } = await (supabase as any).from("invoices").insert({
           company_id: company.id, type: nota.tipo, status: "authorized", number: nota.numero,
           issue_date: nota.data, total: nota.valor, chave_acesso: nota.chave, xml_content: xmlGuardado,
         });
-        if (error) throw error;
+        if (error) {
+          if (error.code === "23505" || String(error.message ?? "").includes("duplicate")) {
+            toast.info("Essa nota emitida já estava no sistema."); return;
+          }
+          throw error;
+        }
         toast.success("Nota emitida importada em Vendas. A conta a receber foi aberta.");
         qc.invalidateQueries({ queryKey: ["invoices", company.id] });
       }

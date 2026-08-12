@@ -57,6 +57,14 @@ function pick(o: Record<string, unknown>, ...keys: string[]): string | null {
   return null;
 }
 
+/** Converte número pt-BR ("1.234,56") ou já-numérico para float sem zerar (achado M5). */
+function parseValorBR(s: string | null | undefined): number {
+  if (s === null || s === undefined || s === "") return 0;
+  let v = String(s).trim();
+  if (v.includes(",")) v = v.replace(/\./g, "").replace(",", "."); // ponto é milhar
+  return Number(v) || 0;
+}
+
 interface ParsedDoc {
   tipo: string;
   chave_acesso: string | null;
@@ -87,7 +95,7 @@ function parseNota(raw: unknown): ParsedDoc | null {
     numero: pick(flat, "numero", "nnf", "nNF", "numero_nfe"),
     emitente_cnpj: pick(flat, "cnpj_emitente", "emitente_cnpj", "cnpj") ?? pick(emit, "cnpj"),
     emitente_nome: pick(flat, "nome_emitente", "razao_social_emitente", "razao_social_emit") ?? pick(emit, "nome", "razao_social", "nome_fantasia"),
-    valor_total: valorStr ? Number(String(valorStr).replace(",", ".")) : 0,
+    valor_total: parseValorBR(valorStr),
     data_emissao: data ? data.slice(0, 10) : null,
     nsu: pick(flat, "nsu", "ultimo_nsu", "NSU"),
     manifestacao: pick(flat, "status", "situacao_manifestacao", "manifestacao", "situacao"),
