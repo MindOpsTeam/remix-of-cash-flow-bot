@@ -15,6 +15,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { useBankConnections } from "@/hooks/useBankConnections";
 import { formatCurrency } from "@/lib/utils";
 import { RecebimentosSugeridos } from "@/components/openfinance/RecebimentosSugeridos";
+import { PagamentosSugeridos } from "@/components/openfinance/PagamentosSugeridos";
 
 /**
  * Caixa de entrada bancária: a última milha do Open Finance.
@@ -279,6 +280,8 @@ export default function BankInbox() {
       </div>
 
       <RecebimentosSugeridos />
+
+      <PagamentosSugeridos />
 
       <div className="rounded-lg border border-border bg-card p-5">
         {carregando ? (

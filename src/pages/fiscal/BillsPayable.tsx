@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
+import { NotasRecebidas } from "@/components/fiscal/NotasRecebidas";
 
 const statusConfig: Record<string, { label: string; className: string; icon: typeof Clock }> = {
   a_vencer: { label: "A Vencer", className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning", icon: Clock },
@@ -48,6 +49,8 @@ export default function BillsPayable() {
             <Plus className="h-4 w-4" /> Adicionar Boleto
           </Button>
         </div>
+
+        <NotasRecebidas />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {([

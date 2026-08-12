@@ -10,6 +10,8 @@
  *   resolve             — resolve manualmente (confirm/reject)
  *   suggest_receivables — casa crédito do extrato com recebível EM ABERTO
  *   settle_receivable   — dá baixa no recebível usando o crédito real do extrato
+ *   suggest_payables    — casa débito do extrato com conta a pagar EM ABERTO
+ *   settle_payable      — dá baixa na conta a pagar usando o débito real do extrato
  *
  * Auth: exige JWT do usuário + membership em company_id.
  * Chamadas internas (ex: inter-banking) devem repassar o Authorization
@@ -392,6 +394,87 @@ Deno.serve(async (req) => {
         .eq("id", tx.id);
 
       return jsonResp({ ok: true, action: "settled", receivable_id: rec.id, transaction_id: tx.id }, 200, corsHeaders);
+    }
+
+    // ── suggest_payables: casa DÉBITO do extrato com conta a pagar EM ABERTO ──
+    if (action === "suggest_payables") {
+      const { company_id } = body;
+      if (!company_id) return jsonResp({ error: "company_id required" }, 400, corsHeaders);
+      const forbidden = await assertMembership(supabase, user.id, company_id, corsHeaders);
+      if (forbidden) return forbidden;
+
+      const { data: bankTxs } = await supabase
+        .from("transactions")
+        .select("id, amount, date, description, contact_id, type, status, source")
+        .eq("company_id", company_id)
+        .eq("type", "expense")
+        .neq("status", "reconciled")
+        .in("source", ["asaas", "api", "inter", "openfinance", "pluggy"])
+        .order("date", { ascending: false })
+        .limit(200);
+
+      const { data: openBills } = await supabase
+        .from("bills_payable")
+        .select("id, valor, vencimento, contact_id, fornecedor, descricao, status")
+        .eq("company_id", company_id)
+        .in("status", ["a_vencer", "vencido"])
+        .is("transaction_id", null)
+        .limit(500);
+
+      const PAG_WINDOW = 15 * 86400000;
+      const suggestions: Array<Record<string, unknown>> = [];
+      for (const tx of (bankTxs || [])) {
+        for (const b of (openBills || [])) {
+          const bAmount = Number(b.valor);
+          if (bAmount <= 0) continue;
+          const valueDiff = Math.abs(Math.abs(tx.amount) - bAmount);
+          if (valueDiff > bAmount * VALUE_TOLERANCE) continue;
+          const dateDiff = Math.abs(new Date(tx.date).getTime() - new Date(b.vencimento).getTime());
+          if (dateDiff > PAG_WINDOW) continue;
+          const sameContact = !!(tx.contact_id && b.contact_id && tx.contact_id === b.contact_id);
+          const score = (1 - valueDiff / bAmount) * 60 + (sameContact ? 40 : 20 * (1 - dateDiff / PAG_WINDOW));
+          suggestions.push({
+            transaction_id: tx.id, bill_id: b.id, amount: bAmount,
+            tx_date: tx.date, vencimento: b.vencimento,
+            tx_description: tx.description, bill_description: b.descricao ?? b.fornecedor,
+            same_contact: sameContact, score: Math.round(score),
+          });
+        }
+      }
+      return jsonResp({ suggestions: suggestions.sort((a, b) => (b.score as number) - (a.score as number)) }, 200, corsHeaders);
+    }
+
+    // ── settle_payable: dá baixa na conta a pagar usando o débito real do extrato ──
+    if (action === "settle_payable") {
+      const { transaction_id, bill_id } = body;
+      if (!transaction_id || !bill_id) {
+        return jsonResp({ error: "transaction_id and bill_id required" }, 400, corsHeaders);
+      }
+      const { data: tx } = await supabase
+        .from("transactions").select("id, company_id, date, amount, type")
+        .eq("id", transaction_id).maybeSingle();
+      const { data: bill } = await supabase
+        .from("bills_payable").select("id, company_id, status, transaction_id")
+        .eq("id", bill_id).maybeSingle();
+      if (!tx || !bill) return jsonResp({ error: "transaction or bill not found" }, 404, corsHeaders);
+      if (tx.company_id !== bill.company_id) return jsonResp({ error: "company mismatch" }, 400, corsHeaders);
+
+      const forbidden = await assertMembership(supabase, user.id, bill.company_id, corsHeaders);
+      if (forbidden) return forbidden;
+      const readonly = await assertCanWrite(supabase, user.id, bill.company_id, corsHeaders);
+      if (readonly) return readonly;
+
+      if (bill.transaction_id) return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
+
+      const nowIso = new Date().toISOString();
+      await supabase.from("bills_payable")
+        .update({ transaction_id: tx.id, status: "pago", payment_date: tx.date, updated_at: nowIso })
+        .eq("id", bill.id);
+      await supabase.from("transactions")
+        .update({ status: "reconciled", reconciled_at: nowIso })
+        .eq("id", tx.id);
+
+      return jsonResp({ ok: true, action: "settled", bill_id: bill.id, transaction_id: tx.id }, 200, corsHeaders);
     }
 
     return jsonResp({ error: `Unknown action: ${action}` }, 400, corsHeaders);
