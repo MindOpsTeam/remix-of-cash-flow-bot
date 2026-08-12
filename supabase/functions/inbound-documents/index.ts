@@ -11,8 +11,15 @@
  *
  * POST /inbound-documents { action, companyId, ... }
  *   action=sync_nfe   baixa as NF-e destinadas na Focus e faz upsert
+ *   action=sync_nfse  NFS-e tomadas via Ambiente Nacional (ADN) — preparado (ver abaixo)
  *   action=to_bill    { inbound_document_id }  cria a conta a pagar
  *   action=ignore     { inbound_document_id }  marca como ignorada
+ *
+ * NFS-e tomadas (ADN): o Ambiente Nacional da NFS-e distribui os DF-e ao TOMADOR
+ * pela API DFe, por NSU, autenticando com o certificado A1 — o mesmo do worker de
+ * emissão, que já faz mTLS. Como a NFS-e não roda em edge (mTLS com A1), o puxão
+ * passa pelo worker. Hoje a NFS-e tomada entra por Importar XML / OCR; o sync
+ * automático via ADN é o próximo passo (slot `sync_nfse` já reservado).
  */
 
 import { authenticate, assertCanWrite, jsonResp } from "../_shared/auth.ts";
@@ -192,6 +199,15 @@ Deno.serve(async (req: Request) => {
       if (!inboundId) return jsonResp({ error: "inbound_document_id é obrigatório" }, 400, corsHeaders);
       await supabase.from("inbound_documents").update({ status: "ignorado", updated_at: new Date().toISOString() }).eq("id", inboundId).eq("company_id", companyId);
       return jsonResp({ ok: true }, 200, corsHeaders);
+    }
+
+    // ── sync_nfse: NFS-e tomadas via ADN (Ambiente Nacional) — PREPARADO ──
+    if (action === "sync_nfse") {
+      return jsonResp({
+        ok: false,
+        preparado: true,
+        mensagem: "A distribuição automática de NFS-e tomadas usa a API DFe do Ambiente Nacional (ADN), por NSU, com o certificado A1 do worker (mTLS). Enquanto essa via não é ligada, importe o XML da NFS-e ou use o leitor de documentos (OCR).",
+      }, 200, corsHeaders);
     }
 
     return jsonResp({ error: `Ação desconhecida: ${action}` }, 400, corsHeaders);

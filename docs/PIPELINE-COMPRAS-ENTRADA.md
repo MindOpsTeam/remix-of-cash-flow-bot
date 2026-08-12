@@ -53,10 +53,37 @@ COMPRA: fornecedor → NOTA DESTINADA → conta a pagar → extrato(débito) →
                        (Focus/ADN)     (inbound_documents)  (conciliação)
 ```
 
+## Ambiente Nacional (ADN): NFS-e tomada
+
+A **NFS-e** em que a empresa é **tomadora** (serviço contratado) é distribuída pelo **Ambiente
+Nacional da NFS-e (ADN)** através da **API DFe**: ela entrega os DF-e a quem tem papel de interesse
+na nota (prestador, tomador ou intermediário), por NSU, autenticando com **certificado A1**. Como
+mTLS com A1 não roda em edge, o puxão passa pelo **worker** (o mesmo que já emite NFS-e e faz mTLS).
+
+Estado: **preparado**. O slot `sync_nfse` já existe na edge `inbound-documents` e o caminho técnico
+está documentado; ligar o puxão automático (worker chamando a API DFe do ADN por NSU + parsing do
+XML de NFS-e) é o próximo passo. Enquanto isso, NFS-e tomada entra por **Importar XML** ou **OCR**.
+
+## Ingestão manual (sempre disponível, para os dois ambientes)
+
+Independente de provedor, dá para lançar notas na mão — vale para nota **emitida** (saída) e
+**recebida** (entrada), cada uma no seu ambiente:
+
+- **Importar XML** (`ImportarNotaXml`): lê o XML da NF-e/NFS-e e extrai os dados **exatos** (sem OCR).
+  A direção sai do **CNPJ da empresa** (`companies.cnpj`): se a empresa é a **emitente**, a nota vira
+  `invoices` (saída, abre o recebível pelo trigger); se é a **destinatária/tomadora**, vira
+  `inbound_documents` (entrada, para lançar conta a pagar). Idempotente por chave.
+- **OCR** (leitor de documentos, `/documents` + edge `ocr-document`, Gemini Vision): escaneia imagem
+  ou PDF de boleto, nota, recibo ou comprovante, classifica receita/despesa e cria conta a
+  pagar/receber ou lançamento — já roteando nota emitida para Vendas → Notas Fiscais.
+
+Regra de produto: **toda coisa deve permitir ingestão manual**. Aqui isso é o XML (exato) + o OCR
+(imagem/PDF), cobrindo emitidas e recebidas.
+
 ## Pendências / próximos passos (honesto)
 
-- **NFS-e tomada**: o schema já aceita `tipo='nfse'`, mas o `sync` atual cobre NF-e via Focus. O
-  puxão das NFS-e tomadas via ADN (mesmo certificado A1 do worker) é o próximo `sync_nfse`.
+- **NFS-e tomada via ADN (automático)**: `sync_nfse` está reservado; falta o worker chamar a API DFe
+  do ADN por NSU e parsear o XML. Por enquanto, NFS-e tomada entra por Importar XML / OCR.
 - **Manifestação (MDe)**: hoje o `sync` lê o resumo; automatizar a "Ciência da Operação" para baixar
   o XML completo é uma decisão fiscal (tem peso), deixada para configurar.
 - **Vencimento**: a conta a pagar nasce com vencimento = emissão + 30 dias (a consulta resumida não

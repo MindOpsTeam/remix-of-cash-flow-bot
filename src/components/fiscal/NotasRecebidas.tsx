@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { formatCurrency } from "@/lib/utils";
 import { mensagemDeErro } from "@/lib/erros";
+import { ImportarNotaXml } from "@/components/fiscal/ImportarNotaXml";
 
 interface InboundDoc {
   id: string;
@@ -124,18 +125,21 @@ export function NotasRecebidas() {
           <h2 className="text-sm font-semibold text-foreground">Notas recebidas (entrada)</h2>
           {docs.length > 0 && <Badge variant="secondary" className="text-[10px]">{docs.length}</Badge>}
         </div>
-        {temProvedor === false ? (
-          <Link to="/settings/integrations/focus">
-            <Button size="sm" variant="outline" className="gap-2">
-              <Settings2 className="h-3.5 w-3.5" /> Configurar Focus / PlugNotas
+        <div className="flex flex-wrap items-center gap-2">
+          <ImportarNotaXml />
+          {temProvedor === false ? (
+            <Link to="/settings/integrations/focus">
+              <Button size="sm" variant="outline" className="gap-2">
+                <Settings2 className="h-3.5 w-3.5" /> Configurar Focus / PlugNotas
+              </Button>
+            </Link>
+          ) : (
+            <Button size="sm" variant="outline" onClick={sincronizar} disabled={sincronizando} className="gap-2">
+              {sincronizando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              Buscar notas contra meu CNPJ
             </Button>
-          </Link>
-        ) : (
-          <Button size="sm" variant="outline" onClick={sincronizar} disabled={sincronizando} className="gap-2">
-            {sincronizando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            Buscar notas contra meu CNPJ
-          </Button>
-        )}
+          )}
+        </div>
       </div>
       <p className="mb-3 text-xs text-muted-foreground">
         Notas fiscais que fornecedores emitiram contra a sua empresa (distribuição DF-e). Lance cada
@@ -151,7 +155,9 @@ export function NotasRecebidas() {
           <strong className="text-foreground">PlugNotas</strong> em{" "}
           <Link to="/settings/integrations" className="text-primary underline underline-offset-2">Integrações</Link>.
           O fluxo já está pronto: assim que houver um provedor conectado, o botão passa a buscar as notas e
-          lançá-las como contas a pagar.
+          lançá-las como contas a pagar. Enquanto isso, você pode{" "}
+          <strong className="text-foreground">Importar XML de nota</strong> manualmente (botão acima) ou escanear pelo{" "}
+          <Link to="/documents" className="text-primary underline underline-offset-2">leitor de documentos</Link>.
         </div>
       ) : docs.length === 0 ? (
         <p className="py-6 text-center text-xs text-muted-foreground">
