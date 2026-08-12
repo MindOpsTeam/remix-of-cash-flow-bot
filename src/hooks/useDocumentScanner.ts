@@ -251,75 +251,119 @@ export function useDocumentScanner() {
       const date = overrides?.date ?? scanData.date ?? new Date().toISOString().split("T")[0];
       const txType = overrides?.type ?? scanData.transaction_type ?? "expense";
       const description = overrides?.description ?? scanData.description ?? "Documento escaneado";
-      const status = overrides?.status ?? "confirmed";
 
       const pjType = txType === "receita" || txType === "revenue" ? "revenue" : "expense";
 
       // Auto-register contact
       const contactId = await findOrCreateContact(scanData, pjType);
 
-      const { data: inserted, error } = await supabase.from("transactions").insert({
-        company_id: company.id,
-        user_id: user.id,
-        description,
-        amount,
-        date,
-        type: pjType,
-        source: "scanner",
-        status,
-        account_id: overrides?.account_id ?? scanData.suggested_account_id ?? null,
-        cost_center_id: overrides?.cost_center_id ?? scanData.suggested_cost_center_id ?? null,
-        bank_account_id: overrides?.bank_account_id ?? scanData.suggested_bank_account_id ?? null,
-      }).select("id").single();
-      if (error) throw error;
-
-      // Upload file to storage and link
-      if (file && inserted?.id) {
-        await uploadAndAttach(file, inserted.id);
-      }
-
-      // Auto-create invoice for revenue NFs
-      if (pjType === "revenue") {
-        await createInvoiceRecord(scanData, contactId, amount, date, description);
-      }
-
-      // Auto-create bill_payable for boletos
-      if (scanData.document_type === "boleto" && pjType === "expense") {
-        await supabase.from("bills_payable").insert({
-          company_id: company.id,
-          fornecedor: scanData.issuer || "Fornecedor não identificado",
-          descricao: description,
-          valor: amount,
-          vencimento: date,
-          status: "a_vencer",
-          source: "ocr",
-          contact_id: contactId,
-        });
-        queryClient.invalidateQueries({ queryKey: ["bills_payable"] });
-      }
-
-      // Auto-create tax_guide for scanned tax documents (DAS, DARF, ISS, etc.)
-      const taxDocTypes = ["boleto"];
-      const taxKeywords = ["das", "darf", "iss", "icms", "pis", "cofins", "inss", "guia"];
+      // Classifica o documento em TÍTULO (nota/boleto/guia = algo a receber ou
+      // pagar) x CAIXA (comprovante/PIX/recibo/extrato = dinheiro que já entrou/
+      // saiu). Um título NÃO gera transação de receita/despesa aqui: a transação
+      // nasce quando o título é baixado na conciliação bancária. Sem essa
+      // separação o mesmo valor era contado duas vezes (título + transação).
+      const docType = scanData.document_type;
+      const ehNotaFiscal = docType === "nota_fiscal" || docType === "nfse";
       const descLower = description.toLowerCase();
-      const isTaxGuide = taxKeywords.some(k => descLower.includes(k));
-      if (isTaxGuide && pjType === "expense") {
-        const tipoGuess = taxKeywords.find(k => descLower.includes(k))?.toUpperCase() || "DAS";
-        const today = new Date();
-        const comp = `${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
-        await supabase.from("tax_guides").insert({
+      const taxKeywords = ["das", "darf", "iss", "icms", "pis", "cofins", "inss", "guia"];
+      const isTaxGuide = docType === "boleto" && taxKeywords.some((k) => descLower.includes(k));
+      const ehTitulo = ehNotaFiscal || docType === "boleto";
+
+      let novaTransacaoId: string | null = null;
+
+      if (ehTitulo) {
+        if (ehNotaFiscal && pjType === "revenue") {
+          // Nota de venda → documento fiscal (invoices); o trigger abre o recebível.
+          await createInvoiceRecord(scanData, contactId, amount, date, description);
+          queryClient.invalidateQueries({ queryKey: ["receivables"] });
+        } else if (isTaxGuide) {
+          // Guia de imposto → tax_guides (a pagar).
+          const tipoGuess = taxKeywords.find((k) => descLower.includes(k))?.toUpperCase() || "DAS";
+          const today = new Date();
+          const comp = `${String(today.getMonth() + 1).padStart(2, "0")}/${today.getFullYear()}`;
+          await supabase.from("tax_guides").insert({
+            company_id: company.id,
+            tipo: tipoGuess,
+            competencia: comp,
+            vencimento: date,
+            valor: amount,
+            status: "a_pagar",
+            source: "ocr",
+          });
+          queryClient.invalidateQueries({ queryKey: ["tax_guides"] });
+        } else {
+          // Boleto de despesa ou nota de entrada → conta a pagar.
+          await supabase.from("bills_payable").insert({
+            company_id: company.id,
+            fornecedor: scanData.issuer || "Fornecedor não identificado",
+            descricao: description,
+            valor: amount,
+            vencimento: date,
+            status: "a_vencer",
+            source: "ocr",
+            contact_id: contactId,
+          });
+          queryClient.invalidateQueries({ queryKey: ["bills_payable"] });
+        }
+        toast.success(
+          pjType === "revenue"
+            ? "Nota registrada em Vendas. Conta a receber aberta."
+            : "Conta a pagar criada a partir do documento.",
+        );
+      } else if ((overrides?.status ?? "confirmed") === "pending") {
+        // Documento não-fiscal (comprovante/recibo) que o usuário marcou como título
+        // ainda em aberto → vira conta a receber/pagar, não caixa.
+        if (pjType === "revenue") {
+          await supabase.from("receivables").insert({
+            company_id: company.id,
+            contact_id: contactId,
+            description,
+            amount,
+            due_date: date,
+            status: "a_receber",
+            source: "manual",
+          });
+          queryClient.invalidateQueries({ queryKey: ["receivables"] });
+          toast.success("Conta a receber criada.");
+        } else {
+          await supabase.from("bills_payable").insert({
+            company_id: company.id,
+            fornecedor: scanData.issuer || "Fornecedor não identificado",
+            descricao: description,
+            valor: amount,
+            vencimento: date,
+            status: "a_vencer",
+            source: "ocr",
+            contact_id: contactId,
+          });
+          queryClient.invalidateQueries({ queryKey: ["bills_payable"] });
+          toast.success("Conta a pagar criada.");
+        }
+      } else {
+        // Comprovante / PIX / recibo / extrato = caixa realizado → transação.
+        const { data: inserted, error } = await supabase.from("transactions").insert({
           company_id: company.id,
-          tipo: tipoGuess,
-          competencia: comp,
-          vencimento: date,
-          valor: amount,
-          status: "a_pagar",
-          source: "ocr",
-        });
-        queryClient.invalidateQueries({ queryKey: ["tax_guides"] });
+          user_id: user.id,
+          description,
+          amount,
+          date,
+          type: pjType,
+          source: "scanner",
+          status: "confirmed",
+          account_id: overrides?.account_id ?? scanData.suggested_account_id ?? null,
+          cost_center_id: overrides?.cost_center_id ?? scanData.suggested_cost_center_id ?? null,
+          bank_account_id: overrides?.bank_account_id ?? scanData.suggested_bank_account_id ?? null,
+        }).select("id").single();
+        if (error) throw error;
+        novaTransacaoId = inserted?.id ?? null;
+        toast.success("Lançamento criado com sucesso!");
       }
 
-      toast.success(status === "pending" ? "Conta a pagar criada!" : "Lançamento criado com sucesso!");
+      // Anexa o arquivo escaneado à transação de caixa quando houver uma.
+      if (file && novaTransacaoId) {
+        await uploadAndAttach(file, novaTransacaoId);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["recent_scans_company"] });
       setResult(null);

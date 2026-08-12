@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
         .eq("type", type)
         // "receivable" incluído: um crédito do extrato/OF concilia com a receita já
         // lançada pela baixa do contas a receber, em vez de gerar uma 2ª receita.
-        .in("source", ["manual", "whatsapp", "receivable"])
+        .in("source", ["manual", "whatsapp", "receivable", "scanner", "ocr"])
         .neq("status", "reconciled")
         .gte("date", startDate.toISOString().split("T")[0])
         .lte("date", endDate.toISOString().split("T")[0]);
@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
         .eq("company_id", company_id)
         // inclui "receivable" p/ o crédito do extrato conciliar com a receita já
         // lançada na baixa do contas a receber (anti-duplicidade com Open Finance).
-        .in("source", ["manual", "whatsapp", "receivable"])
+        .in("source", ["manual", "whatsapp", "receivable", "scanner", "ocr"])
         .neq("status", "reconciled")
         .order("date", { ascending: false })
         .limit(200);
@@ -368,10 +368,10 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "transaction_id and receivable_id required" }, 400, corsHeaders);
       }
       const { data: tx } = await supabase
-        .from("transactions").select("id, company_id, date, amount, type, status")
+        .from("transactions").select("id, company_id, date, amount, type, status, account_id")
         .eq("id", transaction_id).maybeSingle();
       const { data: rec } = await supabase
-        .from("receivables").select("id, company_id, status, transaction_id, amount")
+        .from("receivables").select("id, company_id, status, transaction_id, amount, account_id")
         .eq("id", receivable_id).maybeSingle();
       if (!tx || !rec) return jsonResp({ error: "transaction or receivable not found" }, 404, corsHeaders);
       if (tx.company_id !== rec.company_id) return jsonResp({ error: "company mismatch" }, 400, corsHeaders);
@@ -400,8 +400,11 @@ Deno.serve(async (req) => {
         .update({ transaction_id: tx.id, status: "recebido", payment_date: tx.date, updated_at: nowIso })
         .eq("id", rec.id).is("transaction_id", null).select("id");
       if (!upd || upd.length === 0) return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
-      // O crédito do extrato É a receita real; marca como conciliado (não duplica).
-      await supabase.from("transactions").update({ status: "reconciled", reconciled_at: nowIso }).eq("id", tx.id);
+      // O crédito do extrato É a receita real; marca como conciliado (não duplica) e
+      // herda a conta de receita do título para a receita cair na conta certa do DRE.
+      await supabase.from("transactions")
+        .update({ status: "reconciled", reconciled_at: nowIso, account_id: tx.account_id ?? rec.account_id ?? null })
+        .eq("id", tx.id);
       return jsonResp({ ok: true, action: "settled", receivable_id: rec.id, transaction_id: tx.id }, 200, corsHeaders);
     }
 
@@ -460,10 +463,10 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "transaction_id and bill_id required" }, 400, corsHeaders);
       }
       const { data: tx } = await supabase
-        .from("transactions").select("id, company_id, date, amount, type, status")
+        .from("transactions").select("id, company_id, date, amount, type, status, account_id")
         .eq("id", transaction_id).maybeSingle();
       const { data: bill } = await supabase
-        .from("bills_payable").select("id, company_id, status, transaction_id, valor")
+        .from("bills_payable").select("id, company_id, status, transaction_id, valor, account_id")
         .eq("id", bill_id).maybeSingle();
       if (!tx || !bill) return jsonResp({ error: "transaction or bill not found" }, 404, corsHeaders);
       if (tx.company_id !== bill.company_id) return jsonResp({ error: "company mismatch" }, 400, corsHeaders);
@@ -490,7 +493,7 @@ Deno.serve(async (req) => {
         .eq("id", bill.id).is("transaction_id", null).select("id");
       if (!upd || upd.length === 0) return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
       await supabase.from("transactions")
-        .update({ status: "reconciled", reconciled_at: nowIso })
+        .update({ status: "reconciled", reconciled_at: nowIso, account_id: tx.account_id ?? bill.account_id ?? null })
         .eq("id", tx.id);
 
       return jsonResp({ ok: true, action: "settled", bill_id: bill.id, transaction_id: tx.id }, 200, corsHeaders);
