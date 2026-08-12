@@ -638,6 +638,7 @@ export type Database = {
       }
       bills_payable: {
         Row: {
+          account_id: string | null
           approval_status: string
           approved_at: string | null
           approved_by: string | null
@@ -663,6 +664,7 @@ export type Database = {
           vencimento: string
         }
         Insert: {
+          account_id?: string | null
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
@@ -688,6 +690,7 @@ export type Database = {
           vencimento: string
         }
         Update: {
+          account_id?: string | null
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
@@ -713,6 +716,13 @@ export type Database = {
           vencimento?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bills_payable_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bills_payable_company_id_fkey"
             columns: ["company_id"]
@@ -3111,6 +3121,7 @@ export type Database = {
           last_test_status: string | null
           nfse_via: string
           optante_simples: boolean
+          prazo_recebimento_dias: number
           proximo_numero_dps: number
           serie_dps: string
           setup_step: number
@@ -3136,6 +3147,7 @@ export type Database = {
           last_test_status?: string | null
           nfse_via?: string
           optante_simples?: boolean
+          prazo_recebimento_dias?: number
           proximo_numero_dps?: number
           serie_dps?: string
           setup_step?: number
@@ -3161,6 +3173,7 @@ export type Database = {
           last_test_status?: string | null
           nfse_via?: string
           optante_simples?: boolean
+          prazo_recebimento_dias?: number
           proximo_numero_dps?: number
           serie_dps?: string
           setup_step?: number
