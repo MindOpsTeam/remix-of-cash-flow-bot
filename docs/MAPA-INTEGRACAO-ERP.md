@@ -95,10 +95,27 @@ cClassTrib, ISS) vivem no mesmo cadastro, então o mesmo item serve emissão de 
    polimórfica, o mesmo campo cobre pedido, cancelamento e ajuste). O rastreio da origem existe; uma
    FK formal quebraria o polimorfismo, então foi mantido como está.
 
+## Conciliação bancária (fecha o ciclo do dinheiro)
+
+O ciclo completo: **nota → recebível → (cliente paga) → extrato bancário → baixa do recebível**.
+
+- Entrada do extrato: Open Finance / Pluggy / Inter / Asaas / Stripe geram `transactions`
+  (`type='revenue'`). Gateways (Asaas/Stripe) já **dão baixa automática** no recebível por webhook
+  (ligam `receivables.transaction_id` e marcam `recebido`).
+- Conciliação (`reconcile-transactions`): casa o crédito do extrato com o lançamento já existente
+  (anti-duplicidade), e agora também **fecha o recebível em aberto**:
+  - `suggest_receivables`: para créditos do extrato ainda não conciliados, sugere o recebível
+    `a_receber`/`vencido` que casa por valor (±5%), janela de data (até 15 dias após o vencimento) e
+    contato.
+  - `settle_receivable`: dá baixa no recebível usando o **crédito real do extrato** como a receita
+    (liga `transaction_id`, marca `recebido` + `payment_date`, e concilia a transação). Idempotente.
+- Isso resolve o caso do pagamento por PIX/transferência (via Open Finance), em que o dinheiro cai
+  no banco antes da baixa manual: o recebível deixa de ficar preso em `a_receber`.
+
 ## Conclusão
 
 O medo de "tabelas que não se conversam" não se confirma: o núcleo é compartilhado, a nota fiscal
-está encadeada com cliente, pedido, recebível, itens, guia e provedor, e há automação real entre
-comercial, fiscal, financeiro, estoque e contábil. Os três achados foram fechados: nota gera
-recebível (novo trigger), nota tem itens (nova tabela), e a origem do pedido na baixa de estoque já
-era rastreada por design.
+está encadeada com cliente, pedido, recebível, itens, guia e provedor, e o ciclo do dinheiro fecha
+(nota → recebível → extrato → baixa). Achados fechados: nota gera recebível (trigger), nota tem
+itens (tabela), origem do pedido na baixa de estoque já era rastreada, e a conciliação agora liga o
+crédito do extrato ao recebível em aberto.

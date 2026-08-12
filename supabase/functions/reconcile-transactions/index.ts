@@ -5,9 +5,11 @@
  * busca transações manuais/whatsapp similares para evitar duplicatas.
  *
  * Ações:
- *   reconcile_pj — concilia transactions (PJ)
- *   list_pending — lista transações com possíveis duplicatas
- *   resolve       — resolve manualmente (confirm/reject)
+ *   reconcile_pj        — concilia transactions (PJ)
+ *   list_pending        — lista transações com possíveis duplicatas
+ *   resolve             — resolve manualmente (confirm/reject)
+ *   suggest_receivables — casa crédito do extrato com recebível EM ABERTO
+ *   settle_receivable   — dá baixa no recebível usando o crédito real do extrato
  *
  * Auth: exige JWT do usuário + membership em company_id.
  * Chamadas internas (ex: inter-banking) devem repassar o Authorization
@@ -305,6 +307,91 @@ Deno.serve(async (req) => {
       }
 
       return jsonResp({ error: "Invalid decision" }, 400, corsHeaders);
+    }
+
+    // ── suggest_receivables: casa crédito do extrato com recebível EM ABERTO ──
+    // Fecha o ciclo quando o dinheiro cai no banco (Open Finance/PIX) antes da
+    // baixa manual: em vez de deixar o recebível 'a_receber', sugere liquidá-lo.
+    if (action === "suggest_receivables") {
+      const { company_id } = body;
+      if (!company_id) return jsonResp({ error: "company_id required" }, 400, corsHeaders);
+      const forbidden = await assertMembership(supabase, user.id, company_id, corsHeaders);
+      if (forbidden) return forbidden;
+
+      const { data: bankTxs } = await supabase
+        .from("transactions")
+        .select("id, amount, date, description, contact_id, type, status, source")
+        .eq("company_id", company_id)
+        .eq("type", "revenue")
+        .neq("status", "reconciled")
+        .in("source", ["asaas", "api", "inter", "openfinance", "pluggy"])
+        .order("date", { ascending: false })
+        .limit(200);
+
+      const { data: openRec } = await supabase
+        .from("receivables")
+        .select("id, amount, due_date, contact_id, description, status")
+        .eq("company_id", company_id)
+        .in("status", ["a_receber", "vencido"])
+        .is("transaction_id", null)
+        .limit(500);
+
+      const RECEB_WINDOW = 15 * 86400000; // o pagamento pode cair depois do vencimento
+      const suggestions: Array<Record<string, unknown>> = [];
+      for (const tx of (bankTxs || [])) {
+        for (const r of (openRec || [])) {
+          const rAmount = Number(r.amount);
+          if (rAmount <= 0) continue;
+          const valueDiff = Math.abs(Math.abs(tx.amount) - rAmount);
+          if (valueDiff > rAmount * VALUE_TOLERANCE) continue;
+          const dateDiff = Math.abs(new Date(tx.date).getTime() - new Date(r.due_date).getTime());
+          if (dateDiff > RECEB_WINDOW) continue;
+          const sameContact = !!(tx.contact_id && r.contact_id && tx.contact_id === r.contact_id);
+          const score = (1 - valueDiff / rAmount) * 60 + (sameContact ? 40 : 20 * (1 - dateDiff / RECEB_WINDOW));
+          suggestions.push({
+            transaction_id: tx.id, receivable_id: r.id, amount: rAmount,
+            tx_date: tx.date, due_date: r.due_date,
+            tx_description: tx.description, receivable_description: r.description,
+            same_contact: sameContact, score: Math.round(score),
+          });
+        }
+      }
+      return jsonResp({ suggestions: suggestions.sort((a, b) => (b.score as number) - (a.score as number)) }, 200, corsHeaders);
+    }
+
+    // ── settle_receivable: baixa o recebível usando o crédito real do extrato ──
+    if (action === "settle_receivable") {
+      const { transaction_id, receivable_id } = body;
+      if (!transaction_id || !receivable_id) {
+        return jsonResp({ error: "transaction_id and receivable_id required" }, 400, corsHeaders);
+      }
+      const { data: tx } = await supabase
+        .from("transactions").select("id, company_id, date, amount, type")
+        .eq("id", transaction_id).maybeSingle();
+      const { data: rec } = await supabase
+        .from("receivables").select("id, company_id, status, transaction_id")
+        .eq("id", receivable_id).maybeSingle();
+      if (!tx || !rec) return jsonResp({ error: "transaction or receivable not found" }, 404, corsHeaders);
+      if (tx.company_id !== rec.company_id) return jsonResp({ error: "company mismatch" }, 400, corsHeaders);
+
+      const forbidden = await assertMembership(supabase, user.id, rec.company_id, corsHeaders);
+      if (forbidden) return forbidden;
+      const readonly = await assertCanWrite(supabase, user.id, rec.company_id, corsHeaders);
+      if (readonly) return readonly;
+
+      // Idempotente: recebível já ligado a um lançamento não é re-baixado.
+      if (rec.transaction_id) return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
+
+      const nowIso = new Date().toISOString();
+      await supabase.from("receivables")
+        .update({ transaction_id: tx.id, status: "recebido", payment_date: tx.date, updated_at: nowIso })
+        .eq("id", rec.id);
+      // O crédito do extrato É a receita real; marca como conciliado (não duplica).
+      await supabase.from("transactions")
+        .update({ status: "reconciled", reconciled_at: nowIso })
+        .eq("id", tx.id);
+
+      return jsonResp({ ok: true, action: "settled", receivable_id: rec.id, transaction_id: tx.id }, 200, corsHeaders);
     }
 
     return jsonResp({ error: `Unknown action: ${action}` }, 400, corsHeaders);
