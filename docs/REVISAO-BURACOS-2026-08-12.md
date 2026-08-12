@@ -19,35 +19,36 @@ Este doc lista o que foi encontrado, o que já foi corrigido e o que virou plano
 | M5 | Parse de valor **zerava** em `1.234,56` (milhar) | parser pt-BR correto | `inbound-documents/index.ts`, `ImportarNotaXml.tsx` |
 | M1 | Transação **conciliada sumia da consolidação de grupo** (view filtrava só `confirmed`) | view passa a contar `confirmed` + `reconciled` | migration |
 
-## Plano (itens de modelagem fiscal/contábil — precisam de design, não bug-fix)
+## Corrigido nesta rodada — modelagem (2026-08-12, commit `78794c3`)
+
+| # | Achado | Correção | Onde |
+|---|---|---|---|
+| Estr-C1 | **Dupla contagem do OCR**: um scan criava `transactions` de receita/despesa **e** o título (`invoices`/`bills_payable`) → dinheiro contado 2×; `scanner`/`ocr` fora da dedup | scan gera **um** artefato: nota/boleto/guia = só título; comprovante/recibo respeitam o toggle `pending`(título) × `confirmed`(caixa); a `transactions` só nasce no caixa. `reconcile_pj`/`list_pending` passam a deduplicar `scanner`/`ocr` | `useDocumentScanner.ts`, `reconcile-transactions/index.ts` |
+| Estr-C3 (parcial) | **Recebível nascia à vista** (`due_date = emissão`) → "vencido" no dia seguinte, e **sem conta contábil** | `due_date = emissão + prazo` (`nfse_config.prazo_recebimento_dias`, default 30); `account_id` = receita 3.1 (serviço) / 3.2 (produto) por empresa | migration `..._modelagem_recebivel_contabil.sql` |
+| Estr-C4 | **Ciclo não fechava contábil**: `settle` não propagava `account_id` → receita/despesa caía em "Sem conta contábil" no DRE | `settle_receivable`/`settle_payable` herdam `account_id` do título para a transação conciliada; `bills_payable` ganhou `account_id` com default de despesa (4.1) via trigger central | migration + `reconcile-transactions/index.ts` |
+| Estr-A1 (parcial) | **Cancelar a nota não estornava o recebível** | trigger em `invoices.status='cancelled'` cancela o recebível aberto (não baixado); recebível já recebido exige estorno manual (o dinheiro entrou) | migration |
+
+Verificado por smoke test (nota autorizada → recebível com vencimento emissão+30 e conta 3.1 → cancelamento → recebível `cancelado`), com rollback dos dados de teste.
+
+## Plano (resíduo — precisam de design de UI/fiscal, não bug-fix)
 
 Priorizados; cada um muda regra de negócio e merece decisão + teste com dados reais:
 
-1. **Contagem dupla no OCR (Estr-C1)**: o `DocumentScanner`/`useDocumentScanner` cria `transactions`
-   de receita/despesa **e** `invoices`/`bills_payable` no mesmo scan → o dinheiro é contado 2x (e a
-   `source='scanner'` não entra na dedup de `reconcile_pj`). Decidir: o scan gera **um** artefato de
-   negócio; a `transactions` só nasce no caixa (conciliação). Incluir `scanner`/`ocr` na dedup.
-2. **Recebível da nota sempre à vista e pelo bruto (Estr-C3)**: `gerar_receivable_da_nota` usa
-   `due_date = emissão` e `amount = total`. Sem parcelas, sem prazo, sem líquido → nasce "vencido" no
-   dia seguinte (infla vencido, consome limite de crédito), e a conciliação não casa quando há ISS
-   retido/retenções (depósito líquido ≠ recebível bruto). Ler `<dup>` do XML ou pedir prazo/parcelas
-   e modelar retenções.
-3. **Ciclo não fecha contábil (Estr-C4)**: recebível/`settle` não propagam `account_id` nem
-   `competencia_date` para a `transactions` → DRE joga a receita em `a_classificar` e o regime de
-   competência não funciona. Propagar conta contábil (de `products.account_id`/classificação) e a
-   competência na baixa.
-4. **Cancelamento não estorna recebível (Estr-A1)** e `/cancel` do worker é 501. Trigger de
-   `status='cancelled'` cancelando os recebíveis + implementar o evento de cancelamento no ADN.
-5. **Baixa parcial / anti-reuso mais forte (Estr-A2)**: suportar recebimento parcial (saldo
+1. **Retenções / ISS retido e parcelas do recebível (resíduo do Estr-C3)**: o recebível já nasce com
+   prazo e conta, mas ainda é uma parcela única pelo **bruto**. Falta ler `<dup>`/retenções do XML
+   (depósito líquido ≠ recebível bruto) e permitir N parcelas — exige UI de parcelamento.
+2. **Cancelamento no ADN (resíduo do Estr-A1)**: o estorno do recebível já ocorre; falta o evento
+   fiscal de cancelamento (`/cancel` do worker ainda é 501) no ADN.
+3. **Baixa parcial / anti-reuso mais forte (Estr-A2)**: suportar recebimento parcial (saldo
    residual); a trava de reuso da transação já foi endurecida, mas falta a baixa parcial.
-6. **Manifestação do destinatário / MDe (Estr-A3)**: automatizar ao menos a "Ciência da Operação"
+4. **Manifestação do destinatário / MDe (Estr-A3)**: automatizar ao menos a "Ciência da Operação"
    (baixa o XML completo, com duplicatas e itens) e rastrear o prazo legal.
-7. **Duplicatas reais na entrada (Estr-A4)**: `to_bill` usa vencimento fixo emissão+30; ler
+5. **Duplicatas reais na entrada (Estr-A4)**: `to_bill` usa vencimento fixo emissão+30; ler
    `<dup>/<cobr>` do XML e gerar N contas a pagar nas datas reais.
-8. **Certificado A1 + senha em texto claro (Tec-H6 / P1 da auditoria)**: mover cert/senha e
+6. **Certificado A1 + senha em texto claro (Tec-H6 / P1 da auditoria)**: mover cert/senha e
    `worker_api_key` para o Vault; hoje qualquer membro lê via RLS.
-9. **Claim-first na emissão (Tec-C2)**: sob concorrência sem `idempotencyKey`, duas requisições ainda
+7. **Claim-first na emissão (Tec-C2)**: sob concorrência sem `idempotencyKey`, duas requisições ainda
    podem transmitir duas notas reais ao SEFIN. Fix definitivo: o front enviar `idempotencyKey` por
    tentativa + a edge inserir a invoice "pending" antes de emitir. (Mitigado: H1 já evita o bloqueio
    indevido; a proteção total precisa do front + teste com certificado.)
-10. **RTC (IBS/CBS)** no DPS e validação de leiaute em homologação (já na auditoria original).
+8. **RTC (IBS/CBS)** no DPS e validação de leiaute em homologação (já na auditoria original).
