@@ -60,24 +60,31 @@ interface ParsedDoc {
   data_emissao: string | null;
   nsu: string | null;
   manifestacao: string | null;
+  xml_content: string; // JSON bruto da Focus, para auditoria/reprocesso
 }
 
 function parseNota(raw: unknown): ParsedDoc | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
-  const emit = (o.emitente ?? {}) as Record<string, unknown>;
-  const valorStr = pick(o, "valor_total", "valor", "vnf", "valor_liquido");
-  const data = pick(o, "data_emissao", "dhEmi", "data", "data_autorizacao");
+  // O resumo da Focus pode aninhar os dados sob nfe/nota/resumo. Achata para buscar.
+  const nested = (o.nfe ?? o.nota ?? o.resumo ?? {}) as Record<string, unknown>;
+  const flat: Record<string, unknown> = { ...nested, ...o };
+  const emit = (flat.emitente ?? {}) as Record<string, unknown>;
+  // Valor é o campo mais crítico (uma conta a pagar zerada é inútil): tenta muitos nomes.
+  const valorStr = pick(flat, "valor_total", "valor_total_nota", "valor", "valor_liquido",
+    "vnf", "vNF", "valor_nota", "valor_documento") ?? pick(emit, "valor_total");
+  const data = pick(flat, "data_emissao", "dhEmi", "data", "data_autorizacao", "created_at");
   return {
     tipo: "nfe",
-    chave_acesso: pick(o, "chave_nfe", "chave", "chave_acesso"),
-    numero: pick(o, "numero", "nnf", "numero_nfe"),
-    emitente_cnpj: pick(o, "cnpj_emitente", "emitente_cnpj") ?? pick(emit, "cnpj"),
-    emitente_nome: pick(o, "nome_emitente", "razao_social_emitente") ?? pick(emit, "nome", "razao_social"),
-    valor_total: valorStr ? Number(valorStr) : 0,
+    chave_acesso: pick(flat, "chave_nfe", "chave", "chave_acesso", "chave_nota"),
+    numero: pick(flat, "numero", "nnf", "nNF", "numero_nfe"),
+    emitente_cnpj: pick(flat, "cnpj_emitente", "emitente_cnpj", "cnpj") ?? pick(emit, "cnpj"),
+    emitente_nome: pick(flat, "nome_emitente", "razao_social_emitente", "razao_social_emit") ?? pick(emit, "nome", "razao_social", "nome_fantasia"),
+    valor_total: valorStr ? Number(String(valorStr).replace(",", ".")) : 0,
     data_emissao: data ? data.slice(0, 10) : null,
-    nsu: pick(o, "nsu", "ultimo_nsu"),
-    manifestacao: pick(o, "status", "situacao_manifestacao", "manifestacao"),
+    nsu: pick(flat, "nsu", "ultimo_nsu", "NSU"),
+    manifestacao: pick(flat, "status", "situacao_manifestacao", "manifestacao", "situacao"),
+    xml_content: JSON.stringify(raw).slice(0, 20000),
   };
 }
 
@@ -119,7 +126,11 @@ Deno.serve(async (req: Request) => {
       if (!call.ok) {
         return jsonResp({ error: `Focus respondeu ${call.status}`, detalhe: call.data }, 502, corsHeaders);
       }
-      const lista = Array.isArray(call.data) ? call.data : ((call.data as Record<string, unknown>)?.nfes ?? []);
+      const raw = call.data as unknown;
+      const wrap = (raw ?? {}) as Record<string, unknown>;
+      const lista = Array.isArray(raw)
+        ? raw
+        : ((wrap.nfes ?? wrap.notas ?? wrap.data ?? wrap.documentos ?? []) as unknown[]);
       const parsed = (Array.isArray(lista) ? lista : []).map(parseNota).filter((d): d is ParsedDoc => !!d && !!d.chave_acesso);
 
       // Idempotência: insere só chaves ainda não conhecidas.
