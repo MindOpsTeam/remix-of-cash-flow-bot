@@ -27,6 +27,11 @@ DECLARE
   v_data date;
   v_matriz uuid;
   v_conn uuid;
+  v_inv uuid;
+  v_inv_canc uuid;
+  v_inbound uuid;
+  v_rec_parcial uuid;
+  v_tx_parcial uuid;
   i integer;
 BEGIN
   -- Limpa palco anterior (cascade leva members, transactions, tudo).
@@ -174,6 +179,73 @@ BEGIN
     VALUES
       (v_company, v_dono, 'Receita dos últimos 12 meses', '{"metrica": "receita", "dimensao": "tempo", "tipo": "area", "meses": 12}', 0),
       (v_company, v_dono, 'Contas a pagar por vencimento', '{"metrica": "pagar_vencimento", "dimensao": "tempo", "tipo": "bar", "meses": 12}', 1);
+
+    -- ── Vitrine fiscal (alimenta o tour do demo com as melhorias reais) ───────
+    -- 1) Venda com NF-e PARCELADA: nota autorizada com 2 duplicatas. O trigger
+    --    gerar_receivable_da_nota abre 2 parcelas a receber, com vencimento,
+    --    conta de receita e valor LÍQUIDO de retenções (não digitamos nada aqui).
+    INSERT INTO public.invoices (company_id, contact_id, type, status, number, issue_date,
+                                 total, valor_liquido, valor_retencoes, chave_acesso, duplicatas)
+    VALUES (v_company, v_contato, 'nfse', 'authorized', '2001', current_date - 3,
+            round(v_emp.base * 0.120), round(v_emp.base * 0.114), round(v_emp.base * 0.006),
+            'DEMO-' || v_emp.org || '-VENDA-PARC',
+            jsonb_build_array(
+              jsonb_build_object('numero','1','vencimento', to_char(current_date + 12,'YYYY-MM-DD'), 'valor', round(v_emp.base * 0.057)),
+              jsonb_build_object('numero','2','vencimento', to_char(current_date + 42,'YYYY-MM-DD'), 'valor', round(v_emp.base * 0.057))
+            ))
+    RETURNING id INTO v_inv;
+
+    -- 2) Nota CANCELADA: autorizada e depois cancelada. O trigger
+    --    estornar_receivable_nota_cancelada baixa o recebível em aberto para
+    --    'cancelado' (não deixa número fantasma inflando o vencido).
+    INSERT INTO public.invoices (company_id, contact_id, type, status, number, issue_date,
+                                 total, chave_acesso)
+    VALUES (v_company, v_contato, 'nfse', 'authorized', '2002', current_date - 6,
+            round(v_emp.base * 0.05), 'DEMO-' || v_emp.org || '-CANCELADA')
+    RETURNING id INTO v_inv_canc;
+    UPDATE public.invoices
+       SET status = 'cancelled',
+           nfse_evento_xml = '<evento tipo="101101">Cancelamento demonstrativo</evento>'
+     WHERE id = v_inv_canc;
+
+    -- 3) Nota de ENTRADA (compra) com 2 duplicatas → 2 contas a pagar nas datas
+    --    reais; Ciência da Operação (MDe) registrada com prazo.
+    INSERT INTO public.inbound_documents (company_id, tipo, chave_acesso, numero, emitente_cnpj,
+                                          emitente_nome, valor_total, data_emissao, status,
+                                          duplicatas, valor_retencoes, manifestacao, manifestacao_at)
+    VALUES (v_company, 'nfe', 'DEMO-' || v_emp.org || '-ENTRADA', '7050', '99888777000166',
+            'Fornecedora Andina SA', round(v_emp.base * 0.09), current_date - 4, 'lancado',
+            jsonb_build_array(
+              jsonb_build_object('vencimento', to_char(current_date + 6,'YYYY-MM-DD'), 'valor', round(v_emp.base * 0.045)),
+              jsonb_build_object('vencimento', to_char(current_date + 36,'YYYY-MM-DD'), 'valor', round(v_emp.base * 0.045))
+            ), round(v_emp.base * 0.002), 'ciencia', now() - interval '1 day')
+    RETURNING id INTO v_inbound;
+    INSERT INTO public.bills_payable (company_id, contact_id, fornecedor, descricao, valor, vencimento, status, source, external_id)
+    VALUES
+      (v_company, NULL, 'Fornecedora Andina SA', 'NFE nº 7050 · parcela 1/2', round(v_emp.base * 0.045), current_date + 6, 'a_vencer', 'nota_fiscal', 'DEMO-' || v_emp.org || '-ENTRADA-p1'),
+      (v_company, NULL, 'Fornecedora Andina SA', 'NFE nº 7050 · parcela 2/2', round(v_emp.base * 0.045), current_date + 36, 'a_vencer', 'nota_fiscal', 'DEMO-' || v_emp.org || '-ENTRADA-p2');
+    UPDATE public.inbound_documents
+       SET bill_id = (SELECT id FROM public.bills_payable WHERE company_id = v_company AND external_id = 'DEMO-' || v_emp.org || '-ENTRADA-p1' LIMIT 1)
+     WHERE id = v_inbound;
+
+    -- 4) Recebível com BAIXA PARCIAL: um crédito real do extrato abateu parte do
+    --    título, deixando saldo, via o RPC atômico aplicar_baixa_titulo.
+    INSERT INTO public.receivables (company_id, contact_id, description, amount, due_date, status, source, account_id)
+    VALUES (v_company, v_contato, 'Fatura Horizonte (recebida em parte)', round(v_emp.base * 0.10), current_date + 7, 'a_receber', 'manual', v_conta_receita)
+    RETURNING id INTO v_rec_parcial;
+    INSERT INTO public.transactions (company_id, user_id, date, description, amount, type, status, source, contact_id)
+    VALUES (v_company, v_dono, current_date - 1, 'PIX recebido Horizonte (parcial)', round(v_emp.base * 0.06), 'revenue', 'confirmed', 'openfinance', v_contato)
+    RETURNING id INTO v_tx_parcial;
+    PERFORM public.aplicar_baixa_titulo('receivable', v_rec_parcial, v_tx_parcial, round(v_emp.base * 0.06), current_date - 1);
+
+    -- 5) NFS-e CONFIGURADA (o certificado fica no cofre; a tela mostra
+    --    "configurado" via cert_cnpj, sem o segredo trafegar para o navegador).
+    INSERT INTO public.nfse_config (company_id, active, ambiente, cert_cnpj, cert_razao_social,
+                                    cert_expires_at, nfse_via, worker_url, serie_dps, proximo_numero_dps,
+                                    codigo_municipio, optante_simples, prazo_recebimento_dias, setup_step)
+    VALUES (v_company, true, 'homologacao', v_emp.cnpj, v_emp.nome,
+            current_date + 300, 'worker_proprio', 'https://worker-demo.aurora.example', '1', 3,
+            '4205407', (v_emp.regime = 'simples'), 30, 6);
   END LOOP;
 
   -- A Caixa de entrada bancária nasce viva na MATRIZ: conexão fictícia e
