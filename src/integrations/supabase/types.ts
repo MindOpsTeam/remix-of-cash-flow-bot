@@ -2601,6 +2601,7 @@ export type Database = {
           emitente_nome: string | null
           id: string
           manifestacao: string | null
+          manifestacao_at: string | null
           nsu: string | null
           numero: string | null
           status: string
@@ -2621,6 +2622,7 @@ export type Database = {
           emitente_nome?: string | null
           id?: string
           manifestacao?: string | null
+          manifestacao_at?: string | null
           nsu?: string | null
           numero?: string | null
           status?: string
@@ -2641,6 +2643,7 @@ export type Database = {
           emitente_nome?: string | null
           id?: string
           manifestacao?: string | null
+          manifestacao_at?: string | null
           nsu?: string | null
           numero?: string | null
           status?: string
@@ -2861,6 +2864,7 @@ export type Database = {
           id: string
           idempotency_key: string | null
           issue_date: string
+          nfse_evento_xml: string | null
           nfse_xml: string | null
           notes: string | null
           number: string | null
@@ -2891,6 +2895,7 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           issue_date?: string
+          nfse_evento_xml?: string | null
           nfse_xml?: string | null
           notes?: string | null
           number?: string | null
@@ -2921,6 +2926,7 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           issue_date?: string
+          nfse_evento_xml?: string | null
           nfse_xml?: string | null
           notes?: string | null
           number?: string | null
@@ -6530,6 +6536,7 @@ export type Database = {
         Args: { p_company_id: string; p_environment: string }
         Returns: string
       }
+      get_nfse_secrets: { Args: { p_company_id: string }; Returns: Json }
       get_pluggy_credentials: { Args: { p_company_id: string }; Returns: Json }
       get_stripe_credentials: { Args: { p_config_id: string }; Returns: Json }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
