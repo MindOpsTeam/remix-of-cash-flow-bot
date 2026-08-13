@@ -8,9 +8,18 @@
 -- (o wizard sobe um .pfx novo); o status "configurado" passa a usar cert_cnpj (não
 -- secreto). O nfse-operations já usa service_role e não é afetado.
 
--- Fecha a leitura do segredo pelo cliente. Mantém INSERT/UPDATE (o upload do .pfx).
-REVOKE SELECT (cert_pfx_base64, cert_password, worker_api_key)
-  ON public.nfse_config FROM anon, authenticated;
+-- Fecha a leitura do segredo pelo cliente. Como o SELECT é concedido a nível de
+-- tabela, revogamos a tabela e reconcedemos SÓ as colunas não-secretas (um REVOKE
+-- de coluna isolado não removeria o grant de tabela). INSERT/UPDATE seguem intactos
+-- (o wizard sobe o .pfx). Ao adicionar colunas novas a nfse_config, inclua-as neste
+-- GRANT (exceto novos segredos).
+REVOKE SELECT ON public.nfse_config FROM anon, authenticated;
+GRANT SELECT (
+  active, ambiente, cert_cnpj, cert_expires_at, cert_razao_social, codigo_municipio,
+  company_id, created_at, id, inscricao_municipal, last_emission_at, last_test_at,
+  last_test_status, nfse_via, optante_simples, prazo_recebimento_dias,
+  proximo_numero_dps, serie_dps, setup_step, updated_at, worker_url
+) ON public.nfse_config TO anon, authenticated;
 
 -- Leitura server-side dos segredos (usada pelos edges com service_role).
 CREATE OR REPLACE FUNCTION public.get_nfse_secrets(p_company_id uuid)
