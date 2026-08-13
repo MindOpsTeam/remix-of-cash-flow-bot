@@ -312,8 +312,10 @@ export async function carregarConfiguradas(companyId: string): Promise<string[]>
       return !!(data?.token_homologacao_preview || data?.token_producao_preview);
     }],
     ["nfse", async () => {
-      const { data } = await supabase.from("nfse_config").select("cert_pfx_base64")
-        .eq("company_id", companyId).not("cert_pfx_base64", "is", null).maybeSingle();
+      // cert_cnpj (não-secreto) indica que há certificado; as colunas do .pfx/senha
+      // não são mais legíveis pelo cliente (REVOKE de SELECT).
+      const { data } = await supabase.from("nfse_config").select("cert_cnpj")
+        .eq("company_id", companyId).not("cert_cnpj", "is", null).maybeSingle();
       return !!data;
     }],
   ];

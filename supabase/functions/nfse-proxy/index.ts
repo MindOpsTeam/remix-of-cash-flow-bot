@@ -72,10 +72,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Segredos (certificado A1 + senha + chave do worker) ficam ILEGÍVEIS para os
+    // membros via RLS (REVOKE de SELECT nas colunas). Os edges os leem por um RPC
+    // SECURITY DEFINER, com service_role — o cert nunca trafega para o navegador.
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+    const { data: secrets } = await admin.rpc("get_nfse_secrets", { p_company_id: companyId });
+    const certBase64 = (secrets as { cert_pfx_base64?: string } | null)?.cert_pfx_base64 ?? null;
+    const certPassword = (secrets as { cert_password?: string } | null)?.cert_password ?? null;
+    const workerApiKey = (secrets as { worker_api_key?: string } | null)?.worker_api_key ?? null;
+
     // Resolve o worker DESTA empresa (multi-tenant): config primeiro, env como fallback.
     // Cada remix roda o próprio worker — o certificado nunca sai do ambiente do cliente.
     const workerUrl = (config.worker_url?.trim() || WORKER_URL_ENV).replace(/\/+$/, "");
-    const workerKey = config.worker_api_key?.trim() || WORKER_KEY_ENV;
+    const workerKey = workerApiKey?.trim() || WORKER_KEY_ENV;
     if (!workerUrl) {
       return new Response(
         JSON.stringify({
@@ -102,56 +115,81 @@ Deno.serve(async (req) => {
         ? [companyId, data?.competencia ?? "", salesOrderId, String((data?.valores as any)?.valorServicos ?? "")].join(":")
         : null);
 
-    if (operation === "emit") {
-      // Emissão é escrita fiscal REAL no SEFIN: perfil somente-leitura não emite (achado H7).
+    // Hoisted para o bloco pós-worker (persistência) enxergar após a emissão.
+    let numeroDps: number | null = null;
+    let claimId: string | null = null;
+
+    if (operation === "emit" || operation === "cancel") {
+      // Emissão e cancelamento são escrita fiscal REAL no SEFIN: perfil
+      // somente-leitura não pode (achado H7).
       const { data: membership } = await supabase
         .from("company_members").select("role").eq("company_id", companyId).eq("user_id", user.id).maybeSingle();
       if (!membership || membership.role === "viewer") {
-        return new Response(JSON.stringify({ error: "Sem permissão para emitir nota fiscal (perfil somente leitura)." }),
+        return new Response(JSON.stringify({ error: "Sem permissão para esta operação fiscal (perfil somente leitura)." }),
           { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
+    }
 
+    if (operation === "emit") {
+      // Reserva atômica do número da DPS via o `admin` (service_role) já criado acima.
+
+      // Claim-first: antes de transmitir, "reserva" a nota como rascunho ligado à
+      // idempotency_key. O índice único (company_id, idempotency_key) garante que
+      // duas tentativas concorrentes — ou um retry após timeout — não transmitam a
+      // MESMA nota duas vezes ao SEFIN: a 2ª esbarra no rascunho já existente.
       if (idempotencyKey) {
-        const { data: jaEmitida } = await supabase
-          .from("invoices")
-          .select("id, number, chave_acesso, status, nfse_xml")
-          .eq("company_id", companyId)
-          .eq("idempotency_key", idempotencyKey)
-          .maybeSingle();
-        if (jaEmitida) {
-          return new Response(
-            JSON.stringify({ success: true, duplicated: true, ...jaEmitida }),
-            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
+        const { data: claim, error: claimErr } = await supabase.from("invoices").insert({
+          company_id: companyId,
+          type: "nfse",
+          status: "draft",
+          issue_date: new Date().toISOString().split("T")[0],
+          total: data?.valores?.valorServicos || 0,
+          contact_id: (body.contactId as string | undefined) ?? null,
+          sales_order_id: salesOrderId,
+          idempotency_key: idempotencyKey,
+        }).select("id").single();
+
+        if (claimErr) {
+          // Já existe nota com essa idempotency_key: autorizada → devolve; em
+          // rascunho (tentativa em voo/timeout anterior) → NÃO retransmite.
+          const { data: existing } = await supabase.from("invoices")
+            .select("id, number, chave_acesso, status, nfse_xml")
+            .eq("company_id", companyId).eq("idempotency_key", idempotencyKey).maybeSingle();
+          if (existing?.status === "authorized") {
+            return new Response(JSON.stringify({ success: true, duplicated: true, ...existing }),
+              { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          }
+          return new Response(JSON.stringify({
+            success: false,
+            em_andamento: true,
+            aviso: "Já existe uma emissão desta nota em andamento (ou uma tentativa anterior sem confirmação). Confira em Vendas antes de tentar de novo.",
+            invoice_id: existing?.id ?? null,
+            status: existing?.status ?? null,
+          }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
+        claimId = claim.id;
       }
 
-      // Reserva atômica do número da DPS. A função é SECURITY DEFINER e NÃO
-      // valida dono, por isso não é executável pelo papel `authenticated`; a
-      // membresia já foi provada acima, ao carregar nfse_config sob RLS.
-      const admin = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        { auth: { persistSession: false, autoRefreshToken: false } },
-      );
       const { data: reserved, error: reserveErr } = await admin
         .rpc("reserve_next_dps_number", { config_id: config.id });
 
       // Falhar aqui é obrigatório: sem reserva o número não incrementa e a
       // próxima emissão repetiria a mesma DPS, que a SEFAZ rejeita.
       if (reserveErr || reserved === null || reserved === undefined) {
+        if (claimId) await supabase.from("invoices").delete().eq("id", claimId); // libera o rascunho
         console.error("Falha ao reservar número da DPS:", reserveErr?.message);
         return new Response(
           JSON.stringify({ error: "Nao foi possivel reservar o numero da DPS. Emissao abortada." }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-      const numeroDps = reserved;
+      numeroDps = reserved;
+      if (claimId) await supabase.from("invoices").update({ number: String(numeroDps) }).eq("id", claimId);
 
       workerPath = "/emit";
       workerBody = {
-        certBase64: config.cert_pfx_base64,
-        certPassword: config.cert_password,
+        certBase64: certBase64,
+        certPassword: certPassword,
         cnpjPrestador: config.cert_cnpj || data?.cnpjPrestador,
         inscricaoMunicipal: config.inscricao_municipal || undefined,
         codigoMunicipio: config.codigo_municipio,
@@ -165,22 +203,32 @@ Deno.serve(async (req) => {
         observacoes: data?.observacoes,
         // Regime real da empresa (antes ia `false` cravado → ISS errado p/ Simples).
         optanteSimplesNacional: config.optante_simples ?? true,
+        // RTC/IBS-CBS opcional (opt-in): só transmitido quando o app envia data.rtc.
+        rtc: (data as { rtc?: unknown } | undefined)?.rtc,
       };
     } else if (operation === "status") {
       workerPath = "/status";
       workerBody = {
-        certBase64: config.cert_pfx_base64,
-        certPassword: config.cert_password,
+        certBase64: certBase64,
+        certPassword: certPassword,
       };
     } else if (operation === "cancel") {
+      // Cancelamento também exige mTLS ao SEFIN → passa pelo worker com o cert.
       workerPath = "/cancel";
-      workerBody = { ...data };
+      workerBody = {
+        certBase64: certBase64,
+        certPassword: certPassword,
+        chaveAcesso: data?.chaveAcesso,
+        motivo: data?.motivo,
+        codigoMotivo: data?.codigoMotivo,
+        ambiente: config.ambiente,
+      };
     } else if (operation === "parse_cert") {
       // Handled locally — just test cert parsing
       workerPath = "/status";
       workerBody = {
-        certBase64: config.cert_pfx_base64,
-        certPassword: config.cert_password,
+        certBase64: certBase64,
+        certPassword: certPassword,
       };
     } else {
       return new Response(JSON.stringify({ error: `Operacao desconhecida: ${operation}` }), {
@@ -216,6 +264,24 @@ Deno.serve(async (req) => {
 
     const workerData = await workerRes.json();
 
+    // Cancelamento aceito pelo SEFIN → marca a nota como cancelada (o trigger
+    // estornar_receivable_nota_cancelada zera o recebível ainda em aberto).
+    if (operation === "cancel" && workerData.success && data?.chaveAcesso) {
+      await supabase.from("invoices")
+        .update({
+          status: "cancelled",
+          nfse_evento_xml: workerData.eventoXml ?? workerData.pedidoEventoXml ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("company_id", companyId).eq("chave_acesso", String(data.chaveAcesso).replace(/\D/g, ""));
+    }
+
+    // SEFIN respondeu, mas REJEITOU a emissão (não autorizou): libera o rascunho
+    // reservado no claim-first para que uma nova tentativa seja possível.
+    if (operation === "emit" && !workerData.success && claimId) {
+      await supabase.from("invoices").delete().eq("id", claimId);
+    }
+
     // If emission succeeded, save to invoices and update last_emission_at
     if (operation === "emit" && workerData.success) {
       await supabase
@@ -223,7 +289,7 @@ Deno.serve(async (req) => {
         .update({ last_emission_at: new Date().toISOString() })
         .eq("id", config.id);
 
-      const { data: invRow, error: invErr } = await supabase.from("invoices").insert({
+      const invoicePayload = {
         company_id: companyId,
         type: "nfse",
         status: "authorized",
@@ -241,7 +307,12 @@ Deno.serve(async (req) => {
         sefin_ambiente: workerData.ambiente ?? config.ambiente,
         idempotency_key: idempotencyKey,
         xml_content: workerData.nfseXml ?? JSON.stringify(workerData),
-      }).select("id").single();
+      };
+      // Claim-first: se reservamos o rascunho, CONFIRMA-o (update) em vez de inserir
+      // outra linha — a nota autorizada é o mesmo registro reservado antes de transmitir.
+      const { data: invRow, error: invErr } = claimId
+        ? await supabase.from("invoices").update(invoicePayload).eq("id", claimId).select("id").single()
+        : await supabase.from("invoices").insert(invoicePayload).select("id").single();
 
       // A nota JÁ foi autorizada no SEFIN. Se falhar ao gravar, NÃO some com ela:
       // devolve os dados fiscais para não perder a guarda e alerta o operador (achado C1).

@@ -96,11 +96,13 @@ export default function NfseIntegration() {
 
   useEffect(() => {
     if (existingConfig) {
+      // Segredos (cert .pfx/senha/worker_api_key) NÃO são mais legíveis pelo cliente
+      // (REVOKE de SELECT). Deixamos esses campos vazios no form; se o usuário não
+      // subir um novo, o save preserva o que já está no servidor. O status "tem
+      // certificado" vem de cert_cnpj (não-secreto).
       setForm({
         id: existingConfig.id,
         company_id: existingConfig.company_id,
-        cert_pfx_base64: existingConfig.cert_pfx_base64,
-        cert_password: existingConfig.cert_password,
         cert_cnpj: existingConfig.cert_cnpj,
         cert_razao_social: existingConfig.cert_razao_social,
         cert_expires_at: existingConfig.cert_expires_at,
@@ -112,12 +114,12 @@ export default function NfseIntegration() {
         active: existingConfig.active,
         nfse_via: (existingConfig.nfse_via as "worker_proprio" | "provedor") ?? "worker_proprio",
         worker_url: existingConfig.worker_url ?? "",
-        worker_api_key: existingConfig.worker_api_key ?? "",
+        worker_api_key: "",
         last_test_at: existingConfig.last_test_at,
         last_test_status: existingConfig.last_test_status,
         last_emission_at: existingConfig.last_emission_at,
       });
-      if (existingConfig.cert_pfx_base64) setPfxFileName("certificado.pfx");
+      if (existingConfig.cert_cnpj) setPfxFileName("certificado.pfx");
     }
   }, [existingConfig]);
 
@@ -144,15 +146,18 @@ export default function NfseIntegration() {
 
   const handleSave = async () => {
     if (!company) return;
-    if (!form.cert_pfx_base64 || !form.cert_password) {
+    // Exige certificado só quando ainda NÃO há um configurado (cert_cnpj) e o usuário
+    // também não subiu um novo agora. Assim dá para salvar série/município/worker sem
+    // reenviar o .pfx (que o cliente nem consegue mais ler).
+    const jaTemCert = !!existingConfig?.cert_cnpj;
+    const novoCert = !!(form.cert_pfx_base64 && form.cert_password);
+    if (!jaTemCert && !novoCert) {
       toast({ title: "Certificado .pfx e senha são obrigatórios", variant: "destructive" });
       return;
     }
     setSaving(true);
-    const payload = {
+    const payload: Record<string, unknown> = {
       company_id: company.id,
-      cert_pfx_base64: form.cert_pfx_base64,
-      cert_password: form.cert_password,
       ambiente: form.ambiente,
       serie_dps: form.serie_dps,
       proximo_numero_dps: form.proximo_numero_dps,
@@ -161,8 +166,11 @@ export default function NfseIntegration() {
       active: form.active,
       nfse_via: form.nfse_via,
       worker_url: form.worker_url.trim() || null,
-      worker_api_key: form.worker_api_key.trim() || null,
     };
+    // Só reescreve os segredos quando o usuário informa um valor novo (senão preserva).
+    if (form.cert_pfx_base64) payload.cert_pfx_base64 = form.cert_pfx_base64;
+    if (form.cert_password) payload.cert_password = form.cert_password;
+    if (form.worker_api_key.trim()) payload.worker_api_key = form.worker_api_key.trim();
 
     let error;
     if (existingConfig) {

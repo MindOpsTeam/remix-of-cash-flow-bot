@@ -70,7 +70,7 @@ export function useIntegrationsStatus() {
       return {
         asaas: { configurado: !!asaas.data },
         inter: { configurado: !!i?.active },
-        nfse: { configurado: !!n?.active && !!n?.cert_pfx_base64, detalhe: "certificado A1" },
+        nfse: { configurado: !!n?.active && !!n?.cert_cnpj, detalhe: "certificado A1" },
         plugnotas: {
           configurado: !!p?.active && !!p?.api_key,
           detalhe: p?.environment === "sandbox" ? "sandbox" : undefined,

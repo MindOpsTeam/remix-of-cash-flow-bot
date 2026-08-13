@@ -259,7 +259,9 @@ export default function NfseEmitPage() {
     }
   };
 
-  const isConfigured = nfseConfig?.active && nfseConfig?.cert_pfx_base64;
+  // cert_cnpj é o indicador não-secreto de "certificado configurado" (o .pfx/senha
+  // deixaram de ser legíveis pelo cliente — ficam só no servidor, via get_nfse_secrets).
+  const isConfigured = nfseConfig?.active && nfseConfig?.cert_cnpj;
 
   return (
     <AppLayout>

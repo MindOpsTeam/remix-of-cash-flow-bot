@@ -232,6 +232,52 @@ Deno.serve(async (req: Request) => {
       return jsonResp({ ok: true }, 200, corsHeaders);
     }
 
+    // ── manifestar: Manifestação do Destinatário (MDe) na NF-e destinada ──
+    // Registra a "Ciência da Operação" (ou confirmação/desconhecimento/não realizada)
+    // junto à SEFAZ via Focus. É o passo que dá acesso ao XML completo da nota (com
+    // duplicatas e itens) e tem prazo legal — por isso a data fica registrada.
+    if (action === "manifestar") {
+      const readonly = await assertCanWrite(supabase, user.id, companyId, corsHeaders);
+      if (readonly) return readonly;
+
+      const inboundId = String(body.inbound_document_id ?? "");
+      // Tipos aceitos pela SEFAZ; o padrão é a Ciência da Operação.
+      const tipo = String(body.tipo ?? "ciencia");
+      const TIPOS = ["ciencia", "confirmacao", "desconhecimento", "nao_realizada"];
+      if (!inboundId) return jsonResp({ error: "inbound_document_id é obrigatório" }, 400, corsHeaders);
+      if (!TIPOS.includes(tipo)) return jsonResp({ error: `tipo inválido (use: ${TIPOS.join(", ")})` }, 400, corsHeaders);
+
+      const { data: doc } = await supabase.from("inbound_documents").select("*").eq("id", inboundId).eq("company_id", companyId).maybeSingle();
+      if (!doc || !doc.chave_acesso) return jsonResp({ error: "Nota de entrada não encontrada" }, 404, corsHeaders);
+
+      const { data: cfg } = await supabase.from("focus_config").select("*").eq("company_id", companyId).maybeSingle();
+      const ambiente = (cfg?.environment ?? "homologacao") as keyof typeof HOSTS;
+      const base = HOSTS[ambiente] ?? HOSTS.homologacao;
+      const { data: token } = await supabase.rpc("get_focus_token", { p_company_id: companyId, p_environment: ambiente });
+      if (!token) {
+        return jsonResp({
+          ok: false, preparado: true,
+          mensagem: "Configure o token da Focus NFe (Integrações > Focus NFe) para manifestar a NF-e (Ciência da Operação) automaticamente.",
+        }, 200, corsHeaders);
+      }
+
+      // Focus: POST /v2/nfes_recebidas/{chave}/manifesto { tipo }
+      const res = await fetch(`${base}/nfes_recebidas/${doc.chave_acesso}/manifesto`, {
+        method: "POST",
+        headers: { Authorization: "Basic " + btoa(`${String(token)}:`), "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo }),
+      });
+      const txt = await res.text();
+      let d: unknown = null;
+      try { d = txt ? JSON.parse(txt) : null; } catch { d = txt.slice(0, 2000); }
+      if (!res.ok) return jsonResp({ error: `Focus respondeu ${res.status}`, detalhe: d }, 502, corsHeaders);
+
+      await supabase.from("inbound_documents")
+        .update({ manifestacao: tipo, manifestacao_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", doc.id);
+      return jsonResp({ ok: true, tipo, focus: d }, 200, corsHeaders);
+    }
+
     // ── sync_nfse: NFS-e tomadas via ADN (Ambiente Nacional) — PREPARADO ──
     if (action === "sync_nfse") {
       return jsonResp({

@@ -82,12 +82,14 @@ export default function NfseSetupWizard({ onFinish }: { onFinish?: () => void })
     if (!cfg) return;
     setNfseVia((cfg.nfse_via as any) ?? "worker_proprio");
     setWorkerUrl(cfg.worker_url ?? "");
-    setWorkerKey(cfg.worker_api_key ?? "");
+    // worker_api_key e o cert são segredos que o cliente não lê mais (REVOKE de
+    // SELECT). Não dá pra prefill; se já existe, mostramos "configurado" via cert_cnpj
+    // e só reescrevemos quando o usuário informa um valor novo.
     setSerie(cfg.serie_dps ?? "1");
     setMunicipio(cfg.codigo_municipio ?? "");
     setInscricao(cfg.inscricao_municipal ?? "");
     setOptanteSimples(cfg.optante_simples ?? true);
-    if (cfg.cert_pfx_base64) { setCertBase64(cfg.cert_pfx_base64); setPfxName("certificado.pfx"); }
+    if (cfg.cert_cnpj) { setPfxName("certificado.pfx"); }
     if (typeof cfg.setup_step === "number" && cfg.setup_step > 0) {
       setStep(Math.min(cfg.setup_step + 1, STEPS.length));
     }
@@ -136,8 +138,15 @@ export default function NfseSetupWizard({ onFinish }: { onFinish?: () => void })
     if (!company) return;
     if (!certBase64 || !certPassword) { setCertTest({ s: "error", m: "Suba o .pfx e informe a senha." }); return; }
     setCertBusy(true); setCertTest({ s: "idle", m: "" });
-    // Precisa estar salvo p/ a edge ler do banco.
-    const ok = await persist({ nfse_via: nfseVia, worker_url: workerUrl.trim() || null, worker_api_key: workerKey.trim() || null, cert_pfx_base64: certBase64, cert_password: certPassword }, 3);
+    // Precisa estar salvo p/ a edge ler do banco. Só reescreve worker_api_key quando
+    // informado (senão preserva o que já está salvo, que o cliente não lê de volta).
+    const ok = await persist({
+      nfse_via: nfseVia,
+      worker_url: workerUrl.trim() || null,
+      ...(workerKey.trim() ? { worker_api_key: workerKey.trim() } : {}),
+      cert_pfx_base64: certBase64,
+      cert_password: certPassword,
+    }, 3);
     if (!ok) { setCertBusy(false); return; }
     try {
       const { data, error } = await supabase.functions.invoke("nfse-operations", { body: { company_id: company.id, operation: "parse_cert" } });
@@ -194,7 +203,7 @@ export default function NfseSetupWizard({ onFinish }: { onFinish?: () => void })
   const next = async () => {
     if (step === 1) await persist({ nfse_via: nfseVia }, 1);
     if (step === 2) await persist({ nfse_via: nfseVia }, 2);
-    if (step === 3) await persist({ worker_url: workerUrl.trim() || null, worker_api_key: workerKey.trim() || null }, 3);
+    if (step === 3) await persist({ worker_url: workerUrl.trim() || null, ...(workerKey.trim() ? { worker_api_key: workerKey.trim() } : {}) }, 3);
     if (step === 5) await persist({ serie_dps: serie, codigo_municipio: municipio || null, inscricao_municipal: inscricao || null, optante_simples: optanteSimples, ambiente: "homologacao" }, 5);
     setStep((s) => Math.min(s + 1, STEPS.length));
   };
