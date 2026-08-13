@@ -30,25 +30,24 @@ Este doc lista o que foi encontrado, o que já foi corrigido e o que virou plano
 
 Verificado por smoke test (nota autorizada → recebível com vencimento emissão+30 e conta 3.1 → cancelamento → recebível `cancelado`), com rollback dos dados de teste.
 
-## Plano (resíduo — precisam de design de UI/fiscal, não bug-fix)
+## Corrigido nesta rodada — resíduo (2026-08-12, commits `832fb3b`/`1b6e144` app, `ca3142a` worker)
 
-Priorizados; cada um muda regra de negócio e merece decisão + teste com dados reais:
+Os oito itens do plano foram implementados, aplicados e (onde possível) testados:
 
-1. **Retenções / ISS retido e parcelas do recebível (resíduo do Estr-C3)**: o recebível já nasce com
-   prazo e conta, mas ainda é uma parcela única pelo **bruto**. Falta ler `<dup>`/retenções do XML
-   (depósito líquido ≠ recebível bruto) e permitir N parcelas — exige UI de parcelamento.
-2. **Cancelamento no ADN (resíduo do Estr-A1)**: o estorno do recebível já ocorre; falta o evento
-   fiscal de cancelamento (`/cancel` do worker ainda é 501) no ADN.
-3. **Baixa parcial / anti-reuso mais forte (Estr-A2)**: suportar recebimento parcial (saldo
-   residual); a trava de reuso da transação já foi endurecida, mas falta a baixa parcial.
-4. **Manifestação do destinatário / MDe (Estr-A3)**: automatizar ao menos a "Ciência da Operação"
-   (baixa o XML completo, com duplicatas e itens) e rastrear o prazo legal.
-5. **Duplicatas reais na entrada (Estr-A4)**: `to_bill` usa vencimento fixo emissão+30; ler
-   `<dup>/<cobr>` do XML e gerar N contas a pagar nas datas reais.
-6. **Certificado A1 + senha em texto claro (Tec-H6 / P1 da auditoria)**: mover cert/senha e
-   `worker_api_key` para o Vault; hoje qualquer membro lê via RLS.
-7. **Claim-first na emissão (Tec-C2)**: sob concorrência sem `idempotencyKey`, duas requisições ainda
-   podem transmitir duas notas reais ao SEFIN. Fix definitivo: o front enviar `idempotencyKey` por
-   tentativa + a edge inserir a invoice "pending" antes de emitir. (Mitigado: H1 já evita o bloqueio
-   indevido; a proteção total precisa do front + teste com certificado.)
-8. **RTC (IBS/CBS)** no DPS e validação de leiaute em homologação (já na auditoria original).
+| # | Achado | Correção | Onde |
+|---|---|---|---|
+| Estr-C3 (resíduo) | Recebível pelo **bruto** e em **parcela única** (ignora retenções e o parcelamento) | nota carrega `valor_liquido`/`valor_retencoes`/`duplicatas`; trigger gera N recebíveis (parcela i/n nas datas das `<dup>`) e usa o **líquido** de retenções; `ImportarNotaXml` parseia `<cobr><dup>` e retenções (ISS/IRRF/PIS/COFINS/CSLL/INSS) | migration `..._parcelas_retencoes_baixa_parcial.sql`, `ImportarNotaXml.tsx` |
+| Estr-A4 | Nota de entrada vira **1 conta a pagar** em emissão+30 fixo | `to_bill` gera **N contas a pagar** nas datas reais das duplicatas | `inbound-documents/index.ts` |
+| Estr-A2 | Baixa **tudo-ou-nada** (sem recebimento parcial) | RPC atômico `aplicar_baixa_titulo` (lock de linha + razão `title_payments`, `unique(tx)` anti-reuso); `settle_*` aceitam `amount` parcial; `suggest_*` casam contra o **saldo** | migration + `reconcile-transactions/index.ts` |
+| Estr-A1 | **Cancelar a nota não tinha evento fiscal** (`/cancel` do worker era 501) | worker registra o evento **e101101** (Cancelamento) por mTLS no SEFIN (`POST /nfse/{chave}/eventos`); `nfse-proxy` passa o cert e marca a nota `cancelled` → dispara o estorno do recebível | `nfse-worker` `cancel.ts`/`dps-xml.ts`/`sefin-client.ts`, `nfse-proxy` |
+| Estr-A3 | **MDe** (manifestação do destinatário) não automatizada | ação `manifestar` (Ciência da Operação e demais tipos) via Focus, com carimbo de prazo (`manifestacao_at`); preparada quando não há token | `inbound-documents/index.ts` |
+| Tec-H6/P1 | Cert A1, senha e `worker_api_key` **legíveis por qualquer membro** (SELECT via RLS) | `REVOKE SELECT` das 3 colunas para anon/authenticated; edges leem por RPC `get_nfse_secrets` (service_role); front usa `cert_cnpj` como indicador e nunca reenvia segredo vazio | migration `..._nfse_segredos_service_role.sql`, `nfse-proxy`, `NfseIntegration`/`NfseSetupWizard`/`NfseEmit`/`useIntegrationsStatus`/`integracoes-io` |
+| Tec-C2 | **Claim-first** ausente: retry/concorrência podiam transmitir a nota 2× ao SEFIN | `nfse-proxy` reserva a nota como rascunho ligado à `idempotency_key` (índice único) **antes** de transmitir; retry sem confirmação não retransmite; rejeição libera o rascunho | migration `..._emissao_claim_first_cancelamento.sql`, `nfse-proxy` |
+| RTC | IBS/CBS no DPS | grupo RTC/IBS-CBS **opt-in** no DPS (só quando `EmitParams.rtc` vem preenchido); desligado por padrão para não quebrar homologação enquanto o leiaute é transitório | `nfse-worker` `dps-xml.ts`, `nfse-proxy` |
+
+Verificações: smoke tests no banco (nota com 2 duplicatas → 2 parcelas nas datas/valores certos; baixa parcial 600+400 → quita, saldo 0; `get_nfse_secrets` devolve o cert server-side). Worker recompilado (`npx tsc`) e redeployado no Railway (v1.1.0, health OK).
+
+### Resíduo remanescente (menor, sem bloquear o ciclo)
+
+- **XML completo da entrada via ADN/MDe**: a `manifestar` dá Ciência; puxar o XML completo (itens) da NF-e destinada pela Focus para enriquecer automaticamente é o próximo passo (o import manual de XML já cobre duplicatas/itens).
+- **Cancelamento e RTC em produção**: código pronto e no ar em homologação; a validação de leiaute do evento e do RTC em produção depende de rodada com o SEFIN/municipal.
