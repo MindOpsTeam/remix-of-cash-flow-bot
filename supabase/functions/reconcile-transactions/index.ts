@@ -332,7 +332,7 @@ Deno.serve(async (req) => {
 
       const { data: openRec } = await supabase
         .from("receivables")
-        .select("id, amount, due_date, contact_id, description, status")
+        .select("id, amount, valor_baixado, due_date, contact_id, description, status")
         .eq("company_id", company_id)
         .in("status", ["a_receber", "vencido"])
         .is("transaction_id", null)
@@ -342,7 +342,8 @@ Deno.serve(async (req) => {
       const suggestions: Array<Record<string, unknown>> = [];
       for (const tx of (bankTxs || [])) {
         for (const r of (openRec || [])) {
-          const rAmount = Number(r.amount);
+          // Casa contra o SALDO restante (suporta títulos com baixa parcial anterior).
+          const rAmount = Number(r.amount) - Number(r.valor_baixado ?? 0);
           if (rAmount <= 0) continue;
           const valueDiff = Math.abs(Math.abs(tx.amount) - rAmount);
           if (valueDiff > rAmount * VALUE_TOLERANCE) continue;
@@ -361,17 +362,18 @@ Deno.serve(async (req) => {
       return jsonResp({ suggestions: suggestions.sort((a, b) => (b.score as number) - (a.score as number)) }, 200, corsHeaders);
     }
 
-    // ── settle_receivable: baixa o recebível usando o crédito real do extrato ──
+    // ── settle_receivable: baixa (total OU parcial) o recebível com o crédito real ──
+    // Aceita `amount` opcional para baixa parcial; sem ele, aplica o valor da transação.
     if (action === "settle_receivable") {
-      const { transaction_id, receivable_id } = body;
+      const { transaction_id, receivable_id, amount } = body;
       if (!transaction_id || !receivable_id) {
         return jsonResp({ error: "transaction_id and receivable_id required" }, 400, corsHeaders);
       }
       const { data: tx } = await supabase
-        .from("transactions").select("id, company_id, date, amount, type, status, account_id")
+        .from("transactions").select("id, company_id, date, amount, type, status")
         .eq("id", transaction_id).maybeSingle();
       const { data: rec } = await supabase
-        .from("receivables").select("id, company_id, status, transaction_id, amount, account_id")
+        .from("receivables").select("id, company_id, status, amount")
         .eq("id", receivable_id).maybeSingle();
       if (!tx || !rec) return jsonResp({ error: "transaction or receivable not found" }, 404, corsHeaders);
       if (tx.company_id !== rec.company_id) return jsonResp({ error: "company mismatch" }, 400, corsHeaders);
@@ -381,31 +383,24 @@ Deno.serve(async (req) => {
       const readonly = await assertCanWrite(supabase, user.id, rec.company_id, corsHeaders);
       if (readonly) return readonly;
 
-      // Revalida no servidor (não confia no cliente): precisa ser entrada de dinheiro
-      // e o valor tem de bater com o do título dentro da tolerância.
+      // Revalida no servidor: precisa ser entrada de dinheiro; a transação não pode
+      // já estar conciliada (o RPC ainda trava reuso da transação via unique).
       if (tx.type !== "revenue") return jsonResp({ error: "A transação não é uma entrada (revenue)." }, 400, corsHeaders);
-      const recAmount = Number(rec.amount);
-      if (recAmount > 0 && Math.abs(Math.abs(tx.amount) - recAmount) > recAmount * VALUE_TOLERANCE) {
-        return jsonResp({ error: "Valor do crédito não confere com o recebível." }, 400, corsHeaders);
-      }
-      if (rec.transaction_id) return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
       if (tx.status === "reconciled") return jsonResp({ error: "Essa transação já foi conciliada." }, 409, corsHeaders);
-      // Uma transação não pode liquidar dois títulos.
-      const { data: jaUsada } = await supabase.from("receivables").select("id").eq("transaction_id", tx.id).limit(1);
-      if (jaUsada && jaUsada.length) return jsonResp({ error: "Essa transação já baixou outro título." }, 409, corsHeaders);
+      const aplicar = amount != null ? Number(amount) : Math.abs(Number(tx.amount));
+      if (!(aplicar > 0)) return jsonResp({ error: "Valor de baixa inválido." }, 400, corsHeaders);
 
-      const nowIso = new Date().toISOString();
-      // UPDATE condicional (anti dupla-baixa em corrida): só quita se ainda não ligado.
-      const { data: upd } = await supabase.from("receivables")
-        .update({ transaction_id: tx.id, status: "recebido", payment_date: tx.date, updated_at: nowIso })
-        .eq("id", rec.id).is("transaction_id", null).select("id");
-      if (!upd || upd.length === 0) return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
-      // O crédito do extrato É a receita real; marca como conciliado (não duplica) e
-      // herda a conta de receita do título para a receita cair na conta certa do DRE.
-      await supabase.from("transactions")
-        .update({ status: "reconciled", reconciled_at: nowIso, account_id: tx.account_id ?? rec.account_id ?? null })
-        .eq("id", tx.id);
-      return jsonResp({ ok: true, action: "settled", receivable_id: rec.id, transaction_id: tx.id }, 200, corsHeaders);
+      // Baixa atômica (lock de linha + razão de pagamentos + saldo) no banco.
+      const { data: r, error: rpcErr } = await supabase.rpc("aplicar_baixa_titulo", {
+        p_kind: "receivable", p_title_id: rec.id, p_tx_id: tx.id, p_amount: aplicar, p_paid_at: tx.date,
+      });
+      if (rpcErr) throw new Error(rpcErr.message);
+      const st = (r as { status?: string; saldo?: number; aplicado?: number })?.status;
+      if (st === "tx_reused") return jsonResp({ error: "Essa transação já baixou outro título." }, 409, corsHeaders);
+      if (st === "overpay") return jsonResp({ error: `Valor excede o saldo do recebível (${(r as { saldo?: number }).saldo}).` }, 400, corsHeaders);
+      if (st === "already_settled") return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
+      if (st === "not_found") return jsonResp({ error: "Recebível não encontrado." }, 404, corsHeaders);
+      return jsonResp({ ok: true, action: st, ...r, receivable_id: rec.id, transaction_id: tx.id }, 200, corsHeaders);
     }
 
     // ── suggest_payables: casa DÉBITO do extrato com conta a pagar EM ABERTO ──
@@ -427,7 +422,7 @@ Deno.serve(async (req) => {
 
       const { data: openBills } = await supabase
         .from("bills_payable")
-        .select("id, valor, vencimento, contact_id, fornecedor, descricao, status")
+        .select("id, valor, valor_baixado, vencimento, contact_id, fornecedor, descricao, status")
         .eq("company_id", company_id)
         .in("status", ["a_vencer", "vencido"])
         .is("transaction_id", null)
@@ -437,7 +432,8 @@ Deno.serve(async (req) => {
       const suggestions: Array<Record<string, unknown>> = [];
       for (const tx of (bankTxs || [])) {
         for (const b of (openBills || [])) {
-          const bAmount = Number(b.valor);
+          // Casa contra o SALDO restante (suporta contas com baixa parcial anterior).
+          const bAmount = Number(b.valor) - Number(b.valor_baixado ?? 0);
           if (bAmount <= 0) continue;
           const valueDiff = Math.abs(Math.abs(tx.amount) - bAmount);
           if (valueDiff > bAmount * VALUE_TOLERANCE) continue;
@@ -456,17 +452,17 @@ Deno.serve(async (req) => {
       return jsonResp({ suggestions: suggestions.sort((a, b) => (b.score as number) - (a.score as number)) }, 200, corsHeaders);
     }
 
-    // ── settle_payable: dá baixa na conta a pagar usando o débito real do extrato ──
+    // ── settle_payable: baixa (total OU parcial) a conta a pagar com o débito real ──
     if (action === "settle_payable") {
-      const { transaction_id, bill_id } = body;
+      const { transaction_id, bill_id, amount } = body;
       if (!transaction_id || !bill_id) {
         return jsonResp({ error: "transaction_id and bill_id required" }, 400, corsHeaders);
       }
       const { data: tx } = await supabase
-        .from("transactions").select("id, company_id, date, amount, type, status, account_id")
+        .from("transactions").select("id, company_id, date, amount, type, status")
         .eq("id", transaction_id).maybeSingle();
       const { data: bill } = await supabase
-        .from("bills_payable").select("id, company_id, status, transaction_id, valor, account_id")
+        .from("bills_payable").select("id, company_id, status, valor")
         .eq("id", bill_id).maybeSingle();
       if (!tx || !bill) return jsonResp({ error: "transaction or bill not found" }, 404, corsHeaders);
       if (tx.company_id !== bill.company_id) return jsonResp({ error: "company mismatch" }, 400, corsHeaders);
@@ -476,27 +472,22 @@ Deno.serve(async (req) => {
       const readonly = await assertCanWrite(supabase, user.id, bill.company_id, corsHeaders);
       if (readonly) return readonly;
 
-      // Revalida no servidor: saída de dinheiro e valor compatível com o título.
+      // Revalida no servidor: saída de dinheiro; transação ainda não conciliada.
       if (tx.type !== "expense") return jsonResp({ error: "A transação não é uma saída (expense)." }, 400, corsHeaders);
-      const billAmount = Number(bill.valor);
-      if (billAmount > 0 && Math.abs(Math.abs(tx.amount) - billAmount) > billAmount * VALUE_TOLERANCE) {
-        return jsonResp({ error: "Valor do débito não confere com a conta a pagar." }, 400, corsHeaders);
-      }
-      if (bill.transaction_id) return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
       if (tx.status === "reconciled") return jsonResp({ error: "Essa transação já foi conciliada." }, 409, corsHeaders);
-      const { data: jaUsada } = await supabase.from("bills_payable").select("id").eq("transaction_id", tx.id).limit(1);
-      if (jaUsada && jaUsada.length) return jsonResp({ error: "Essa transação já baixou outro título." }, 409, corsHeaders);
+      const aplicar = amount != null ? Number(amount) : Math.abs(Number(tx.amount));
+      if (!(aplicar > 0)) return jsonResp({ error: "Valor de baixa inválido." }, 400, corsHeaders);
 
-      const nowIso = new Date().toISOString();
-      const { data: upd } = await supabase.from("bills_payable")
-        .update({ transaction_id: tx.id, status: "pago", payment_date: tx.date, updated_at: nowIso })
-        .eq("id", bill.id).is("transaction_id", null).select("id");
-      if (!upd || upd.length === 0) return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
-      await supabase.from("transactions")
-        .update({ status: "reconciled", reconciled_at: nowIso, account_id: tx.account_id ?? bill.account_id ?? null })
-        .eq("id", tx.id);
-
-      return jsonResp({ ok: true, action: "settled", bill_id: bill.id, transaction_id: tx.id }, 200, corsHeaders);
+      const { data: r, error: rpcErr } = await supabase.rpc("aplicar_baixa_titulo", {
+        p_kind: "bill", p_title_id: bill.id, p_tx_id: tx.id, p_amount: aplicar, p_paid_at: tx.date,
+      });
+      if (rpcErr) throw new Error(rpcErr.message);
+      const st = (r as { status?: string; saldo?: number; aplicado?: number })?.status;
+      if (st === "tx_reused") return jsonResp({ error: "Essa transação já baixou outro título." }, 409, corsHeaders);
+      if (st === "overpay") return jsonResp({ error: `Valor excede o saldo da conta a pagar (${(r as { saldo?: number }).saldo}).` }, 400, corsHeaders);
+      if (st === "already_settled") return jsonResp({ ok: true, action: "already_settled" }, 200, corsHeaders);
+      if (st === "not_found") return jsonResp({ error: "Conta a pagar não encontrada." }, 404, corsHeaders);
+      return jsonResp({ ok: true, action: st, ...r, bill_id: bill.id, transaction_id: tx.id }, 200, corsHeaders);
     }
 
     return jsonResp({ error: `Unknown action: ${action}` }, 400, corsHeaders);

@@ -180,23 +180,46 @@ Deno.serve(async (req: Request) => {
       }
 
       const emissao = doc.data_emissao ? new Date(doc.data_emissao) : new Date();
-      const venc = new Date(emissao.getTime() + VENCIMENTO_PADRAO_DIAS * 86400000).toISOString().slice(0, 10);
+      const vencPadrao = new Date(emissao.getTime() + VENCIMENTO_PADRAO_DIAS * 86400000).toISOString().slice(0, 10);
+      const fornecedor = doc.emitente_nome ?? doc.emitente_cnpj ?? "Fornecedor";
+      const descBase = `${String(doc.tipo).toUpperCase()} nº ${doc.numero ?? "?"}`;
 
-      const { data: bill, error: billErr } = await supabase.from("bills_payable").insert({
-        company_id: companyId,
-        fornecedor: doc.emitente_nome ?? doc.emitente_cnpj ?? "Fornecedor",
-        descricao: `${String(doc.tipo).toUpperCase()} nº ${doc.numero ?? "?"}`,
-        valor: doc.valor_total,
-        vencimento: venc,
-        status: "a_vencer",
-        source: "nota_fiscal",
-        contact_id: contactId,
-        external_id: doc.chave_acesso,
-      }).select("id").single();
-      if (billErr || !bill) return jsonResp({ error: `Falha ao criar conta a pagar: ${billErr?.message}` }, 500, corsHeaders);
+      // Duplicatas do XML (quando importado): N contas a pagar nas datas reais.
+      // Sem duplicatas: uma conta única em emissão+30 (comportamento anterior).
+      const dups = Array.isArray(doc.duplicatas) ? (doc.duplicatas as Array<Record<string, unknown>>) : [];
+      const parcelasValidas = dups
+        .map((d) => ({ vencimento: (String(d.vencimento ?? "").slice(0, 10) || vencPadrao), valor: parseValorBR(String(d.valor ?? "")) }))
+        .filter((d) => d.valor > 0);
 
-      await supabase.from("inbound_documents").update({ bill_id: bill.id, status: "lancado", updated_at: new Date().toISOString() }).eq("id", doc.id);
-      return jsonResp({ ok: true, bill_id: bill.id }, 200, corsHeaders);
+      const rows = parcelasValidas.length > 0
+        ? parcelasValidas.map((p, i) => ({
+            company_id: companyId,
+            fornecedor,
+            descricao: `${descBase} — parcela ${i + 1}/${parcelasValidas.length}`,
+            valor: p.valor,
+            vencimento: p.vencimento,
+            status: "a_vencer",
+            source: "nota_fiscal",
+            contact_id: contactId,
+            external_id: `${doc.chave_acesso}-p${i + 1}`,
+          }))
+        : [{
+            company_id: companyId,
+            fornecedor,
+            descricao: descBase,
+            valor: doc.valor_total,
+            vencimento: vencPadrao,
+            status: "a_vencer",
+            source: "nota_fiscal",
+            contact_id: contactId,
+            external_id: doc.chave_acesso,
+          }];
+
+      const { data: bills, error: billErr } = await supabase.from("bills_payable").insert(rows).select("id");
+      if (billErr || !bills || bills.length === 0) return jsonResp({ error: `Falha ao criar conta a pagar: ${billErr?.message}` }, 500, corsHeaders);
+
+      await supabase.from("inbound_documents").update({ bill_id: bills[0].id, status: "lancado", updated_at: new Date().toISOString() }).eq("id", doc.id);
+      return jsonResp({ ok: true, bill_id: bills[0].id, parcelas: bills.length }, 200, corsHeaders);
     }
 
     // ── ignore: descarta a nota de entrada da lista de pendências ──
