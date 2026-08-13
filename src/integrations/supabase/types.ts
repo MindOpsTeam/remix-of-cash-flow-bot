@@ -661,6 +661,7 @@ export type Database = {
           transaction_id: string | null
           updated_at: string
           valor: number
+          valor_baixado: number
           vencimento: string
         }
         Insert: {
@@ -687,6 +688,7 @@ export type Database = {
           transaction_id?: string | null
           updated_at?: string
           valor?: number
+          valor_baixado?: number
           vencimento: string
         }
         Update: {
@@ -713,6 +715,7 @@ export type Database = {
           transaction_id?: string | null
           updated_at?: string
           valor?: number
+          valor_baixado?: number
           vencimento?: string
         }
         Relationships: [
@@ -2593,6 +2596,7 @@ export type Database = {
           company_id: string
           created_at: string
           data_emissao: string | null
+          duplicatas: Json | null
           emitente_cnpj: string | null
           emitente_nome: string | null
           id: string
@@ -2602,6 +2606,7 @@ export type Database = {
           status: string
           tipo: string
           updated_at: string
+          valor_retencoes: number | null
           valor_total: number
           xml_content: string | null
         }
@@ -2611,6 +2616,7 @@ export type Database = {
           company_id: string
           created_at?: string
           data_emissao?: string | null
+          duplicatas?: Json | null
           emitente_cnpj?: string | null
           emitente_nome?: string | null
           id?: string
@@ -2620,6 +2626,7 @@ export type Database = {
           status?: string
           tipo?: string
           updated_at?: string
+          valor_retencoes?: number | null
           valor_total?: number
           xml_content?: string | null
         }
@@ -2629,6 +2636,7 @@ export type Database = {
           company_id?: string
           created_at?: string
           data_emissao?: string | null
+          duplicatas?: Json | null
           emitente_cnpj?: string | null
           emitente_nome?: string | null
           id?: string
@@ -2638,6 +2646,7 @@ export type Database = {
           status?: string
           tipo?: string
           updated_at?: string
+          valor_retencoes?: number | null
           valor_total?: number
           xml_content?: string | null
         }
@@ -2847,6 +2856,7 @@ export type Database = {
           contact_id: string | null
           created_at: string
           dps_xml: string | null
+          duplicatas: Json | null
           ibs_valor: number | null
           id: string
           idempotency_key: string | null
@@ -2862,6 +2872,8 @@ export type Database = {
           total: number
           type: string
           updated_at: string
+          valor_liquido: number | null
+          valor_retencoes: number | null
           xml_content: string | null
           xml_url: string | null
         }
@@ -2874,6 +2886,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           dps_xml?: string | null
+          duplicatas?: Json | null
           ibs_valor?: number | null
           id?: string
           idempotency_key?: string | null
@@ -2889,6 +2902,8 @@ export type Database = {
           total?: number
           type?: string
           updated_at?: string
+          valor_liquido?: number | null
+          valor_retencoes?: number | null
           xml_content?: string | null
           xml_url?: string | null
         }
@@ -2901,6 +2916,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           dps_xml?: string | null
+          duplicatas?: Json | null
           ibs_valor?: number | null
           id?: string
           idempotency_key?: string | null
@@ -2916,6 +2932,8 @@ export type Database = {
           total?: number
           type?: string
           updated_at?: string
+          valor_liquido?: number | null
+          valor_retencoes?: number | null
           xml_content?: string | null
           xml_url?: string | null
         }
@@ -4030,6 +4048,7 @@ export type Database = {
           stripe_payment_intent_id: string | null
           transaction_id: string | null
           updated_at: string
+          valor_baixado: number
         }
         Insert: {
           account_id?: string | null
@@ -4057,6 +4076,7 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           transaction_id?: string | null
           updated_at?: string
+          valor_baixado?: number
         }
         Update: {
           account_id?: string | null
@@ -4084,6 +4104,7 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           transaction_id?: string | null
           updated_at?: string
+          valor_baixado?: number
         }
         Relationships: [
           {
@@ -5136,6 +5157,68 @@ export type Database = {
         }
         Relationships: []
       }
+      title_payments: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          id: string
+          paid_at: string
+          title_id: string
+          title_kind: string
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          created_at?: string
+          id?: string
+          paid_at?: string
+          title_id: string
+          title_kind: string
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          id?: string
+          paid_at?: string
+          title_id?: string
+          title_kind?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "title_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "title_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "title_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "title_payments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_allocations: {
         Row: {
           company_id: string
@@ -5221,6 +5304,7 @@ export type Database = {
           is_intercompany: boolean
           payment_method: string | null
           project: string | null
+          reconciled_at: string | null
           source: string
           status: string
           type: string
@@ -5245,6 +5329,7 @@ export type Database = {
           is_intercompany?: boolean
           payment_method?: string | null
           project?: string | null
+          reconciled_at?: string | null
           source?: string
           status?: string
           type: string
@@ -5269,6 +5354,7 @@ export type Database = {
           is_intercompany?: boolean
           payment_method?: string | null
           project?: string | null
+          reconciled_at?: string | null
           source?: string
           status?: string
           type?: string
@@ -6348,6 +6434,16 @@ export type Database = {
       acumulado_indice: {
         Args: { p_ate: string; p_de: string; p_indice: string }
         Returns: number
+      }
+      aplicar_baixa_titulo: {
+        Args: {
+          p_amount: number
+          p_kind: string
+          p_paid_at: string
+          p_title_id: string
+          p_tx_id: string
+        }
+        Returns: Json
       }
       auditar_integridade_contabil: {
         Args: { p_company_id: string }
