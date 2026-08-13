@@ -23,6 +23,7 @@ import {
   Scale,
   ChevronDown,
   Users,
+  Truck,
   UserCog,
   Package,
   ShoppingCart,
@@ -182,7 +183,8 @@ const sections: NavGroup[] = [
     icon: Database,
     personas: ["operacional"],
     items: [
-      { to: "/contacts", label: "Clientes / Fornecedores", icon: Users },
+      { to: "/clientes", label: "Clientes", icon: Users },
+      { to: "/fornecedores", label: "Fornecedores", icon: Truck },
       { to: "/contracts", label: "Contratos", icon: FileSignature },
       { to: "/products", label: "Produtos", icon: Package },
       { to: "/products?type=service", label: "Serviços", icon: Wrench },

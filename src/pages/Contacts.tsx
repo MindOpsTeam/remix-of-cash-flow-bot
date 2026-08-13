@@ -16,12 +16,23 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Users, Plus, Pencil, Trash2, Search, Building2, User } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Search, Building2, User, Upload, Truck } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { useDetalhe } from "@/components/detalhe/DetalheProvider";
+import { ContactsImportDialog } from "@/components/contatos/ContactsImportDialog";
+
+export type ContactScope = "all" | "customer" | "supplier";
+
+// Cada página (Clientes / Fornecedores / unificada) ajusta título, filtro travado,
+// tipo padrão ao criar/importar e o ícone.
+const SCOPE_UI: Record<ContactScope, { titulo: string; subtitulo: string; icon: typeof Users; defaultType: "customer" | "supplier" | "both" }> = {
+  all: { titulo: "Clientes & Fornecedores", subtitulo: "Cadastro unificado de clientes e fornecedores", icon: Users, defaultType: "customer" },
+  customer: { titulo: "Clientes", subtitulo: "Quem compra de você", icon: Users, defaultType: "customer" },
+  supplier: { titulo: "Fornecedores", subtitulo: "Quem você paga", icon: Truck, defaultType: "supplier" },
+};
 
 interface Contact {
   id: string;
@@ -110,13 +121,15 @@ const emptyForm = {
   notes: "",
 };
 
-export default function ContactsPage() {
+export default function ContactsPage({ scope = "all" }: { scope?: ContactScope } = {}) {
+  const ui = SCOPE_UI[scope];
   const { abrirDetalhe } = useDetalhe();
   const { company } = useCompany();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -126,7 +139,7 @@ export default function ContactsPage() {
   const PAGE_SIZE = 50;
 
   const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["contacts", company?.id, page, search, filterType],
+    queryKey: ["contacts", company?.id, scope, page, search, filterType],
     queryFn: async () => {
       if (!company) return [];
       const from = page * PAGE_SIZE;
@@ -137,8 +150,10 @@ export default function ContactsPage() {
         .eq("company_id", company.id)
         .eq("active", true);
 
-      if (filterType !== "all") {
-        query = query.in("type", [filterType, "both"]);
+      // Página de Clientes ou Fornecedores trava o tipo; a unificada usa o filtro.
+      const effectiveType = scope === "all" ? filterType : scope;
+      if (effectiveType !== "all") {
+        query = query.in("type", [effectiveType, "both"]);
       }
       if (search.trim()) {
         const s = search.trim();
@@ -216,6 +231,7 @@ export default function ContactsPage() {
 
   const openCreate = () => {
     resetForm();
+    setForm((f) => ({ ...f, type: ui.defaultType }));
     setDialogOpen(true);
   };
 
@@ -259,15 +275,18 @@ export default function ContactsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em] flex items-center gap-2">
-              <Users className="h-6 w-6" /> Clientes & Fornecedores
+              <ui.icon className="h-6 w-6" /> {ui.titulo}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Cadastro unificado de clientes e fornecedores
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">{ui.subtitulo}</p>
           </div>
-          <Button onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1.5" /> Novo Contato
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4 mr-1.5" /> Importar
+            </Button>
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-1.5" /> {scope === "supplier" ? "Novo Fornecedor" : scope === "customer" ? "Novo Cliente" : "Novo Contato"}
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -276,14 +295,16 @@ export default function ContactsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Buscar por nome, CNPJ ou email..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="customer">Clientes</SelectItem>
-              <SelectItem value="supplier">Fornecedores</SelectItem>
-            </SelectContent>
-          </Select>
+          {scope === "all" && (
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="customer">Clientes</SelectItem>
+                <SelectItem value="supplier">Fornecedores</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         {/* List */}
@@ -480,6 +501,14 @@ export default function ContactsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Importação por planilha (CSV/XLSX) com mapeamento de colunas adaptável. */}
+      <ContactsImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        companyId={company?.id}
+        defaultType={ui.defaultType}
+      />
     </AppLayout>
   );
 }

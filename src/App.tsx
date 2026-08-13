@@ -146,7 +146,10 @@ const AppRoutes = () => (
       <Route path="/inter" element={<P><InterBankingPage /></P>} />
 
       {/* Cadastros */}
-      <Route path="/contacts" element={<P><ContactsPage /></P>} />
+      <Route path="/clientes" element={<P><ContactsPage scope="customer" /></P>} />
+      <Route path="/fornecedores" element={<P><ContactsPage scope="supplier" /></P>} />
+      {/* Rota antiga unificada: mantém quem tem link/bookmark, leva para Clientes. */}
+      <Route path="/contacts" element={<Navigate to="/clientes" replace />} />
       <Route path="/products" element={<P><ProductsPage /></P>} />
 
       {/* Vendas & Compras */}

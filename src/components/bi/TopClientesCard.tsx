@@ -58,7 +58,7 @@ export function TopClientesCard({ top, participacaoPct }: TopClientesCardProps) 
             );
           })}
           <Link
-            to="/contacts"
+            to="/clientes"
             className="inline-block pt-1 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
             Ver todos os clientes
