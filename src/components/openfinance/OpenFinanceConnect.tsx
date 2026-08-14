@@ -1,68 +1,19 @@
 import { useState } from "react";
-import { PluggyConnect } from "react-pluggy-connect";
-import { Link2, RefreshCw, Trash2, Loader2, Building2, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import { RefreshCw, Trash2, Loader2, Building2, AlertCircle, CheckCircle2, ArrowRight, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useCompany } from "@/hooks/useCompany";
 import { useBankConnections } from "@/hooks/useBankConnections";
 import { CONNECTION_STATUS_LABEL } from "@/lib/openfinance";
 import { Link } from "react-router-dom";
+import { OpenFinanceSetupWizard } from "./OpenFinanceSetupWizard";
 
 /**
- * Conectar bancos via Open Finance (Pluggy). Abre o widget oficial e registra
- * a conexão; graceful quando as credenciais ainda não estão configuradas.
+ * Card de Open Finance: lista os bancos conectados e abre o wizard guiado de
+ * conexão (objetivo → credenciais → conectar → pronto). Todo o fluxo com a
+ * Pluggy vive no wizard, para o passo a passo ficar claro em qualquer tela.
  */
 export function OpenFinanceConnect() {
-  const { company } = useCompany();
   const { connections, isLoading, pendingCount, sync, disconnect, refetch } = useBankConnections();
-  const [token, setToken] = useState<string | null>(null);
-  const [loadingToken, setLoadingToken] = useState(false);
-
-  const startConnect = async () => {
-    if (!company) return;
-    setLoadingToken(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("openfinance-connect", {
-        body: { action: "token", company_id: company.id },
-      });
-      if (error) {
-        // 503 = provedor não configurado
-        const msg = (error as { message?: string }).message ?? "";
-        if (msg.includes("PLUGGY_NOT_CONFIGURED") || msg.includes("503")) {
-          toast.error("Open Finance ainda não configurado. Adicione as credenciais Pluggy nos segredos do projeto.");
-          return;
-        }
-        throw error;
-      }
-      if (data?.error === "PLUGGY_NOT_CONFIGURED") {
-        toast.error("Open Finance ainda não configurado (credenciais Pluggy ausentes).");
-        return;
-      }
-      setToken(data.accessToken);
-    } catch (e) {
-      toast.error("Erro ao iniciar conexão: " + (e instanceof Error ? e.message : String(e)));
-    } finally {
-      setLoadingToken(false);
-    }
-  };
-
-  const handleSuccess = async (itemData: { item: { id: string } }) => {
-    setToken(null);
-    if (!company) return;
-    toast.loading("Registrando conexão…", { id: "of-register" });
-    try {
-      const { data, error } = await supabase.functions.invoke("openfinance-connect", {
-        body: { action: "register", company_id: company.id, item_id: itemData.item.id },
-      });
-      if (error) throw error;
-      toast.success(`Banco conectado — ${data?.staged ?? 0} transações trazidas para revisão`, { id: "of-register" });
-      refetch();
-    } catch (e) {
-      toast.error("Erro ao registrar: " + (e instanceof Error ? e.message : String(e)), { id: "of-register" });
-    }
-  };
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   return (
     <div className="rounded-lg border border-border bg-card p-5">
@@ -78,8 +29,8 @@ export function OpenFinanceConnect() {
             </p>
           </div>
         </div>
-        <Button size="sm" onClick={startConnect} disabled={loadingToken} className="gap-2">
-          {loadingToken ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+        <Button size="sm" onClick={() => setWizardOpen(true)} className="gap-2">
+          <Building2 className="h-4 w-4" />
           Conectar banco
         </Button>
       </div>
@@ -141,27 +92,12 @@ export function OpenFinanceConnect() {
         </div>
       )}
 
-      {/* Dica: credenciais Pluggy de teste (app Development/Demo) só conectam no banco
-          Sandbox. Bancos reais exigem uma aplicação Pluggy de produção. */}
-      <p className="mt-3 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-[11px] leading-4 text-muted-foreground">
-        Testando com credenciais Pluggy de desenvolvimento? Escolha o banco <span className="font-medium">"Pluggy Bank" (Sandbox)</span> e entre com usuário <span className="font-mono">user-ok</span> e senha <span className="font-mono">password-ok</span>. Bancos reais só conectam com uma aplicação Pluggy de <span className="font-medium">produção</span>.
+      <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+        "Conectar banco" abre um passo a passo guiado: objetivo (testar no sandbox ou banco real),
+        credenciais Pluggy e a conexão segura do banco.
       </p>
 
-      {token && (
-        <PluggyConnect
-          connectToken={token}
-          includeSandbox
-          onSuccess={handleSuccess}
-          onError={(error) => {
-            setToken(null);
-            console.error("[pluggy] connect error", error);
-            toast.error(
-              "Conexão cancelada ou o banco recusou. Com credenciais de teste, conecte o banco Sandbox 'Pluggy Bank' (user-ok / password-ok). Banco real exige app Pluggy de produção.",
-            );
-          }}
-          onClose={() => setToken(null)}
-        />
-      )}
+      <OpenFinanceSetupWizard open={wizardOpen} onOpenChange={setWizardOpen} onConnected={refetch} />
     </div>
   );
 }
