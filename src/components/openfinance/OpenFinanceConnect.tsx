@@ -141,14 +141,23 @@ export function OpenFinanceConnect() {
         </div>
       )}
 
+      {/* Dica: credenciais Pluggy de teste (app Development/Demo) só conectam no banco
+          Sandbox. Bancos reais exigem uma aplicação Pluggy de produção. */}
+      <p className="mt-3 rounded-md border border-border/60 bg-muted/20 px-3 py-2 text-[11px] leading-4 text-muted-foreground">
+        Testando com credenciais Pluggy de desenvolvimento? Escolha o banco <span className="font-medium">"Pluggy Bank" (Sandbox)</span> e entre com usuário <span className="font-mono">user-ok</span> e senha <span className="font-mono">password-ok</span>. Bancos reais só conectam com uma aplicação Pluggy de <span className="font-medium">produção</span>.
+      </p>
+
       {token && (
         <PluggyConnect
           connectToken={token}
           includeSandbox
           onSuccess={handleSuccess}
-          onError={() => {
+          onError={(error) => {
             setToken(null);
-            toast.error("Conexão cancelada ou falhou no banco.");
+            console.error("[pluggy] connect error", error);
+            toast.error(
+              "Conexão cancelada ou o banco recusou. Com credenciais de teste, conecte o banco Sandbox 'Pluggy Bank' (user-ok / password-ok). Banco real exige app Pluggy de produção.",
+            );
           }}
           onClose={() => setToken(null)}
         />
