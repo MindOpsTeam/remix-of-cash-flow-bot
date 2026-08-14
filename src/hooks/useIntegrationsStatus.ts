@@ -44,7 +44,9 @@ export function useIntegrationsStatus() {
       const [asaas, inter, nfse, plugnotas, focus, openfinance, contaazul] = await Promise.all([
         tabela("company_asaas_config", "company_id"),
         tabela("inter_config", "active"),
-        tabela("nfse_config", "active, cert_pfx_base64"),
+        // cert_pfx_base64 é segredo (SELECT revogado do cliente): o indicador de
+        // "tem certificado" é o cert_cnpj, que não é secreto.
+        tabela("nfse_config", "active, cert_cnpj"),
         tabela("plugnotas_config", "active, api_key, environment"),
         tabela("focus_config", "active, environment, token_homologacao_preview, token_producao_preview"),
         tabela("openfinance_config", "active, sandbox, client_id_preview"),
@@ -62,7 +64,7 @@ export function useIntegrationsStatus() {
         : false;
 
       const p = d<{ active: boolean; api_key: string; environment: string }>(plugnotas);
-      const n = d<{ active: boolean; cert_pfx_base64: string | null }>(nfse);
+      const n = d<{ active: boolean; cert_cnpj: string | null }>(nfse);
       const of = d<{ active: boolean; sandbox: boolean; client_id_preview: string | null }>(openfinance);
       const i = d<{ active: boolean }>(inter);
       const ca = d<{ ativo: boolean; client_id_preview: string | null }>(contaazul);

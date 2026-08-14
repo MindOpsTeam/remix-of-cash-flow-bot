@@ -104,6 +104,8 @@ export default function NfseIntegration() {
         id: existingConfig.id,
         company_id: existingConfig.company_id,
         cert_cnpj: existingConfig.cert_cnpj,
+        cert_pfx_base64: "",
+        cert_password: "",
         cert_razao_social: existingConfig.cert_razao_social,
         cert_expires_at: existingConfig.cert_expires_at,
         ambiente: existingConfig.ambiente,
