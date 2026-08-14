@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { Cliente360 } from "@/components/contatos/Cliente360";
-import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -311,14 +311,25 @@ export default function ContactsPage({ scope = "all" }: { scope?: ContactScope }
         {isLoading ? (
           <div className="text-sm text-muted-foreground text-center py-12">Carregando...</div>
         ) : filtered.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Users className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-              <p className="text-sm text-muted-foreground">
-                {contacts.length === 0 ? "Nenhum contato cadastrado ainda." : "Nenhum resultado para esta busca."}
-              </p>
-            </CardContent>
-          </Card>
+          contacts.length === 0 ? (
+            <EmptyState
+              icon={ui.icon}
+              title={scope === "supplier" ? "Nenhum fornecedor ainda" : scope === "customer" ? "Nenhum cliente ainda" : "Nenhum contato ainda"}
+              description={`Cadastre ${scope === "supplier" ? "quem você paga" : "quem compra de você"} manualmente ou importe uma planilha de uma vez.`}
+              action={
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setImportOpen(true)}>
+                    <Upload className="h-4 w-4 mr-1.5" /> Importar
+                  </Button>
+                  <Button onClick={openCreate}>
+                    <Plus className="h-4 w-4 mr-1.5" /> {scope === "supplier" ? "Novo Fornecedor" : scope === "customer" ? "Novo Cliente" : "Novo Contato"}
+                  </Button>
+                </div>
+              }
+            />
+          ) : (
+            <EmptyState icon={Search} title="Nenhum resultado" description="Nenhum registro para esta busca. Ajuste o termo ou limpe o filtro." />
+          )
         ) : (
           <div className="bg-card border border-border rounded-lg divide-y divide-border">
             {filtered.map((c) => (

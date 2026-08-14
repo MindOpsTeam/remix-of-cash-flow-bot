@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { ArrowLeft, Plus, Pencil, Trash2, Landmark } from "lucide-react";
 import { OpenFinanceConnect } from "@/components/openfinance/OpenFinanceConnect";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -152,11 +153,12 @@ export default function BankAccounts() {
         )}
 
         {!isLoading && accounts.length === 0 && (
-          <div className="bg-card border border-border rounded-lg p-8 text-center">
-            <Landmark className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground">Nenhuma conta cadastrada</p>
-            <p className="text-xs text-muted-foreground mt-1">Crie a primeira conta bancária da empresa.</p>
-          </div>
+          <EmptyState
+            icon={Landmark}
+            title="Nenhuma conta cadastrada"
+            description="Crie a primeira conta bancária da empresa, ou conecte um banco via Open Finance acima para o extrato entrar sozinho."
+            action={<Button onClick={openCreate}><Plus className="h-4 w-4 mr-1.5" /> Nova conta</Button>}
+          />
         )}
 
         {accounts.length > 0 && (
