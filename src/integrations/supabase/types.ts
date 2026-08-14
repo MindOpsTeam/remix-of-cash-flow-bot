@@ -642,6 +642,9 @@ export type Database = {
           approval_status: string
           approved_at: string | null
           approved_by: string | null
+          beneficiario_cnpj: string | null
+          beneficiario_nome: string | null
+          codigo_barras: string | null
           company_id: string
           contact_id: string | null
           created_at: string
@@ -650,6 +653,8 @@ export type Database = {
           fornecedor: string
           id: string
           is_recurring: boolean
+          linha_digitavel: string | null
+          nosso_numero: string | null
           payment_date: string | null
           purchase_order_id: string | null
           recurrence_group_id: string | null
@@ -669,6 +674,9 @@ export type Database = {
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
+          beneficiario_cnpj?: string | null
+          beneficiario_nome?: string | null
+          codigo_barras?: string | null
           company_id: string
           contact_id?: string | null
           created_at?: string
@@ -677,6 +685,8 @@ export type Database = {
           fornecedor: string
           id?: string
           is_recurring?: boolean
+          linha_digitavel?: string | null
+          nosso_numero?: string | null
           payment_date?: string | null
           purchase_order_id?: string | null
           recurrence_group_id?: string | null
@@ -696,6 +706,9 @@ export type Database = {
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
+          beneficiario_cnpj?: string | null
+          beneficiario_nome?: string | null
+          codigo_barras?: string | null
           company_id?: string
           contact_id?: string | null
           created_at?: string
@@ -704,6 +717,8 @@ export type Database = {
           fornecedor?: string
           id?: string
           is_recurring?: boolean
+          linha_digitavel?: string | null
+          nosso_numero?: string | null
           payment_date?: string | null
           purchase_order_id?: string | null
           recurrence_group_id?: string | null
