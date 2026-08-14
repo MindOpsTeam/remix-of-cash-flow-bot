@@ -19,12 +19,15 @@ export function BillFormDialog({ open, onOpenChange, onSubmit, initialData, isPe
   const [descricao, setDescricao] = useState(initialData?.descricao ?? "");
   const [vencimento, setVencimento] = useState(initialData?.vencimento ?? "");
   const [valor, setValor] = useState(initialData?.valor?.toString() ?? "");
+  const [linhaDigitavel, setLinhaDigitavel] = useState(initialData?.linha_digitavel ?? "");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!fornecedor || !vencimento || !valor) return;
-    onSubmit({ fornecedor, descricao: descricao || null, vencimento, valor: parseFloat(valor) });
-    if (!isEdit) { setFornecedor(""); setDescricao(""); setVencimento(""); setValor(""); }
+    // Só dígitos: a linha digitável é a chave de dedup e de pagamento.
+    const linha = (linhaDigitavel ?? "").replace(/\D/g, "") || null;
+    onSubmit({ fornecedor, descricao: descricao || null, vencimento, valor: parseFloat(valor), linha_digitavel: linha });
+    if (!isEdit) { setFornecedor(""); setDescricao(""); setVencimento(""); setValor(""); setLinhaDigitavel(""); }
     onOpenChange(false);
   };
 
@@ -50,6 +53,11 @@ export function BillFormDialog({ open, onOpenChange, onSubmit, initialData, isPe
           <div className="space-y-2">
             <Label>Valor (R$)</Label>
             <Input type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Linha digitável / código de barras <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+            <Input value={linhaDigitavel} onChange={e => setLinhaDigitavel(e.target.value)} placeholder="Cole a linha digitável do boleto" inputMode="numeric" className="font-mono" />
+            <p className="text-[11px] text-muted-foreground">Evita boleto duplicado e habilita o pagamento pelo código.</p>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

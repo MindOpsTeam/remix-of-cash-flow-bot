@@ -35,6 +35,11 @@ export type BillInput = {
   status?: string;
   source?: string;
   contact_id?: string | null;
+  // Identidade do boleto (opcional): a linha digitável deduplica entre fontes e é o
+  // que se paga; o CNPJ do beneficiário deixa o sistema ligar o fornecedor sozinho.
+  linha_digitavel?: string | null;
+  beneficiario_cnpj?: string | null;
+  beneficiario_nome?: string | null;
 };
 
 function computeStatus(bill: { status: string; vencimento: string }): string {
@@ -143,7 +148,13 @@ export function useBillsPayable() {
           : "Conta adicionada",
       );
     },
-    onError: (e: Error) => toast.error("Erro ao criar conta: " + mensagemDeErro(e)),
+    onError: (e: Error & { code?: string }) => {
+      if (e?.code === "23505" || /duplicate|company_linha_uidx/i.test(e?.message ?? "")) {
+        toast.info("Este boleto já está nas contas a pagar.");
+        return;
+      }
+      toast.error("Erro ao criar conta: " + mensagemDeErro(e));
+    },
   });
 
   const updateBill = useMutation({

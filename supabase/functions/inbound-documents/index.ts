@@ -10,10 +10,12 @@
  * O token da Focus fica no Vault (RPC get_focus_token), nunca no front.
  *
  * POST /inbound-documents { action, companyId, ... }
- *   action=sync_nfe   baixa as NF-e destinadas na Focus e faz upsert
- *   action=sync_nfse  NFS-e tomadas via Ambiente Nacional (ADN) — preparado (ver abaixo)
- *   action=to_bill    { inbound_document_id }  cria a conta a pagar
- *   action=ignore     { inbound_document_id }  marca como ignorada
+ *   action=sync_nfe      baixa as NF-e destinadas na Focus e faz upsert
+ *   action=sync_nfse     NFS-e tomadas via Ambiente Nacional (ADN) — preparado (ver abaixo)
+ *   action=sync_boletos  boletos contra a empresa (DDA/Open Finance) → contas a pagar
+ *   action=to_bill       { inbound_document_id }  cria a conta a pagar
+ *   action=ignore        { inbound_document_id }  marca como ignorada
+ *   action=manifestar    { inbound_document_id, tipo }  Manifestação do Destinatário (MDe)
  *
  * NFS-e tomadas (ADN): o Ambiente Nacional da NFS-e distribui os DF-e ao TOMADOR
  * pela API DFe, por NSU, autenticando com o certificado A1 — o mesmo do worker de
@@ -201,6 +203,9 @@ Deno.serve(async (req: Request) => {
             status: "a_vencer",
             source: "nota_fiscal",
             contact_id: contactId,
+            // Quem está cobrando: o emitente da nota (o trigger liga ao fornecedor).
+            beneficiario_cnpj: doc.emitente_cnpj ?? null,
+            beneficiario_nome: doc.emitente_nome ?? null,
             external_id: `${doc.chave_acesso}-p${i + 1}`,
           }))
         : [{
@@ -212,6 +217,9 @@ Deno.serve(async (req: Request) => {
             status: "a_vencer",
             source: "nota_fiscal",
             contact_id: contactId,
+            // Quem está cobrando: o emitente da nota (o trigger liga ao fornecedor).
+            beneficiario_cnpj: doc.emitente_cnpj ?? null,
+            beneficiario_nome: doc.emitente_nome ?? null,
             external_id: doc.chave_acesso,
           }];
 
@@ -230,6 +238,67 @@ Deno.serve(async (req: Request) => {
       if (!inboundId) return jsonResp({ error: "inbound_document_id é obrigatório" }, 400, corsHeaders);
       await supabase.from("inbound_documents").update({ status: "ignorado", updated_at: new Date().toISOString() }).eq("id", inboundId).eq("company_id", companyId);
       return jsonResp({ ok: true }, 200, corsHeaders);
+    }
+
+    // ── sync_boletos: boletos emitidos CONTRA a empresa (DDA / Open Finance) ──
+    // Fonte-garantia: o DDA (Débito Direto Autorizado) do banco lista todo boleto
+    // registrado contra o CNPJ. Este endpoint recebe essa lista (do provedor de Open
+    // Finance ou de uma automação) e joga em Contas a Pagar, deduplicando pela LINHA
+    // DIGITÁVEL e identificando quem cobra pelo CNPJ do beneficiário (trigger liga o
+    // fornecedor). Sem lista no corpo, explica como ligar a origem.
+    if (action === "sync_boletos") {
+      const readonly = await assertCanWrite(supabase, user.id, companyId, corsHeaders);
+      if (readonly) return readonly;
+
+      const boletos = Array.isArray(body.boletos) ? (body.boletos as Array<Record<string, unknown>>) : [];
+      if (boletos.length === 0) {
+        return jsonResp({
+          ok: false, preparado: true,
+          mensagem: "Para trazer automaticamente TODOS os boletos emitidos contra a empresa, ligue o DDA (Débito Direto Autorizado) do banco via Open Finance e aponte o feed para cá; ou envie a lista em { boletos: [{ linha_digitavel, valor, vencimento, beneficiario_cnpj, beneficiario_nome, nosso_numero, descricao }] }. Cada boleto é deduplicado pela linha digitável e ligado ao fornecedor pelo CNPJ do beneficiário.",
+        }, 200, corsHeaders);
+      }
+
+      const norm = boletos.map((b) => ({
+        linha: String(b.linha_digitavel ?? b.codigo_barras ?? "").replace(/\D/g, ""),
+        valor: parseValorBR(String(b.valor ?? "")),
+        vencimento: String(b.vencimento ?? "").slice(0, 10),
+        ben_cnpj: String(b.beneficiario_cnpj ?? "").replace(/\D/g, "") || null,
+        ben_nome: (b.beneficiario_nome ?? b.beneficiario ?? null) as string | null,
+        nosso: (b.nosso_numero ?? null) as string | null,
+        desc: (b.descricao ?? null) as string | null,
+      })).filter((b) => b.linha && b.valor > 0 && b.vencimento);
+
+      if (norm.length === 0) {
+        return jsonResp({ error: "Nenhum boleto válido: cada item precisa de linha_digitavel, valor e vencimento." }, 400, corsHeaders);
+      }
+
+      // Dedup: não reinsere linha digitável já conhecida (o mesmo boleto pode ter
+      // chegado por nota de entrada ou OCR antes).
+      const linhas = norm.map((b) => b.linha);
+      const { data: existentes } = await supabase.from("bills_payable")
+        .select("linha_digitavel").eq("company_id", companyId).in("linha_digitavel", linhas);
+      const conhecidas = new Set((existentes ?? []).map((e: { linha_digitavel: string | null }) => e.linha_digitavel));
+      const novos = norm.filter((b) => !conhecidas.has(b.linha));
+
+      if (novos.length > 0) {
+        const rows = novos.map((b) => ({
+          company_id: companyId,
+          fornecedor: b.ben_nome ?? "",
+          descricao: b.desc,
+          valor: b.valor,
+          vencimento: b.vencimento,
+          status: "a_vencer",
+          source: "dda",
+          linha_digitavel: b.linha,
+          codigo_barras: b.linha,
+          nosso_numero: b.nosso,
+          beneficiario_cnpj: b.ben_cnpj,
+          beneficiario_nome: b.ben_nome,
+        }));
+        const { error: insErr } = await supabase.from("bills_payable").insert(rows);
+        if (insErr) return jsonResp({ error: `Falha ao salvar boletos: ${insErr.message}` }, 500, corsHeaders);
+      }
+      return jsonResp({ ok: true, recebidos: norm.length, novos: novos.length }, 200, corsHeaders);
     }
 
     // ── manifestar: Manifestação do Destinatário (MDe) na NF-e destinada ──

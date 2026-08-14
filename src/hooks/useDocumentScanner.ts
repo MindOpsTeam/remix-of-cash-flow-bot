@@ -302,6 +302,11 @@ export function useDocumentScanner() {
             status: "a_vencer",
             source: "ocr",
             contact_id: contactId,
+            // Identidade do boleto: quem cobra + linha digitável (dedup entre fontes).
+            beneficiario_cnpj: (scanData.beneficiary_document || scanData.issuer_document || "").replace(/\D/g, "") || null,
+            beneficiario_nome: scanData.beneficiary || scanData.issuer || null,
+            linha_digitavel: scanData.barcode || null,
+            codigo_barras: scanData.barcode || null,
           });
           queryClient.invalidateQueries({ queryKey: ["bills_payable"] });
         }
@@ -335,6 +340,11 @@ export function useDocumentScanner() {
             status: "a_vencer",
             source: "ocr",
             contact_id: contactId,
+            // Identidade do boleto: quem cobra + linha digitável (dedup entre fontes).
+            beneficiario_cnpj: (scanData.beneficiary_document || scanData.issuer_document || "").replace(/\D/g, "") || null,
+            beneficiario_nome: scanData.beneficiary || scanData.issuer || null,
+            linha_digitavel: scanData.barcode || null,
+            codigo_barras: scanData.barcode || null,
           });
           queryClient.invalidateQueries({ queryKey: ["bills_payable"] });
           toast.success("Conta a pagar criada.");
@@ -370,6 +380,12 @@ export function useDocumentScanner() {
       return true;
     } catch (e: any) {
       console.error("Create transaction error:", e);
+      // Boleto repetido (mesma linha digitável) já está nas contas a pagar.
+      if (e?.code === "23505" || /duplicate|company_linha_uidx/i.test(e?.message ?? "")) {
+        toast.info("Este boleto já está nas contas a pagar.");
+        setResult(null);
+        return true;
+      }
       toast.error("Erro ao criar lançamento: " + (e.message || "Erro desconhecido"));
       return false;
     } finally {
