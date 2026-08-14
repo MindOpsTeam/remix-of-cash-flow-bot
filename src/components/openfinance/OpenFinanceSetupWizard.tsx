@@ -199,6 +199,9 @@ export function OpenFinanceSetupWizard({ open, onOpenChange, onConnected }: Prop
                     : "Pode ser o app Development/Demo: ele conecta o banco de teste."}
                 </p>
               </div>
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Não é uma assinatura por empresa: a Pluggy cobra por <span className="font-medium">conexão bancária ativa/mês</span> (vários bancos e contas de um CNPJ podem cair numa só conta Pluggy). Use a mesma conta Pluggy em várias empresas, ou uma conta própria por cliente.
+              </p>
               <div className="space-y-1.5">
                 <Label className="text-xs">Client ID</Label>
                 <Input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" className="font-mono text-xs" />
