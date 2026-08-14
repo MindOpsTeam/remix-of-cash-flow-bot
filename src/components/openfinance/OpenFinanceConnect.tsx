@@ -93,8 +93,7 @@ export function OpenFinanceConnect() {
       )}
 
       <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
-        "Conectar banco" abre um passo a passo guiado: objetivo (testar no sandbox ou banco real),
-        credenciais Pluggy e a conexão segura do banco.
+        Os bancos acima são <span className="font-medium">desta empresa</span>. Uma empresa pode ter vários bancos e contas; para conectar bancos de outro CNPJ, troque a empresa no topo. "Conectar banco" abre um passo a passo guiado (objetivo, credenciais e a conexão segura).
       </p>
 
       <OpenFinanceSetupWizard open={wizardOpen} onOpenChange={setWizardOpen} onConnected={refetch} />

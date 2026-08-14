@@ -23,6 +23,14 @@ interface Props {
   onConnected?: () => void;
 }
 
+/** Máscara leve de CNPJ (14 díg.) ou CPF (11 díg.); devolve como veio se não bater. */
+function formatCnpj(doc: string): string {
+  const d = (doc ?? "").replace(/\D/g, "");
+  if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  return doc;
+}
+
 /**
  * Wizard guiado de Open Finance (Pluggy). Deixa o passo a passo explícito:
  * objetivo (testar no sandbox x banco real) → credenciais (cofre) → conexão
@@ -130,6 +138,16 @@ export function OpenFinanceSetupWizard({ open, onOpenChange, onConnected }: Prop
           <DialogHeader>
             <DialogTitle>Conectar banco (Open Finance)</DialogTitle>
           </DialogHeader>
+
+          {/* Escopo explícito: a conexão é sempre de UMA empresa (CNPJ). Outra empresa
+              é outra conexão. Uma empresa pode ter vários bancos e várias contas. */}
+          {company && (
+            <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] leading-4 text-muted-foreground">
+              Conectando para <span className="font-medium text-foreground">{company.name}</span>
+              {company.cnpj ? <span className="font-mono"> · {formatCnpj(company.cnpj)}</span> : null}.
+              A conexão fica <span className="font-medium">nesta empresa</span>; para outro CNPJ, troque a empresa no topo. Uma empresa pode ter vários bancos e contas.
+            </div>
+          )}
 
           {/* Passo 1 — objetivo */}
           {passo === "objetivo" && (
