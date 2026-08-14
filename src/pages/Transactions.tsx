@@ -1,6 +1,8 @@
 import { mensagemDeErro } from "@/lib/erros";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionForm } from "@/components/TransactionForm";
 import { TransactionEditForm } from "@/components/TransactionEditForm";
@@ -26,6 +28,7 @@ const ITEMS_PER_PAGE = 25;
 export default function Transactions() {
   const { company } = useCompany();
   const [transactions, setTransactions] = useState<TransactionRowData[]>([]);
+  const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -70,39 +73,43 @@ export default function Transactions() {
 
   const fetchTransactions = useCallback(async () => {
     if (!company) return;
+    setLoading(true);
+    try {
+      let query = supabase
+        .from("transactions")
+        .select("*, chart_of_accounts(name), cost_centers(name)", { count: "exact" })
+        .eq("company_id", company.id)
+        .order("date", { ascending: false });
 
-    let query = supabase
-      .from("transactions")
-      .select("*, chart_of_accounts(name), cost_centers(name)", { count: "exact" })
-      .eq("company_id", company.id)
-      .order("date", { ascending: false });
+      if (search.trim()) {
+        query = query.ilike("description", `%${search.trim()}%`);
+      }
 
-    if (search.trim()) {
-      query = query.ilike("description", `%${search.trim()}%`);
+      const from = page * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.range(from, to);
+
+      const { data, count } = await query;
+
+      if (data) {
+        setTransactions(
+          data.map((t: any) => ({
+            id: t.id,
+            date: t.date,
+            description: t.description,
+            amount: Number(t.amount),
+            type: t.type,
+            status: t.status,
+            source: t.source,
+            account_name: t.chart_of_accounts?.name || "",
+            cost_center_name: t.cost_centers?.name || "",
+          }))
+        );
+      }
+      if (count !== null) setTotalCount(count);
+    } finally {
+      setLoading(false);
     }
-
-    const from = page * ITEMS_PER_PAGE;
-    const to = from + ITEMS_PER_PAGE - 1;
-    query = query.range(from, to);
-
-    const { data, count } = await query;
-
-    if (data) {
-      setTransactions(
-        data.map((t: any) => ({
-          id: t.id,
-          date: t.date,
-          description: t.description,
-          amount: Number(t.amount),
-          type: t.type,
-          status: t.status,
-          source: t.source,
-          account_name: t.chart_of_accounts?.name || "",
-          cost_center_name: t.cost_centers?.name || "",
-        }))
-      );
-    }
-    if (count !== null) setTotalCount(count);
   }, [company, page, search]);
 
   useEffect(() => {
@@ -119,33 +126,33 @@ export default function Transactions() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Lançamentos</h1>
-          <p className="text-sm text-muted-foreground mt-1">Receitas e despesas da empresa</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ImportarExtrato
-            trigger={
-              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
-                <ClipboardPaste className="h-4 w-4" />
-                Colar extrato
-              </Button>
-            }
-            onImportado={fetchTransactions}
-          />
-          <Button asChild variant="outline" className="gap-2">
-            <RouterLink to="/bank-inbox">
-              <Inbox className="h-4 w-4" />
-              Extrato bancário
-            </RouterLink>
-          </Button>
-          <Button className="gap-2" variant="accent" onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Novo Lançamento
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Lançamentos"
+        description="Receitas e despesas da empresa"
+        actions={
+          <>
+            <ImportarExtrato
+              trigger={
+                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+                  <ClipboardPaste className="h-4 w-4" />
+                  Colar extrato
+                </Button>
+              }
+              onImportado={fetchTransactions}
+            />
+            <Button asChild variant="outline" className="gap-2">
+              <RouterLink to="/bank-inbox">
+                <Inbox className="h-4 w-4" />
+                Extrato bancário
+              </RouterLink>
+            </Button>
+            <Button className="gap-2" variant="accent" onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Novo Lançamento
+            </Button>
+          </>
+        }
+      />
 
       <div className="mb-6">
         <LancamentoRapido onLancado={fetchTransactions} />
@@ -164,7 +171,20 @@ export default function Transactions() {
           </div>
         </div>
 
-        {transactions.length === 0 ? (
+        {loading ? (
+          <div className="space-y-2 py-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4 py-3">
+                <Skeleton className="h-9 w-9 rounded-full" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-1/3" />
+                  <Skeleton className="h-3 w-1/4" />
+                </div>
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : transactions.length === 0 ? (
           <div className="py-12">
             <ConnectFirstCTA onImportado={fetchTransactions} />
             <div className="mt-3 flex justify-center">

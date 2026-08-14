@@ -1,7 +1,8 @@
 import { AppLayout } from "@/components/AppLayout";
-import { ArrowLeft, Plus, Pencil, Trash2, Landmark } from "lucide-react";
+import { Plus, Pencil, Trash2, Landmark } from "lucide-react";
 import { OpenFinanceConnect } from "@/components/openfinance/OpenFinanceConnect";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -120,21 +121,17 @@ export default function BankAccounts() {
 
   return (
     <AppLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link to="/settings" className="text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Contas Bancárias</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Bancos e carteiras da empresa</p>
-          </div>
-        </div>
-        <Button size="sm" onClick={openCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nova conta
-        </Button>
-      </div>
+      <PageHeader
+        title="Contas Bancárias"
+        description="Bancos e carteiras da empresa"
+        backTo="/settings"
+        actions={
+          <Button size="sm" onClick={openCreate} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nova conta
+          </Button>
+        }
+      />
 
       <div className="mb-6 space-y-2">
         <OpenFinanceConnect />
