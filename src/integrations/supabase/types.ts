@@ -6552,9 +6552,21 @@ export type Database = {
         Args: { p_company_id: string; p_environment: string }
         Returns: string
       }
+      get_integration_secret: {
+        Args: { p_campo: string; p_company_id: string; p_provider: string }
+        Returns: string
+      }
       get_nfse_secrets: { Args: { p_company_id: string }; Returns: Json }
       get_pluggy_credentials: { Args: { p_company_id: string }; Returns: Json }
       get_stripe_credentials: { Args: { p_config_id: string }; Returns: Json }
+      integration_secrets_status: {
+        Args: { p_company_id: string }
+        Returns: {
+          campo: string
+          configurado: boolean
+          provider: string
+        }[]
+      }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       is_demo_account: { Args: never; Returns: boolean }
       limpar_demonstracao_se_remixado: { Args: never; Returns: Json }
@@ -6639,6 +6651,15 @@ export type Database = {
       }
       set_focus_token: {
         Args: { p_company_id: string; p_environment: string; p_token: string }
+        Returns: undefined
+      }
+      set_integration_secret: {
+        Args: {
+          p_campo: string
+          p_company_id: string
+          p_provider: string
+          p_valor: string
+        }
         Returns: undefined
       }
       set_pluggy_credentials: {
