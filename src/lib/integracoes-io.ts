@@ -153,6 +153,16 @@ export async function salvarIntegracao(
         return { ok: true, mensagem: "Credenciais do Conta Azul guardadas no cofre." };
       }
 
+      case "gcp": {
+        // credencial de plataforma: vai inteira para o cofre, nada em tabela
+        await gravarSegredo(companyId, "gcp", "service_account", v.service_account);
+        await gravarSegredo(companyId, "gcp", "project_id", v.project_id);
+        return {
+          ok: true,
+          mensagem: "Motor de previsão ligado. As próximas projeções usam o TimesFM.",
+        };
+      }
+
       case "plugnotas": {
         const { error } = await supabase.from("plugnotas_config").upsert(
           {
@@ -349,6 +359,17 @@ async function temSegredo(
         .eq("company_id", companyId).maybeSingle();
       return !!(data?.token_homologacao_preview || data?.token_producao_preview);
     }],
+    ["gcp", async () => {
+      // a chave do Google vive no cofre: status por booleano, nunca pelo valor
+      return await temSegredo(companyId, "gcp", ["service_account"]);
+    }],
+    ["certificado", async () => {
+      // cert_cnpj não é segredo e só existe quando o .pfx foi aberto com a
+      // senha certa: é a prova de que o certificado está válido e legível
+      const { data } = await supabase.from("nfse_config").select("cert_cnpj")
+        .eq("company_id", companyId).not("cert_cnpj", "is", null).maybeSingle();
+      return !!data;
+    }],
     ["nfse", async () => {
       // cert_cnpj (não-secreto) indica que há certificado; as colunas do .pfx/senha
       // não são mais legíveis pelo cliente (REVOKE de SELECT).
@@ -377,7 +398,7 @@ async function temSegredo(
  */
 export const IDS_COM_DETECCAO = [
   "openfinance", "asaas", "inter", "stripe", "whatsapp",
-  "contaazul", "plugnotas", "focus", "nfse",
+  "contaazul", "plugnotas", "focus", "nfse", "gcp", "certificado",
 ] as const;
 
 /** Lê o arquivo e devolve só o base64 (sem o prefixo data:...). */

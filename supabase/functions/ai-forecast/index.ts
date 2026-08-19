@@ -3,6 +3,7 @@ import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { parseJsonBody, validate, validateRequired, validateUUID } from "../_shared/validate.ts";
 import { projetarCaixa, type Compromisso, type MesHistorico } from "../_shared/forecast.ts";
 import { chamarModelo, registrarUso } from "../_shared/ia.ts";
+import { preverComTimesFM } from "../_shared/timesfm.ts";
 
 Deno.serve(async (req) => {
   const preflight = corsPreflightResponse(req);
@@ -114,8 +115,16 @@ Deno.serve(async (req) => {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([mes, v]) => ({ mes, receita: v.revenue, despesa: v.expense }));
 
+    // Motor de previsão: TimesFM (Google, dentro do BigQuery) quando a empresa
+    // configurou a credencial, senão a média ponderada do histórico. O TimesFM
+    // reconhece sazonalidade que a média achata. Devolve null em qualquer falha,
+    // então o forecast nunca depende dele para existir.
+    const previsaoModelo = await preverComTimesFM(supabase, company_id as string, historicoCalculo, 3);
+    const motor = previsaoModelo ? "timesfm" : "estatistico";
+
     const { forecast: projecao, runwayMeses, baseHistorica } = projetarCaixa(
       historicoCalculo, compromissos, saldoInicial, 3,
+      previsaoModelo?.map((p) => ({ receita: p.receita, despesa: p.despesa })),
     );
 
     // ── AGORA SIM O MODELO, e só para EXPLICAR o que a conta já decidiu.
@@ -195,7 +204,7 @@ Escreva em português claro, sem jargão. Cada insight tem no máximo duas frase
         };
       });
 
-    return jsonResp({ ...forecast, history }, 200, corsHeaders);
+    return jsonResp({ ...forecast, history, motor }, 200, corsHeaders);
   } catch (error) {
     console.error("Forecast error:", error);
     return jsonResp({ error: "Internal server error" }, 500, corsHeaders);

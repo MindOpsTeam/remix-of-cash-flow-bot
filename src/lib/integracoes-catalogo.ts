@@ -11,7 +11,7 @@
  * não uma cobrança — o produto funciona no manual e melhora a cada conexão.
  */
 
-export type CampoTipo = "text" | "password" | "select" | "url" | "tel" | "file";
+export type CampoTipo = "text" | "password" | "select" | "url" | "tel" | "file" | "textarea";
 
 export interface CampoIntegracao {
   key: string;
@@ -523,6 +523,123 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
         "Via servidor próprio: só o custo do servidor. Via provedor: o preço por documento do PlugNotas ou da Focus.",
       quandoNaoUsar:
         "Se a sua empresa não emite nota de serviço. Para nota de produto, a via é NF-e pelos provedores fiscais.",
+    },
+  },
+  {
+    id: "gcp",
+    nome: "Motor de previsão — Google Cloud (TimesFM)",
+    ganho:
+      "Troca a média do histórico pelo TimesFM, o modelo de séries temporais do Google: ele reconhece dezembro, décimo terceiro e imposto sazonal sem ninguém explicar.",
+    categoria: "dados",
+    ondeFicaGuardado: "vault",
+    testavel: true,
+    campos: [
+      {
+        key: "service_account",
+        label: "Chave JSON da conta de serviço",
+        tipo: "textarea",
+        segredo: true,
+        obrigatorioParaSalvar: true,
+        placeholder: '{ "type": "service_account", "project_id": "...", ... }',
+        dica: "Cole o conteúdo INTEIRO do arquivo .json que o Google baixou, não o nome dele.",
+      },
+      {
+        key: "project_id",
+        label: "Project ID (opcional)",
+        tipo: "text",
+        placeholder: "meu-projeto-123",
+        dica: "Só preencha se for diferente do project_id que já está dentro do JSON.",
+      },
+    ],
+    guia: {
+      tempoEstimado: "10 minutos, sendo a maior parte esperando a API ativar.",
+      preRequisitos: [
+        "Conta Google com faturamento ativo no projeto (mesmo sem gastar nada, o Google exige cartão cadastrado).",
+        "Permissão para criar contas de serviço no projeto.",
+      ],
+      passos: [
+        "Abra console.cloud.google.com e crie um projeto, ou selecione um existente. O nome não importa para nós.",
+        "Confirme que o projeto tem faturamento ativo, em Faturamento. Sem isso a chave é criada mas nenhuma consulta roda, e a mensagem do Google não deixa claro que é esse o motivo.",
+        "Na busca do topo, procure BigQuery API e clique em Ativar. Leva de alguns segundos a um minuto.",
+        "Vá em IAM e administrador, depois Contas de serviço, e clique em Criar conta de serviço. Dê um nome, por exemplo financeai-forecast.",
+        "No passo de permissões, escolha exatamente o papel BigQuery Job User. Só ele.",
+        "Abra a conta criada, aba Chaves, Adicionar chave, Criar nova chave, formato JSON. O arquivo baixa sozinho.",
+        "Abra o arquivo num editor de texto, copie tudo e cole no campo abaixo. Clique em Testar conexão antes de salvar.",
+      ],
+      armadilhas: [
+        "Não escolha Editor nem Proprietário no papel. BigQuery Job User permite executar a consulta e mais nada: se a chave vazar, quem pegou não lê nem apaga dado, e não consegue criar recurso que gere fatura.",
+        "O campo quer o CONTEÚDO do JSON. Se o que você colou não começa com chave e a palavra type, copiou a coisa errada.",
+        "Faturamento inativo é a causa mais comum de falha, e o erro que o Google devolve não diz isso com clareza.",
+        "Trate o arquivo como senha: não mande por WhatsApp nem deixe em pasta compartilhada. Depois de colar aqui, pode apagar da sua máquina.",
+      ],
+      trial:
+        "O Google dá crédito inicial para contas novas, e para o volume de uma PME as consultas de previsão cabem na franquia gratuita mensal do BigQuery. Na prática o custo tende a zero, mas o cadastro do cartão é obrigatório.",
+      custo:
+        "Cobrança por dado processado no BigQuery, com franquia gratuita mensal. Uma empresa com poucos anos de histórico fica dentro da franquia. Confira em cloud.google.com/bigquery/pricing.",
+      site: "https://console.cloud.google.com",
+      documentacao: "https://cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-ai-forecast",
+      quandoNaoUsar:
+        "Se a empresa tem menos de 6 meses de histórico. Sem série o modelo não tem o que reconhecer, e a projeção estatística entrega o mesmo resultado sem trabalho nenhum.",
+    },
+  },
+  {
+    id: "certificado",
+    nome: "Certificado digital A1 — assinatura das notas",
+    ganho:
+      "É o que assina a nota no padrão exigido pelo fisco. Sem ele nenhum emissor consegue autorizar documento fiscal, por mais que a integração esteja verde.",
+    categoria: "fiscal",
+    ondeFicaGuardado: "vault",
+    testavel: true,
+    telaDedicada: "/settings/integrations/nfse",
+    campos: [
+      {
+        key: "cert_pfx_base64",
+        label: "Arquivo do certificado (.pfx ou .p12)",
+        tipo: "file",
+        segredo: true,
+        obrigatorioParaSalvar: true,
+        accept: ".pfx,.p12",
+        dica: "O arquivo que a certificadora entregou. Fica cifrado no cofre e nunca volta para o navegador.",
+      },
+      {
+        key: "cert_password",
+        label: "Senha do certificado",
+        tipo: "password",
+        segredo: true,
+        obrigatorioParaSalvar: true,
+        dica: "É a senha do arquivo, definida na emissão. Não é a senha do e-CNPJ nem a do gov.br.",
+      },
+    ],
+    guia: {
+      tempoEstimado:
+        "A configuração aqui leva 3 minutos. Comprar e validar o certificado, se você ainda não tem, leva de 1 a 3 dias.",
+      preRequisitos: [
+        "CNPJ ativo da empresa emissora.",
+        "Certificado A1 em arquivo (.pfx ou .p12) e a senha dele.",
+        "Inscrição municipal, no caso de NFS-e.",
+      ],
+      passos: [
+        "Se a empresa já tem certificado A1, pule para o passo 4: peça o arquivo .pfx e a senha a quem cuida da contabilidade.",
+        "Se não tem, compre em qualquer Autoridade Certificadora credenciada pela ICP-Brasil (Serasa, Certisign, Soluti, Valid e outras). Peça e-CNPJ A1, que é o modelo em arquivo.",
+        "Faça a validação exigida pela certificadora, que hoje costuma ser por videoconferência, e baixe o arquivo .pfx com a senha que você definir.",
+        "Nesta tela, envie o arquivo .pfx e informe a senha.",
+        "Confira que a tela passou a mostrar o CNPJ e a data de validade lidos do certificado: é a prova de que ele foi aberto com sucesso.",
+        "Emita uma nota em homologação antes de emitir com valor fiscal.",
+      ],
+      armadilhas: [
+        "A1 e A3 são coisas diferentes. O A3 fica num cartão ou token físico e NÃO funciona em servidor: para emitir automático, tem que ser A1, que é arquivo.",
+        "A senha do certificado não é a senha do e-CNPJ nem a do gov.br. Errar aqui só aparece na hora de assinar a nota, com erro críptico vindo do fisco.",
+        "O certificado vence em 1 ano e a emissão para no dia seguinte ao vencimento, sem aviso prévio. A tela mostra a data de validade: coloque um lembrete 30 dias antes.",
+        "O CNPJ do certificado precisa ser o mesmo da empresa emissora. Certificado da matriz não assina nota da filial.",
+      ],
+      trial:
+        "Não existe versão gratuita: certificado digital é documento pago e emitido por Autoridade Certificadora credenciada. O que dá para testar de graça é o ambiente de homologação dos emissores, que aceita nota sem valor fiscal.",
+      custo:
+        "e-CNPJ A1 custa em torno de R$ 200 a R$ 400 por ano, variando por certificadora. É uma compra anual, não uma mensalidade.",
+      site: "https://www.gov.br/iti/pt-br/assuntos/icp-brasil",
+      documentacao: "https://www.gov.br/iti/pt-br/assuntos/certificado-digital",
+      quandoNaoUsar:
+        "Se a empresa não emite nota própria, por exemplo quando a contabilidade emite por fora. Aí o certificado fica com quem emite.",
     },
   },
 ];

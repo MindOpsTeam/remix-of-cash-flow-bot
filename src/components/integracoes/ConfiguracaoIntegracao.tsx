@@ -327,7 +327,18 @@ function CampoForm({
         {campo.label}
       </Label>
 
-      {campo.tipo === "select" ? (
+      {campo.tipo === "textarea" ? (
+        // credencial longa (JSON de conta de serviço, PEM): num input de uma
+        // linha o usuário não consegue conferir o que colou
+        <textarea
+          id={campo.key}
+          className="flex min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-xs shadow-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          placeholder={campo.placeholder}
+          value={valor}
+          onChange={(e) => onChange(e.target.value)}
+          spellCheck={false}
+        />
+      ) : campo.tipo === "select" ? (
         <select
           id={`campo-${campo.key}`}
           className={selectClass}

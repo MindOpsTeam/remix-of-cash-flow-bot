@@ -20,10 +20,13 @@ describe("catálogo de integrações", () => {
     expect(Object.keys(INTEGRACAO_POR_ID).length).toBe(ids.length);
   });
 
-  it("todo campo secreto é password ou file (nunca texto à vista)", () => {
+  it("campo secreto nunca é input de texto comum", () => {
+    // textarea entra na lista porque credencial longa (JSON de conta de
+    // serviço, PEM) é impossível de conferir num input de uma linha. O que não
+    // pode é tipo "text", que fica à vista e vaza em screenshot e gravação.
     for (const i of CATALOGO_INTEGRACOES) {
       for (const c of i.campos.filter((c) => c.segredo)) {
-        expect(["password", "file"], `${i.id}.${c.key}`).toContain(c.tipo);
+        expect(["password", "file", "textarea"], `${i.id}.${c.key}`).toContain(c.tipo);
       }
     }
   });

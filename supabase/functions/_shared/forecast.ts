@@ -77,6 +77,13 @@ export function projetarCaixa(
   compromissos: Compromisso[],
   saldoInicial: number,
   meses = 3,
+  /**
+   * Base mês a mês vinda de um modelo de séries temporais (TimesFM), na ordem
+   * dos meses projetados. Quando ausente, cada mês usa a média ponderada do
+   * histórico. Existe para o motor melhor entrar sem reescrever a projeção:
+   * contratado, confiança e saldo continuam calculados aqui.
+   */
+  basePorMes?: Array<{ receita: number; despesa: number }>,
 ): { forecast: MesProjetado[]; runwayMeses: number | null; baseHistorica: number } {
   const receitas = historico.map((h) => h.receita);
   const despesas = historico.map((h) => h.despesa);
@@ -103,8 +110,11 @@ export function projetarCaixa(
     // O contratado NÃO se soma à média cheia: ele já faz parte do que a
     // empresa costuma faturar. Projetamos o maior entre o contratado e a média,
     // que é o comportamento conservador e explicável.
-    const receita = Math.max(contratadoEntrada, receitaBase);
-    const despesa = Math.max(contratadoSaida, despesaBase);
+    // O modelo de séries temporais, quando disponível, dá a base DESTE mês, o
+    // que captura sazonalidade que a média achata (dezembro, 13º, imposto).
+    const doModelo = basePorMes?.[i - 1];
+    const receita = Math.max(contratadoEntrada, doModelo?.receita ?? receitaBase);
+    const despesa = Math.max(contratadoSaida, doModelo?.despesa ?? despesaBase);
 
     saldo += receita - despesa;
 
