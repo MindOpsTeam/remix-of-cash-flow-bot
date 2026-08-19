@@ -218,3 +218,26 @@ describe("a UI grava no cofre e nunca lê o valor", () => {
     }
   });
 });
+
+
+describe("catálogo: toda credencial declara o cofre", () => {
+  const CAT = readFileSync(join(process.cwd(), "src", "lib", "integracoes-catalogo.ts"), "utf-8");
+
+  it("nenhuma integração diz que guarda segredo em tabela", () => {
+    // A UI mostra ao usuário onde a credencial fica. Depois da migration
+    // 20260819180000 todas vão para o Vault: dizer "tabela" seria mentir para
+    // quem está decidindo se confia o dado bancário ao sistema.
+    expect(CAT, 'ondeFicaGuardado: "tabela" não existe mais').not.toContain(
+      'ondeFicaGuardado: "tabela"',
+    );
+  });
+
+  it("toda integração com campo secreto tem guia de como obter", () => {
+    // sem guia, o admin do remix trava e abre chamado, e a Solução não tem suporte
+    const blocos = CAT.split(/\n  \{\n    id: "/).slice(1);
+    const semGuia = blocos
+      .filter((b) => b.includes("segredo: true") && !b.includes("guia:"))
+      .map((b) => b.slice(0, b.indexOf('"')));
+    expect(semGuia, `integrações sem guia: ${semGuia.join(", ")}`).toEqual([]);
+  });
+});

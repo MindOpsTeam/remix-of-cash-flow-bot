@@ -112,7 +112,7 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     nome: "Asaas — cobrança automática",
     ganho: "Emite boleto e Pix para o cliente e baixa o recebimento sozinho, sem você conferir extrato.",
     categoria: "cobranca",
-    ondeFicaGuardado: "tabela",
+    ondeFicaGuardado: "vault",
     testavel: true,
     telaDedicada: "/settings/integrations/asaas",
     campos: [
@@ -205,7 +205,7 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     nome: "Banco Inter — extrato e saldo",
     ganho: "Saldo e extrato oficiais do Inter direto na conciliação, sem intermediário e sem custo.",
     categoria: "banco",
-    ondeFicaGuardado: "tabela",
+    ondeFicaGuardado: "vault",
     testavel: true,
     telaDedicada: "/settings/integrations/inter",
     campos: [
@@ -232,7 +232,7 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     nome: "WhatsApp (Evolution API)",
     ganho: "Os agentes te avisam no WhatsApp: caixa baixo, contas vencendo, cliente na hora de recomprar.",
     categoria: "comunicacao",
-    ondeFicaGuardado: "tabela",
+    ondeFicaGuardado: "vault",
     testavel: true,
     telaDedicada: "/whatsapp",
     campos: [
@@ -286,7 +286,7 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     nome: "PlugNotas — NF-e e NFC-e",
     ganho: "Emite nota de produto (NF-e) e cupom (NFC-e) direto do PDV e dos pedidos.",
     categoria: "fiscal",
-    ondeFicaGuardado: "tabela",
+    ondeFicaGuardado: "vault",
     testavel: true,
     telaDedicada: "/settings/integrations/plugnotas",
     campos: [
@@ -347,7 +347,7 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     nome: "NFS-e Nacional — nota de serviço",
     ganho: "Emite nota de serviço direto no ambiente nacional da Receita. A emissão em si não custa nada.",
     categoria: "fiscal",
-    ondeFicaGuardado: "tabela",
+    ondeFicaGuardado: "vault",
     testavel: true,
     telaDedicada: "/settings/integrations/nfse",
     campos: [
