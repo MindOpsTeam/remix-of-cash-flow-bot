@@ -6547,6 +6547,7 @@ export type Database = {
         Args: { p_company_id: string }
         Returns: string
       }
+      get_cron_secret: { Args: never; Returns: string }
       get_focus_token: {
         Args: { p_company_id: string; p_environment: string }
         Returns: string
