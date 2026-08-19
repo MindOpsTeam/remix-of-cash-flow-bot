@@ -17,6 +17,27 @@ export interface ResultadoAcao {
 type Valores = Record<string, string>;
 
 /* ------------------------------------------------------------------ */
+
+/**
+ * Grava uma credencial no Vault (migration 20260819180000).
+ * As colunas de segredo das tabelas de config foram esvaziadas e o SELECT
+ * delas é revogado do cliente: o valor NUNCA volta para o navegador.
+ */
+async function gravarSegredo(
+  companyId: string,
+  provider: string,
+  campo: string,
+  valor: string | undefined,
+): Promise<void> {
+  const { error } = await supabase.rpc("set_integration_secret", {
+    p_company_id: companyId,
+    p_provider: provider,
+    p_campo: campo,
+    p_valor: valor ?? "",
+  });
+  if (error) throw error;
+}
+
 /* Salvar                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -50,13 +71,14 @@ export async function salvarIntegracao(
           environment: v.environment ?? "sandbox",
           notification_email: v.notification_email || null,
         };
-        const payload = producao
-          ? { ...base, api_key_production: v.api_key || null }
-          : { ...base, api_key_sandbox: v.api_key || null };
         const { error } = await supabase
           .from("company_asaas_config")
-          .upsert(payload, { onConflict: "company_id" });
+          .upsert(base, { onConflict: "company_id" });
         if (error) throw error;
+        await gravarSegredo(
+          companyId, "asaas",
+          producao ? "api_key_production" : "api_key_sandbox", v.api_key,
+        );
         return { ok: true, mensagem: `Chave do Asaas salva no ambiente de ${producao ? "produção" : "sandbox"}.` };
       }
 
@@ -86,13 +108,13 @@ export async function salvarIntegracao(
           {
             company_id: companyId,
             client_id: v.client_id || undefined,
-            client_secret: v.client_secret || undefined,
             account_number: v.account_number || null,
             environment: v.environment ?? "sandbox",
           },
           { onConflict: "company_id" },
         );
         if (error) throw error;
+        await gravarSegredo(companyId, "inter", "client_secret", v.client_secret);
         return { ok: true, mensagem: "Credenciais do Inter salvas. O certificado sobe na tela do Inter." };
       }
 
@@ -106,7 +128,6 @@ export async function salvarIntegracao(
           {
             company_id: companyId,
             evolution_api_url: v.evolution_api_url || null,
-            evolution_api_key: v.evolution_api_key || null,
             instance_name: instancia,
             notify_number: (v.notify_number ?? "").replace(/\D/g, "") || null,
             active: true,
@@ -114,6 +135,7 @@ export async function salvarIntegracao(
           { onConflict: "company_id,instance_name" },
         );
         if (error) throw error;
+        await gravarSegredo(companyId, "evolution", "api_key", v.evolution_api_key);
         return {
           ok: true,
           mensagem: `Canal "${instancia}" salvo. Leia o QR Code em Inteligência → WhatsApp.`,
@@ -135,7 +157,6 @@ export async function salvarIntegracao(
         const { error } = await supabase.from("plugnotas_config").upsert(
           {
             company_id: companyId,
-            api_key: v.api_key || undefined,
             environment: v.environment ?? "sandbox",
             serie_padrao: v.serie_padrao || "1",
             active: true,
@@ -143,6 +164,7 @@ export async function salvarIntegracao(
           { onConflict: "company_id" },
         );
         if (error) throw error;
+        await gravarSegredo(companyId, "plugnotas", "api_key", v.api_key);
         return { ok: true, mensagem: "API key do PlugNotas salva." };
       }
 
@@ -265,6 +287,25 @@ async function testarWhatsapp(companyId: string): Promise<ResultadoAcao> {
 
 /** Ids das integrações que já têm credencial gravada para esta empresa. */
 export async function carregarConfiguradas(companyId: string): Promise<string[]> {
+
+/**
+ * "A integração tem credencial?" respondido pelo cofre.
+ * `integration_secrets_status` devolve apenas provider/campo/booleano: o valor
+ * do segredo nunca chega ao navegador.
+ */
+async function temSegredo(
+  companyId: string,
+  provider: string,
+  campos: string[],
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("integration_secrets_status", {
+    p_company_id: companyId,
+  });
+  if (error) return false;
+  const linhas = (data ?? []) as Array<{ provider: string; campo: string }>;
+  return linhas.some((l) => l.provider === provider && campos.includes(l.campo));
+}
+
   const checagens: Array<[string, () => Promise<boolean>]> = [
     ["openfinance", async () => {
       const { data } = await supabase.from("openfinance_config").select("client_id_preview")
@@ -272,9 +313,8 @@ export async function carregarConfiguradas(companyId: string): Promise<string[]>
       return !!data;
     }],
     ["asaas", async () => {
-      const { data } = await supabase.from("company_asaas_config").select("api_key_sandbox, api_key_production")
-        .eq("company_id", companyId).maybeSingle();
-      return !!(data?.api_key_sandbox || data?.api_key_production);
+      // a chave vive no Vault: o status vem de booleanos, nunca do valor
+      return await temSegredo(companyId, "asaas", ["api_key_sandbox", "api_key_production"]);
     }],
     ["inter", async () => {
       const { data } = await supabase.from("inter_config").select("client_id")
@@ -302,9 +342,7 @@ export async function carregarConfiguradas(companyId: string): Promise<string[]>
       return !!data;
     }],
     ["plugnotas", async () => {
-      const { data } = await supabase.from("plugnotas_config").select("api_key")
-        .eq("company_id", companyId).not("api_key", "is", null).maybeSingle();
-      return !!data;
+      return await temSegredo(companyId, "plugnotas", ["api_key"]);
     }],
     ["focus", async () => {
       const { data } = await supabase.from("focus_config").select("token_homologacao_preview, token_producao_preview")

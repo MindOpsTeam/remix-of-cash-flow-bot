@@ -172,3 +172,43 @@ describe("migrations do cofre estão versionadas", () => {
     expect(sql).toContain("limpar_secrets_da_empresa");
   });
 });
+
+
+describe("a UI grava no cofre e nunca lê o valor", () => {
+  const IO = readFileSync(join(process.cwd(), "src", "lib", "integracoes-io.ts"), "utf-8");
+
+  it("grava por set_integration_secret", () => {
+    expect(IO).toContain("set_integration_secret");
+  });
+
+  it("consulta status por integration_secrets_status, que devolve booleanos", () => {
+    expect(IO).toContain("integration_secrets_status");
+  });
+
+  it("não grava credencial em coluna de tabela", () => {
+    // Só conta gravação em COLUNA. Parâmetro de RPC (p_client_secret:) é o
+    // caminho correto, porque a própria RPC guarda no cofre.
+    const emColuna = [
+      /(?<!p_)api_key_production:/,
+      /(?<!p_)api_key_sandbox:/,
+      /(?<!p_)evolution_api_key:/,
+      /(?<!p_)client_secret:/,
+      /api_key: v\.api_key/,
+    ];
+    for (const padrao of emColuna) {
+      expect(
+        IO,
+        `${padrao} grava credencial em coluna: deve ir para o Vault por set_integration_secret`,
+      ).not.toMatch(padrao);
+    }
+  });
+
+  it("não seleciona coluna de credencial revogada", () => {
+    for (const proibido of [
+      'select("api_key_sandbox, api_key_production")',
+      'select("api_key")',
+    ]) {
+      expect(IO, `${proibido} falha: o SELECT dessas colunas foi revogado`).not.toContain(proibido);
+    }
+  });
+});
