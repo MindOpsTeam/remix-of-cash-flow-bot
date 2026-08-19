@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCronSecret } from "../_shared/cron.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -10,7 +11,7 @@ serve(async (req) => {
   // Função de cron — só pode ser chamada com CRON_SECRET.
   // Pattern: header `X-Cron-Secret` ou `Authorization: Bearer <secret>`.
   // O secret deve ser configurado via lovable_create_secrets antes do agendamento.
-  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronSecret = await getCronSecret();
   if (!cronSecret) {
     console.error("[smart-alerts] CRON_SECRET not configured");
     return new Response(JSON.stringify({ error: "Cron secret not configured" }), {
@@ -33,8 +34,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-    const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
-    const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
+    // credenciais por empresa, lidas de whatsapp_configs dentro do laço
     const supabase = createClient(supabaseUrl, serviceKey);
 
     // Get all active WhatsApp configs
@@ -100,6 +100,8 @@ serve(async (req) => {
         alertMessages.push(`💸 *Gasto expressivo:* ${fmt(Number(be.amount))} — "${be.description}" (${(Number(be.amount) / curRevenue * 100).toFixed(0)}% da receita).`);
       }
 
+      const evolutionUrl = (config.evolution_api_url || "").replace(/\/+$/, "");
+      const evolutionKey = config.evolution_api_key || "";
       if (alertMessages.length > 0 && evolutionUrl && evolutionKey) {
         // Find admin phone (get from last inbound message)
         const { data: lastMsg } = await supabase

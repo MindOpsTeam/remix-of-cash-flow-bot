@@ -13,6 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { getCronSecret } from "../_shared/cron.ts";
 
 // deno-lint-ignore no-explicit-any
 type SupabaseAny = any;
@@ -82,7 +83,7 @@ Deno.serve(async (req) => {
   const preflight = corsPreflightResponse(req);
   if (preflight) return preflight;
 
-  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronSecret = await getCronSecret();
   const provided = req.headers.get("x-cron-secret");
   if (!cronSecret || provided !== cronSecret) {
     return new Response(JSON.stringify({ error: "Forbidden" }), {

@@ -63,16 +63,16 @@ export async function pluggyCredsForCompany(
   if (doCofre?.client_id && doCofre?.client_secret) {
     return { clientId: doCofre.client_id, clientSecret: doCofre.client_secret, origem: "vault" };
   }
-  const envId = Deno.env.get("PLUGGY_CLIENT_ID");
-  const envSecret = Deno.env.get("PLUGGY_CLIENT_SECRET");
-  if (envId && envSecret) return { clientId: envId, clientSecret: envSecret, origem: "env" };
+  // sem fallback de env: num remix não existe secret de projeto, e a leitura
+  // de env faria o Lovable pedir a chave na importação. Configure em
+  // Configurações > Open Finance.
   return { clientId: null, clientSecret: null, origem: "ausente" };
 }
 
 /** Gera a API Key de curta duração a partir do par client id/secret. */
 export async function pluggyAuth(creds?: PluggyCreds): Promise<string> {
-  const clientId = creds?.clientId || Deno.env.get("PLUGGY_CLIENT_ID");
-  const clientSecret = creds?.clientSecret || Deno.env.get("PLUGGY_CLIENT_SECRET");
+  const clientId = creds?.clientId;
+  const clientSecret = creds?.clientSecret;
   if (!clientId || !clientSecret) {
     throw new Error("PLUGGY_NOT_CONFIGURED");
   }

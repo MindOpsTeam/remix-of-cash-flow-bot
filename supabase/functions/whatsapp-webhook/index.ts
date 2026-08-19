@@ -103,8 +103,8 @@ Deno.serve(async (req) => {
       .limit(1)
       .single();
 
-    const evolutionUrl = whatsappConfig.evolution_api_url || Deno.env.get("EVOLUTION_API_URL");
-    const evolutionKey = whatsappConfig.evolution_api_key || Deno.env.get("EVOLUTION_API_KEY");
+    const evolutionUrl = whatsappConfig.evolution_api_url;
+    const evolutionKey = whatsappConfig.evolution_api_key;
 
     if (!member) {
       await sendWhatsAppMessage(instanceName, replyJid, "❌ Nenhum admin encontrado na empresa.", evolutionUrl, evolutionKey);
@@ -497,8 +497,8 @@ ${financialContext}`;
 // ─── AUDIO PROCESSING ─────────────────────────────────────────────────────────
 
 async function getMediaBase64(instanceName: string, messageId: string, remoteJid: string, evoUrl?: string, evoKey?: string): Promise<string | null> {
-  const evolutionUrl = evoUrl || Deno.env.get("EVOLUTION_API_URL");
-  const evolutionKey = evoKey || Deno.env.get("EVOLUTION_API_KEY");
+  const evolutionUrl = evoUrl;
+  const evolutionKey = evoKey;
   if (!evolutionUrl || !evolutionKey) { console.error("Evolution credentials missing"); return null; }
 
   try {
@@ -575,8 +575,8 @@ Se não for um documento financeiro, descreva o que vê na imagem.` },
 // ─── EVOLUTION API HELPERS ────────────────────────────────────────────────────
 
 async function sendWhatsAppMessage(instanceName: string, remoteJid: string, text: string, evoUrl?: string, evoKey?: string) {
-  const evolutionUrl = evoUrl || Deno.env.get("EVOLUTION_API_URL");
-  const evolutionKey = evoKey || Deno.env.get("EVOLUTION_API_KEY");
+  const evolutionUrl = evoUrl;
+  const evolutionKey = evoKey;
   if (!evolutionUrl || !evolutionKey) { console.error("Evolution credentials missing"); return; }
 
   try {

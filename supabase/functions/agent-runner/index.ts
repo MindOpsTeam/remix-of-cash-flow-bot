@@ -16,6 +16,7 @@ import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { chamarModelo, registrarUso } from "../_shared/ia.ts";
 import {
+import { getCronSecret } from "../_shared/cron.ts";
   TEMPLATE_POR_KEY,
   avaliarCaixaBaixo,
   avaliarContasAVencer,
@@ -131,8 +132,8 @@ async function despachar(service: Service, inst: Instancia, aviso: Aviso, link: 
       .eq("active", true)
       .maybeSingle();
     const numero = config?.notify_number?.replace(/\D/g, "");
-    const evolutionUrl = config?.evolution_api_url || Deno.env.get("EVOLUTION_API_URL");
-    const evolutionKey = config?.evolution_api_key || Deno.env.get("EVOLUTION_API_KEY");
+    const evolutionUrl = config?.evolution_api_url;
+    const evolutionKey = config?.evolution_api_key;
     if (config && numero && numero.length >= 10 && evolutionUrl && evolutionKey) {
       const texto = `🤖 *${inst.nome}*\n\n*${aviso.titulo}*\n${aviso.corpo}`;
       // Evolution cai com frequência: duas tentativas com backoff, e falha
@@ -307,7 +308,7 @@ Deno.serve(async (req) => {
   );
   const apiKey = Deno.env.get("LOVABLE_API_KEY") ?? undefined;
 
-  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronSecret = await getCronSecret();
   if (cronSecret && req.headers.get("x-cron-secret") === cronSecret) {
     try {
       const { data } = await service

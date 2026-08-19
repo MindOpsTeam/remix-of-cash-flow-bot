@@ -70,8 +70,8 @@ Deno.serve(async (req) => {
     const readonly = await assertCanWrite(supabase, user.id, config.company_id, corsHeaders);
     if (readonly) return readonly;
 
-    const evolutionUrl = (config.evolution_api_url || Deno.env.get("EVOLUTION_API_URL") || "").replace(/\/$/, "");
-    const evolutionKey = config.evolution_api_key || Deno.env.get("EVOLUTION_API_KEY");
+    const evolutionUrl = (config.evolution_api_url || "").replace(/\/$/, "");
+    const evolutionKey = config.evolution_api_key;
     if (!evolutionUrl || !evolutionKey) {
       return jsonResp({ error: "EVOLUTION_NOT_CONFIGURED" }, 409, corsHeaders);
     }

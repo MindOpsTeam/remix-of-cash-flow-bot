@@ -26,8 +26,10 @@ import {
 // deno-lint-ignore no-explicit-any
 type Service = any;
 
-const BASE = Deno.env.get("CONTAAZUL_API_URL") ?? "https://api-v2.contaazul.com";
-const AUTH_URL = Deno.env.get("CONTAAZUL_AUTH_URL") ?? "https://auth.contaazul.com/oauth2/token";
+// endpoints públicos do provedor, não são segredo. Ficam fixos para o Lovable
+// não pedir CONTAAZUL_API_URL/AUTH_URL na tela de secrets do remix.
+const BASE = "https://api-v2.contaazul.com";
+const AUTH_URL = "https://auth.contaazul.com/oauth2/token";
 
 interface Credenciais {
   client_id: string;

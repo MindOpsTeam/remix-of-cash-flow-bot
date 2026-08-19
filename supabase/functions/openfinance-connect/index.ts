@@ -40,10 +40,9 @@ Deno.serve(async (req) => {
           corsHeaders,
         );
       }
-      const configured = Boolean(
-        Deno.env.get("PLUGGY_CLIENT_ID") && Deno.env.get("PLUGGY_CLIENT_SECRET"),
-      );
-      return jsonResp({ configured, origem: configured ? "env" : "ausente" }, 200, corsHeaders);
+      // sem credencial no cofre não há como estar configurado: o env foi
+      // removido para o remix não pedir a chave na importação.
+      return jsonResp({ configured: false, origem: "ausente" }, 200, corsHeaders);
     }
 
     const companyId = body.company_id as string | undefined;

@@ -16,6 +16,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, jsonResp } from "../_shared/auth.ts";
+import { getCronSecret } from "../_shared/cron.ts";
 
 const SERIES: Record<string, number> = { ipca: 433, igpm: 189, inpc: 188 };
 
@@ -89,7 +90,7 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronSecret = await getCronSecret();
   const viaCron = Boolean(cronSecret) && req.headers.get("x-cron-secret") === cronSecret;
 
   if (!viaCron) {

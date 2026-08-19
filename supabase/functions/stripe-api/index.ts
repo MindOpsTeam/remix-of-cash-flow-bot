@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
     const precisaDaChave = action !== "conciliar";
 
     const { data: cred } = await service.rpc("get_stripe_credentials", { p_config_id: configId });
-    const secretKey = (cred?.secret_key as string) ?? Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+    const secretKey = (cred?.secret_key as string) ?? "";
     if (precisaDaChave && !secretKey) {
       return jsonResp(
         { error: `Canal "${canal.apelido}" sem chave secreta. Informe em Configurações.` },

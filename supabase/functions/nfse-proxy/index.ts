@@ -4,8 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 // cada EMPRESA aponta para o SEU worker via nfse_config.worker_url / worker_api_key
 // (preenchidos na tela de Integrações). O env só entra se a config não trouxer nada,
 // mantendo compatibilidade com instalações que ainda usam um worker único.
-const WORKER_URL_ENV = Deno.env.get("NFSE_WORKER_URL") || "";
-const WORKER_KEY_ENV = Deno.env.get("NFSE_WORKER_API_KEY") || "";
+// worker por empresa em nfse_config.worker_url / worker_api_key.
+// Sem fallback de env: a leitura faria o Lovable pedir a chave no remix.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -87,8 +87,8 @@ Deno.serve(async (req) => {
 
     // Resolve o worker DESTA empresa (multi-tenant): config primeiro, env como fallback.
     // Cada remix roda o próprio worker — o certificado nunca sai do ambiente do cliente.
-    const workerUrl = (config.worker_url?.trim() || WORKER_URL_ENV).replace(/\/+$/, "");
-    const workerKey = workerApiKey?.trim() || WORKER_KEY_ENV;
+    const workerUrl = (config.worker_url?.trim() || "").replace(/\/+$/, "");
+    const workerKey = workerApiKey?.trim() || "";
     if (!workerUrl) {
       return new Response(
         JSON.stringify({

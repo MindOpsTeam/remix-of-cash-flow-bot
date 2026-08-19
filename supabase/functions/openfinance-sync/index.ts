@@ -20,6 +20,7 @@ import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_sh
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { syncPluggyConnection } from "../_shared/openfinance-sync.ts";
 import {
+import { getCronSecret } from "../_shared/cron.ts";
   parseImportItems,
   janelaConciliacao,
   FONTES_CONCILIAVEIS,
@@ -34,7 +35,7 @@ Deno.serve(async (req) => {
   // Varredura agendada: sem JWT, autentica pelo segredo do cron (padrão dos
   // agentes). O webhook da Pluggy cobre o push; o cron cobre conexões sem
   // webhook e o drift de consentimento.
-  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronSecret = await getCronSecret();
   if (cronSecret && req.headers.get("x-cron-secret") === cronSecret) {
     const corsHeaders = getCorsHeaders(req);
     try {

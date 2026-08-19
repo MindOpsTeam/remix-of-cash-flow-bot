@@ -93,11 +93,9 @@ Deno.serve(async (req) => {
     }
 
     const env = config.environment || "sandbox";
-    const secretKey = env === "production"
-      ? Deno.env.get("ASAAS_API_KEY_PRODUCTION")
-      : Deno.env.get("ASAAS_API_KEY_SANDBOX");
-    const dbKey = env === "production" ? config.api_key_production : config.api_key_sandbox;
-    const apiKey = secretKey || dbKey;
+    // a chave é a que a empresa salvou na UI. Antes o env tinha prioridade
+    // sobre o banco, o que ignorava silenciosamente o que o usuário configurou.
+    const apiKey = env === "production" ? config.api_key_production : config.api_key_sandbox;
 
     if (!apiKey) {
       return new Response(

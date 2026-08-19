@@ -69,8 +69,8 @@ Deno.serve(async (req) => {
     const { data: cred } = await service.rpc("get_stripe_credentials", { p_config_id: configId });
     const companyId = (cred?.company_id as string) ?? null;
     if (!companyId) return responde({ error: "canal Stripe não encontrado" }, 404);
-    const secretKey = (cred?.secret_key as string) ?? Deno.env.get("STRIPE_SECRET_KEY") ?? "";
-    const webhookSecret = (cred?.webhook_secret as string) ?? Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
+    const secretKey = (cred?.secret_key as string) ?? "";
+    const webhookSecret = (cred?.webhook_secret as string) ?? "";
 
     // Sem segredo configurado não existe como provar autenticidade. Recusar é a
     // única resposta honesta: aceitar seria abrir escrita anônima na empresa.

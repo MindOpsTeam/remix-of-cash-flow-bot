@@ -30,6 +30,7 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { lerRegras, momentoDaCobranca, type RegraCobranca } from "../_shared/agentes.ts";
 import { chamarModelo, registrarUso } from "../_shared/ia.ts";
+import { getCronSecret } from "../_shared/cron.ts";
 
 /** Um vencimento a cobrar, já normalizado, venha de onde vier. */
 interface Cobranca {
@@ -279,7 +280,7 @@ Deno.serve(async (req) => {
   );
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
 
-  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronSecret = await getCronSecret();
   if (cronSecret && req.headers.get("x-cron-secret") === cronSecret) {
     try {
       // Antes a varredura passava só por empresas com Asaas configurado, o que

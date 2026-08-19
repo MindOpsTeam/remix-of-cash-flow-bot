@@ -20,6 +20,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { lerRegras } from "../_shared/agentes.ts";
+import { getCronSecret } from "../_shared/cron.ts";
 
 interface TxRow {
   id: string;
@@ -122,7 +123,7 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const service = createClient(supabaseUrl, serviceKey);
 
-  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronSecret = await getCronSecret();
   const providedCron = req.headers.get("x-cron-secret");
   if (cronSecret && providedCron === cronSecret) {
     try {

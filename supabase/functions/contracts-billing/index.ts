@@ -12,6 +12,7 @@
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
+import { getCronSecret } from "../_shared/cron.ts";
 
 const MONTH_CYCLES = ["MONTHLY", "QUARTERLY", "SEMIANNUALLY", "YEARLY"];
 
@@ -115,7 +116,7 @@ Deno.serve(async (req) => {
   const service = createClient(supabaseUrl, serviceKey);
 
   // Via cron: varre todas as empresas
-  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronSecret = await getCronSecret();
   const providedCron = req.headers.get("x-cron-secret");
   if (cronSecret && providedCron === cronSecret) {
     try {
