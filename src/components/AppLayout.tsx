@@ -9,7 +9,7 @@ import { Eye, Menu } from "lucide-react";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { useAceitarConvite } from "@/hooks/useConvite";
-import { consagrarDonoSePrimeiro, registrarAmbiente } from "@/lib/rpc-plataforma";
+import { bootstrapInstalacao, consagrarDonoSePrimeiro, registrarAmbiente } from "@/lib/rpc-plataforma";
 import { BotaoConcluirConfiguracao } from "@/components/integracoes/BotaoConcluirConfiguracao";
 import { isDemoUser } from "@/lib/demo";
 
@@ -23,14 +23,19 @@ export function AppLayout({ children }: AppLayoutProps) {
   const ehDemo = isDemoUser(user?.email);
   useAceitarConvite();
 
-  // Consagra o dono da instalação na primeira vez que alguém entra logado.
-  // Roda aqui, e não só no painel, porque quem entra por link de convite ou
-  // deep link também precisa que a instalação tenha dono definido.
+  // Configura a instalação na primeira vez que alguém entra logado. Roda aqui,
+  // e não só no painel, porque quem entra por link de convite ou deep link
+  // também precisa da instalação de pé.
   useEffect(() => {
     if (!user) return;
-    // Ordem importa: consagrar_dono_se_primeiro reagenda os jobs, e reagendar
-    // sem o ambiente registrado não faz nada.
-    registrarAmbiente().then(consagrarDonoSePrimeiro);
+    // Ordem importa: registrar_ambiente grava o endereço das edge functions, e
+    // sem ele os agendamentos disparam para lugar nenhum.
+    // bootstrap_instalacao cria os 8 agendamentos: eles NÃO vêm no remix, que
+    // copia estrutura e não dados (medido em remix real: cron.job com 0 linhas).
+    // É idempotente, então numa instalação pronta não faz nada.
+    registrarAmbiente()
+      .then(bootstrapInstalacao)
+      .then(consagrarDonoSePrimeiro);
   }, [user]);
 
   return (

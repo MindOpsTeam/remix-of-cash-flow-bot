@@ -280,3 +280,49 @@ describe("blindagem que sobrevive ao remix", () => {
     expect(trecho.slice(0, 900)).not.toContain("current_user");
   });
 });
+
+
+describe("o remix nasce operacional", () => {
+  const SQL = readFileSync(
+    join(process.cwd(), "supabase", "migrations", "20260819210000_bootstrap_instalacao.sql"),
+    "utf-8",
+  );
+  const LAYOUT = readFileSync(join(process.cwd(), "src", "components", "AppLayout.tsx"), "utf-8");
+  const RPC = readFileSync(join(process.cwd(), "src", "lib", "rpc-plataforma.ts"), "utf-8");
+
+  it("o bootstrap cria os 8 agendamentos do produto", () => {
+    // cron.schedule insere LINHA (dado), e dado não vem no remix: sem isto o
+    // automático do produto nunca roda e nada acusa
+    for (const job of [
+      "smart-alerts-daily",
+      "agent-anomalies-daily",
+      "agent-runner-daily",
+      "agent-collections-daily",
+      "contracts-billing-daily",
+      "openfinance-sync-daily",
+      "indices-sync-mensal",
+      "tax-rates-sync-weekly",
+    ]) {
+      expect(SQL, `${job} precisa ser agendado no bootstrap`).toContain(job);
+    }
+  });
+
+  it("é idempotente: só agenda o que ainda não existe", () => {
+    expect(SQL).toContain("not exists (select 1 from cron.job where jobname");
+  });
+
+  it("o app chama o bootstrap no primeiro acesso logado", () => {
+    expect(LAYOUT).toContain("bootstrapInstalacao");
+    expect(RPC).toContain("bootstrap_instalacao");
+  });
+
+  it("registrar_ambiente vem antes, senão o job dispara para lugar nenhum", () => {
+    // mede a CADEIA de chamadas, não o arquivo todo: a linha de import cita
+    // bootstrapInstalacao antes e daria falso negativo
+    const cadeia = LAYOUT.slice(LAYOUT.indexOf("registrarAmbiente()"));
+    const i = cadeia.indexOf("registrarAmbiente()");
+    const j = cadeia.indexOf("bootstrapInstalacao");
+    expect(i, "registrarAmbiente precisa abrir a cadeia").toBe(0);
+    expect(j, "bootstrapInstalacao precisa vir depois").toBeGreaterThan(i);
+  });
+});

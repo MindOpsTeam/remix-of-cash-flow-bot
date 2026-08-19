@@ -100,3 +100,28 @@ export async function limparDemonstracaoSeRemixado(): Promise<void> {
     /* higiene silenciosa */
   }
 }
+
+/**
+ * Cria o que o remix não traz: os agendamentos do produto.
+ *
+ * O remix do Lovable copia a ESTRUTURA do banco, nunca os dados. `cron.schedule`
+ * insere LINHA, então os 8 jobs (alertas, cobrança, sincronização de open
+ * finance, índices, faturamento de contratos) nascem ZERADOS num remix, e nada
+ * acusa: as telas abrem normais e o automático simplesmente nunca roda.
+ * Medido em remix real (19/08/2026): cron.job com 0 linhas.
+ *
+ * `bootstrap_instalacao` é idempotente e devolve quantos agendamentos criou,
+ * então numa instalação já pronta é uma chamada barata que não muda nada.
+ */
+export async function bootstrapInstalacao(): Promise<void> {
+  try {
+    const base = import.meta.env.VITE_SUPABASE_URL;
+    const functionsUrl = base ? `${String(base).replace(/\/+$/, "")}/functions/v1` : null;
+    await (supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => PromiseLike<unknown>)(
+      "bootstrap_instalacao",
+      { p_functions_url: functionsUrl },
+    );
+  } catch {
+    /* higiene silenciosa: é infraestrutura, não pode bloquear o uso do app */
+  }
+}
