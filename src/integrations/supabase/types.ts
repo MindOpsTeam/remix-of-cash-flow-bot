@@ -6485,6 +6485,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      bootstrap_instalacao: {
+        Args: { p_functions_url?: string }
+        Returns: Json
+      }
       brl: { Args: { p_valor: number }; Returns: string }
       cadastro_esta_aberto: { Args: never; Returns: boolean }
       cadastro_permitido: {
@@ -6575,6 +6579,7 @@ export type Database = {
         Args: { p_company_id: string; p_data: string }
         Returns: boolean
       }
+      papel_do_chamador: { Args: never; Returns: string }
       plano_da_empresa: {
         Args: { p_company_id: string }
         Returns: {
