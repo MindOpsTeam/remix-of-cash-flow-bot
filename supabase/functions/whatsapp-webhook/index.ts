@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { segredoDaIntegracao } from "../_shared/segredos.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -104,7 +105,9 @@ Deno.serve(async (req) => {
       .single();
 
     const evolutionUrl = whatsappConfig.evolution_api_url;
-    const evolutionKey = whatsappConfig.evolution_api_key;
+    const evolutionKey = await segredoDaIntegracao(
+      supabase, whatsappConfig.company_id as string, "evolution", "api_key",
+    );
 
     if (!member) {
       await sendWhatsAppMessage(instanceName, replyJid, "❌ Nenhum admin encontrado na empresa.", evolutionUrl, evolutionKey);

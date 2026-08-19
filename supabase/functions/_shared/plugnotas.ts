@@ -12,6 +12,7 @@ type SupabaseClient = any;
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "./cors.ts";
+import { segredoDaIntegracao } from "./segredos.ts";
 
 const PLUGNOTAS_HOSTS = {
   sandbox: "https://api.sandbox.plugnotas.com.br",
@@ -122,9 +123,15 @@ export async function bootstrap(
   if (!config.active) {
     return jsonResponse({ error: "Integração PlugNotas inativa" }, 409, corsHeaders);
   }
-  if (!config.api_key) {
-    return jsonResponse({ error: "PlugNotas api_key ausente" }, 400, corsHeaders);
+  // credencial no Vault: a coluna api_key foi esvaziada (migration 20260819180000)
+  const apiKeyCofre = await segredoDaIntegracao(supabase, companyId, "plugnotas", "api_key");
+  if (!apiKeyCofre) {
+    return jsonResponse(
+      { error: "PlugNotas sem credencial. Informe a API key em Configurações > Documentos fiscais." },
+      503, corsHeaders,
+    );
   }
+  config.api_key = apiKeyCofre;
 
   return {
     supabase,

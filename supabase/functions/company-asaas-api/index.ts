@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { parseJsonBody, validate, validateRequired, validateEnum, validateUUID } from "../_shared/validate.ts";
 import { mapTransferData, mapBillData, mapSubscriptionData } from "../_shared/asaas-processor.ts";
+import { segredoDaIntegracao } from "../_shared/segredos.ts";
 
 const EXTRA_HEADERS = "x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version";
 
@@ -95,7 +96,12 @@ Deno.serve(async (req) => {
     const env = config.environment || "sandbox";
     // a chave é a que a empresa salvou na UI. Antes o env tinha prioridade
     // sobre o banco, o que ignorava silenciosamente o que o usuário configurou.
-    const apiKey = env === "production" ? config.api_key_production : config.api_key_sandbox;
+    // credencial vem do Vault (migration 20260819180000). A coluna da tabela
+    // foi esvaziada e o SELECT dela é revogado do cliente.
+    const apiKey = await segredoDaIntegracao(
+      supabase, company_id,
+      "asaas", env === "production" ? "api_key_production" : "api_key_sandbox",
+    );
 
     if (!apiKey) {
       return new Response(
@@ -150,7 +156,7 @@ Deno.serve(async (req) => {
           email: config.webhook_email || config.notification_email || undefined,
           enabled: true,
           interrupted: false,
-          authToken: config.webhook_auth_token || undefined,
+          authToken: (await segredoDaIntegracao(supabase, company_id, "asaas", "webhook_auth_token")) || undefined,
           apiVersion: 3,
           sendType: config.webhook_send_type || "SEQUENTIALLY",
           events: (config.enabled_events as string[])?.length > 0

@@ -14,6 +14,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import { segredosDaIntegracao } from "../_shared/segredos.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -301,7 +302,12 @@ Deno.serve(async (req) => {
     // Normaliza PEMs antes de qualquer uso
     try {
       config.cert_pem = normalizePem(config.cert_pem, "CERTIFICATE");
-      config.key_pem = normalizePem(config.key_pem, "PRIVATE KEY");
+      // credenciais no Vault: as colunas client_secret/key_pem foram esvaziadas
+      const cofre = await segredosDaIntegracao(
+        supabase, config.company_id as string, "inter", ["client_secret", "key_pem"],
+      );
+      config.client_secret = cofre.client_secret ?? "";
+      config.key_pem = normalizePem(cofre.key_pem ?? "", "PRIVATE KEY");
     } catch (pemErr) {
       const msg = pemErr instanceof Error ? pemErr.message : String(pemErr);
       console.error("[inter-banking]", msg);

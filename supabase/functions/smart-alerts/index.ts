@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { getCronSecret } from "../_shared/cron.ts";
+import { segredoDaIntegracao } from "../_shared/segredos.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -101,7 +102,8 @@ serve(async (req) => {
       }
 
       const evolutionUrl = (config.evolution_api_url || "").replace(/\/+$/, "");
-      const evolutionKey = config.evolution_api_key || "";
+      const evolutionKey =
+        (await segredoDaIntegracao(supabase, companyId, "evolution", "api_key")) || "";
       if (alertMessages.length > 0 && evolutionUrl && evolutionKey) {
         // Find admin phone (get from last inbound message)
         const { data: lastMsg } = await supabase

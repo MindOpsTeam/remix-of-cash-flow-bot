@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { processEvent } from "../_shared/asaas-processor.ts";
+import { segredoDaIntegracao } from "../_shared/segredos.ts";
 
 const EXTRA_HEADERS = "asaas-access-token";
 
@@ -58,13 +59,25 @@ Deno.serve(async (req) => {
     }
 
     // Find company config by webhook auth token
-    const { data: config, error: configError } = await supabase
+    // O token vive no Vault, então não dá para filtrar por igualdade no SQL:
+    // varremos as configs e comparamos o valor do cofre. O volume é o número de
+    // empresas com Asaas ligado, não de eventos.
+    const { data: candidatos } = await supabase
       .from("company_asaas_config")
-      .select("id, company_id, enabled_events")
-      .eq("webhook_auth_token", accessToken)
-      .maybeSingle();
+      .select("id, company_id, enabled_events");
 
-    if (configError || !config) {
+    let config: { id: string; company_id: string; enabled_events: unknown } | null = null;
+    for (const c of candidatos ?? []) {
+      const esperado = await segredoDaIntegracao(
+        supabase, c.company_id as string, "asaas", "webhook_auth_token",
+      );
+      if (esperado && esperado === accessToken) {
+        config = c as typeof config;
+        break;
+      }
+    }
+
+    if (!config) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

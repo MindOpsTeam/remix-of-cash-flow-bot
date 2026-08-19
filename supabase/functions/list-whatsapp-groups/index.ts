@@ -7,6 +7,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
+import { segredoDaIntegracao } from "../_shared/segredos.ts";
 
 interface NormalizedGroup {
   id: string;
@@ -76,7 +77,7 @@ serve(async (req) => {
     // Carrega config + company_id. NÃO retornamos a evolution_api_key na resposta.
     const { data: config, error: configErr } = await supabase
       .from("whatsapp_configs")
-      .select("company_id, evolution_api_url, evolution_api_key, instance_name")
+      .select("company_id, evolution_api_url, instance_name")
       .eq("id", config_id)
       .single();
 
@@ -88,7 +89,10 @@ serve(async (req) => {
     const forbidden = await assertMembership(supabase, user.id, config.company_id, corsHeaders);
     if (forbidden) return forbidden;
 
-    if (!config.evolution_api_url || !config.evolution_api_key) {
+    const evolutionKey = await segredoDaIntegracao(
+      supabase, config.company_id as string, "evolution", "api_key",
+    );
+    if (!config.evolution_api_url || !evolutionKey) {
       return jsonResp(
         { success: false, error: "Credenciais da Evolution API não configuradas" },
         400,
@@ -102,7 +106,7 @@ serve(async (req) => {
     console.log(`[list-whatsapp-groups] Fetching groups for instance: ${instanceName}`);
     const groupsRes = await fetch(
       `${baseUrl}/group/fetchAllGroups/${instanceName}?getParticipants=false`,
-      { headers: { apikey: config.evolution_api_key as string } },
+      { headers: { apikey: evolutionKey } },
     );
 
     if (!groupsRes.ok) {
@@ -132,7 +136,7 @@ serve(async (req) => {
       const pictureMap = await fetchPicturesInBatches(
         baseUrl,
         instanceName,
-        config.evolution_api_key as string,
+        evolutionKey,
         groups.map((g) => g.id),
       );
       for (const group of groups) {

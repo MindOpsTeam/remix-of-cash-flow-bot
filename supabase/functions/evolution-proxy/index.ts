@@ -12,6 +12,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_shared/auth.ts";
+import { segredoDaIntegracao } from "../_shared/segredos.ts";
 
 const CAMINHOS_PERMITIDOS = [
   "instance/connect/",
@@ -71,7 +72,9 @@ Deno.serve(async (req) => {
     if (readonly) return readonly;
 
     const evolutionUrl = (config.evolution_api_url || "").replace(/\/$/, "");
-    const evolutionKey = config.evolution_api_key;
+    const evolutionKey = await segredoDaIntegracao(
+      supabase, config.company_id as string, "evolution", "api_key",
+    );
     if (!evolutionUrl || !evolutionKey) {
       return jsonResp({ error: "EVOLUTION_NOT_CONFIGURED" }, 409, corsHeaders);
     }

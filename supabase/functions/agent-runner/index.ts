@@ -17,6 +17,7 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { chamarModelo, registrarUso } from "../_shared/ia.ts";
 import {
 import { getCronSecret } from "../_shared/cron.ts";
+import { segredoDaIntegracao } from "../_shared/segredos.ts";
   TEMPLATE_POR_KEY,
   avaliarCaixaBaixo,
   avaliarContasAVencer,
@@ -133,7 +134,9 @@ async function despachar(service: Service, inst: Instancia, aviso: Aviso, link: 
       .maybeSingle();
     const numero = config?.notify_number?.replace(/\D/g, "");
     const evolutionUrl = config?.evolution_api_url;
-    const evolutionKey = config?.evolution_api_key;
+    const evolutionKey = config
+      ? await segredoDaIntegracao(supabase, companyId, "evolution", "api_key")
+      : null;
     if (config && numero && numero.length >= 10 && evolutionUrl && evolutionKey) {
       const texto = `🤖 *${inst.nome}*\n\n*${aviso.titulo}*\n${aviso.corpo}`;
       // Evolution cai com frequência: duas tentativas com backoff, e falha
