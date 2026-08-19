@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import {
   CheckCircle2, CircleDashed, HelpCircle, Loader2, PlugZap, Save, ShieldCheck,
-  ExternalLink, AlertTriangle, ArrowUpRight, Wallet,
+  ExternalLink, AlertTriangle, ArrowUpRight, Wallet, Clock, Gift,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Integracao, CampoIntegracao } from "@/lib/integracoes-catalogo";
@@ -65,7 +65,30 @@ function PainelAjuda({ integracao }: { integracao: Integracao }) {
       <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-foreground">
         <HelpCircle className="h-4 w-4 text-primary" />
         Como obter, passo a passo
+        {integracao.guia.tempoEstimado && (
+          <span className="ml-auto flex items-center gap-1 text-[11px] font-normal text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            {integracao.guia.tempoEstimado}
+          </span>
+        )}
       </p>
+
+      {integracao.guia.preRequisitos && integracao.guia.preRequisitos.length > 0 && (
+        <div className="mb-3 rounded-md border border-border bg-background/70 p-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Tenha em mãos antes de começar
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {integracao.guia.preRequisitos.map((item, i) => (
+              <li key={i} className="flex gap-1.5 text-xs leading-5 text-foreground">
+                <span className="text-muted-foreground">•</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <ol className="space-y-2">
         {integracao.guia.passos.map((passo, i) => (
           <li key={i} className="flex gap-2.5 text-xs leading-5 text-muted-foreground">
@@ -77,7 +100,36 @@ function PainelAjuda({ integracao }: { integracao: Integracao }) {
         ))}
       </ol>
 
-      <div className="mt-3 flex items-start gap-2 rounded-md border border-border bg-background/70 p-2.5">
+      {integracao.guia.armadilhas && integracao.guia.armadilhas.length > 0 && (
+        <div className="mt-3 rounded-md border border-[hsl(var(--warning))]/25 bg-[hsl(var(--warning))]/[0.07] p-2.5">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[hsl(var(--warning))]">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            O que costuma dar errado
+          </p>
+          <ul className="mt-1.5 space-y-1.5">
+            {integracao.guia.armadilhas.map((item, i) => (
+              <li key={i} className="flex gap-1.5 text-xs leading-5 text-foreground">
+                <span className="text-[hsl(var(--warning))]">•</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {integracao.guia.trial && (
+        <div className="mt-2 flex items-start gap-2 rounded-md border border-emerald-500/25 bg-emerald-500/[0.07] p-2.5">
+          <Gift className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+              Dá para testar de graça
+            </p>
+            <p className="mt-0.5 text-xs leading-5 text-foreground">{integracao.guia.trial}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-2 flex items-start gap-2 rounded-md border border-border bg-background/70 p-2.5">
         <Wallet className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Custo estimado</p>
@@ -100,6 +152,17 @@ function PainelAjuda({ integracao }: { integracao: Integracao }) {
           className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
           Abrir o site do provedor <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+
+      {integracao.guia.documentacao && (
+        <a
+          href={integracao.guia.documentacao}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 ml-4 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+        >
+          Documentação oficial <ExternalLink className="h-3 w-3" />
         </a>
       )}
     </div>
