@@ -241,3 +241,42 @@ describe("catálogo: toda credencial declara o cofre", () => {
     expect(semGuia, `integrações sem guia: ${semGuia.join(", ")}`).toEqual([]);
   });
 });
+
+
+describe("blindagem que sobrevive ao remix", () => {
+  const SQL = readFileSync(
+    join(process.cwd(), "supabase", "migrations", "20260819200000_blindagem_do_cofre.sql"),
+    "utf-8",
+  );
+
+  it("a autorização vive dentro da função, não só no GRANT", () => {
+    // O remix copia estrutura mas NÃO privilégios: só GRANT deixaria a
+    // credencial aberta a qualquer usuário logado no remix.
+    for (const fn of ["get_integration_secret", "get_nfse_secrets", "get_cron_secret"]) {
+      const corpo = SQL.slice(SQL.indexOf(`function public.${fn}`));
+      expect(corpo.slice(0, 1200), `${fn} precisa checar o papel por dentro`).toContain(
+        "papel_do_chamador",
+      );
+      expect(corpo.slice(0, 1200), `${fn} precisa recusar quem não é service_role`).toContain(
+        "raise exception",
+      );
+    }
+  });
+
+  it("chamada interna do banco (pg_cron, sem JWT) continua passando", () => {
+    // se NULL fosse tratado como negado, os agendamentos morreriam
+    expect(SQL).toContain("v_role is not null and v_role <> 'service_role'");
+  });
+
+  it("a leitura do papel tolera claim ausente ou malformada", () => {
+    // set_config('request.jwt.claims','') quebrava a função inteira
+    const helper = SQL.slice(SQL.indexOf("function public.papel_do_chamador"));
+    expect(helper.slice(0, 600)).toContain("exception when others");
+    expect(helper.slice(0, 600)).toContain("nullif(current_setting");
+  });
+
+  it("não usa current_user, que em SECURITY DEFINER é o dono e não o chamador", () => {
+    const trecho = SQL.slice(SQL.indexOf("function public.get_integration_secret"));
+    expect(trecho.slice(0, 900)).not.toContain("current_user");
+  });
+});
