@@ -6511,6 +6511,7 @@ export type Database = {
         Args: { p_recurrence_group_id: string }
         Returns: Json
       }
+      ensure_cron_secret: { Args: never; Returns: string }
       faturar_pedido: {
         Args: {
           p_intervalo_dias?: number
