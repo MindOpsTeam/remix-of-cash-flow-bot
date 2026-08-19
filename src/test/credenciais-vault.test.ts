@@ -137,6 +137,12 @@ describe("migrations do cofre estão versionadas", () => {
     expect(sql).toContain("'CRON_SECRET'");
     expect(sql).toContain("get_cron_secret");
     expect(sql).toContain("grant execute on function public.get_cron_secret() to service_role");
+    // o remix copia estrutura e não dados: o segredo tem que nascer na leitura,
+    // não num bloco DO de migration (que não roda no remix)
+    expect(sql).toContain("ensure_cron_secret");
+    expect(sql, "provisionamento por DO block não sobrevive ao remix").not.toMatch(
+      /do \$\$[\s\S]*vault\.create_secret/,
+    );
   });
 
   it("a migration das credenciais cria as três RPCs e tranca a leitura", () => {

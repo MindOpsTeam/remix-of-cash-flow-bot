@@ -107,6 +107,18 @@ Deno.serve(async (req) => {
 
     const nfseConfig = config as NfseConfig;
 
+    // A senha do certificado vive no Vault (migration 20260819180000): a coluna
+    // foi esvaziada. get_nfse_secrets compõe o .pfx (coluna) com a senha (cofre).
+    const { data: segredos } = await supabase.rpc("get_nfse_secrets", {
+      p_company_id: company_id,
+    });
+    const cofre = (segredos ?? {}) as {
+      cert_pfx_base64?: string | null;
+      cert_password?: string | null;
+    };
+    nfseConfig.cert_pfx_base64 = cofre.cert_pfx_base64 ?? nfseConfig.cert_pfx_base64;
+    nfseConfig.cert_password = cofre.cert_password ?? "";
+
     if (!nfseConfig.cert_pfx_base64 || !nfseConfig.cert_password) {
       return jsonResponse({
         error: "Certificado digital não configurado. Faça upload do .pfx em Configurações > Integrações > NFS-e.",
