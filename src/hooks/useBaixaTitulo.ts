@@ -111,7 +111,7 @@ export function useBaixaTitulo() {
         p_juros: e.juros ?? 0,
         p_multa: e.multa ?? 0,
         p_desconto: e.desconto ?? 0,
-        p_bank_account_id: e.bankAccountId ?? null,
+        p_bank_account_id: e.bankAccountId ?? undefined,
       });
       if (error) throw error;
       const r = data as unknown as RespostaBaixa;
