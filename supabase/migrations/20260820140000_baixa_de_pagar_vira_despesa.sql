@@ -64,5 +64,14 @@ begin
 
   v_def := regexp_replace(v_def, '\n\s*RETURN;\s*\nEND;', v_novas || E'\nEND;');
   execute v_def;
+
+  -- O regexp_replace nao avisa quando nao casa: ele devolve o texto original, o
+  -- `execute` recria a funcao identica e a migration termina "com sucesso" sem
+  -- ter acrescentado nada. Migration que finge ter aplicado e pior que migration
+  -- que falha, porque ninguem volta a olhar. Aqui ela grita.
+  if position('conta_paga_sem_lancamento' in
+      pg_get_functiondef('public.auditar_integridade_contabil(uuid)'::regprocedure)) = 0 then
+    raise exception 'Nao consegui acrescentar as regras de auditoria: o formato da funcao mudou e o patch nao casou. Ajuste a migration antes de seguir.';
+  end if;
 end;
 $outer$;

@@ -18,6 +18,26 @@ alter table public.title_payments
 
 -- O estorno entra como linha NEGATIVA, entao o amount deixa de ser
 -- obrigatoriamente positivo. Zero segue proibido: linha de valor zero e ruido.
+--
+-- O CHECK original nasceu inline (`amount numeric NOT NULL CHECK (amount > 0)`),
+-- e o nome que o Postgres gera para constraint inline pode variar quando ha
+-- colisao. Por isso procuramos pela REGRA, nao pelo nome: um drop por nome
+-- errado passaria batido e a migration deixaria a trava antiga de pe, barrando
+-- todo estorno em silencio.
+do $$
+declare c record;
+begin
+  for c in
+    select conname from pg_constraint
+    where conrelid = 'public.title_payments'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%amount%>%0%'
+  loop
+    execute format('alter table public.title_payments drop constraint %I', c.conname);
+  end loop;
+end;
+$$;
+
 alter table public.title_payments drop constraint if exists title_payments_amount_check;
 alter table public.title_payments add constraint title_payments_amount_check check (amount <> 0);
 
