@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.stripe-api]
 verify_jwt = false
+
+[functions.gcp-test]
+verify_jwt = false

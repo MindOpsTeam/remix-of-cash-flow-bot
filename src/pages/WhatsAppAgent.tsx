@@ -27,7 +27,6 @@ interface WhatsAppConfig {
   company_id: string;
   instance_name: string;
   evolution_api_url: string | null;
-  evolution_api_key: string | null;
   phone_number: string | null;
   group_jid: string | null;
   group_name: string | null;
@@ -172,7 +171,9 @@ export default function WhatsApp() {
   useEffect(() => () => stopPolling(), [stopPolling]);
 
   const getCleanUrl = () => formApiUrl.trim().replace(/\/$/, "");
-  const getHeaders = () => ({ apikey: formApiKey.trim(), "Content-Type": "application/json" });
+  // getHeaders foi removido: nenhuma chamada sai mais do navegador com a
+  // apikey da Evolution. Tudo passa pelo evolution-proxy, que injeta a chave no
+  // servidor a partir do cofre.
 
   const fetchInstancePhone = async (url: string, headers: Record<string, string>, instanceName: string): Promise<string> => {
     try {
@@ -224,23 +225,63 @@ export default function WhatsApp() {
     }, 120_000);
   };
 
-  const saveConfig = async (phoneNumber?: string) => {
-    if (!company) return;
-    const { error } = await supabase.from("whatsapp_configs").insert({
-      company_id: company.id,
-      instance_name: formInstance.trim(),
-      evolution_api_url: getCleanUrl(),
-      evolution_api_key: formApiKey.trim(),
-      phone_number: phoneNumber || null,
-      webhook_secret: formWebhookSecret,
-    } as any);
+  /**
+   * Grava a config e devolve o id.
+   *
+   * A `evolution_api_key` NÃO vai mais para a coluna: ela vive no cofre, e é de
+   * lá que o evolution-proxy a lê para injetar no servidor. Gravar nos dois
+   * lugares é como um deles fica para trás.
+   *
+   * Upsert por (empresa, instância) porque a config precisa existir ANTES de
+   * falarmos com a Evolution: sem o id não há proxy, e sem proxy a chave teria
+   * que sair do navegador de novo.
+   */
+  const persistirConfig = async (
+    phoneNumber?: string,
+    secret?: string,
+  ): Promise<string | null> => {
+    if (!company) return null;
+    const { data, error } = await supabase
+      .from("whatsapp_configs")
+      .upsert(
+        {
+          company_id: company.id,
+          instance_name: formInstance.trim(),
+          evolution_api_url: getCleanUrl(),
+          phone_number: phoneNumber || null,
+          webhook_secret: secret ?? formWebhookSecret,
+          active: true,
+        } as any,
+        { onConflict: "company_id,instance_name" },
+      )
+      .select("id")
+      .single();
     if (error) {
       toast.error("Erro ao salvar: " + mensagemDeErro(error));
-    } else {
-      toast.success("WhatsApp conectado com sucesso!");
-      loadConfigs();
-      setTimeout(() => setDialogOpen(false), 1500);
+      return null;
     }
+
+    if (formApiKey.trim()) {
+      const { error: cofreErr } = await supabase.rpc("set_integration_secret", {
+        p_company_id: company.id,
+        p_provider: "evolution",
+        p_campo: "api_key",
+        p_valor: formApiKey.trim(),
+      });
+      if (cofreErr) {
+        toast.error("A chave não foi para o cofre: " + mensagemDeErro(cofreErr));
+        return null;
+      }
+    }
+    return (data as { id: string }).id;
+  };
+
+  const saveConfig = async (phoneNumber?: string) => {
+    const id = await persistirConfig(phoneNumber);
+    if (!id) return;
+    toast.success("WhatsApp conectado com sucesso!");
+    loadConfigs();
+    setTimeout(() => setDialogOpen(false), 1500);
   };
 
   const handleConnect = async () => {
@@ -254,9 +295,17 @@ export default function WhatsApp() {
     if (!formWebhookSecret) setFormWebhookSecret(secret);
     const webhookUrl = buildWebhookUrl(secret);
 
-    const url = getCleanUrl();
-    const headers = getHeaders();
     const instanceName = formInstance.trim();
+
+    // A config nasce ANTES da conversa com a Evolution: é ela que dá o id do
+    // proxy. Antes, a tela falava direto com o servidor do provedor a partir do
+    // navegador, o que expunha a chave e dependia de CORS liberado — coisa que
+    // Hostinger e Cloudfy não fazem para origem arbitrária.
+    const configId = await persistirConfig(undefined, secret);
+    if (!configId) { setConnecting(false); return; }
+
+    const url = evolutionProxyBase(configId);
+    const headers = await edgeAuthHeaders();
 
     try {
       // Try to create instance with QR + webhook
@@ -333,9 +382,11 @@ export default function WhatsApp() {
     setConnecting(true);
     setConnectionStatus("waiting");
     setErrorMessage("");
-    const url = getCleanUrl();
-    const headers = getHeaders();
     const instanceName = formInstance.trim();
+    const configId = await persistirConfig(undefined, formWebhookSecret);
+    if (!configId) { setConnecting(false); return; }
+    const url = evolutionProxyBase(configId);
+    const headers = await edgeAuthHeaders();
     try {
       const qr = await fetchQrCode(url, headers, instanceName);
       if (qr) {

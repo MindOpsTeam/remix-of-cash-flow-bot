@@ -8,6 +8,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { mensagemDaEdge, mensagemDoCorpo } from "@/lib/edge-erro";
 
 export interface ResultadoAcao {
   ok: boolean;
@@ -79,7 +80,22 @@ export async function salvarIntegracao(
           companyId, "asaas",
           producao ? "api_key_production" : "api_key_sandbox", v.api_key,
         );
-        return { ok: true, mensagem: `Chave do Asaas salva no ambiente de ${producao ? "produção" : "sandbox"}.` };
+
+        // O token do webhook vive no COFRE, porque é lá que a edge
+        // company-asaas-webhook procura ao autenticar cada evento. A tela
+        // dedicada gravava na coluna: o Asaas enviava e nós recusávamos tudo,
+        // com a cobrança paga lá e o título em aberto aqui.
+        if (v.webhook_auth_token?.trim()) {
+          await gravarSegredo(companyId, "asaas", "webhook_auth_token", v.webhook_auth_token.trim());
+        }
+
+        const semWebhook = v.webhook_auth_token?.trim()
+          ? ""
+          : " Falta o token do webhook: sem ele o recebimento não baixa sozinho.";
+        return {
+          ok: true,
+          mensagem: `Chave do Asaas salva no ambiente de ${producao ? "produção" : "sandbox"}.${semWebhook}`,
+        };
       }
 
       case "stripe": {
@@ -124,22 +140,29 @@ export async function salvarIntegracao(
         // company_id — constraint que nem existia, então o salvamento falhava
         // com 42P10 e a integração não gravava nunca.
         const instancia = v.instance_name || "financeai";
-        const { error } = await supabase.from("whatsapp_configs").upsert(
-          {
-            company_id: companyId,
-            evolution_api_url: v.evolution_api_url || null,
-            instance_name: instancia,
-            notify_number: (v.notify_number ?? "").replace(/\D/g, "") || null,
-            active: true,
-          },
-          { onConflict: "company_id,instance_name" },
-        );
+        const { data: linha, error } = await supabase
+          .from("whatsapp_configs")
+          .upsert(
+            {
+              company_id: companyId,
+              evolution_api_url: v.evolution_api_url || null,
+              instance_name: instancia,
+              notify_number: (v.notify_number ?? "").replace(/\D/g, "") || null,
+              active: true,
+            },
+            { onConflict: "company_id,instance_name" },
+          )
+          .select("id")
+          .single();
         if (error) throw error;
         await gravarSegredo(companyId, "evolution", "api_key", v.evolution_api_key);
-        return {
-          ok: true,
-          mensagem: `Canal "${instancia}" salvo. Leia o QR Code em Inteligência → WhatsApp.`,
-        };
+
+        // O guia promete que o sistema cria a instância. Antes, o salvar só
+        // gravava a config: quem seguia o passo a passo ia ler o QR Code e
+        // esbarrava numa instância que não existia no servidor. Promessa que o
+        // código não cumpre é defeito, não detalhe.
+        const criacao = await criarInstanciaEvolution(linha.id, instancia);
+        return { ok: true, mensagem: `Canal "${instancia}" salvo. ${criacao}` };
       }
 
       case "contaazul": {
@@ -204,13 +227,49 @@ export async function salvarIntegracao(
             ambiente: v.ambiente ?? "homologacao",
             inscricao_municipal: v.inscricao_municipal || null,
             active: true,
-            cert_pfx_base64: v.cert_pfx || undefined,
+            cert_pfx_base64: v.cert_pfx_base64 || undefined,
             cert_password: v.cert_password || undefined,
           },
           { onConflict: "company_id" },
         );
         if (error) throw error;
         return { ok: true, mensagem: "Certificado e dados da NFS-e salvos." };
+      }
+
+      case "certificado": {
+        // O DEFEITO QUE ISTO CONSERTA: não existia case algum. O admin escolhia
+        // o .pfx, digitava a senha, clicava em Salvar e recebia "Integração
+        // desconhecida" — ou seja, o certificado não ia para lugar nenhum, e ele
+        // só descobria na primeira emissão, quando a nota não assinava.
+        //
+        // Grava na MESMA tabela que a via NFS-e usa: certificado é um só por
+        // empresa, e duas tabelas para a mesma coisa é como uma delas fica para
+        // trás. `cert_cnpj` é deixado nulo de propósito: quem preenche é a edge
+        // ao abrir o arquivo com a senha, e é justamente isso que prova que o
+        // par arquivo/senha está certo.
+        if (!v.cert_pfx_base64?.trim()) {
+          return { ok: false, mensagem: "Escolha o arquivo .pfx do certificado." };
+        }
+        if (!v.cert_password?.trim()) {
+          return { ok: false, mensagem: "Informe a senha do certificado." };
+        }
+        const { error } = await supabase.from("nfse_config").upsert(
+          {
+            company_id: companyId,
+            cert_pfx_base64: v.cert_pfx_base64,
+            cert_password: v.cert_password,
+            // Trocar o arquivo invalida o que foi lido do anterior.
+            cert_cnpj: null,
+            cert_razao_social: null,
+            cert_expires_at: null,
+          },
+          { onConflict: "company_id" },
+        );
+        if (error) throw error;
+        return {
+          ok: true,
+          mensagem: "Certificado guardado. Clique em Testar conexão para confirmar que a senha abre o arquivo.",
+        };
       }
 
       default:
@@ -221,12 +280,49 @@ export async function salvarIntegracao(
   }
 }
 
+/**
+ * Cria a instância no servidor Evolution, se ainda não existir.
+ *
+ * Tolerante de propósito: a config já foi salva quando chegamos aqui, e derrubar
+ * o salvamento porque o servidor do provedor está fora do ar seria trocar um
+ * problema pequeno (criar a instância depois) por um grande (perder a
+ * configuração inteira). Devolve a frase que explica o que aconteceu.
+ */
+async function criarInstanciaEvolution(configId: string, instancia: string): Promise<string> {
+  try {
+    const { error } = await supabase.functions.invoke(`evolution-proxy/${configId}/instance/create`, {
+      body: {
+        instanceName: instancia,
+        integration: "WHATSAPP-BAILEYS",
+        qrcode: true,
+      },
+    });
+    if (!error) return "Instância criada no seu servidor. Leia o QR Code em Inteligência → WhatsApp.";
+
+    const m = await mensagemDaEdge(error, "");
+    // A Evolution devolve 403 quando a instância já existe. Não é falha: é o
+    // caso de quem já tinha criado no painel do provedor, que o guia manda usar.
+    if (/already in use|already exists|403/i.test(m)) {
+      return "A instância já existia no seu servidor e foi reaproveitada. Leia o QR Code em Inteligência → WhatsApp.";
+    }
+    return `A configuração foi salva, mas não consegui criar a instância no servidor: ${m || "o servidor não respondeu"}. Confira a URL e a chave e salve de novo.`;
+  } catch {
+    return "A configuração foi salva, mas o servidor Evolution não respondeu. Confira a URL e a chave e salve de novo.";
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Testar conexão                                                      */
 /* ------------------------------------------------------------------ */
 
 /** Cada provedor tem o seu contrato de teste — os mesmos das telas dedicadas. */
-export async function testarIntegracao(id: string, companyId: string): Promise<ResultadoAcao> {
+export async function testarIntegracao(
+  id: string,
+  companyId: string,
+  /** Nome da instância que está na tela. Sem isto o WhatsApp testava o canal
+   *  MAIS ANTIGO da empresa, não o que a pessoa acabou de salvar. */
+  instanceName?: string,
+): Promise<ResultadoAcao> {
   const chamadas: Record<string, { fn: string; body: Record<string, unknown> }> = {
     openfinance: { fn: "openfinance-connect", body: { action: "status", company_id: companyId } },
     asaas: { fn: "company-asaas-api", body: { action: "test-connection", company_id: companyId } },
@@ -236,58 +332,125 @@ export async function testarIntegracao(id: string, companyId: string): Promise<R
     plugnotas: { fn: "plugnotas-status", body: { company_id: companyId, operation: "ping" } },
     // A Focus usa companyId em camelCase (contrato da própria função).
     focus: { fn: "focus-nfe", body: { action: "test", companyId } },
-    nfse: { fn: "nfse-operations", body: { company_id: companyId, operation: "parse_cert" } },
+    // O GCP prometia botão de testar e não tinha chamada nenhuma: o admin
+    // colava o JSON e só descobria o erro dias depois, vendo a projeção
+    // continuar na média em vez do TimesFM.
+    gcp: { fn: "gcp-test", body: { company_id: companyId } },
+    // "status" existe na edge e devolve CNPJ, razão social e validade do
+    // certificado. O antigo "parse_cert" não existia no switch e, como a função
+    // não tinha default, respondia 200 com data indefinido: o teste dizia
+    // "conexão bem-sucedida" sem ter testado coisa nenhuma.
+    nfse: { fn: "nfse-operations", body: { company_id: companyId, operation: "status" } },
+    certificado: { fn: "nfse-operations", body: { company_id: companyId, operation: "status" } },
   };
 
-  if (id === "whatsapp") return testarWhatsapp(companyId);
+  if (id === "whatsapp") return testarWhatsapp(companyId, instanceName);
 
   const chamada = chamadas[id];
   if (!chamada) return { ok: false, mensagem: "Esta integração não tem teste automático." };
 
   try {
     const { data, error } = await supabase.functions.invoke(chamada.fn, { body: chamada.body });
-    if (error) throw error;
+    // A mensagem útil vive no CORPO da resposta, não no erro que o supabase-js
+    // levanta. Sem esta leitura, todo 400 vira "non-2xx status code" na tela.
+    if (error) return { ok: false, mensagem: await mensagemDaEdge(error, "A conexão falhou.") };
+
     const resposta = data as Record<string, unknown> | null;
-    if (resposta && resposta.error) {
-      return { ok: false, mensagem: String(resposta.detalhe ?? resposta.error) };
-    }
+    const doCorpo = mensagemDoCorpo(resposta);
+    if (doCorpo) return { ok: false, mensagem: doCorpo };
+
     // openfinance-connect responde status sem "ok": configured diz a verdade.
     if (id === "openfinance" && resposta && resposta.configured === false) {
       return { ok: false, mensagem: "As credenciais não foram aceitas pela Pluggy." };
     }
-    return { ok: true, mensagem: "Conexão bem-sucedida." };
+    return { ok: true, mensagem: fraseDeSucesso(id, resposta) };
   } catch (e) {
-    return { ok: false, mensagem: (e as Error).message || "A conexão falhou." };
+    return { ok: false, mensagem: await mensagemDaEdge(e, "A conexão falhou.") };
   }
 }
 
-async function testarWhatsapp(companyId: string): Promise<ResultadoAcao> {
+/**
+ * "Conexão bem-sucedida" não prova nada. Quando a resposta traz um fato
+ * verificável (o CNPJ lido do certificado, o saldo da conta), é ele que vai
+ * para a tela: é a diferença entre o admin acreditar e o admin conferir.
+ */
+function fraseDeSucesso(id: string, resposta: Record<string, unknown> | null): string {
+  if (!resposta) return "Conexão bem-sucedida.";
+
+  if (id === "certificado" || id === "nfse") {
+    const dados = (resposta.data ?? resposta) as Record<string, unknown>;
+    const cert = dados?.certificado as Record<string, unknown> | undefined;
+    if (cert?.cnpj) {
+      const dias = typeof cert.diasRestantes === "number" ? cert.diasRestantes : null;
+      const validade = cert.expiraEm ? String(cert.expiraEm).slice(0, 10).split("-").reverse().join("/") : null;
+      const prazo = validade
+        ? ` Válido até ${validade}${dias !== null ? ` (${dias} dias)` : ""}.`
+        : "";
+      return `Certificado lido: CNPJ ${cert.cnpj}.${prazo}`;
+    }
+    return "Configuração encontrada, mas o certificado ainda não foi lido. Envie o arquivo .pfx e a senha.";
+  }
+
+  if (id === "gcp" && typeof resposta.mensagem === "string") {
+    return resposta.mensagem;
+  }
+
+  if (id === "stripe" && typeof resposta.modo === "string") {
+    return `Conectado no modo ${resposta.modo === "live" ? "produção" : "teste"}.`;
+  }
+
+  return "Conexão bem-sucedida.";
+}
+
+async function testarWhatsapp(companyId: string, instanceName?: string): Promise<ResultadoAcao> {
   try {
-    // Com N canais, maybeSingle() sem limite estoura ("multiple rows"). A
-    // central testa o primeiro canal; a tela dedicada testa um a um.
-    const { data: config, error } = await supabase
+    // Testa o canal que está NA TELA. Antes pegava o mais antigo da empresa:
+    // quem tem dois canais salvava um e testava outro, e o erro não fazia
+    // sentido nenhum para quem estava olhando.
+    let q = supabase
       .from("whatsapp_configs")
       .select("id, instance_name")
-      .eq("company_id", companyId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
+      .eq("company_id", companyId);
+    if (instanceName?.trim()) q = q.eq("instance_name", instanceName.trim());
+
+    const { data: linhas, error } = await q.order("created_at", { ascending: false }).limit(1);
     if (error) throw error;
-    if (!config) return { ok: false, mensagem: "Salve a configuração antes de testar." };
+    const config = (linhas ?? [])[0];
+    if (!config) {
+      return {
+        ok: false,
+        mensagem: instanceName?.trim()
+          ? `Não encontrei o canal "${instanceName.trim()}" salvo nesta empresa. Salve a configuração antes de testar.`
+          : "Salve a configuração antes de testar.",
+      };
+    }
 
     const { data, error: fnErr } = await supabase.functions.invoke(
       `evolution-proxy/${config.id}/instance/connectionState/${config.instance_name}`,
       { method: "GET" },
     );
-    if (fnErr) throw fnErr;
-    const estado = (data as { instance?: { state?: string } })?.instance?.state;
-    if (estado === "open") return { ok: true, mensagem: "Servidor respondeu e o número está conectado." };
+    if (fnErr) {
+      const m = await mensagemDaEdge(fnErr, "O servidor Evolution não respondeu.");
+      // 404 da Evolution significa instância inexistente NO SERVIDOR, não erro
+      // de credencial. Sem dizer isso, o admin fica trocando a chave à toa.
+      if (/not found|does not exist|404/i.test(m)) {
+        return {
+          ok: false,
+          mensagem: `O servidor respondeu, mas não existe instância chamada "${config.instance_name}" nele. Confira o nome no painel do provedor ou salve de novo para criá-la.`,
+        };
+      }
+      return { ok: false, mensagem: m };
+    }
+
+    const estado = (data as { instance?: { state?: string }; state?: string })?.instance?.state
+      ?? (data as { state?: string })?.state;
+    if (estado === "open") return { ok: true, mensagem: `Servidor respondeu e o número do canal "${config.instance_name}" está conectado.` };
     return {
       ok: true,
       mensagem: `Servidor respondeu (estado: ${estado ?? "desconhecido"}). Leia o QR Code em Inteligência → WhatsApp para conectar o número.`,
     };
   } catch (e) {
-    return { ok: false, mensagem: (e as Error).message || "O servidor Evolution não respondeu." };
+    return { ok: false, mensagem: await mensagemDaEdge(e, "O servidor Evolution não respondeu.") };
   }
 }
 

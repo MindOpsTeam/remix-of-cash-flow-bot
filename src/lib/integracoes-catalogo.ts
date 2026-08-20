@@ -29,6 +29,29 @@ export interface CampoIntegracao {
   segredo?: boolean;
   /** Extensões aceitas quando tipo = file. */
   accept?: string;
+  /**
+   * Mostra um botão que GERA o valor.
+   *
+   * Existe para credencial que nasce do nosso lado e é colada no provedor, não
+   * o contrário: token de webhook e chave do worker. Sem isso o admin inventa
+   * "123456" ou fica travado procurando no painel um valor que ninguém criou.
+   */
+  gerarChave?: boolean;
+}
+
+/**
+ * Webhook que o provedor precisa chamar de volta.
+ *
+ * A URL é DESTA instalação e o admin não tem como adivinhá-la. Deixar isso
+ * escrito só no passo a passo ("informe o endereço desta instalação seguido
+ * de...") transfere para ele um trabalho que a tela pode fazer: mostrar o
+ * endereço pronto, com botão copiar.
+ */
+export interface WebhookIntegracao {
+  /** Slug da edge function que recebe o evento. */
+  funcao: string;
+  /** O que deixa de funcionar quando o webhook não é cadastrado. */
+  seNaoConfigurar: string;
 }
 
 export interface GuiaIntegracao {
@@ -68,6 +91,15 @@ export interface Integracao {
   ondeFicaGuardado: "vault" | "tabela";
   /** Suporta o botão "Testar conexão". */
   testavel: boolean;
+  /** Quando o provedor precisa chamar de volta, a URL aparece pronta na tela. */
+  webhook?: WebhookIntegracao;
+  /**
+   * Botão que leva o admin a criar a infraestrutura antes de preencher os
+   * campos. Existe porque a dica do campo prometia "botão no assistente" e o
+   * botão só existia na tela dedicada: quem estava no onboarding procurava um
+   * botão que não estava ali.
+   */
+  provisionar?: { rotulo: string; url: string; explicacao: string };
 }
 
 const AMBIENTE_CAMPO: CampoIntegracao = {
@@ -139,9 +171,22 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     ondeFicaGuardado: "vault",
     testavel: true,
     telaDedicada: "/settings/integrations/asaas",
+    webhook: {
+      funcao: "company-asaas-webhook",
+      seNaoConfigurar:
+        "Sem o webhook cadastrado, o Asaas cobra normalmente mas nunca avisa que recebeu: o título continua em aberto aqui dentro e alguém precisa dar baixa na mão, conferindo extrato.",
+    },
     campos: [
       AMBIENTE_CAMPO,
       { key: "api_key", label: "Chave de API", tipo: "password", segredo: true, obrigatorioParaSalvar: true, dica: "A chave do ambiente escolhido acima." },
+      {
+        key: "webhook_auth_token",
+        label: "Token do webhook",
+        tipo: "password",
+        segredo: true,
+        gerarChave: true,
+        dica: "É o que prova que o aviso veio mesmo do Asaas. Gere aqui e cole no cadastro do webhook, no painel deles.",
+      },
       { key: "notification_email", label: "E-mail para avisos (opcional)", tipo: "text", placeholder: "financeiro@suaempresa.com.br" },
     ],
     guia: {
@@ -157,11 +202,17 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
         "Clique em Gerar nova Chave de API e dê um nome que você reconheça depois, por exemplo FinanceAI.",
         "Copie a chave INTEIRA. Ela aparece uma única vez e não dá para recuperar depois; se perder, gere outra.",
         "Volte aqui, escolha o mesmo ambiente da conta onde você gerou (sandbox ou produção), cole a chave e clique em Testar conexão.",
+        "Agora o webhook, que é o que faz o recebimento baixar sozinho. Aqui nesta tela, clique em Gerar no campo Token do webhook e copie o valor. Copie também a URL do webhook que aparece logo acima.",
+        "No Asaas, vá em Integrações e depois em Webhooks, e clique em Adicionar webhook.",
+        "Cole a URL no campo de URL e o token no campo de Token de autenticação. São dois campos diferentes: o token não vai dentro da URL.",
+        "Marque os eventos de cobrança (criada, recebida, confirmada, vencida) e também os de estorno e chargeback, que são os que retiram a receita quando o dinheiro volta.",
+        "Salve aqui também, para o token ficar guardado no cofre desta instalação. Sem o token dos dois lados, todo aviso do Asaas é recusado.",
       ],
       armadilhas: [
         "A chave de produção começa com $aact_prod_ e a de sandbox com $aact_hmlg_. Se o começo não bate com o ambiente escolhido acima, a conexão falha.",
         "A chave é longa e costuma quebrar em várias linhas na tela do Asaas: selecione tudo antes de copiar, um pedaço só não autentica.",
         "Uma conta aceita no máximo 10 chaves. Se estourar, apague as antigas antes de gerar outra.",
+        "O token do webhook é diferente da chave de API. Confundir os dois faz o Asaas enviar o evento e nós recusarmos, com a cobrança aparecendo como paga lá e em aberto aqui.",
       ],
       trial:
         "O sandbox é gratuito e ilimitado, com dados fictícios: dá para emitir boleto e Pix de mentira e ver a baixa acontecer aqui dentro. A conta de produção também é gratuita para abrir e manter.",
@@ -180,6 +231,11 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     ondeFicaGuardado: "vault",
     testavel: true,
     telaDedicada: "/repasses",
+    webhook: {
+      funcao: "stripe-webhook",
+      seNaoConfigurar:
+        "Sem o webhook, o pagamento acontece no Stripe e não aparece aqui: nem a baixa do título, nem o repasse líquido com a taxa lançada como despesa.",
+    },
     campos: [
       {
         key: "apelido",
@@ -235,7 +291,7 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
         "Na linha Chave secreta, clique em Revelar e copie o valor. Em teste ela começa com sk_test_; em produção, com sk_live_.",
         "Cole a chave secreta aqui embaixo e salve.",
         "Agora o webhook, que é o que faz o recebimento aparecer sozinho: no Stripe, vá em Desenvolvedores, Webhooks, e clique em Adicionar destino.",
-        "Na URL, informe o endereço desta instalação seguido de /functions/v1/stripe-webhook.",
+        "No campo de URL, cole o endereço que aparece no bloco de webhook aqui desta tela, no botão copiar. Não precisa montar nada à mão.",
         "Selecione ao menos os eventos de pagamento concluído e de repasse (payout), que são os que alimentam a conciliação.",
         "Depois de criar, abra o endpoint e clique em Revelar no Signing secret. Ele começa com whsec_. Cole no campo de segredo do webhook aqui.",
       ],
@@ -314,33 +370,35 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
       { key: "notify_number", label: "Número que recebe os avisos", tipo: "tel", placeholder: "11999998888", dica: "Com DDD, só números. É para onde os agentes mandam." },
     ],
     guia: {
-      tempoEstimado: "30 a 60 minutos se você ainda precisa subir o servidor. 5 minutos se já tem um.",
+      tempoEstimado: "15 minutos, contando a contratação do servidor. 5 minutos se você já tem um.",
       preRequisitos: [
-        "Um servidor com a Evolution API rodando (ou um provedor que ofereça isso pronto).",
         "Um número de WhatsApp DA EMPRESA, não o pessoal de alguém.",
-        "O celular em mãos para ler o QR Code.",
+        "O celular com esse número em mãos, para ler o QR Code.",
+        "Cartão para contratar o servidor, se você ainda não tiver um.",
       ],
       passos: [
-        "Se a sua empresa já usa Evolution para outra automação, use o MESMO servidor: pule para o passo 4.",
-        "Se ainda não tem, suba a Evolution API seguindo a documentação oficial. A via mais direta é Docker.",
-        "Na configuração do servidor, defina a variável AUTHENTICATION_API_KEY com um valor longo e aleatório. É essa a chave global que você vai colar aqui. Gere algo forte, não use a padrão de exemplo.",
-        "Anote o endereço do servidor (por exemplo https://evolution.suaempresa.com) e a chave global.",
-        "Cole os dois nos campos e salve. O sistema CRIA a instância sozinho, você não precisa criar nada no painel da Evolution.",
-        "Vai aparecer um QR Code. No celular da empresa: menu do WhatsApp, Dispositivos conectados, Conectar dispositivo, e aponte para a tela.",
-        "Confira que o status ficou conectado. Cada pessoa do time ainda ativa o canal no próprio Perfil para receber.",
+        "Se a sua empresa já usa Evolution para outra automação, use o MESMO servidor: peça a quem cuida a URL e a chave global, e pule para o passo 5.",
+        "Se ainda não tem, escolha um dos dois caminhos abaixo. Os dois entregam a Evolution pronta, com a URL e a chave no painel: você não instala nada nem mexe em linha de comando.",
+        "CAMINHO 1, Hostinger: contrate uma VPS e, na escolha do sistema, selecione o modelo de aplicação Evolution API. A Hostinger provisiona já configurada. Terminado o provisionamento, o painel mostra o endereço do servidor e a chave de autenticação da Evolution.",
+        "CAMINHO 2, Cloudfy: contrate um plano em cloudfy.host. Em poucos minutos as credenciais chegam no seu e-mail, com a Evolution já no ar e um subdomínio pronto. A URL e a chave global vêm nesse e-mail e ficam no painel.",
+        "Com a URL e a chave em mãos, cole as duas nos campos aqui. A URL vai sem barra no final.",
+        "Escolha o nome da instância. Pode deixar financeai. Ao salvar, o sistema cria a instância no seu servidor se ela ainda não existir, e reaproveita se já existir.",
+        "Vá em Inteligência e depois WhatsApp para ler o QR Code. No celular da empresa: menu do WhatsApp, Aparelhos conectados, Conectar aparelho, e aponte para a tela.",
+        "Confira que o status ficou conectado. Cada pessoa do time ainda ativa o canal no próprio Perfil para receber os avisos.",
       ],
       armadilhas: [
         "Use número da empresa. Se for o WhatsApp pessoal de um funcionário e ele sair, o canal de alerta vai embora junto.",
-        "Se o celular ficar muito tempo sem internet, ou alguém desconectar os dispositivos no WhatsApp, a sessão CAI e o sistema para de enviar SEM AVISAR, porque quem avisaria era justamente o canal que caiu. Confira o status uma vez por mês.",
-        "A chave é a global do servidor (AUTHENTICATION_API_KEY), não a chave de uma instância específica.",
+        "Se o celular ficar muito tempo sem internet, ou alguém desconectar os aparelhos no WhatsApp, a sessão CAI e o sistema para de enviar SEM AVISAR, porque quem avisaria era justamente o canal que caiu. Confira o status uma vez por mês.",
+        "A chave é a GLOBAL do servidor, aquela que o painel do provedor mostra, e não a chave de uma instância específica. Com a chave de instância, criar e consultar instância falha.",
         "Endereço com barra no final costuma dar erro de rota: informe sem a barra.",
+        "Se o nome da instância aqui for diferente do que existe no painel do provedor, o teste acusa que a instância não existe. Use exatamente o mesmo nome, ou deixe o sistema criar.",
       ],
       trial:
-        "A Evolution API é open source e gratuita, sem trial nem licença. O único custo é o servidor onde ela roda, e uma máquina pequena dá conta do recado para alertas.",
+        "A Evolution API é open source e gratuita, sem trial nem licença. O que você paga é o servidor onde ela roda, e uma máquina pequena dá conta dos alertas.",
       custo:
-        "Software gratuito. Servidor a partir de uns 20 a 40 reais por mês num provedor de nuvem básico. Não há custo por mensagem.",
-      site: "https://evolution-api.com",
-      documentacao: "https://doc.evolution-api.com/v2/en/install/docker",
+        "Software gratuito. Na Hostinger, VPS a partir de cerca de R$ 30 por mês. Na Cloudfy, plano gerenciado a partir de valores parecidos, com a vantagem de já vir configurada. Não há custo por mensagem.",
+      site: "https://www.hostinger.com/applications/evolution-api",
+      documentacao: "https://www.cloudfy.host/br",
       quandoNaoUsar:
         "Se ninguém do time acompanha WhatsApp durante o expediente. Os alertas continuam aparecendo dentro do sistema, no sino e no topo do painel.",
     },
@@ -481,10 +539,27 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
     ondeFicaGuardado: "vault",
     testavel: true,
     telaDedicada: "/settings/integrations/nfse",
+    provisionar: {
+      rotulo: "Criar meu worker no Railway",
+      // Deploy a partir do repositório. O link antigo abria só a página do
+      // GitHub, e o texto prometia "1 clique": o admin caía num repositório e
+      // não sabia o que fazer com ele.
+      url: "https://railway.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMindOpsTeam%2Fnfse-worker",
+      explicacao:
+        "Abre o Railway já apontado para o repositório do worker. Depois do deploy, volte aqui para gerar a chave e colar a URL.",
+    },
     campos: [
-      { key: "worker_url", label: "URL do seu servidor (worker)", tipo: "text", placeholder: "https://seu-worker.up.railway.app", obrigatorioParaSalvar: true, dica: "Crie o servidor no Railway em 1 clique (botão no assistente) e cole aqui a URL gerada, sem barra no final." },
-      { key: "worker_api_key", label: "Chave do servidor", tipo: "password", segredo: true, obrigatorioParaSalvar: true, dica: "No Railway, aba Variables: copie o valor de NFSE_WORKER_API_KEY." },
-      { key: "cert_pfx", label: "Certificado digital A1 (.pfx)", tipo: "file", accept: ".pfx,.p12", obrigatorioParaSalvar: true, dica: "O arquivo fica cifrado; ninguém além do seu servidor lê." },
+      { key: "worker_url", label: "URL do seu servidor (worker)", tipo: "text", placeholder: "https://seu-worker.up.railway.app", obrigatorioParaSalvar: true, dica: "Depois do deploy, em Settings e Networking, clique em Generate Domain e cole aqui a URL, sem barra no final." },
+      {
+        key: "worker_api_key",
+        label: "Chave do servidor",
+        tipo: "password",
+        segredo: true,
+        gerarChave: true,
+        obrigatorioParaSalvar: true,
+        dica: "Clique em Gerar. Esta chave nasce aqui e você a cola no Railway: o worker recusa TODA chamada enquanto a variável NFSE_WORKER_API_KEY não existir lá.",
+      },
+      { key: "cert_pfx_base64", label: "Certificado digital A1 (.pfx)", tipo: "file", accept: ".pfx,.p12", segredo: true, obrigatorioParaSalvar: true, dica: "Mesma chave da integração de Certificado digital: é um certificado por empresa, não dois." },
       { key: "cert_password", label: "Senha do certificado", tipo: "password", segredo: true, obrigatorioParaSalvar: true },
       {
         key: "ambiente",
@@ -505,17 +580,21 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
         "Se for pela via de servidor próprio: o worker de NFS-e publicado e acessível.",
       ],
       passos: [
-        "Escolha a via: por provedor (PlugNotas ou Focus, que já cuidam da comunicação com a prefeitura) ou por servidor próprio, que é o worker desta solução.",
-        "Na via provedor, basta ter aquela integração configurada e cadastrar a empresa emissora.",
-        "Na via servidor próprio, publique o worker de NFS-e e anote o endereço dele.",
-        "Informe a URL do worker e a chave de acesso dele nos campos da tela de NFS-e.",
+        "Escolha a via: por provedor (PlugNotas ou Focus, que já cuidam da comunicação com a prefeitura) ou por servidor próprio, que é o worker desta solução. O resto destes passos é da via servidor próprio.",
+        "Clique no botão Criar meu worker no Railway, aqui embaixo. Entre ou crie a conta e confirme o deploy a partir do repositório. O Railway constrói sozinho, leva poucos minutos.",
+        "Adicione forma de pagamento no Railway (plano Hobby, cerca de US$ 5 por mês). É o custo do seu servidor, não desta solução.",
+        "Aqui nesta tela, clique em Gerar no campo Chave do servidor. A chave é criada e copiada.",
+        "No Railway, abra a aba Variables e clique em New Variable. Nome: NFSE_WORKER_API_KEY. Valor: a chave que você acabou de gerar. Salve, e o Railway reinicia o serviço sozinho.",
+        "Ainda no Railway, vá em Settings e Networking e clique em Generate Domain. Copie a URL gerada e cole no campo URL do seu servidor, sem barra no final.",
         "Suba o certificado A1 (.pfx) e informe a senha. O certificado fica cifrado no cofre e nunca volta para o navegador.",
-        "Faça uma emissão de teste em homologação antes de emitir com valor fiscal.",
+        "Clique em Testar conexão. Só depois de passar, faça uma emissão em homologação, e só então emita com valor fiscal.",
       ],
       armadilhas: [
         "O certificado A1 vence em 1 ano. Quando vencer, a emissão para. A tela mostra a data de validade: acompanhe.",
         "Cada prefeitura tem seu padrão de NFS-e. Confirme que o seu município é atendido pela via escolhida antes de prometer emissão.",
         "A senha do certificado é diferente da senha do e-CNPJ. Se errar, o erro aparece só na hora de assinar a nota.",
+        "O worker sobe e responde ao teste de saúde do Railway MESMO sem a variável NFSE_WORKER_API_KEY, porque essa checagem é pública. Só que ele recusa toda chamada real: parece vivo e não serve para nada. Se pulou o passo da variável, é isso que está acontecendo.",
+        "Depois de criar ou trocar a variável no Railway, espere o serviço reiniciar antes de testar. Testar durante o reinício dá erro de conexão que não tem nada a ver com a chave.",
       ],
       trial:
         "Sem custo de licença nesta via: o que existe é o custo do provedor escolhido, quando você usa provedor. O certificado A1 é uma compra anual à parte, na casa de 200 a 400 reais.",

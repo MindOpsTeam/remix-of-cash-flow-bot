@@ -12,8 +12,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useCompany } from "@/hooks/useCompany";
 import { supabase } from "@/integrations/supabase/client";
 
-// Repo público do worker (deploy 1-clique no Railway).
-const WORKER_REPO_URL = "https://github.com/MindOpsTeam/nfse-worker";
+// Deploy a partir do repositório público. O link antigo abria a página do
+// GitHub enquanto o texto prometia "1 clique": o cliente caía num repositório e
+// não sabia o que fazer com ele.
+const WORKER_DEPLOY_URL =
+  "https://railway.com/deploy?repo=https%3A%2F%2Fgithub.com%2FMindOpsTeam%2Fnfse-worker";
 
 const STEPS = [
   "Servidor",
@@ -257,15 +260,15 @@ export default function NfseSetupWizard({ onFinish }: { onFinish?: () => void })
           <div className="space-y-4">
             <div>
               <h2 className="text-base font-semibold text-foreground">Crie o seu servidor no Railway</h2>
-              <p className="text-xs text-muted-foreground mt-1">Um clique cria o servidor com a chave de acesso ja gerada. Depois volte aqui.</p>
+              <p className="text-xs text-muted-foreground mt-1">O Railway constroi o servidor a partir do repositorio. A chave de acesso voce gera no proximo passo e cola la.</p>
             </div>
             <ol className="text-xs text-muted-foreground space-y-2 list-decimal list-inside">
               <li>Clique no botao abaixo e crie/entre na sua conta Railway.</li>
               <li>Adicione forma de pagamento (plano Hobby, ~US$5/mes). E o custo do seu servidor.</li>
               <li>O deploy e automatico. Em <strong>Settings → Networking</strong>, clique em <strong>Generate Domain</strong> e copie a URL.</li>
-              <li>Em <strong>Variables</strong>, copie o valor de <strong>NFSE_WORKER_API_KEY</strong>.</li>
+              <li>Em <strong>Variables</strong>, clique em <strong>New Variable</strong> e crie <strong>NFSE_WORKER_API_KEY</strong> com a chave que voce gera no proximo passo. Ela NAO vem pronta: sem ela o worker recusa toda chamada, mesmo parecendo no ar.</li>
             </ol>
-            <a href={WORKER_REPO_URL} target="_blank" rel="noopener noreferrer">
+            <a href={WORKER_DEPLOY_URL} target="_blank" rel="noopener noreferrer">
               <Button className="gap-2"><Rocket className="h-4 w-4" /> Criar meu worker no Railway <ExternalLink className="h-3.5 w-3.5" /></Button>
             </a>
             <p className="text-[11px] text-muted-foreground">Precisa de ajuda com o certificado ou o Railway? Veja o guia do cliente (docs/GUIA-NFSE-CLIENTE.md).</p>
@@ -285,7 +288,30 @@ export default function NfseSetupWizard({ onFinish }: { onFinish?: () => void })
             </div>
             <div className="space-y-1.5">
               <Label>Chave (NFSE_WORKER_API_KEY)</Label>
-              <Input type="password" value={workerKey} onChange={(e) => setWorkerKey(e.target.value)} placeholder="cole a chave aqui" className="font-mono text-sm" />
+              <div className="flex items-center gap-2">
+                <Input type="password" value={workerKey} onChange={(e) => setWorkerKey(e.target.value)} placeholder="clique em Gerar" className="font-mono text-sm" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  onClick={async () => {
+                    const bytes = new Uint8Array(32);
+                    crypto.getRandomValues(bytes);
+                    const nova = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+                    setWorkerKey(nova);
+                    try {
+                      await navigator.clipboard.writeText(nova);
+                      toast({ title: "Chave gerada e copiada", description: "Cole no Railway em Variables, como NFSE_WORKER_API_KEY." });
+                    } catch {
+                      toast({ title: "Chave gerada", description: "Copie o valor e cole no Railway em Variables." });
+                    }
+                  }}
+                >
+                  Gerar
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">A chave nasce aqui e voce a cola no Railway. Os dois lados precisam do MESMO valor.</p>
             </div>
             <div className="flex items-center gap-3">
               <Button variant="outline" size="sm" onClick={testServer} disabled={srvBusy} className="gap-2"><Plug className="h-4 w-4" />{srvBusy ? "Testando..." : "Testar servidor"}</Button>

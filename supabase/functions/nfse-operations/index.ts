@@ -188,6 +188,17 @@ Deno.serve(async (req) => {
           params,
         };
         break;
+
+      default:
+        // Sem este default, operação desconhecida caía fora do switch, `result`
+        // ficava indefinido e a função respondia 200 com data vazio. O teste de
+        // conexão da tela dizia "conexão bem-sucedida" para uma operação que
+        // não existe. Falso verde é pior que erro: ninguém volta a olhar.
+        return jsonResponse(
+          { error: `Operação desconhecida: "${op}".` },
+          400,
+          corsHeaders,
+        );
     }
 
     return jsonResponse({ success: true, data: result }, 200, corsHeaders);

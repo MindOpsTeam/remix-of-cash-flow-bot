@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import {
   CheckCircle2, CircleDashed, HelpCircle, Loader2, PlugZap, Save, ShieldCheck,
-  ExternalLink, AlertTriangle, ArrowUpRight, Wallet, Clock, Gift,
+  ExternalLink, AlertTriangle, ArrowUpRight, Wallet, Clock, Gift, Copy, KeyRound, Rocket,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { Integracao, CampoIntegracao } from "@/lib/integracoes-catalogo";
+import type { Integracao, CampoIntegracao, WebhookIntegracao } from "@/lib/integracoes-catalogo";
 import { camposFaltando } from "@/lib/integracoes-catalogo";
 import { salvarIntegracao, testarIntegracao, arquivoParaBase64 } from "@/lib/integracoes-io";
 
@@ -218,7 +218,7 @@ export function DialogIntegracao({
   const testar = async () => {
     if (!companyId) return;
     setTestando(true);
-    const r = await testarIntegracao(integracao.id, companyId);
+    const r = await testarIntegracao(integracao.id, companyId, valores.instance_name);
     setTestando(false);
     setResultado(r);
     if (r.ok) toast.success(r.mensagem);
@@ -254,6 +254,21 @@ export function DialogIntegracao({
         </div>
 
         {ajudaAberta && <PainelAjuda integracao={integracao} />}
+
+        {integracao.provisionar && (
+          <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
+            <p className="text-xs leading-4 text-muted-foreground">{integracao.provisionar.explicacao}</p>
+            <a href={integracao.provisionar.url} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" className="gap-1.5">
+                <Rocket className="h-3.5 w-3.5" />
+                {integracao.provisionar.rotulo}
+                <ExternalLink className="h-3 w-3" />
+              </Button>
+            </a>
+          </div>
+        )}
+
+        {integracao.webhook && <BlocoWebhook webhook={integracao.webhook} />}
 
         <div className="space-y-3">
           {integracao.campos.map((campo) => (
@@ -308,6 +323,53 @@ export function DialogIntegracao({
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * Endereço que o provedor precisa chamar de volta.
+ *
+ * O admin não tem como adivinhar a URL desta instalação. Antes o passo a passo
+ * mandava "informe o endereço desta instalação seguido de /functions/v1/...",
+ * o que transfere para ele um trabalho que a tela faz melhor, e erra: barra a
+ * mais, domínio do painel em vez do domínio da API, projeto trocado.
+ */
+function BlocoWebhook({ webhook }: { webhook: WebhookIntegracao }) {
+  const base = String(import.meta.env.VITE_SUPABASE_URL ?? "").replace(/\/+$/, "");
+  const url = base ? `${base}/functions/v1/${webhook.funcao}` : "";
+  const [copiado, setCopiado] = useState(false);
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      toast.error("Não consegui copiar. Selecione o endereço e copie à mão.");
+    }
+  };
+
+  if (!url) return null;
+
+  return (
+    <div className="space-y-1.5 rounded-md border border-border bg-muted/40 p-3">
+      <p className="text-xs font-medium text-foreground">URL do webhook desta instalação</p>
+      <div className="flex items-center gap-2">
+        <code className="min-w-0 flex-1 truncate rounded bg-background px-2 py-1.5 font-mono text-[11px]">{url}</code>
+        <Button variant="outline" size="sm" className="shrink-0 gap-1" onClick={copiar}>
+          {copiado ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copiado ? "Copiado" : "Copiar"}
+        </Button>
+      </div>
+      <p className="text-[11px] leading-4 text-muted-foreground">{webhook.seNaoConfigurar}</p>
+    </div>
+  );
+}
+
+/** Chave forte gerada aqui, para o admin colar no provedor. */
+function gerarChaveForte(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function CampoForm({
@@ -372,14 +434,36 @@ function CampoForm({
           {nomeArquivo && <span className="shrink-0 text-[11px] text-muted-foreground">{nomeArquivo}</span>}
         </div>
       ) : (
-        <Input
-          id={`campo-${campo.key}`}
-          type={campo.tipo === "password" ? "password" : campo.tipo === "url" ? "url" : campo.tipo === "tel" ? "tel" : "text"}
-          placeholder={campo.placeholder}
-          value={valor}
-          autoComplete={campo.segredo ? "new-password" : "off"}
-          onChange={(e) => onChange(e.target.value)}
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            id={`campo-${campo.key}`}
+            type={campo.tipo === "password" ? "password" : campo.tipo === "url" ? "url" : campo.tipo === "tel" ? "tel" : "text"}
+            placeholder={campo.placeholder}
+            value={valor}
+            autoComplete={campo.segredo ? "new-password" : "off"}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          {campo.gerarChave && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 gap-1"
+              onClick={async () => {
+                const nova = gerarChaveForte();
+                onChange(nova);
+                try {
+                  await navigator.clipboard.writeText(nova);
+                  toast.success("Chave gerada e copiada. Cole no painel do provedor.");
+                } catch {
+                  toast.success("Chave gerada. Copie o valor e cole no painel do provedor.");
+                }
+              }}
+            >
+              <KeyRound className="h-3.5 w-3.5" /> Gerar
+            </Button>
+          )}
+        </div>
       )}
 
       {campo.dica && <p className="text-[11px] leading-4 text-muted-foreground">{campo.dica}</p>}

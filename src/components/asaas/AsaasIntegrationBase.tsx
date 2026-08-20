@@ -236,7 +236,9 @@ export function AsaasIntegrationBase({
       setApiKeySandbox(c.api_key_sandbox || "");
       setApiKeyProduction(c.api_key_production || "");
       setEnvironment(c.environment || "sandbox");
-      setWebhookAuthToken(c.webhook_auth_token || "");
+      // A coluna não é mais a fonte: o valor vive no cofre e não volta ao
+      // navegador. Campo vazio aqui significa "não vou trocar".
+      setWebhookAuthToken("");
       setNotificationEmail(c.notification_email || "");
       setWebhookSendType(c.webhook_send_type || "SEQUENTIALLY");
       setEnabledEvents((c.enabled_events as string[]) || ALL_EVENT_LIST);
@@ -254,10 +256,13 @@ export function AsaasIntegrationBase({
     if (!ownerId) return;
     setSaving(true);
 
+    // O token do webhook NÃO vai na coluna: a edge que autentica cada evento
+    // (company-asaas-webhook) procura no cofre. Gravar na tabela fazia o Asaas
+    // enviar e nós recusarmos tudo, com a cobrança paga lá e o título em aberto
+    // aqui — o pior tipo de falha, porque a tela fica toda verde.
     const payload: Record<string, unknown> = {
       [ownerKey]: ownerId,
       environment,
-      webhook_auth_token: webhookAuthToken || null,
       notification_email: notificationEmail || null,
       webhook_send_type: webhookSendType,
       enabled_events: enabledEvents,
@@ -281,6 +286,18 @@ export function AsaasIntegrationBase({
         .insert(payload as any);
       if (error) toast.error("Erro ao salvar: " + mensagemDeErro(error));
       else toast.success("Configurações salvas com sucesso!");
+    }
+
+    // Cofre, e só quando o usuário digitou algo: campo vazio significa "não
+    // mexi", não "apague o que está lá".
+    if (ownerKey === "company_id" && webhookAuthToken.trim()) {
+      const { error: cofreErr } = await supabase.rpc("set_integration_secret", {
+        p_company_id: ownerId,
+        p_provider: "asaas",
+        p_campo: "webhook_auth_token",
+        p_valor: webhookAuthToken.trim(),
+      });
+      if (cofreErr) toast.error("Token do webhook não foi para o cofre: " + mensagemDeErro(cofreErr));
     }
 
     await loadData();

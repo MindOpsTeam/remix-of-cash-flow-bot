@@ -8,8 +8,9 @@ import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.24.0";
 // src/lib/mcp/tools/list-companies.ts
 import { createClient } from "npm:@supabase/supabase-js@^2.97.0";
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.24.0";
-function db(ctx) {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+// deno-lint-ignore no-explicit-any
+function db(ctx: any) {
+  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -45,8 +46,9 @@ var list_companies_default = defineTool({
 import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.97.0";
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z } from "npm:zod@^3.25.76";
-function db2(ctx) {
-  return createClient2(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+// deno-lint-ignore no-explicit-any
+function db2(ctx: any) {
+  return createClient2(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -84,8 +86,9 @@ var list_transactions_default = defineTool2({
 import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.97.0";
 import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z2 } from "npm:zod@^3.25.76";
-function db3(ctx) {
-  return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+// deno-lint-ignore no-explicit-any
+function db3(ctx: any) {
+  return createClient3(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -135,8 +138,9 @@ var create_transaction_default = defineTool3({
 import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.97.0";
 import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z3 } from "npm:zod@^3.25.76";
-function db4(ctx) {
-  return createClient4(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+// deno-lint-ignore no-explicit-any
+function db4(ctx: any) {
+  return createClient4(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -170,8 +174,9 @@ var list_receivables_default = defineTool4({
 import { createClient as createClient5 } from "npm:@supabase/supabase-js@^2.97.0";
 import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z4 } from "npm:zod@^3.25.76";
-function db5(ctx) {
-  return createClient5(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+// deno-lint-ignore no-explicit-any
+function db5(ctx: any) {
+  return createClient5(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -205,8 +210,9 @@ var list_bills_payable_default = defineTool5({
 import { createClient as createClient6 } from "npm:@supabase/supabase-js@^2.97.0";
 import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.24.0";
 import { z as z5 } from "npm:zod@^3.25.76";
-function db6(ctx) {
-  return createClient6(process.env.SUPABASE_URL, process.env.SUPABASE_PUBLISHABLE_KEY, {
+// deno-lint-ignore no-explicit-any
+function db6(ctx: any) {
+  return createClient6(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
@@ -235,7 +241,7 @@ var cash_summary_default = defineTool6({
       else if (r.type === "expense") expense += v;
     }
     const net = revenue - expense;
-    const fmt = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     return {
       content: [
         {
