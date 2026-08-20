@@ -88,3 +88,23 @@ describe("campos que representam a mesma coisa usam a mesma chave", () => {
     }
   });
 });
+
+describe("as chamadas de teste usam operação que a edge conhece", () => {
+  /** Operações aceitas pelo switch de supabase/functions/nfse-operations. */
+  const OPS_NFSE = ["status", "validar_dps", "cancelar", "consultar_chave", "parametros_municipio", "codigos_servico"];
+
+  it("nfse-operations é chamada com operação existente", () => {
+    // "parse_cert" era chamado e não existia no switch. Como a função não tinha
+    // default, respondia 200 com data indefinido e a tela dizia "conexão
+    // bem-sucedida" sem ter testado nada.
+    const chamadas = [...CORPO_TESTAR.matchAll(/fn: "nfse-operations"[^\n]*operation: "([^"]+)"/g)];
+    expect(chamadas.length, "esperava ao menos uma chamada a nfse-operations").toBeGreaterThan(0);
+    for (const [, op] of chamadas) {
+      expect(OPS_NFSE, `operação "${op}" não existe no switch da edge`).toContain(op);
+    }
+  });
+
+  it("parse_cert não volta como operação (o comentário que explica o defeito pode ficar)", () => {
+    expect(FONTE_IO).not.toContain('operation: "parse_cert"');
+  });
+});
