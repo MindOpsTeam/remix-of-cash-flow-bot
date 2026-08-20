@@ -202,10 +202,15 @@ Deno.serve(async (req) => {
     // disse antes de o mês acontecer, e "o sistema acerta" vira fé.
     // Uma linha por (empresa, dia, mês-alvo): rodar a tela dez vezes no mesmo
     // dia não polui nada.
+    // gerado_em explícito: é coluna do índice único, e depender do DEFAULT
+    // enquanto se declara onConflict sobre ela é apostar no comportamento do
+    // PostgREST. UTC dos dois lados, igual ao current_date do banco.
+    const geradoEm = new Date().toISOString().slice(0, 10);
     try {
       await supabase.from("forecast_snapshots").upsert(
         projecao.map((m, i) => ({
           company_id,
+          gerado_em: geradoEm,
           mes_alvo: chavesAlvo[i],
           motor,
           receita_prevista: m.projected_revenue,
