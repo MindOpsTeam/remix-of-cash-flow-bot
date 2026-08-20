@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { getCronSecret } from "../_shared/cron.ts";
+import { idDoJobRun, encerrarJobRun } from "../_shared/job.ts";
 import { segredoDaIntegracao } from "../_shared/segredos.ts";
 
 serve(async (req) => {
@@ -30,6 +31,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+
+  // Linha aberta em job_runs pelo cron; quem fecha e esta funcao.
+  const jobRun = idDoJobRun(req);
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -195,10 +199,12 @@ serve(async (req) => {
       }
     }
 
+    await encerrarJobRun(jobRun, true, undefined, { alertas: alerts.length });
     return new Response(JSON.stringify({ ok: true, alerts }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    await encerrarJobRun(jobRun, false, e instanceof Error ? e.message : String(e));
     console.error("smart-alerts error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {
       status: 500,

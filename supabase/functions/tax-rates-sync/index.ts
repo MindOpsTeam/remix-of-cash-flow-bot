@@ -14,6 +14,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { getCronSecret } from "../_shared/cron.ts";
+import { idDoJobRun, encerrarJobRun } from "../_shared/job.ts";
 
 // deno-lint-ignore no-explicit-any
 type SupabaseAny = any;
@@ -92,6 +93,9 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Linha aberta em job_runs pelo cron; quem fecha e esta funcao.
+  const jobRun = idDoJobRun(req);
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -100,10 +104,12 @@ Deno.serve(async (req) => {
   try {
     const municipalities = await syncMunicipalities(supabase);
     const nationalRates = await seedNationalRates(supabase);
+    await encerrarJobRun(jobRun, true, undefined, { municipalities, nationalRates });
     return new Response(JSON.stringify({ ok: true, municipalities, nationalRates }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    await encerrarJobRun(jobRun, false, String(err));
     console.error("[tax-rates-sync] error", err);
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,

@@ -1,3 +1,4 @@
+import { SomenteAdmin } from "@/components/auth/SomenteAdmin";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,6 +46,8 @@ const GroupConsolidationPage = lazy(() => import("./pages/settings/GroupConsolid
 const ApiKeysPage = lazy(() => import("./pages/settings/ApiKeys"));
 const UsersPage = lazy(() => import("./pages/settings/Users"));
 const BankAccountsPage = lazy(() => import("./pages/settings/BankAccounts"));
+const TrilhaAuditoriaPage = lazy(() => import("./pages/settings/TrilhaAuditoria"));
+const SaudeDosJobsPage = lazy(() => import("./pages/settings/SaudeDosJobs"));
 const InterIntegrationPage = lazy(() => import("./pages/settings/InterIntegration"));
 const InterBankingPage = lazy(() => import("./pages/InterBanking"));
 const NfseIntegrationPage = lazy(() => import("./pages/settings/NfseIntegration"));
@@ -192,8 +195,10 @@ const AppRoutes = () => (
       <Route path="/settings/company" element={<P><CompanySettingsPage /></P>} />
       <Route path="/settings/consolidation" element={<P><GroupConsolidationPage /></P>} />
       <Route path="/settings/api" element={<P><ApiKeysPage /></P>} />
-      <Route path="/settings/users" element={<P><UsersPage /></P>} />
+      <Route path="/settings/users" element={<P><SomenteAdmin><UsersPage /></SomenteAdmin></P>} />
       <Route path="/settings/bank-accounts" element={<P><BankAccountsPage /></P>} />
+      <Route path="/settings/trilha" element={<P><TrilhaAuditoriaPage /></P>} />
+      <Route path="/settings/rotinas" element={<P><SaudeDosJobsPage /></P>} />
       <Route path="/settings/chart-of-accounts" element={<P><ChartOfAccountsPage /></P>} />
       <Route path="/settings/cost-centers" element={<P><CostCentersPage /></P>} />
       <Route path="/settings/integrations" element={<P><IntegrationsPage /></P>} />

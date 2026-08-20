@@ -13,6 +13,7 @@ import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { getCronSecret } from "../_shared/cron.ts";
+import { idDoJobRun, encerrarJobRun } from "../_shared/job.ts";
 
 const MONTH_CYCLES = ["MONTHLY", "QUARTERLY", "SEMIANNUALLY", "YEARLY"];
 
@@ -119,16 +120,20 @@ Deno.serve(async (req) => {
   const cronSecret = await getCronSecret();
   const providedCron = req.headers.get("x-cron-secret");
   if (cronSecret && providedCron === cronSecret) {
+    // Linha aberta em job_runs pelo cron; quem fecha e esta funcao.
+    const jobRun = idDoJobRun(req);
     try {
       const { data: companies } = await service.from("companies").select("id");
       const results: Record<string, { created: number; skipped: number }> = {};
       for (const co of companies ?? []) {
         results[co.id] = await scanCompany(service, co.id);
       }
+      await encerrarJobRun(jobRun, true, undefined, { empresas: results.length });
       return new Response(JSON.stringify({ ok: true, results }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (err) {
+      await encerrarJobRun(jobRun, false, String(err));
       console.error("[contracts-billing] cron error", err);
       return new Response(JSON.stringify({ error: String(err) }), {
         status: 500,

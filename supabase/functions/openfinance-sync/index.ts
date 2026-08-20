@@ -20,6 +20,7 @@ import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_sh
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { syncPluggyConnection } from "../_shared/openfinance-sync.ts";
 import { getCronSecret } from "../_shared/cron.ts";
+import { idDoJobRun, encerrarJobRun } from "../_shared/job.ts";
 import {
   parseImportItems,
   janelaConciliacao,
@@ -37,6 +38,8 @@ Deno.serve(async (req) => {
   // webhook e o drift de consentimento.
   const cronSecret = await getCronSecret();
   if (cronSecret && req.headers.get("x-cron-secret") === cronSecret) {
+    // Linha aberta em job_runs pelo cron; quem fecha e esta funcao.
+    const jobRun = idDoJobRun(req);
     const corsHeaders = getCorsHeaders(req);
     try {
       const { data: conns } = await service
@@ -57,8 +60,10 @@ Deno.serve(async (req) => {
           console.error(`[openfinance-sync] cron: conexão ${conn.id} falhou`, err);
         }
       }
+      await encerrarJobRun(jobRun, true, undefined, { conexoes: (conns ?? []).length, sincronizadas: ok, falhas });
       return jsonResp({ ok: true, conexoes: (conns ?? []).length, sincronizadas: ok, falhas, staged }, 200, corsHeaders);
     } catch (err) {
+      await encerrarJobRun(jobRun, false, String(err));
       console.error("[openfinance-sync] cron error", err);
       return jsonResp({ error: String(err) }, 500, corsHeaders);
     }

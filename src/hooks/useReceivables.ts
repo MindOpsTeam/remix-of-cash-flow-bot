@@ -28,6 +28,9 @@ export interface Receivable {
   stripe_payment_intent_id: string | null;
   payment_date: string | null;
   transaction_id: string | null;
+  /** Quanto do título já foi baixado. Zero quando ninguém pagou nada ainda. */
+  valor_baixado: number | null;
+  import_batch_id: string | null;
   account_id: string | null;
   cost_center_id: string | null;
   created_at: string;

@@ -17,6 +17,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, jsonResp } from "../_shared/auth.ts";
 import { getCronSecret } from "../_shared/cron.ts";
+import { idDoJobRun, encerrarJobRun } from "../_shared/job.ts";
 
 const SERIES: Record<string, number> = { ipca: 433, igpm: 189, inpc: 188 };
 
@@ -92,6 +93,7 @@ Deno.serve(async (req: Request) => {
 
   const cronSecret = await getCronSecret();
   const viaCron = Boolean(cronSecret) && req.headers.get("x-cron-secret") === cronSecret;
+  const jobRun = idDoJobRun(req);
 
   if (!viaCron) {
     const auth = await authenticate(req);
@@ -120,6 +122,12 @@ Deno.serve(async (req: Request) => {
   }
 
   const algumFalhou = resultados.some((r) => !r.ok);
+  await encerrarJobRun(
+    jobRun,
+    !algumFalhou,
+    algumFalhou ? resultados.filter((r) => !r.ok).map((r) => `${r.indice}: ${r.erro}`).join("; ") : undefined,
+    { resultados: resultados.length },
+  );
   return jsonResp(
     { ok: !algumFalhou, resultados },
     algumFalhou ? 207 : 200,

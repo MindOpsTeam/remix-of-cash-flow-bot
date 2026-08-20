@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
 import { Check, Compass, EyeOff, Loader2, RefreshCw } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
+import { ConferenciaDeSaldo } from "@/components/openfinance/ConferenciaDeSaldo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -278,6 +279,8 @@ export default function BankInbox() {
           </div>
         )}
       </div>
+
+      <ConferenciaDeSaldo />
 
       <RecebimentosSugeridos />
 

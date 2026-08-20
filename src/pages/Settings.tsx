@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers, KeyRound, Crown, Rocket, Settings2 } from "lucide-react";
+import { Building2, Users, List, FolderTree, MessageSquare, SlidersHorizontal, Landmark, Plug, Layers, KeyRound, Crown, Rocket, Settings2, History, Activity } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const sections = [
@@ -29,6 +29,20 @@ const sections = [
     title: "Usuários",
     description: "Gerenciar usuários, convites e permissões de acesso",
     to: "/settings/users",
+    available: true,
+  },
+  {
+    icon: History,
+    title: "Quem mexeu no quê",
+    description: "Trilha de alterações em lançamentos, títulos e fechamento, com o valor anterior",
+    to: "/settings/trilha",
+    available: true,
+  },
+  {
+    icon: Activity,
+    title: "Rotinas automáticas",
+    description: "Cobrança, sincronização bancária e alertas: o que rodou e o que não rodou",
+    to: "/settings/rotinas",
     available: true,
   },
   {

@@ -16,6 +16,7 @@ import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { chamarModelo, registrarUso } from "../_shared/ia.ts";
 import { getCronSecret } from "../_shared/cron.ts";
+import { idDoJobRun, encerrarJobRun } from "../_shared/job.ts";
 import { segredoDaIntegracao } from "../_shared/segredos.ts";
 import {
   TEMPLATE_POR_KEY,
@@ -313,14 +314,18 @@ Deno.serve(async (req) => {
 
   const cronSecret = await getCronSecret();
   if (cronSecret && req.headers.get("x-cron-secret") === cronSecret) {
+    // Linha aberta em job_runs pelo cron; quem fecha e esta funcao.
+    const jobRun = idDoJobRun(req);
     try {
       const { data } = await service
         .from("agent_instances")
         .select("id, company_id, template_key, nome, config, canais")
         .eq("ativo", true);
       const resultados = await rodarLote(service, apiKey, (data ?? []) as Instancia[]);
+      await encerrarJobRun(jobRun, true, undefined, { instancias: (data ?? []).length });
       return jsonResp({ ok: true, instancias: (data ?? []).length, resultados }, 200, corsHeaders);
     } catch (err) {
+      await encerrarJobRun(jobRun, false, String(err));
       console.error("[agent-runner] cron error", err);
       return jsonResp({ error: String(err) }, 500, corsHeaders);
     }

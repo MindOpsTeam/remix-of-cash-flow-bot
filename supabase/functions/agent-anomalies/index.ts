@@ -21,6 +21,7 @@ import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { lerRegras } from "../_shared/agentes.ts";
 import { getCronSecret } from "../_shared/cron.ts";
+import { idDoJobRun, encerrarJobRun } from "../_shared/job.ts";
 
 interface TxRow {
   id: string;
@@ -126,6 +127,8 @@ Deno.serve(async (req) => {
   const cronSecret = await getCronSecret();
   const providedCron = req.headers.get("x-cron-secret");
   if (cronSecret && providedCron === cronSecret) {
+    // Linha aberta em job_runs pelo cron; quem fecha e esta funcao.
+    const jobRun = idDoJobRun(req);
     try {
       const { data: companies } = await service.from("companies").select("id");
       const results: Record<string, { created: number; scanned: number; desligado?: boolean }> = {};
@@ -136,10 +139,12 @@ Deno.serve(async (req) => {
           console.error(`[agent-anomalies] company ${c.id} failed`, err);
         }
       }
+      await encerrarJobRun(jobRun, true, undefined, { empresas: results.length });
       return new Response(JSON.stringify({ ok: true, results }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (err) {
+      await encerrarJobRun(jobRun, false, String(err));
       console.error("[agent-anomalies] cron error", err);
       return new Response(JSON.stringify({ error: String(err) }), {
         status: 500,

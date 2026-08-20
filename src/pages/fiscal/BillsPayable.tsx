@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check, Repeat } from "lucide-react";
+import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check, Repeat, FileUp } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useBillsPayable, type BillInput } from "@/hooks/useBillsPayable";
 import { BillFormDialog } from "@/components/fiscal/BillFormDialog";
@@ -15,6 +15,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
 import { NotasRecebidas } from "@/components/fiscal/NotasRecebidas";
+import { DialogBaixaTitulo, type TituloParaBaixa } from "@/components/titulos/DialogBaixaTitulo";
+import { TitulosImportDialog } from "@/components/titulos/TitulosImportDialog";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useCompany } from "@/hooks/useCompany";
 
 const statusConfig: Record<string, { label: string; className: string; icon: typeof Clock }> = {
   a_vencer: { label: "A Vencer", className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning", icon: Clock },
@@ -23,7 +28,23 @@ const statusConfig: Record<string, { label: string; className: string; icon: typ
 };
 
 export default function BillsPayable() {
-  const { bills, isLoading, createBill, updateBill, deleteBill, markAsPaid, decideBill, tornarRecorrente, encerrarRecorrencia } = useBillsPayable();
+  const { bills, isLoading, createBill, updateBill, deleteBill, decideBill, tornarRecorrente, encerrarRecorrencia } = useBillsPayable();
+  const { company } = useCompany();
+  // Baixa parcial, juros, multa, desconto e estorno. O "marcar como pago"
+  // antigo quitava a conta inteira e nem lançava a despesa no DRE.
+  const [baixando, setBaixando] = useState<TituloParaBaixa | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const { data: contasBancarias = [] } = useQuery({
+    queryKey: ["bank_accounts_simples", company?.id],
+    enabled: !!company,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bank_accounts").select("id, name").eq("company_id", company!.id).order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
   const [recorrer, setRecorrer] = useState<{ id: string; fornecedor: string } | null>(null);
   const [ocorrencias, setOcorrencias] = useState("12");
   const [periodicidade, setPeriodicidade] = useState("mensal");
@@ -45,9 +66,14 @@ export default function BillsPayable() {
             <h1 className="text-xl font-semibold text-foreground">Contas a Pagar</h1>
             <p className="text-sm text-muted-foreground mt-1">Boletos e contas do OCR ou cadastro manual</p>
           </div>
-          <Button size="sm" className="gap-2" onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" /> Adicionar Boleto
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+              <FileUp className="h-4 w-4" /> Importar planilha
+            </Button>
+            <Button size="sm" className="gap-2" onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" /> Adicionar Boleto
+            </Button>
+          </div>
         </div>
 
         <NotasRecebidas />
@@ -125,9 +151,20 @@ export default function BillsPayable() {
                                   </DropdownMenuItem>
                                 </>
                               )}
-                              {b.status !== "pago" && b.approval_status !== "awaiting_approval" && b.approval_status !== "rejected" && (
-                                <DropdownMenuItem onClick={() => markAsPaid.mutate({ id: b.id, approval_status: b.approval_status })}>
-                                  <Check className="h-4 w-4 mr-2" /> Marcar como Pago
+                              {b.approval_status !== "awaiting_approval" && b.approval_status !== "rejected" && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setBaixando({
+                                      id: b.id,
+                                      descricao: b.descricao || b.fornecedor,
+                                      valor: Number(b.valor),
+                                      valorBaixado: Number((b as { valor_baixado?: number }).valor_baixado ?? 0),
+                                      vencimento: b.vencimento,
+                                    })
+                                  }
+                                >
+                                  <Check className="h-4 w-4 mr-2" />
+                                  {b.status === "pago" ? "Ver baixas e estornar" : "Dar baixa (pagar)"}
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem onClick={() => setEditItem({ id: b.id, fornecedor: b.fornecedor, descricao: b.descricao, vencimento: b.vencimento, valor: b.valor })}>
@@ -232,6 +269,20 @@ export default function BillsPayable() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <TitulosImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        companyId={company?.id}
+        tipo="bill"
+      />
+
+      <DialogBaixaTitulo
+        kind="bill"
+        titulo={baixando}
+        contas={contasBancarias}
+        onClose={() => setBaixando(null)}
+      />
     </AppLayout>
   );
 }

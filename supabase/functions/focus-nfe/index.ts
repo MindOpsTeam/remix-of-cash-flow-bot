@@ -217,6 +217,39 @@ Deno.serve(async (req: Request) => {
       notes: `Focus NFe · referência ${referencia}`,
       xml_content: JSON.stringify(resp),
     });
+  } else if (action === "cancelar" && r.ok) {
+    // O cancelamento precisa CHEGAR NA NOTA, não parar no provedor.
+    //
+    // Antes daqui esta função só repassava o DELETE e não escrevia nada local:
+    // a nota seguia autorizada dentro da plataforma e o recebível seguia ativo.
+    // O agente de cobrança montava a mensagem e a empresa cobrava por uma nota
+    // que ela mesma tinha cancelado.
+    //
+    // Marcar `cancelled` aciona o gatilho que estorna o título em aberto; título
+    // com dinheiro já recebido fica de pé de propósito e exige estorno manual.
+    const { error: cancelErr } = await supabase
+      .from("invoices")
+      .update({ status: "cancelled" })
+      .eq("company_id", companyId)
+      .eq("notes", `Focus NFe · referência ${referencia}`)
+      .neq("status", "cancelled");
+    if (cancelErr) {
+      console.error("[focus-nfe] nota cancelada no provedor mas não na plataforma:", cancelErr);
+      // Não escondemos a inconsistência: se o local não acompanhou, quem chamou
+      // precisa saber, senão a cobrança continua de pé sem ninguém perceber.
+      return jsonResp(
+        {
+          ok: false,
+          status: 500,
+          ambiente,
+          data: r.data,
+          error:
+            "A nota foi cancelada na prefeitura, mas não consegui marcar o cancelamento aqui dentro. O título pode continuar cobrável: verifique em Fiscal antes de seguir.",
+        },
+        500,
+        corsHeaders,
+      );
+    }
   } else if (action === "consultar" && r.ok) {
     // Promove a nota quando a prefeitura autoriza.
     const resp = (r.data ?? {}) as Record<string, unknown>;

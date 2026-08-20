@@ -9,12 +9,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check, Ban, ExternalLink, CreditCard, Loader2 } from "lucide-react";
+import { Plus, Clock, AlertTriangle, CheckCircle2, FileText, MoreHorizontal, Pencil, Trash2, Check, Ban, ExternalLink, CreditCard, Loader2, FileUp } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useReceivables, type Receivable, type ReceivableInput } from "@/hooks/useReceivables";
 import { ReceivableFormDialog } from "@/components/receivables/ReceivableFormDialog";
 import { DeleteConfirmDialog } from "@/components/fiscal/DeleteConfirmDialog";
 import { LinhaDetalhe } from "@/components/detalhe/LinhaDetalhe";
+import { DialogBaixaTitulo, type TituloParaBaixa } from "@/components/titulos/DialogBaixaTitulo";
+import { TitulosImportDialog } from "@/components/titulos/TitulosImportDialog";
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   a_receber: { label: "A receber", className: "bg-warning/[0.08] text-warning dark:bg-warning/[0.08] dark:text-warning" },
@@ -31,7 +33,22 @@ export default function Receivables() {
   const [editItem, setEditItem] = useState<(ReceivableInput & { id: string }) | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [cobrando, setCobrando] = useState<string | null>(null);
+  // Baixa parcial, juros, multa, desconto e estorno vivem num diálogo só: o
+  // item "dar baixa" antigo quitava o título inteiro sem perguntar nada.
+  const [baixando, setBaixando] = useState<TituloParaBaixa | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+
   const { company } = useCompany();
+  const { data: contasBancarias = [] } = useQuery({
+    queryKey: ["bank_accounts_simples", company?.id],
+    enabled: !!company,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bank_accounts").select("id, name").eq("company_id", company!.id).order("name");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   // Canais Stripe da empresa. Com mais de um, o menu passa a listar cada canal:
   // cobrar sem dizer onde colocaria o dinheiro na conta errada.
@@ -95,9 +112,14 @@ export default function Receivables() {
             <h1 className="text-xl font-semibold text-foreground">Contas a Receber</h1>
             <p className="text-sm text-muted-foreground mt-1">Cobranças manuais, de contratos e do Asaas — a baixa vira receita no DRE</p>
           </div>
-          <Button size="sm" className="gap-2" onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" /> Nova conta
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => setImportOpen(true)}>
+              <FileUp className="h-4 w-4" /> Importar planilha
+            </Button>
+            <Button size="sm" className="gap-2" onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" /> Nova conta
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -153,9 +175,20 @@ export default function Receivables() {
                               <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {r.status !== "recebido" && r.status !== "cancelado" && (
-                                <DropdownMenuItem onClick={() => markAsReceived.mutate(r)}>
-                                  <Check className="h-4 w-4 mr-2" /> Dar baixa (receber)
+                              {r.status !== "cancelado" && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setBaixando({
+                                      id: r.id,
+                                      descricao: r.description,
+                                      valor: Number(r.amount),
+                                      valorBaixado: Number(r.valor_baixado ?? 0),
+                                      vencimento: r.due_date,
+                                    })
+                                  }
+                                >
+                                  <Check className="h-4 w-4 mr-2" />
+                                  {r.status === "recebido" ? "Ver baixas e estornar" : "Dar baixa (receber)"}
                                 </DropdownMenuItem>
                               )}
                               {r.status !== "recebido" && r.status !== "cancelado" && (
@@ -237,6 +270,20 @@ export default function Receivables() {
         onOpenChange={(o) => { if (!o) setDeleteId(null); }}
         onConfirm={() => { if (deleteId) { deleteReceivable.mutate(deleteId); setDeleteId(null); } }}
         description="A conta a receber será removida permanentemente."
+      />
+
+      <TitulosImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        companyId={company?.id}
+        tipo="receivable"
+      />
+
+      <DialogBaixaTitulo
+        kind="receivable"
+        titulo={baixando}
+        contas={contasBancarias}
+        onClose={() => setBaixando(null)}
       />
     </AppLayout>
   );

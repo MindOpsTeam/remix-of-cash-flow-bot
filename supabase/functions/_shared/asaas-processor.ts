@@ -208,6 +208,26 @@ function isPaidStatus(status: string): boolean {
   return status === "RECEIVED" || status === "CONFIRMED" || status === "RECEIVED_IN_CASH";
 }
 
+/**
+ * Status em que o dinheiro VOLTOU: estorno, chargeback ou desfazimento de
+ * recebimento em dinheiro.
+ *
+ * O front já assinava PAYMENT_REFUNDED, CHARGEBACK e RECEIVED_IN_CASH_UNDONE, e
+ * o processador descartava os três: o título voltava a "a_receber" enquanto a
+ * receita continuava no DRE. O caixa do sistema ficava acima do banco e ninguém
+ * descobria de onde vinha a diferença.
+ */
+function isDevolvido(status: string): boolean {
+  return (
+    status === "REFUNDED" ||
+    status === "REFUND_REQUESTED" ||
+    status === "CHARGEBACK_REQUESTED" ||
+    status === "CHARGEBACK_DISPUTE" ||
+    status === "AWAITING_CHARGEBACK_REVERSAL" ||
+    status === "PAYMENT_REVERSED"
+  );
+}
+
 /** Escolhe um user_id da empresa p/ atribuir o lançamento automático (user_id é NOT NULL). */
 async function resolveCompanyUserId(supabase: SupabaseClient, companyId: string): Promise<string | null> {
   const { data } = await supabase
@@ -307,6 +327,56 @@ async function syncReceivableFromPayment(
         payment_date: paid ? paymentDate : null,
       })
       .eq("id", receivableId);
+  }
+
+  // ── DINHEIRO QUE VOLTOU
+  // Antes daqui, um Pix devolvido ou chargeback deixava a receita no DRE e o
+  // título aberto ao mesmo tempo: o sistema contava o dinheiro duas vezes ao
+  // longo do mês. Agora o lançamento contrário é criado e o vínculo desfeito.
+  if (isDevolvido(status) && receivableId && linkedTx) {
+    const { data: jaEstornado } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("external_id", `estorno:${asaasPaymentId}`)
+      .maybeSingle();
+
+    if (!jaEstornado?.id) {
+      const userId = await resolveCompanyUserId(supabase, companyId);
+      if (userId) {
+        await supabase.from("transactions").insert({
+          company_id: companyId,
+          user_id: userId,
+          // Data de hoje: a devolução aconteceu hoje, e antedatar mexeria em
+          // mês possivelmente já fechado.
+          date: new Date().toISOString().split("T")[0],
+          description: `Estorno Asaas: ${description}`,
+          amount: value,
+          type: "expense",
+          account_id: accountId,
+          cost_center_id: costCenterId,
+          status: "confirmed",
+          source: "estorno",
+          external_id: `estorno:${asaasPaymentId}`,
+        });
+      }
+
+      await supabase
+        .from("receivables")
+        .update({ transaction_id: null, payment_date: null, status: "a_receber" })
+        .eq("id", receivableId);
+
+      // Dinheiro que volta é evento que o dono precisa ver, não uma linha de log.
+      await supabase.from("notifications").insert({
+        company_id: companyId,
+        titulo: "Um recebimento foi devolvido",
+        corpo: `${description}: o pagamento de R$ ${value.toFixed(2)} foi estornado pelo Asaas (${status}). O título voltou a ficar em aberto e a receita foi retirada do resultado.`,
+        categoria: "financeiro",
+        link: "/recebiveis",
+        dedupe_key: `asaas_estorno:${asaasPaymentId}`,
+      });
+    }
+    return;
   }
 
   if (!paid || !receivableId || linkedTx) return; // nada a lançar / já lançado

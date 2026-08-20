@@ -31,6 +31,7 @@ import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { lerRegras, momentoDaCobranca, type RegraCobranca } from "../_shared/agentes.ts";
 import { chamarModelo, registrarUso } from "../_shared/ia.ts";
 import { getCronSecret } from "../_shared/cron.ts";
+import { idDoJobRun, encerrarJobRun } from "../_shared/job.ts";
 
 /** Um vencimento a cobrar, já normalizado, venha de onde vier. */
 interface Cobranca {
@@ -282,6 +283,8 @@ Deno.serve(async (req) => {
 
   const cronSecret = await getCronSecret();
   if (cronSecret && req.headers.get("x-cron-secret") === cronSecret) {
+    // Linha aberta em job_runs pelo cron; quem fecha e esta funcao.
+    const jobRun = idDoJobRun(req);
     try {
       // Antes a varredura passava só por empresas com Asaas configurado, o que
       // sozinho já garantia zero ação para quase todo mundo. Agora passa por
@@ -299,10 +302,12 @@ Deno.serve(async (req) => {
       const resultados: Record<string, unknown> = {};
       for (const id of empresas) resultados[id] = await varrerEmpresa(service, apiKey, id);
 
+      await encerrarJobRun(jobRun, true, undefined, { empresas: empresas.length });
       return new Response(JSON.stringify({ ok: true, empresas: empresas.length, resultados }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (err) {
+      await encerrarJobRun(jobRun, false, String(err));
       console.error("[agent-collections] cron error", err);
       return new Response(JSON.stringify({ error: String(err) }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },

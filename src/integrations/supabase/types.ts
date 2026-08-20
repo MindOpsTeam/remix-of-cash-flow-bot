@@ -402,6 +402,78 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          antes: Json | null
+          campos: string[] | null
+          company_id: string
+          depois: Json | null
+          em: string
+          id: number
+          operacao: string
+          registro_id: string | null
+          tabela: string
+          user_id: string | null
+        }
+        Insert: {
+          antes?: Json | null
+          campos?: string[] | null
+          company_id: string
+          depois?: Json | null
+          em?: string
+          id?: number
+          operacao: string
+          registro_id?: string | null
+          tabela: string
+          user_id?: string | null
+        }
+        Update: {
+          antes?: Json | null
+          campos?: string[] | null
+          company_id?: string
+          depois?: Json | null
+          em?: string
+          id?: number
+          operacao?: string
+          registro_id?: string | null
+          tabela?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      job_runs: {
+        Row: {
+          concluido_em: string | null
+          detalhe: Json | null
+          disparado_em: string
+          erro: string | null
+          id: string
+          nome: string
+          ok: boolean | null
+          request_id: number | null
+        }
+        Insert: {
+          concluido_em?: string | null
+          detalhe?: Json | null
+          disparado_em?: string
+          erro?: string | null
+          id?: string
+          nome: string
+          ok?: boolean | null
+          request_id?: number | null
+        }
+        Update: {
+          concluido_em?: string | null
+          detalhe?: Json | null
+          disparado_em?: string
+          erro?: string | null
+          id?: string
+          nome?: string
+          ok?: boolean | null
+          request_id?: number | null
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           saldo_inicial: number | null
@@ -644,6 +716,7 @@ export type Database = {
       }
       bills_payable: {
         Row: {
+          import_batch_id: string | null
           account_id: string | null
           approval_status: string
           approved_at: string | null
@@ -676,6 +749,7 @@ export type Database = {
           vencimento: string
         }
         Insert: {
+          import_batch_id?: string | null
           account_id?: string | null
           approval_status?: string
           approved_at?: string | null
@@ -708,6 +782,7 @@ export type Database = {
           vencimento: string
         }
         Update: {
+          import_batch_id?: string | null
           account_id?: string | null
           approval_status?: string
           approved_at?: string | null
@@ -4200,6 +4275,7 @@ export type Database = {
       }
       receivables: {
         Row: {
+          import_batch_id: string | null
           account_id: string | null
           amount: number
           asaas_payment_id: string | null
@@ -4228,6 +4304,7 @@ export type Database = {
           valor_baixado: number
         }
         Insert: {
+          import_batch_id?: string | null
           account_id?: string | null
           amount: number
           asaas_payment_id?: string | null
@@ -4256,6 +4333,7 @@ export type Database = {
           valor_baixado?: number
         }
         Update: {
+          import_batch_id?: string | null
           account_id?: string | null
           amount?: number
           asaas_payment_id?: string | null
@@ -5356,6 +5434,12 @@ export type Database = {
       }
       title_payments: {
         Row: {
+          juros: number
+          multa: number
+          desconto: number
+          estorno_de: string | null
+          motivo_estorno: string | null
+          criado_por: string | null
           amount: number
           company_id: string
           created_at: string
@@ -5366,6 +5450,12 @@ export type Database = {
           transaction_id: string
         }
         Insert: {
+          juros?: number
+          multa?: number
+          desconto?: number
+          estorno_de?: string | null
+          motivo_estorno?: string | null
+          criado_por?: string | null
           amount: number
           company_id: string
           created_at?: string
@@ -5376,6 +5466,12 @@ export type Database = {
           transaction_id: string
         }
         Update: {
+          juros?: number
+          multa?: number
+          desconto?: number
+          estorno_de?: string | null
+          motivo_estorno?: string | null
+          criado_por?: string | null
           amount?: number
           company_id?: string
           created_at?: string
@@ -6335,6 +6431,36 @@ export type Database = {
           },
         ]
       }
+      v_conciliacao_saldo: {
+        Row: {
+          bank_account_id: string | null
+          bank_name: string | null
+          company_id: string | null
+          conta: string | null
+          diferenca: number | null
+          lancamentos_na_conta: number | null
+          lancamentos_sem_conta_bancaria: number | null
+          saldo_extrato: number | null
+          saldo_inicial: number | null
+          saldo_inicial_data: string | null
+          saldo_sistema: number | null
+          situacao: string | null
+        }
+        Relationships: []
+      }
+      v_saude_jobs: {
+        Row: {
+          active: boolean | null
+          concluido_em: string | null
+          erro: string | null
+          jobname: string | null
+          ok: boolean | null
+          schedule: string | null
+          situacao: string | null
+          ultimo_disparo: string | null
+        }
+        Relationships: []
+      }
       v_fluxo_mensal: {
         Row: {
           company_id: string | null
@@ -6751,6 +6877,22 @@ export type Database = {
         Args: { p_functions_url?: string }
         Returns: Json
       }
+      baixar_titulo: {
+        Args: {
+          p_kind: string
+          p_title_id: string
+          p_valor_pago: number
+          p_data?: string
+          p_juros?: number
+          p_multa?: number
+          p_desconto?: number
+          p_bank_account_id?: string | null
+        }
+        Returns: Json
+      }
+      estornar_baixa: { Args: { p_pagamento_id: string; p_motivo: string }; Returns: Json }
+      desfazer_importacao: { Args: { p_company_id: string; p_lote: string }; Returns: Json }
+      is_company_admin: { Args: { p_company_id: string }; Returns: boolean }
       brl: { Args: { p_valor: number }; Returns: string }
       cadastro_esta_aberto: { Args: never; Returns: boolean }
       cadastro_permitido: {
