@@ -1,20 +1,33 @@
 import { AppLayout } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, TrendingUp, AlertTriangle, Shield, RefreshCw } from "lucide-react";
+import { Loader2, TrendingUp, AlertTriangle, Shield, RefreshCw, Target, FileSignature, Repeat } from "lucide-react";
 import {
-  Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart,
+  Area, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart,
 } from "recharts";
+
+interface Faixa {
+  p10: number;
+  p90: number;
+}
 
 interface ForecastMonth {
   month: string;
   projected_revenue: number;
   projected_expense: number;
+  contratado_entrada: number;
+  contratado_saida: number;
   confidence: string;
+  saldo_projetado: number;
+  origem_receita?: "contratado" | "modelo" | "recompra";
+  faixa_receita?: Faixa;
+  faixa_despesa?: Faixa;
+  esperado_recompra?: number;
 }
 
 interface HistoryMonth {
@@ -23,6 +36,26 @@ interface HistoryMonth {
   expense: number;
   projected: boolean;
 }
+
+interface Precisao {
+  wape: number | null;
+  vies: number | null;
+  observacoes: number;
+  frase: string;
+}
+
+/** Como a projeção foi calculada. O usuário tem direito de saber. */
+const MOTORES: Record<string, string> = {
+  timesfm: "Modelo de séries temporais (TimesFM)",
+  sazonal: "Média ponderada com ajuste sazonal",
+  estatistico: "Média ponderada do histórico",
+};
+
+const ORIGEM: Record<string, { rotulo: string; icone: typeof FileSignature }> = {
+  contratado: { rotulo: "Já contratado", icone: FileSignature },
+  modelo: { rotulo: "Estimado pelo histórico", icone: TrendingUp },
+  recompra: { rotulo: "Esperado por recompra", icone: Repeat },
+};
 
 export default function CashFlowForecast() {
   const { company } = useCompany();
@@ -33,10 +66,18 @@ export default function CashFlowForecast() {
   const [insights, setInsights] = useState<string[]>([]);
   const [riskLevel, setRiskLevel] = useState("");
   const [riskExplanation, setRiskExplanation] = useState("");
+  const [precisao, setPrecisao] = useState<Precisao | null>(null);
+  const [motor, setMotor] = useState("");
   const [error, setError] = useState("");
 
+  // Dependemos do VALOR (id, token), nunca da identidade do objeto: um hook que
+  // devolve um objeto novo a cada render faria o efeito disparar em loop e a
+  // tela ficaria carregando para sempre.
+  const companyId = company?.id;
+  const accessToken = session?.access_token;
+
   const loadForecast = useCallback(async () => {
-    if (!company) return;
+    if (!companyId) return;
     setLoading(true);
     setError("");
 
@@ -46,9 +87,9 @@ export default function CashFlowForecast() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${accessToken || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({ company_id: company.id }),
+        body: JSON.stringify({ company_id: companyId }),
       });
 
       if (!res.ok) throw new Error("Erro ao gerar previsão");
@@ -59,16 +100,19 @@ export default function CashFlowForecast() {
       setInsights(data.insights || []);
       setRiskLevel(data.risk_level || "");
       setRiskExplanation(data.risk_explanation || "");
+      setPrecisao(data.precisao || null);
+      setMotor(data.motor || "");
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [company]);
+  }, [companyId, accessToken]);
 
   useEffect(() => { loadForecast(); }, [loadForecast]);
 
-  // Combine history + forecast for chart
+  // Histórico e projeção no mesmo eixo. A faixa só existe do lado projetado:
+  // no passado não há incerteza, há fato.
   const chartData = [
     ...history.map(h => ({
       month: h.month,
@@ -76,6 +120,7 @@ export default function CashFlowForecast() {
       despesas: h.expense,
       receitas_proj: null as number | null,
       despesas_proj: null as number | null,
+      faixa: null as [number, number] | null,
     })),
     ...forecast.map(f => ({
       month: f.month,
@@ -83,24 +128,30 @@ export default function CashFlowForecast() {
       despesas: null as number | null,
       receitas_proj: f.projected_revenue,
       despesas_proj: f.projected_expense,
+      faixa: f.faixa_receita ? ([f.faixa_receita.p10, f.faixa_receita.p90] as [number, number]) : null,
     })),
   ];
+
+  const temFaixa = forecast.some(f => f.faixa_receita);
 
   const riskColor = riskLevel === "low" ? "text-revenue" : riskLevel === "high" ? "text-expense" : "text-warning";
   const riskIcon = riskLevel === "low" ? <Shield className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />;
   const riskLabel = riskLevel === "low" ? "Baixo" : riskLevel === "high" ? "Alto" : "Médio";
 
-  // Totals for projected period
   const totalProjRevenue = forecast.reduce((s, f) => s + f.projected_revenue, 0);
   const totalProjExpense = forecast.reduce((s, f) => s + f.projected_expense, 0);
   const totalProjBalance = totalProjRevenue - totalProjExpense;
+  const totalContratado = forecast.reduce((s, f) => s + (f.contratado_entrada || 0), 0);
+  const parteContratada = totalProjRevenue > 0 ? Math.round((totalContratado / totalProjRevenue) * 100) : 0;
 
   return (
     <AppLayout>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-[-0.02em]">Previsão de Fluxo de Caixa</h1>
-          <p className="text-sm text-muted-foreground mt-1">Projeção inteligente dos próximos 3 meses com IA</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Projeção dos próximos 3 meses{motor ? ` · ${MOTORES[motor] ?? motor}` : ""}
+          </p>
         </div>
         <Button onClick={loadForecast} disabled={loading} variant="outline" size="sm">
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
@@ -123,12 +174,34 @@ export default function CashFlowForecast() {
         </Card>
       ) : (
         <div className="space-y-6">
+          {/* Precisão medida: o único número que transforma projeção em ferramenta
+              de decisão. Sem meses fechados, diz que ainda está medindo. */}
+          {precisao && (
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-card/60 px-4 py-3">
+              <Target className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm text-foreground">{precisao.frase}</p>
+                {precisao.wape !== null && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Medido comparando o que o sistema previu antes do mês começar com o que de fato aconteceu,
+                    nesta empresa.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* KPI Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card>
               <CardContent className="p-5">
                 <p className="text-sm text-muted-foreground mb-1">Receita Projetada (3m)</p>
                 <p className="text-2xl font-bold text-revenue">{formatCurrency(totalProjRevenue)}</p>
+                {totalContratado > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {parteContratada}% já contratado ({formatCurrency(totalContratado)})
+                  </p>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -167,8 +240,23 @@ export default function CashFlowForecast() {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
                   <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+                  <Tooltip
+                    formatter={(v: number | [number, number]) =>
+                      Array.isArray(v) ? `${formatCurrency(v[0])} a ${formatCurrency(v[1])}` : formatCurrency(v)
+                    }
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                  />
                   <Legend />
+                  {temFaixa && (
+                    <Area
+                      dataKey="faixa"
+                      name="Faixa provável da receita (80%)"
+                      stroke="none"
+                      fill="hsl(var(--revenue) / 0.18)"
+                      connectNulls={false}
+                      isAnimationActive={false}
+                    />
+                  )}
                   <Bar dataKey="receitas" name="Receitas (Real)" fill="hsl(var(--revenue))" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="despesas" name="Despesas (Real)" fill="hsl(var(--expense))" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="receitas_proj" name="Receitas (Projeção)" fill="hsl(var(--revenue) / 0.5)" radius={[4, 4, 0, 0]} />
@@ -185,21 +273,56 @@ export default function CashFlowForecast() {
                 <CardTitle className="text-sm font-semibold">Projeção Mensal</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {forecast.map((f, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-background/50">
-                    <div>
-                      <p className="text-sm font-semibold">{f.month}</p>
-                      <p className="text-xs text-muted-foreground">Confiança: {f.confidence === "high" ? "Alta" : f.confidence === "medium" ? "Média" : "Baixa"}</p>
+                {forecast.map((f, i) => {
+                  const origem = ORIGEM[f.origem_receita ?? "modelo"];
+                  const IconeOrigem = origem.icone;
+                  const cobertura = f.projected_revenue > 0
+                    ? Math.round((f.contratado_entrada / f.projected_revenue) * 100)
+                    : 0;
+                  return (
+                    <div key={i} className="p-3 rounded-lg bg-background/50 space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold">{f.month}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Confiança: {f.confidence === "high" ? "Alta" : f.confidence === "medium" ? "Média" : "Baixa"}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm text-revenue">+{formatCurrency(f.projected_revenue)}</p>
+                          <p className="text-sm text-expense">-{formatCurrency(f.projected_expense)}</p>
+                          <p className={`text-xs font-semibold ${f.projected_revenue - f.projected_expense >= 0 ? "text-revenue" : "text-expense"}`}>
+                            = {formatCurrency(f.projected_revenue - f.projected_expense)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-[11px] font-normal gap-1">
+                          <IconeOrigem className="h-3 w-3" />
+                          {origem.rotulo}
+                        </Badge>
+                        {f.contratado_entrada > 0 && (
+                          <span className="text-[11px] text-muted-foreground">
+                            {formatCurrency(f.contratado_entrada)} com vencimento já registrado ({cobertura}%)
+                          </span>
+                        )}
+                      </div>
+
+                      {f.faixa_receita && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Cenário provável da receita: entre {formatCurrency(f.faixa_receita.p10)} e{" "}
+                          {formatCurrency(f.faixa_receita.p90)}.
+                        </p>
+                      )}
+                      {f.esperado_recompra !== undefined && f.esperado_recompra > 0 && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Clientes com padrão de recompra devem trazer cerca de {formatCurrency(f.esperado_recompra)}.
+                        </p>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-revenue">+{formatCurrency(f.projected_revenue)}</p>
-                      <p className="text-sm text-expense">-{formatCurrency(f.projected_expense)}</p>
-                      <p className={`text-xs font-semibold ${f.projected_revenue - f.projected_expense >= 0 ? "text-revenue" : "text-expense"}`}>
-                        = {formatCurrency(f.projected_revenue - f.projected_expense)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
 

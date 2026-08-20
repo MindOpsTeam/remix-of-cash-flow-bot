@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   resumirRecompra, ordenarRadar, resumirMrr, ltvPorChurn, formatarIntervalo,
+  regularidade, divergenciaIntervalo, DIVERGENCIA_RELEVANTE,
   type RecompraCliente, type MrrMes,
 } from "@/lib/recorrencia";
 
@@ -77,5 +78,38 @@ describe("formatarIntervalo", () => {
     expect(formatarIntervalo(30)).toBe("30 dias");
     expect(formatarIntervalo(90)).toBe("~3 meses");
     expect(formatarIntervalo(null)).toBe("—");
+  });
+});
+
+describe("intervalo robusto: mediana e regularidade", () => {
+  it("cliente que compra no relógio é reconhecido como tal", () => {
+    expect(regularidade({ contact_id: "a", intervalo_mediano_dias: 30, desvio_dias: 2, n_intervalos: 5 }))
+      .toBe("relogio");
+  });
+
+  it("cliente com dispersão alta é marcado como irregular", () => {
+    expect(regularidade({ contact_id: "a", intervalo_mediano_dias: 30, desvio_dias: 18, n_intervalos: 4 }))
+      .toBe("irregular");
+  });
+
+  it("um intervalo só não vira cadência: devolve null", () => {
+    // com um único intervalo não existe dispersão, existe coincidência
+    expect(regularidade({ contact_id: "a", intervalo_mediano_dias: 30, desvio_dias: 0, n_intervalos: 1 }))
+      .toBeNull();
+    expect(regularidade(undefined)).toBeNull();
+    expect(regularidade({ contact_id: "a", intervalo_mediano_dias: 0, desvio_dias: 0, n_intervalos: 9 }))
+      .toBeNull();
+  });
+
+  it("divergência entre média e mediana é medida em cima da mediana", () => {
+    // média 60 contra mediana 30: a média está 100% acima
+    expect(divergenciaIntervalo(60, 30)).toBeCloseTo(1, 5);
+    expect(divergenciaIntervalo(31, 30)).toBeLessThan(DIVERGENCIA_RELEVANTE);
+  });
+
+  it("sem número dos dois lados, não inventa divergência", () => {
+    expect(divergenciaIntervalo(null, 30)).toBeNull();
+    expect(divergenciaIntervalo(30, null)).toBeNull();
+    expect(divergenciaIntervalo(30, 0)).toBeNull();
   });
 });

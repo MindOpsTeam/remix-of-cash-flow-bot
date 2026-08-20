@@ -37,3 +37,4 @@ mcp-servers/*/dist/
 # Artefatos locais de QA/design (issue #26): capturas do E2E e runs do AIDesigner
 artifacts/design-system/
 .aidesigner/
+*.tsbuildinfo

@@ -13,7 +13,8 @@ import { formatCurrency } from "@/lib/utils";
 import { MONTH_LABELS } from "@/lib/margin";
 import {
   resumirMrr, resumirRecompra, ordenarRadar, ltvPorChurn, formatarIntervalo,
-  RECOMPRA_STATUS, type MrrMes, type RecompraCliente,
+  regularidade, divergenciaIntervalo, DIVERGENCIA_RELEVANTE, REGULARIDADE_LABEL,
+  RECOMPRA_STATUS, type MrrMes, type RecompraCliente, type RecompraRobusta,
 } from "@/lib/recorrencia";
 import {
   Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid,
@@ -80,6 +81,26 @@ export default function RecorrenciaRecompra() {
       return (data ?? []) as RecompraCliente[];
     },
   });
+
+  // Intervalo robusto (mediana) ao lado do intervalo médio. A view antiga
+  // continua sendo a fonte da tela; esta só qualifica o número.
+  const { data: robustas = [] } = useQuery<RecompraRobusta[]>({
+    queryKey: ["recompra-robusta", ids.join(",")],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("v_recompra_robusta")
+        .select("contact_id, intervalo_mediano_dias, desvio_dias, n_intervalos")
+        .in("company_id", ids);
+      if (error) throw error;
+      return (data ?? []) as RecompraRobusta[];
+    },
+  });
+
+  const porContato = useMemo(
+    () => new Map(robustas.filter((r) => r.contact_id).map((r) => [r.contact_id, r])),
+    [robustas],
+  );
 
   const mrr = useMemo(() => resumirMrr(mrrMeses), [mrrMeses]);
   const rec = useMemo(() => resumirRecompra(clientes), [clientes]);
@@ -209,7 +230,35 @@ export default function RecorrenciaRecompra() {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{c.n_compras}</td>
-                        <td className="px-3 py-2 text-xs text-muted-foreground">{formatarIntervalo(c.intervalo_medio_dias)}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {(() => {
+                            const rob = porContato.get(c.contact_id);
+                            const reg = regularidade(rob);
+                            const div = divergenciaIntervalo(c.intervalo_medio_dias, rob?.intervalo_mediano_dias ?? null);
+                            const exibido = rob?.intervalo_mediano_dias ?? c.intervalo_medio_dias;
+                            return (
+                              <span className="inline-flex flex-col gap-0.5">
+                                <span>{formatarIntervalo(exibido)}</span>
+                                {reg && (
+                                  <span
+                                    className={reg === "irregular" ? "text-[10px] text-[hsl(var(--warning))]" : "text-[10px] text-muted-foreground"}
+                                    title={REGULARIDADE_LABEL[reg].ajuda}
+                                  >
+                                    {REGULARIDADE_LABEL[reg].label}
+                                  </span>
+                                )}
+                                {div !== null && div > DIVERGENCIA_RELEVANTE && (
+                                  <span
+                                    className="text-[10px] text-muted-foreground"
+                                    title={`A média simples daria ${formatarIntervalo(c.intervalo_medio_dias)}. Uma compra fora do padrão está puxando a média, por isso mostramos a mediana.`}
+                                  >
+                                    média daria {formatarIntervalo(c.intervalo_medio_dias)}
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td className="px-3 py-2 text-xs text-muted-foreground">{dataBr(c.ultima_compra)}</td>
                         <td className="px-3 py-2 text-xs">{dataBr(c.proxima_esperada)}</td>
                         <td className="px-3 py-2 text-right font-mono text-xs">{c.ticket_medio != null ? formatCurrency(c.ticket_medio) : "—"}</td>

@@ -13,3 +13,16 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+// jsdom não implementa ResizeObserver, e o ResponsiveContainer do recharts o
+// exige na montagem. Sem este stub, QUALQUER tela com gráfico explode no teste
+// por um motivo que não tem nada a ver com o que está sendo testado.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+if (!("ResizeObserver" in globalThis)) {
+  (globalThis as unknown as { ResizeObserver: typeof ResizeObserverStub }).ResizeObserver =
+    ResizeObserverStub;
+}

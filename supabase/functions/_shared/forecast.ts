@@ -37,6 +37,19 @@ export interface MesProjetado {
   contratado_saida: number;
   confidence: "high" | "medium" | "low";
   saldo_projetado: number;
+  /** Banda de 80% da receita, quando há histórico para medir o erro do método. */
+  faixa_receita?: { p10: number; p90: number };
+  /** Banda de 80% da despesa. */
+  faixa_despesa?: { p10: number; p90: number };
+  /** Entrada provável vinda do padrão de recompra da carteira. */
+  esperado_recompra?: number;
+  /**
+   * De onde veio o número da receita deste mês. Existe porque "R$ 180 mil" e
+   * "R$ 180 mil já assinados em contrato" são fatos diferentes, e a tela que
+   * não distingue os dois faz o dono confiar no palpite tanto quanto no
+   * contrato.
+   */
+  origem_receita: "contratado" | "modelo" | "recompra";
 }
 
 function media(v: number[]): number {
@@ -62,6 +75,19 @@ function mediaPonderada(v: number[]): number {
   return soma / pesos;
 }
 
+/**
+ * Base plana que a projeção usa quando não há motor melhor: a média ponderada
+ * do histórico, receita e despesa. Exportada para que as camadas de cima
+ * (sazonalidade) partam EXATAMENTE do mesmo número, e não de uma média
+ * recalculada de outro jeito, que faria a projeção mudar sem ninguém pedir.
+ */
+export function basesDoHistorico(historico: MesHistorico[]): { receita: number; despesa: number } {
+  return {
+    receita: mediaPonderada(historico.map((h) => h.receita)),
+    despesa: mediaPonderada(historico.map((h) => h.despesa)),
+  };
+}
+
 function rotuloMes(d: Date): string {
   const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   return `${meses[d.getUTCMonth()]}/${String(d.getUTCFullYear()).slice(2)}`;
@@ -84,6 +110,17 @@ export function projetarCaixa(
    * contratado, confiança e saldo continuam calculados aqui.
    */
   basePorMes?: Array<{ receita: number; despesa: number }>,
+  /**
+   * Bandas de incerteza por mês, na ordem do horizonte. Só decoram a saída:
+   * não entram em nenhuma conta de saldo.
+   */
+  bandas?: Array<{ receita: { p10: number; p90: number } | null; despesa: { p10: number; p90: number } | null }>,
+  /**
+   * Entrada provável por recompra, por mês. NÃO se soma ao contratado nem à
+   * base: entra como terceiro candidato no max, senão o mesmo dinheiro seria
+   * contado duas vezes (o cliente que tem recebível cadastrado E padrão).
+   */
+  esperadoRecompra?: number[],
 ): { forecast: MesProjetado[]; runwayMeses: number | null; baseHistorica: number } {
   const receitas = historico.map((h) => h.receita);
   const despesas = historico.map((h) => h.despesa);
@@ -113,8 +150,14 @@ export function projetarCaixa(
     // O modelo de séries temporais, quando disponível, dá a base DESTE mês, o
     // que captura sazonalidade que a média achata (dezembro, 13º, imposto).
     const doModelo = basePorMes?.[i - 1];
-    const receita = Math.max(contratadoEntrada, doModelo?.receita ?? receitaBase);
+    const daRecompra = esperadoRecompra?.[i - 1] ?? 0;
+    const daBase = doModelo?.receita ?? receitaBase;
+    const receita = Math.max(contratadoEntrada, daBase, daRecompra);
     const despesa = Math.max(contratadoSaida, doModelo?.despesa ?? despesaBase);
+
+    // Empate vai para o lado mais firme: contratado ganha da estimativa.
+    const origem_receita: MesProjetado["origem_receita"] =
+      receita === contratadoEntrada ? "contratado" : receita === daBase ? "modelo" : "recompra";
 
     saldo += receita - despesa;
 
@@ -133,6 +176,10 @@ export function projetarCaixa(
       contratado_saida: Math.round(contratadoSaida * 100) / 100,
       confidence,
       saldo_projetado: Math.round(saldo * 100) / 100,
+      origem_receita,
+      ...(bandas?.[i - 1]?.receita ? { faixa_receita: bandas[i - 1].receita! } : {}),
+      ...(bandas?.[i - 1]?.despesa ? { faixa_despesa: bandas[i - 1].despesa! } : {}),
+      ...(daRecompra > 0 ? { esperado_recompra: Math.round(daRecompra * 100) / 100 } : {}),
     });
   }
 

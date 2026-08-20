@@ -119,3 +119,65 @@ export function formatarIntervalo(dias: number | null): string {
   const meses = dias / 30;
   return `~${meses.toFixed(meses < 3 ? 1 : 0)} meses`;
 }
+
+// ── INTERVALO ROBUSTO (view v_recompra_robusta)
+//
+// v_recompra_clientes calcula o intervalo por média: (última − primeira) / (n − 1).
+// Uma única compra atípica desloca a média inteira e move o cliente de faixa sem
+// que o comportamento dele tenha mudado. A mediana dos intervalos reais não se
+// deixa levar por um outlier, e o desvio diz se dá para confiar na data prevista.
+
+export interface RecompraRobusta {
+  contact_id: string;
+  intervalo_mediano_dias: number | null;
+  desvio_dias: number | null;
+  n_intervalos: number | null;
+}
+
+export type Regularidade = "relogio" | "regular" | "irregular";
+
+export const REGULARIDADE_LABEL: Record<Regularidade, { label: string; ajuda: string }> = {
+  relogio: {
+    label: "compra no relógio",
+    ajuda: "As compras se repetem quase sempre no mesmo intervalo. A data prevista é confiável.",
+  },
+  regular: {
+    label: "cadência regular",
+    ajuda: "As compras variam um pouco em torno do intervalo típico.",
+  },
+  irregular: {
+    label: "cadência irregular",
+    ajuda: "O intervalo varia muito. Trate a data prevista como referência, não como promessa.",
+  },
+};
+
+/**
+ * Regularidade pelo coeficiente de variação (desvio / intervalo). Devolve null
+ * quando há menos de dois intervalos: com um intervalo só não existe dispersão,
+ * existe uma coincidência.
+ */
+export function regularidade(r: RecompraRobusta | undefined | null): Regularidade | null {
+  if (!r) return null;
+  const intervalo = r.intervalo_mediano_dias ?? 0;
+  if (!(intervalo > 0)) return null;
+  if ((r.n_intervalos ?? 0) < 2) return null;
+  const cv = (r.desvio_dias ?? 0) / intervalo;
+  if (cv < 0.15) return "relogio";
+  if (cv < 0.4) return "regular";
+  return "irregular";
+}
+
+/**
+ * Quanto a média discorda da mediana, em pontos percentuais do intervalo
+ * robusto. Acima de 25% a média está sendo puxada por um outlier e a data
+ * prevista pela view antiga não merece confiança.
+ */
+export function divergenciaIntervalo(
+  mediaDias: number | null,
+  medianaDias: number | null,
+): number | null {
+  if (mediaDias == null || medianaDias == null || medianaDias <= 0) return null;
+  return Math.abs(mediaDias - medianaDias) / medianaDias;
+}
+
+export const DIVERGENCIA_RELEVANTE = 0.25;

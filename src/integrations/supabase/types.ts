@@ -6371,6 +6371,33 @@ export type Database = {
           },
         ]
       }
+      v_fluxo_mensal: {
+        Row: {
+          company_id: string | null
+          despesa: number | null
+          lancamentos: number | null
+          mes: string | null
+          receita: number | null
+        }
+        Relationships: []
+      }
+      v_recompra_robusta: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          desvio_dias: number | null
+          dias_desde_ultima: number | null
+          intervalo_mediano_dias: number | null
+          n_compras: number | null
+          n_intervalos: number | null
+          name: string | null
+          proxima_esperada: string | null
+          status: string | null
+          ticket_medio: number | null
+          ultima_compra: string | null
+        }
+        Relationships: []
+      }
       v_stripe_repasses: {
         Row: {
           amount_bruto: number | null
