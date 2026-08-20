@@ -35,14 +35,27 @@ interface BankAccount {
   name: string;
   bank_name: string | null;
   created_at: string;
+  saldo_inicial: number | null;
+  saldo_inicial_data: string | null;
+  balance: number | null;
 }
 
 interface FormState {
   name: string;
   bank_name: string;
+  saldo_inicial: string;
+  saldo_inicial_data: string;
 }
 
-const emptyForm: FormState = { name: "", bank_name: "" };
+const emptyForm: FormState = { name: "", bank_name: "", saldo_inicial: "", saldo_inicial_data: "" };
+
+/** Aceita "12.345,67" e "12345.67". Vazio significa não informado, não zero. */
+function paraNumero(v: string): number | null {
+  const limpo = v.trim();
+  if (!limpo) return null;
+  const n = Number(limpo.replace(/\./g, "").replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
 
 export default function BankAccounts() {
   const { company } = useCompany();
@@ -61,7 +74,7 @@ export default function BankAccounts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bank_accounts")
-        .select("id, name, bank_name, created_at")
+        .select("id, name, bank_name, created_at, saldo_inicial, saldo_inicial_data, balance")
         .eq("company_id", company!.id)
         .order("created_at");
       if (error) throw error;
@@ -77,7 +90,12 @@ export default function BankAccounts() {
 
   const openEdit = (acc: BankAccount) => {
     setEditId(acc.id);
-    setForm({ name: acc.name, bank_name: acc.bank_name ?? "" });
+    setForm({
+      name: acc.name,
+      bank_name: acc.bank_name ?? "",
+      saldo_inicial: acc.saldo_inicial != null ? String(acc.saldo_inicial).replace(".", ",") : "",
+      saldo_inicial_data: acc.saldo_inicial_data ?? "",
+    });
     setDialogOpen(true);
   };
 
@@ -87,9 +105,20 @@ export default function BankAccounts() {
       return;
     }
     setSaving(true);
+    const saldo = paraNumero(form.saldo_inicial);
+    if (form.saldo_inicial.trim() && saldo === null) {
+      setSaving(false);
+      toast({ title: "Saldo inválido", description: "Use apenas números, como 12345,67.", variant: "destructive" });
+      return;
+    }
     const payload = {
       name: form.name.trim(),
       bank_name: form.bank_name.trim() || null,
+      saldo_inicial: saldo,
+      // Sem data informada, o saldo vale a partir de hoje.
+      saldo_inicial_data: saldo === null
+        ? null
+        : form.saldo_inicial_data || new Date().toISOString().split("T")[0],
     };
     let error;
     if (editId) {
@@ -218,6 +247,30 @@ export default function BankAccounts() {
                 placeholder="Ex: Itaú, Bradesco, Inter, Nubank"
               />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Saldo hoje</Label>
+                <Input
+                  inputMode="decimal"
+                  value={form.saldo_inicial}
+                  onChange={(e) => setForm((f) => ({ ...f, saldo_inicial: e.target.value }))}
+                  placeholder="Ex: 42350,00"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Nesta data</Label>
+                <Input
+                  type="date"
+                  value={form.saldo_inicial_data}
+                  onChange={(e) => setForm((f) => ({ ...f, saldo_inicial_data: e.target.value }))}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Sem este saldo, a previsão de caixa projeta a variação, não o dinheiro que existe, e não consegue
+              dizer por quantos meses o caixa aguenta. Se a conta estiver sincronizada pelo Open Finance, o saldo
+              do banco tem prioridade sobre este campo.
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

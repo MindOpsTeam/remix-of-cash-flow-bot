@@ -239,7 +239,7 @@ Deno.serve(async (req) => {
       configId: whatsappConfig.id,
       supabase,
       evolutionUrl,
-      evolutionKey,
+      evolutionKey: evolutionKey ?? undefined,
     });
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -499,7 +499,7 @@ ${financialContext}`;
 
 // ─── AUDIO PROCESSING ─────────────────────────────────────────────────────────
 
-async function getMediaBase64(instanceName: string, messageId: string, remoteJid: string, evoUrl?: string, evoKey?: string): Promise<string | null> {
+async function getMediaBase64(instanceName: string, messageId: string, remoteJid: string, evoUrl?: string | null, evoKey?: string | null): Promise<string | null> {
   const evolutionUrl = evoUrl;
   const evolutionKey = evoKey;
   if (!evolutionUrl || !evolutionKey) { console.error("Evolution credentials missing"); return null; }
@@ -577,7 +577,7 @@ Se não for um documento financeiro, descreva o que vê na imagem.` },
 
 // ─── EVOLUTION API HELPERS ────────────────────────────────────────────────────
 
-async function sendWhatsAppMessage(instanceName: string, remoteJid: string, text: string, evoUrl?: string, evoKey?: string) {
+async function sendWhatsAppMessage(instanceName: string, remoteJid: string, text: string, evoUrl?: string | null, evoKey?: string | null) {
   const evolutionUrl = evoUrl;
   const evolutionKey = evoKey;
   if (!evolutionUrl || !evolutionKey) { console.error("Evolution credentials missing"); return; }

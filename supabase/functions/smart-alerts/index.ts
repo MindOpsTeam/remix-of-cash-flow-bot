@@ -38,23 +38,34 @@ serve(async (req) => {
     // credenciais por empresa, lidas de whatsapp_configs dentro do laço
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Get all active WhatsApp configs
-    const { data: configs } = await supabase
-      .from("whatsapp_configs")
-      .select("*, companies(name)")
-      .eq("active", true);
+    // ── O ALERTA É DA EMPRESA, NÃO DO WHATSAPP
+    // Antes o laço partia de whatsapp_configs ativos: quem não tinha WhatsApp
+    // configurado (a maioria, e todo cliente novo) não recebia alerta nenhum,
+    // nem dentro do sistema. O produto calculava "operando com prejuízo" e
+    // jogava fora. Agora o alerta sempre vira notificação no app; o WhatsApp é
+    // um canal a mais quando existe.
+    const { data: empresas } = await supabase.from("companies").select("id, name");
 
-    if (!configs || configs.length === 0) {
-      return new Response(JSON.stringify({ ok: true, message: "No active configs" }), {
+    if (!empresas || empresas.length === 0) {
+      return new Response(JSON.stringify({ ok: true, message: "Nenhuma empresa" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const { data: configs } = await supabase
+      .from("whatsapp_configs")
+      .select("*")
+      .eq("active", true);
+    const configPorEmpresa = new Map<string, Record<string, unknown>>(
+      (configs ?? []).map((c: Record<string, unknown>) => [c.company_id as string, c]),
+    );
+
     const alerts: string[] = [];
 
-    for (const config of configs) {
-      const companyId = config.company_id;
-      const companyName = (config.companies as any)?.name || "Empresa";
+    for (const empresa of empresas) {
+      const companyId = empresa.id as string;
+      const companyName = (empresa.name as string) || "Empresa";
+      const config = configPorEmpresa.get(companyId);
 
       const now = new Date();
       const curStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
@@ -101,15 +112,45 @@ serve(async (req) => {
         alertMessages.push(`💸 *Gasto expressivo:* ${fmt(Number(be.amount))} — "${be.description}" (${(Number(be.amount) / curRevenue * 100).toFixed(0)}% da receita).`);
       }
 
-      const evolutionUrl = (config.evolution_api_url || "").replace(/\/+$/, "");
+      if (alertMessages.length === 0) continue;
+
+      // 1) SEMPRE dentro do sistema. Um alerta calculado e não entregue é pior
+      // que alerta nenhum: o sistema sabia e não contou.
+      // dedupe_key com o dia evita repetir o mesmo alerta a cada execução.
+      const hoje = new Date().toISOString().split("T")[0];
+      const chave = `smart-alerts:${companyId}:${hoje}`;
+
+      // dedupe_key não tem índice único no banco: sem esta consulta, rodar o
+      // cron duas vezes no mesmo dia duplicaria o aviso na caixa do usuário.
+      const { data: jaAvisado } = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("company_id", companyId)
+        .eq("dedupe_key", chave)
+        .limit(1);
+      if ((jaAvisado ?? []).length > 0) continue;
+
+      await supabase.from("notifications").insert({
+        company_id: companyId,
+        titulo: alertMessages.length === 1 ? "Alerta financeiro" : `${alertMessages.length} alertas financeiros`,
+        corpo: alertMessages.join("\n\n").replace(/\*/g, ""),
+        categoria: "financeiro",
+        link: "/dashboard",
+        dedupe_key: chave,
+      });
+      alerts.push(`${alertMessages.length} alertas no app para ${companyName}`);
+
+      // 2) E também no WhatsApp, quando a empresa configurou o canal.
+      if (!config) continue;
+      const evolutionUrl = String(config.evolution_api_url || "").replace(/\/+$/, "");
       const evolutionKey =
         (await segredoDaIntegracao(supabase, companyId, "evolution", "api_key")) || "";
-      if (alertMessages.length > 0 && evolutionUrl && evolutionKey) {
+      if (evolutionUrl && evolutionKey) {
         // Find admin phone (get from last inbound message)
         const { data: lastMsg } = await supabase
           .from("whatsapp_messages")
           .select("phone_number")
-          .eq("config_id", config.id)
+          .eq("config_id", config.id as string)
           .eq("direction", "inbound")
           .order("created_at", { ascending: false })
           .limit(1)
@@ -128,7 +169,7 @@ serve(async (req) => {
           for (const espera of [0, 1500]) {
             if (espera > 0) await new Promise((r) => setTimeout(r, espera));
             try {
-              const resp = await fetch(`${evolutionUrl}/message/sendText/${config.instance_name}`, {
+              const resp = await fetch(`${evolutionUrl}/message/sendText/${config.instance_name as string}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", apikey: evolutionKey },
                 body: JSON.stringify({ number: remoteJid, text: fullMessage }),
@@ -139,7 +180,7 @@ serve(async (req) => {
               console.error("Failed to send alert:", e);
             }
           }
-          if (sent) alerts.push(`Sent ${alertMessages.length} alerts to ${companyName}`);
+          if (sent) alerts.push(`${alertMessages.length} alertas no WhatsApp de ${companyName}`);
           else {
             await supabase.from("notifications").insert({
               company_id: companyId,
@@ -147,7 +188,7 @@ serve(async (req) => {
               corpo: "A Evolution não respondeu ao envio dos alertas financeiros. Reconecte a instância.",
               categoria: "sistema",
               link: "/whatsapp",
-              dedupe_key: `whatsapp_falhou:smart-alerts:${config.id}`,
+              dedupe_key: `whatsapp_falhou:smart-alerts:${config.id as string}`,
             });
           }
         }

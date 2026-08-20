@@ -15,9 +15,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { chamarModelo, registrarUso } from "../_shared/ia.ts";
-import {
 import { getCronSecret } from "../_shared/cron.ts";
 import { segredoDaIntegracao } from "../_shared/segredos.ts";
+import {
   TEMPLATE_POR_KEY,
   avaliarCaixaBaixo,
   avaliarContasAVencer,
@@ -135,7 +135,7 @@ async function despachar(service: Service, inst: Instancia, aviso: Aviso, link: 
     const numero = config?.notify_number?.replace(/\D/g, "");
     const evolutionUrl = config?.evolution_api_url;
     const evolutionKey = config
-      ? await segredoDaIntegracao(supabase, companyId, "evolution", "api_key")
+      ? await segredoDaIntegracao(service, inst.company_id, "evolution", "api_key")
       : null;
     if (config && numero && numero.length >= 10 && evolutionUrl && evolutionKey) {
       const texto = `🤖 *${inst.nome}*\n\n*${aviso.titulo}*\n${aviso.corpo}`;

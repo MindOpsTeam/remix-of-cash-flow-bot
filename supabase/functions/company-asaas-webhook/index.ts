@@ -66,13 +66,18 @@ Deno.serve(async (req) => {
       .from("company_asaas_config")
       .select("id, company_id, enabled_events");
 
-    let config: { id: string; company_id: string; enabled_events: unknown } | null = null;
+    // Tipo nomeado: `c as typeof config` estreitava para `null` na análise de
+    // fluxo do TypeScript, e todo acesso a config.company_id depois virava erro
+    // de tipo. O código rodava, mas o type-check ficava vermelho para sempre e
+    // por isso deixou de ser lido.
+    type ConfigAsaas = { id: string; company_id: string; enabled_events: unknown };
+    let config: ConfigAsaas | null = null;
     for (const c of candidatos ?? []) {
       const esperado = await segredoDaIntegracao(
         supabase, c.company_id as string, "asaas", "webhook_auth_token",
       );
       if (esperado && esperado === accessToken) {
-        config = c as typeof config;
+        config = c as ConfigAsaas;
         break;
       }
     }

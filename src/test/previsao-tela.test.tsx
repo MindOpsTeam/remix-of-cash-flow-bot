@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 
 /**
  * A camada de previsibilidade só existe se ela CHEGA NA TELA.
@@ -21,6 +22,14 @@ vi.mock("@/hooks/useAuth", () => ({
 }));
 
 import CashFlowForecast from "@/pages/CashFlowForecast";
+
+function montar() {
+  return render(
+    <MemoryRouter>
+      <CashFlowForecast />
+    </MemoryRouter>,
+  );
+}
 
 const RESPOSTA = {
   forecast: [
@@ -61,6 +70,7 @@ const RESPOSTA = {
     frase: "Nas últimas 6 previsões, o erro médio foi de 8%.",
   },
   recompra: { clientes_com_padrao: 4, esperado_por_mes: [0, 120000, 0] },
+  saldo_conhecido: true,
 };
 
 function responderCom(corpo: unknown) {
@@ -78,33 +88,33 @@ afterEach(() => {
 describe("tela de previsão: a camada nova aparece", () => {
   it("mostra a precisão medida em vez de prometer acerto", async () => {
     vi.stubGlobal("fetch", responderCom(RESPOSTA));
-    render(<CashFlowForecast />);
+    montar();
     expect(await screen.findByText(/erro médio foi de 8%/)).toBeInTheDocument();
   });
 
   it("diz de onde veio o número de cada mês", async () => {
     vi.stubGlobal("fetch", responderCom(RESPOSTA));
-    render(<CashFlowForecast />);
+    montar();
     expect(await screen.findByText("Já contratado")).toBeInTheDocument();
     expect(screen.getByText("Esperado por recompra")).toBeInTheDocument();
   });
 
   it("mostra a faixa provável, não só o número seco", async () => {
     vi.stubGlobal("fetch", responderCom(RESPOSTA));
-    render(<CashFlowForecast />);
+    montar();
     expect(await screen.findByText(/Cenário provável da receita/)).toBeInTheDocument();
   });
 
   it("mostra quanto da receita projetada já está contratada", async () => {
     vi.stubGlobal("fetch", responderCom(RESPOSTA));
-    render(<CashFlowForecast />);
+    montar();
     // 500.000 de 620.000 projetados = 81%
     expect(await screen.findByText(/81% já contratado/)).toBeInTheDocument();
   });
 
   it("declara o motor que calculou", async () => {
     vi.stubGlobal("fetch", responderCom(RESPOSTA));
-    render(<CashFlowForecast />);
+    montar();
     expect(await screen.findByText(/Média ponderada com ajuste sazonal/)).toBeInTheDocument();
   });
 });
@@ -130,12 +140,39 @@ describe("empresa nova: a tela não quebra sem as camadas novas", () => {
 
   it("renderiza a projeção mesmo sem precisão, faixa nem origem", async () => {
     vi.stubGlobal("fetch", responderCom(SEM_CAMADAS));
-    render(<CashFlowForecast />);
+    montar();
     await waitFor(() => expect(screen.getByText("Set/26")).toBeInTheDocument());
     // sem dados medidos, nada de número inventado na tela
     expect(screen.queryByText(/erro médio/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Cenário provável/)).not.toBeInTheDocument();
     // origem ausente cai no rótulo honesto do padrão
     expect(screen.getByText("Estimado pelo histórico")).toBeInTheDocument();
+  });
+});
+
+describe("saldo desconhecido não vira saldo zero", () => {
+  const SEM_SALDO = { ...RESPOSTA, saldo_conhecido: false, saldo_inicial: null, runway_meses: null };
+
+  it("avisa que nenhuma conta tem saldo, em vez de projetar em silêncio", async () => {
+    vi.stubGlobal("fetch", responderCom(SEM_SALDO));
+    montar();
+    expect(await screen.findByText(/Nenhuma conta bancária tem saldo informado/)).toBeInTheDocument();
+    expect(screen.getByText("Informar saldo das contas")).toBeInTheDocument();
+  });
+
+  it("com saldo conhecido, não enche a tela de aviso", async () => {
+    vi.stubGlobal("fetch", responderCom(RESPOSTA));
+    montar();
+    await screen.findByText(/erro médio foi de 8%/);
+    expect(screen.queryByText(/Nenhuma conta bancária tem saldo informado/)).not.toBeInTheDocument();
+  });
+
+  it("resposta antiga, sem o campo, não inventa aviso", async () => {
+    const semCampo = { ...RESPOSTA };
+    delete (semCampo as Record<string, unknown>).saldo_conhecido;
+    vi.stubGlobal("fetch", responderCom(semCampo));
+    montar();
+    await screen.findByText(/erro médio foi de 8%/);
+    expect(screen.queryByText(/Nenhuma conta bancária tem saldo informado/)).not.toBeInTheDocument();
   });
 });

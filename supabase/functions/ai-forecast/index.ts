@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
         .eq("company_id", company_id).gte("vencimento", hojeISO).lte("vencimento", horizonteISO),
       supabase.from("contracts").select("next_due_date, amount, status")
         .eq("company_id", company_id).eq("status", "active"),
-      supabase.from("bank_accounts").select("balance").eq("company_id", company_id),
+      supabase.from("bank_accounts").select("balance, saldo_inicial").eq("company_id", company_id),
     ]);
 
     const compromissos: Compromisso[] = [];
@@ -113,7 +113,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    const saldoInicial = (contasBancarias.data ?? []).reduce((s: number, c: { balance: number | null }) => s + Number(c.balance ?? 0), 0);
+    // Saldo do banco (Open Finance) tem prioridade; sem ele vale o que o dono
+    // informou. Se NENHUMA conta tem saldo conhecido, o saldo não é zero: é
+    // desconhecido. Tratar desconhecido como zero fazia a projeção afirmar que
+    // a empresa não estava queimando caixa sem ter medido nada.
+    const linhasSaldo = (contasBancarias.data ?? []) as Array<{ balance: number | null; saldo_inicial: number | null }>;
+    const saldosConhecidos = linhasSaldo
+      .map((c) => (c.balance ?? c.saldo_inicial))
+      .filter((v): v is number => v !== null && v !== undefined);
+    const saldoConhecido = saldosConhecidos.length > 0;
+    const saldoInicial = saldosConhecidos.reduce((s, v) => s + Number(v), 0);
 
     const historicoCalculo: MesHistorico[] = Object.entries(monthlyData)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -265,7 +274,13 @@ Escreva em português claro, sem jargão. Cada insight tem no máximo duas frase
         },
         {
           role: "user",
-          content: `Histórico dos últimos meses:\n${monthSummary}\n\nProjeção calculada:\n${resumoProjecao}\n\nSaldo em conta hoje: ${fmt(saldoInicial)}\nTotal já contratado a receber no período: ${fmt(contratadoTotal)}\nMédia histórica ponderada de receita: ${fmt(baseHistorica)}\n${runwayMeses !== null ? `A empresa está queimando caixa: o saldo atual dura cerca de ${runwayMeses} meses nesse ritmo.` : "A empresa não está queimando caixa no ritmo atual."}`,
+          content: `Histórico dos últimos meses:\n${monthSummary}\n\nProjeção calculada:\n${resumoProjecao}\n\nSaldo em conta hoje: ${saldoConhecido ? fmt(saldoInicial) : "NÃO INFORMADO"}\nTotal já contratado a receber no período: ${fmt(contratadoTotal)}\nMédia histórica ponderada de receita: ${fmt(baseHistorica)}\n${
+            !saldoConhecido
+              ? "ATENÇÃO: o saldo em conta NÃO é conhecido (nenhuma conta bancária tem saldo informado nem sincronizado). NÃO afirme nada sobre fôlego de caixa, runway ou queima. Diga que falta informar o saldo das contas para responder essa pergunta."
+              : runwayMeses !== null
+                ? `A empresa está queimando caixa: o saldo atual dura cerca de ${runwayMeses} meses nesse ritmo.`
+                : "As entradas projetadas cobrem as saídas no ritmo atual."
+          }`,
         },
       ],
       {
@@ -291,17 +306,20 @@ Escreva em português claro, sem jargão. Cada insight tem no máximo duas frase
     const forecast = {
       forecast: projecao,
       insights: narracao.dados?.insights ?? [
-        runwayMeses !== null
-          ? `No ritmo atual, o saldo em conta cobre cerca de ${runwayMeses} meses.`
-          : "As entradas projetadas cobrem as saídas no período.",
+        !saldoConhecido
+          ? "Informe o saldo das contas bancárias em Configurações para o sistema conseguir dizer por quantos meses o caixa aguenta."
+          : runwayMeses !== null
+            ? `No ritmo atual, o saldo em conta cobre cerca de ${runwayMeses} meses.`
+            : "As entradas projetadas cobrem as saídas no período.",
         `${fmt(contratadoTotal)} das entradas do período já estão contratadas.`,
       ],
       risk_level: narracao.dados?.risk_level ?? (runwayMeses !== null && runwayMeses < 3 ? "high" : "low"),
       risk_explanation:
         narracao.dados?.risk_explanation ??
         "Projeção calculada a partir dos vencimentos já registrados e da média histórica.",
-      runway_meses: runwayMeses,
-      saldo_inicial: saldoInicial,
+      runway_meses: saldoConhecido ? runwayMeses : null,
+      saldo_inicial: saldoConhecido ? saldoInicial : null,
+      saldo_conhecido: saldoConhecido,
       calculado_por: "motor_deterministico",
       precisao: {
         wape: precisao.wape,

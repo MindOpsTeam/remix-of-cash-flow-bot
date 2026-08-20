@@ -404,6 +404,8 @@ export type Database = {
       }
       bank_accounts: {
         Row: {
+          saldo_inicial: number | null
+          saldo_inicial_data: string | null
           account_type: string | null
           balance: number | null
           bank_name: string | null
@@ -416,6 +418,8 @@ export type Database = {
           name: string
         }
         Insert: {
+          saldo_inicial?: number | null
+          saldo_inicial_data?: string | null
           account_type?: string | null
           balance?: number | null
           bank_name?: string | null
@@ -428,6 +432,8 @@ export type Database = {
           name: string
         }
         Update: {
+          saldo_inicial?: number | null
+          saldo_inicial_data?: string | null
           account_type?: string | null
           balance?: number | null
           bank_name?: string | null
@@ -5233,9 +5239,11 @@ export type Database = {
           created_at: string
           id: string
           invoice_id: string | null
+          payment_date: string | null
           source: string
           status: string
           tipo: string
+          transaction_id: string | null
           updated_at: string
           valor: number
           vencimento: string
@@ -5246,6 +5254,8 @@ export type Database = {
           created_at?: string
           id?: string
           invoice_id?: string | null
+          payment_date?: string | null
+          transaction_id?: string | null
           source?: string
           status?: string
           tipo: string
@@ -5259,6 +5269,8 @@ export type Database = {
           created_at?: string
           id?: string
           invoice_id?: string | null
+          payment_date?: string | null
+          transaction_id?: string | null
           source?: string
           status?: string
           tipo?: string

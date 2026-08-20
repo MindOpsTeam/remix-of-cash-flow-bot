@@ -6,7 +6,8 @@ import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { formatCurrency } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, TrendingUp, AlertTriangle, Shield, RefreshCw, Target, FileSignature, Repeat } from "lucide-react";
+import { Loader2, TrendingUp, AlertTriangle, Shield, RefreshCw, Target, FileSignature, Repeat, Wallet } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   Area, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ComposedChart,
 } from "recharts";
@@ -67,6 +68,9 @@ export default function CashFlowForecast() {
   const [riskLevel, setRiskLevel] = useState("");
   const [riskExplanation, setRiskExplanation] = useState("");
   const [precisao, setPrecisao] = useState<Precisao | null>(null);
+  // undefined = a resposta é de uma versão anterior da função e não diz nada
+  // sobre isso; nesse caso não inventamos aviso nenhum.
+  const [saldoConhecido, setSaldoConhecido] = useState<boolean | undefined>(undefined);
   const [motor, setMotor] = useState("");
   const [error, setError] = useState("");
 
@@ -101,6 +105,7 @@ export default function CashFlowForecast() {
       setRiskLevel(data.risk_level || "");
       setRiskExplanation(data.risk_explanation || "");
       setPrecisao(data.precisao || null);
+      setSaldoConhecido(data.saldo_conhecido);
       setMotor(data.motor || "");
     } catch (err: any) {
       setError(err.message);
@@ -174,6 +179,27 @@ export default function CashFlowForecast() {
         </Card>
       ) : (
         <div className="space-y-6">
+          {/* Saldo desconhecido não é saldo zero. Antes o sistema somava zero e
+              seguia como se soubesse, o que produzia projeção de saldo e
+              silêncio sobre fôlego de caixa, que é justamente a pergunta. */}
+          {saldoConhecido === false && (
+            <div className="flex items-start gap-3 rounded-lg border border-[hsl(var(--warning))]/40 bg-[hsl(var(--warning))]/[0.08] px-4 py-3">
+              <Wallet className="h-4 w-4 text-[hsl(var(--warning))] mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Nenhuma conta bancária tem saldo informado.
+                </p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Sem isso, a projeção abaixo mostra a variação do caixa, não o dinheiro que existe, e o sistema
+                  não consegue dizer por quantos meses o caixa aguenta.{" "}
+                  <Link to="/settings/bank-accounts" className="text-primary underline underline-offset-2">
+                    Informar saldo das contas
+                  </Link>
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Precisão medida: o único número que transforma projeção em ferramenta
               de decisão. Sem meses fechados, diz que ainda está medindo. */}
           {precisao && (

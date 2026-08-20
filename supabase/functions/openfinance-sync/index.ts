@@ -19,8 +19,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authenticate, assertMembership, assertCanWrite, jsonResp } from "../_shared/auth.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { syncPluggyConnection } from "../_shared/openfinance-sync.ts";
-import {
 import { getCronSecret } from "../_shared/cron.ts";
+import {
   parseImportItems,
   janelaConciliacao,
   FONTES_CONCILIAVEIS,

@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     // credencial vem do Vault (migration 20260819180000). A coluna da tabela
     // foi esvaziada e o SELECT dela é revogado do cliente.
     const apiKey = await segredoDaIntegracao(
-      supabase, company_id,
+      serviceClient, company_id as string,
       "asaas", env === "production" ? "api_key_production" : "api_key_sandbox",
     );
 
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
           email: config.webhook_email || config.notification_email || undefined,
           enabled: true,
           interrupted: false,
-          authToken: (await segredoDaIntegracao(supabase, company_id, "asaas", "webhook_auth_token")) || undefined,
+          authToken: (await segredoDaIntegracao(serviceClient, company_id as string, "asaas", "webhook_auth_token")) || undefined,
           apiVersion: 3,
           sendType: config.webhook_send_type || "SEQUENTIALLY",
           events: (config.enabled_events as string[])?.length > 0

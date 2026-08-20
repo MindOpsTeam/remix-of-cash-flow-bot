@@ -205,20 +205,79 @@ export function useBillsPayable() {
     onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });
 
+  /**
+   * Baixa de conta a pagar.
+   *
+   * Antes daqui só mudava o status. A despesa NUNCA virava lançamento, e o DRE
+   * lê exclusivamente `transactions`: o dono pagava quarenta contas no mês e via
+   * receita cheia com despesa quase zero, ou seja, lucro que não existe. Este é
+   * o espelho exato do que markAsReceived já fazia do lado da receita.
+   */
   const markAsPaid = useMutation({
-    mutationFn: async (bill: { id: string; approval_status?: string }) => {
+    mutationFn: async (bill: {
+      id: string;
+      approval_status?: string;
+      company_id?: string;
+      valor?: number;
+      fornecedor?: string;
+      descricao?: string | null;
+      status?: string;
+    }) => {
       if (bill.approval_status === "awaiting_approval") {
         throw new Error("Conta aguardando aprovação — aprove antes de pagar");
       }
       if (bill.approval_status === "rejected") {
         throw new Error("Conta rejeitada não pode ser paga");
       }
-      const { error } = await supabase.from("bills_payable").update({ status: "pago" }).eq("id", bill.id);
+      if (bill.status === "pago") throw new Error("Conta já paga");
+      if (bill.status === "cancelado") throw new Error("Conta cancelada não pode ser paga");
+      if (!user) throw new Error("Sessão expirada");
+
+      // Relemos a conta em vez de confiar no que a tela mandou: o valor e a
+      // conta contábil que vão para o DRE precisam ser os do banco.
+      const { data: atual, error: leituraErr } = await supabase
+        .from("bills_payable")
+        .select("id, company_id, valor, fornecedor, descricao, status, account_id, transaction_id")
+        .eq("id", bill.id)
+        .single();
+      if (leituraErr) throw leituraErr;
+      if (atual.status === "pago") throw new Error("Conta já paga");
+      if (atual.transaction_id) throw new Error("Esta conta já tem lançamento vinculado");
+
+      const hoje = new Date().toISOString().split("T")[0];
+
+      const { data: tx, error: txErr } = await supabase
+        .from("transactions")
+        .insert({
+          company_id: atual.company_id,
+          user_id: user.id,
+          date: hoje,
+          description: atual.descricao || atual.fornecedor,
+          amount: Number(atual.valor),
+          type: "expense",
+          account_id: atual.account_id,
+          status: "confirmed",
+          source: "bill_payable",
+        })
+        .select("id")
+        .single();
+      if (txErr) throw txErr;
+
+      const { error } = await supabase
+        .from("bills_payable")
+        .update({
+          status: "pago",
+          payment_date: hoje,
+          transaction_id: tx.id,
+          valor_baixado: Number(atual.valor),
+        })
+        .eq("id", bill.id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk });
-      toast.success("Conta marcada como paga");
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      toast.success("Pagamento registrado — despesa lançada no DRE");
     },
     onError: (e: Error) => toast.error(mensagemDeErro(e)),
   });

@@ -2,6 +2,7 @@ import { mensagemDeErro } from "@/lib/erros";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 export interface TaxGuide {
@@ -35,6 +36,7 @@ function computeStatus(guide: { status: string; vencimento: string }): string {
 
 export function useTaxGuides() {
   const { company } = useCompany();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const companyId = company?.id;
   const qk = ["tax_guides", companyId];
@@ -91,14 +93,52 @@ export function useTaxGuides() {
     onError: (e: Error) => toast.error("Erro ao remover: " + mensagemDeErro(e)),
   });
 
+  /**
+   * Imposto pago é despesa. Antes daqui só mudava o status, e como o DRE lê
+   * exclusivamente `transactions`, o imposto pago sumia do resultado: o dono
+   * via um lucro que já tinha ido embora para a Receita Federal.
+   */
   const markAsPaid = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("tax_guides").update({ status: "pago" }).eq("id", id);
+      if (!user) throw new Error("Sessão expirada");
+
+      const { data: guia, error: leituraErr } = await supabase
+        .from("tax_guides")
+        .select("id, company_id, tipo, competencia, valor, status, transaction_id")
+        .eq("id", id)
+        .single();
+      if (leituraErr) throw leituraErr;
+      if (guia.status === "pago") throw new Error("Guia já paga");
+      if (guia.transaction_id) throw new Error("Esta guia já tem lançamento vinculado");
+
+      const hoje = new Date().toISOString().split("T")[0];
+
+      const { data: tx, error: txErr } = await supabase
+        .from("transactions")
+        .insert({
+          company_id: guia.company_id,
+          user_id: user.id,
+          date: hoje,
+          description: `${guia.tipo} · competência ${guia.competencia}`,
+          amount: Number(guia.valor),
+          type: "expense",
+          status: "confirmed",
+          source: "tax_guide",
+        })
+        .select("id")
+        .single();
+      if (txErr) throw txErr;
+
+      const { error } = await supabase
+        .from("tax_guides")
+        .update({ status: "pago", payment_date: hoje, transaction_id: tx.id })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: qk });
-      toast.success("Guia marcada como paga");
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      toast.success("Guia paga — despesa lançada no DRE");
     },
     onError: (e: Error) => toast.error("Erro: " + mensagemDeErro(e)),
   });

@@ -65,20 +65,39 @@ export function TransactionForm({ open, onOpenChange, onSuccess }: TransactionFo
   const [aiSuggested, setAiSuggested] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
 
+  // As opções vêm da empresa ALVO, não da empresa ativa do contexto.
+  // Antes vinham de company.id: quem trocava a empresa no seletor gravava o
+  // lançamento na empresa B com a conta contábil e o centro de custo da
+  // empresa A. O DRE da B ficava com linha "sem conta" e o da A ganhava um
+  // lançamento que não era dele. A auditoria acusa depois (conta_de_outra_
+  // empresa), mas o formulário não podia abrir essa porta.
+  const empresaDasOpcoes = targetCompanyId || company?.id;
+
   useEffect(() => {
-    if (!company) return;
+    if (!empresaDasOpcoes) return;
+    let cancelado = false;
     const fetchOptions = async () => {
       const [accts, ccs, banks] = await Promise.all([
-        supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", company.id).order("code"),
-        supabase.from("cost_centers").select("id, name, category").eq("company_id", company.id).eq("active", true).order("name"),
-        supabase.from("bank_accounts").select("id, name").eq("company_id", company.id).order("name"),
+        supabase.from("chart_of_accounts").select("id, name, code, type").eq("company_id", empresaDasOpcoes).order("code"),
+        supabase.from("cost_centers").select("id, name, category").eq("company_id", empresaDasOpcoes).eq("active", true).order("name"),
+        supabase.from("bank_accounts").select("id, name").eq("company_id", empresaDasOpcoes).order("name"),
       ]);
+      if (cancelado) return;
       if (accts.data) setAccounts(accts.data);
       if (ccs.data) setCostCenters(ccs.data as any);
       if (banks.data) setBankAccounts(banks.data);
     };
     fetchOptions();
-  }, [company]);
+    return () => { cancelado = true; };
+  }, [empresaDasOpcoes]);
+
+  // Trocar de empresa invalida o que já estava escolhido: manter o id antigo
+  // selecionado é o mesmo bug por outro caminho.
+  const primeiraEmpresa = useRef(true);
+  useEffect(() => {
+    if (primeiraEmpresa.current) { primeiraEmpresa.current = false; return; }
+    setForm((f) => ({ ...f, account_id: "", cost_center_id: "", bank_account_id: "" }));
+  }, [empresaDasOpcoes]);
 
   const classifyWithAI = useCallback(async (description: string) => {
     if (!company || description.trim().length < 5) return;
