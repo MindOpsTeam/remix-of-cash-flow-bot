@@ -784,6 +784,13 @@ export type Database = {
             referencedColumns: ["contact_id"]
           },
           {
+            foreignKeyName: "bills_payable_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_robusta"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "bills_payable_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
@@ -2331,6 +2338,13 @@ export type Database = {
             referencedColumns: ["contact_id"]
           },
           {
+            foreignKeyName: "contracts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_robusta"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "contracts_cost_center_id_fkey"
             columns: ["cost_center_id"]
             isOneToOne: false
@@ -2599,6 +2613,128 @@ export type Database = {
             foreignKeyName: "focus_config_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: true
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      forecast_accuracy: {
+        Row: {
+          avaliado_em: string
+          company_id: string
+          dentro_da_banda: boolean | null
+          despesa_prevista: number
+          despesa_real: number
+          id: string
+          mes_alvo: string
+          motor: string
+          receita_prevista: number
+          receita_real: number
+        }
+        Insert: {
+          avaliado_em?: string
+          company_id: string
+          dentro_da_banda?: boolean | null
+          despesa_prevista: number
+          despesa_real: number
+          id?: string
+          mes_alvo: string
+          motor: string
+          receita_prevista: number
+          receita_real: number
+        }
+        Update: {
+          avaliado_em?: string
+          company_id?: string
+          dentro_da_banda?: boolean | null
+          despesa_prevista?: number
+          despesa_real?: number
+          id?: string
+          mes_alvo?: string
+          motor?: string
+          receita_prevista?: number
+          receita_real?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forecast_accuracy_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forecast_accuracy_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "forecast_accuracy_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      forecast_snapshots: {
+        Row: {
+          company_id: string
+          created_at: string
+          despesa_prevista: number
+          gerado_em: string
+          id: string
+          mes_alvo: string
+          motor: string
+          p10_receita: number | null
+          p90_receita: number | null
+          receita_prevista: number
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          despesa_prevista: number
+          gerado_em?: string
+          id?: string
+          mes_alvo: string
+          motor: string
+          p10_receita?: number | null
+          p90_receita?: number | null
+          receita_prevista: number
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          despesa_prevista?: number
+          gerado_em?: string
+          id?: string
+          mes_alvo?: string
+          motor?: string
+          p10_receita?: number | null
+          p90_receita?: number | null
+          receita_prevista?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forecast_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forecast_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "forecast_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
           },
@@ -2999,6 +3135,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "v_recompra_clientes"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "invoices_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_robusta"
             referencedColumns: ["contact_id"]
           },
           {
@@ -4040,6 +4183,13 @@ export type Database = {
             referencedRelation: "v_recompra_clientes"
             referencedColumns: ["contact_id"]
           },
+          {
+            foreignKeyName: "purchase_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_robusta"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       receivables: {
@@ -4175,6 +4325,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "v_recompra_clientes"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "receivables_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_robusta"
             referencedColumns: ["contact_id"]
           },
           {
@@ -4469,6 +4626,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "v_recompra_clientes"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "sales_orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_robusta"
             referencedColumns: ["contact_id"]
           },
           {
@@ -5440,6 +5604,13 @@ export type Database = {
             referencedColumns: ["contact_id"]
           },
           {
+            foreignKeyName: "transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_robusta"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "transactions_cost_center_id_fkey"
             columns: ["cost_center_id"]
             isOneToOne: false
@@ -6098,6 +6269,13 @@ export type Database = {
             referencedRelation: "v_recompra_clientes"
             referencedColumns: ["contact_id"]
           },
+          {
+            foreignKeyName: "contracts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_recompra_robusta"
+            referencedColumns: ["contact_id"]
+          },
         ]
       }
       v_dre_linhas: {
@@ -6122,6 +6300,38 @@ export type Database = {
             referencedRelation: "chart_of_accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
+      v_fluxo_mensal: {
+        Row: {
+          company_id: string | null
+          despesa: number | null
+          lancamentos: number | null
+          mes: string | null
+          receita: number | null
+        }
+        Relationships: [
           {
             foreignKeyName: "transactions_company_id_fkey"
             columns: ["company_id"]
@@ -6371,16 +6581,6 @@ export type Database = {
           },
         ]
       }
-      v_fluxo_mensal: {
-        Row: {
-          company_id: string | null
-          despesa: number | null
-          lancamentos: number | null
-          mes: string | null
-          receita: number | null
-        }
-        Relationships: []
-      }
       v_recompra_robusta: {
         Row: {
           company_id: string | null
@@ -6396,7 +6596,29 @@ export type Database = {
           ticket_medio: number | null
           ultima_compra: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
       }
       v_stripe_repasses: {
         Row: {
@@ -6512,6 +6734,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      avaliar_acuracia_forecast: { Args: never; Returns: number }
       bootstrap_instalacao: {
         Args: { p_functions_url?: string }
         Returns: Json
