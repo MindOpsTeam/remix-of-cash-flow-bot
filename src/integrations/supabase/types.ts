@@ -441,43 +441,8 @@ export type Database = {
         }
         Relationships: []
       }
-      job_runs: {
-        Row: {
-          concluido_em: string | null
-          detalhe: Json | null
-          disparado_em: string
-          erro: string | null
-          id: string
-          nome: string
-          ok: boolean | null
-          request_id: number | null
-        }
-        Insert: {
-          concluido_em?: string | null
-          detalhe?: Json | null
-          disparado_em?: string
-          erro?: string | null
-          id?: string
-          nome: string
-          ok?: boolean | null
-          request_id?: number | null
-        }
-        Update: {
-          concluido_em?: string | null
-          detalhe?: Json | null
-          disparado_em?: string
-          erro?: string | null
-          id?: string
-          nome?: string
-          ok?: boolean | null
-          request_id?: number | null
-        }
-        Relationships: []
-      }
       bank_accounts: {
         Row: {
-          saldo_inicial: number | null
-          saldo_inicial_data: string | null
           account_type: string | null
           balance: number | null
           bank_name: string | null
@@ -488,10 +453,10 @@ export type Database = {
           id: string
           last_synced_at: string | null
           name: string
+          saldo_inicial: number | null
+          saldo_inicial_data: string | null
         }
         Insert: {
-          saldo_inicial?: number | null
-          saldo_inicial_data?: string | null
           account_type?: string | null
           balance?: number | null
           bank_name?: string | null
@@ -502,10 +467,10 @@ export type Database = {
           id?: string
           last_synced_at?: string | null
           name: string
-        }
-        Update: {
           saldo_inicial?: number | null
           saldo_inicial_data?: string | null
+        }
+        Update: {
           account_type?: string | null
           balance?: number | null
           bank_name?: string | null
@@ -516,6 +481,8 @@ export type Database = {
           id?: string
           last_synced_at?: string | null
           name?: string
+          saldo_inicial?: number | null
+          saldo_inicial_data?: string | null
         }
         Relationships: [
           {
@@ -716,7 +683,6 @@ export type Database = {
       }
       bills_payable: {
         Row: {
-          import_batch_id: string | null
           account_id: string | null
           approval_status: string
           approved_at: string | null
@@ -731,6 +697,7 @@ export type Database = {
           external_id: string | null
           fornecedor: string
           id: string
+          import_batch_id: string | null
           is_recurring: boolean
           linha_digitavel: string | null
           nosso_numero: string | null
@@ -749,7 +716,6 @@ export type Database = {
           vencimento: string
         }
         Insert: {
-          import_batch_id?: string | null
           account_id?: string | null
           approval_status?: string
           approved_at?: string | null
@@ -764,6 +730,7 @@ export type Database = {
           external_id?: string | null
           fornecedor: string
           id?: string
+          import_batch_id?: string | null
           is_recurring?: boolean
           linha_digitavel?: string | null
           nosso_numero?: string | null
@@ -782,7 +749,6 @@ export type Database = {
           vencimento: string
         }
         Update: {
-          import_batch_id?: string | null
           account_id?: string | null
           approval_status?: string
           approved_at?: string | null
@@ -797,6 +763,7 @@ export type Database = {
           external_id?: string | null
           fornecedor?: string
           id?: string
+          import_batch_id?: string | null
           is_recurring?: boolean
           linha_digitavel?: string | null
           nosso_numero?: string | null
@@ -3001,6 +2968,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "inter_config_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_conciliacao_saldo"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
             foreignKeyName: "inter_config_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: true
@@ -3233,6 +3207,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      job_runs: {
+        Row: {
+          concluido_em: string | null
+          detalhe: Json | null
+          disparado_em: string
+          erro: string | null
+          id: string
+          nome: string
+          ok: boolean | null
+          request_id: number | null
+        }
+        Insert: {
+          concluido_em?: string | null
+          detalhe?: Json | null
+          disparado_em?: string
+          erro?: string | null
+          id?: string
+          nome: string
+          ok?: boolean | null
+          request_id?: number | null
+        }
+        Update: {
+          concluido_em?: string | null
+          detalhe?: Json | null
+          disparado_em?: string
+          erro?: string | null
+          id?: string
+          nome?: string
+          ok?: boolean | null
+          request_id?: number | null
+        }
+        Relationships: []
       }
       kpi_metas: {
         Row: {
@@ -3667,6 +3674,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "owner_transactions_pj_bank_account_id_fkey"
+            columns: ["pj_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_conciliacao_saldo"
+            referencedColumns: ["bank_account_id"]
           },
           {
             foreignKeyName: "owner_transactions_pj_transaction_id_fkey"
@@ -4275,7 +4289,6 @@ export type Database = {
       }
       receivables: {
         Row: {
-          import_batch_id: string | null
           account_id: string | null
           amount: number
           asaas_payment_id: string | null
@@ -4289,6 +4302,7 @@ export type Database = {
           due_date: string
           external_id: string | null
           id: string
+          import_batch_id: string | null
           invoice_id: string | null
           parcela: number | null
           parcelas_total: number | null
@@ -4304,7 +4318,6 @@ export type Database = {
           valor_baixado: number
         }
         Insert: {
-          import_batch_id?: string | null
           account_id?: string | null
           amount: number
           asaas_payment_id?: string | null
@@ -4318,6 +4331,7 @@ export type Database = {
           due_date: string
           external_id?: string | null
           id?: string
+          import_batch_id?: string | null
           invoice_id?: string | null
           parcela?: number | null
           parcelas_total?: number | null
@@ -4333,7 +4347,6 @@ export type Database = {
           valor_baixado?: number
         }
         Update: {
-          import_batch_id?: string | null
           account_id?: string | null
           amount?: number
           asaas_payment_id?: string | null
@@ -4347,6 +4360,7 @@ export type Database = {
           due_date?: string
           external_id?: string | null
           id?: string
+          import_batch_id?: string | null
           invoice_id?: string | null
           parcela?: number | null
           parcelas_total?: number | null
@@ -5103,6 +5117,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stripe_config_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_conciliacao_saldo"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
             foreignKeyName: "stripe_config_centro_custo_taxa_id_fkey"
             columns: ["centro_custo_taxa_id"]
             isOneToOne: false
@@ -5333,10 +5354,10 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           payment_date?: string | null
-          transaction_id?: string | null
           source?: string
           status?: string
           tipo: string
+          transaction_id?: string | null
           updated_at?: string
           valor?: number
           vencimento: string
@@ -5348,10 +5369,10 @@ export type Database = {
           id?: string
           invoice_id?: string | null
           payment_date?: string | null
-          transaction_id?: string | null
           source?: string
           status?: string
           tipo?: string
+          transaction_id?: string | null
           updated_at?: string
           valor?: number
           vencimento?: string
@@ -5383,6 +5404,13 @@ export type Database = {
             columns: ["invoice_id"]
             isOneToOne: false
             referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_guides_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
         ]
@@ -5434,48 +5462,48 @@ export type Database = {
       }
       title_payments: {
         Row: {
-          juros: number
-          multa: number
-          desconto: number
-          estorno_de: string | null
-          motivo_estorno: string | null
-          criado_por: string | null
           amount: number
           company_id: string
           created_at: string
+          criado_por: string | null
+          desconto: number
+          estorno_de: string | null
           id: string
+          juros: number
+          motivo_estorno: string | null
+          multa: number
           paid_at: string
           title_id: string
           title_kind: string
           transaction_id: string
         }
         Insert: {
-          juros?: number
-          multa?: number
-          desconto?: number
-          estorno_de?: string | null
-          motivo_estorno?: string | null
-          criado_por?: string | null
           amount: number
           company_id: string
           created_at?: string
+          criado_por?: string | null
+          desconto?: number
+          estorno_de?: string | null
           id?: string
+          juros?: number
+          motivo_estorno?: string | null
+          multa?: number
           paid_at?: string
           title_id: string
           title_kind: string
           transaction_id: string
         }
         Update: {
-          juros?: number
-          multa?: number
-          desconto?: number
-          estorno_de?: string | null
-          motivo_estorno?: string | null
-          criado_por?: string | null
           amount?: number
           company_id?: string
           created_at?: string
+          criado_por?: string | null
+          desconto?: number
+          estorno_de?: string | null
           id?: string
+          juros?: number
+          motivo_estorno?: string | null
+          multa?: number
           paid_at?: string
           title_id?: string
           title_kind?: string
@@ -5502,6 +5530,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_group_ap_ar"
             referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "title_payments_estorno_de_fkey"
+            columns: ["estorno_de"]
+            isOneToOne: false
+            referencedRelation: "title_payments"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "title_payments_transaction_id_fkey"
@@ -5668,6 +5703,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "v_conciliacao_saldo"
+            referencedColumns: ["bank_account_id"]
           },
           {
             foreignKeyName: "transactions_company_id_fkey"
@@ -6318,6 +6360,45 @@ export type Database = {
           },
         ]
       }
+      v_conciliacao_saldo: {
+        Row: {
+          bank_account_id: string | null
+          bank_name: string | null
+          company_id: string | null
+          conta: string | null
+          diferenca: number | null
+          lancamentos_na_conta: number | null
+          lancamentos_sem_conta_bancaria: number | null
+          saldo_extrato: number | null
+          saldo_inicial: number | null
+          saldo_inicial_data: string | null
+          saldo_sistema: number | null
+          situacao: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_ativacao_empresa"
+            referencedColumns: ["company_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "v_group_ap_ar"
+            referencedColumns: ["company_id"]
+          },
+        ]
+      }
       v_contratos_a_reajustar: {
         Row: {
           aplica_sozinho: boolean | null
@@ -6430,36 +6511,6 @@ export type Database = {
             referencedColumns: ["company_id"]
           },
         ]
-      }
-      v_conciliacao_saldo: {
-        Row: {
-          bank_account_id: string | null
-          bank_name: string | null
-          company_id: string | null
-          conta: string | null
-          diferenca: number | null
-          lancamentos_na_conta: number | null
-          lancamentos_sem_conta_bancaria: number | null
-          saldo_extrato: number | null
-          saldo_inicial: number | null
-          saldo_inicial_data: string | null
-          saldo_sistema: number | null
-          situacao: string | null
-        }
-        Relationships: []
-      }
-      v_saude_jobs: {
-        Row: {
-          active: boolean | null
-          concluido_em: string | null
-          erro: string | null
-          jobname: string | null
-          ok: boolean | null
-          schedule: string | null
-          situacao: string | null
-          ultimo_disparo: string | null
-        }
-        Relationships: []
       }
       v_fluxo_mensal: {
         Row: {
@@ -6758,6 +6809,19 @@ export type Database = {
           },
         ]
       }
+      v_saude_jobs: {
+        Row: {
+          active: boolean | null
+          concluido_em: string | null
+          erro: string | null
+          jobname: string | null
+          ok: boolean | null
+          schedule: string | null
+          situacao: string | null
+          ultimo_disparo: string | null
+        }
+        Relationships: []
+      }
       v_stripe_repasses: {
         Row: {
           amount_bruto: number | null
@@ -6873,26 +6937,23 @@ export type Database = {
         }[]
       }
       avaliar_acuracia_forecast: { Args: never; Returns: number }
+      baixar_titulo: {
+        Args: {
+          p_bank_account_id?: string
+          p_data?: string
+          p_desconto?: number
+          p_juros?: number
+          p_kind: string
+          p_multa?: number
+          p_title_id: string
+          p_valor_pago: number
+        }
+        Returns: Json
+      }
       bootstrap_instalacao: {
         Args: { p_functions_url?: string }
         Returns: Json
       }
-      baixar_titulo: {
-        Args: {
-          p_kind: string
-          p_title_id: string
-          p_valor_pago: number
-          p_data?: string
-          p_juros?: number
-          p_multa?: number
-          p_desconto?: number
-          p_bank_account_id?: string | null
-        }
-        Returns: Json
-      }
-      estornar_baixa: { Args: { p_pagamento_id: string; p_motivo: string }; Returns: Json }
-      desfazer_importacao: { Args: { p_company_id: string; p_lote: string }; Returns: Json }
-      is_company_admin: { Args: { p_company_id: string }; Returns: boolean }
       brl: { Args: { p_valor: number }; Returns: string }
       cadastro_esta_aberto: { Args: never; Returns: boolean }
       cadastro_permitido: {
@@ -6909,17 +6970,38 @@ export type Database = {
         Returns: Json
       }
       consagrar_dono_se_primeiro: { Args: never; Returns: boolean }
+      conta_de_encargos: {
+        Args: { p_company_id: string; p_tipo: string }
+        Returns: string
+      }
       create_company_for_user: {
         Args: { company_cnpj?: string; company_name: string }
         Returns: Json
       }
       definir_cadastro_aberto: { Args: { p_aberto: boolean }; Returns: boolean }
       demonstracao_disponivel: { Args: never; Returns: boolean }
+      desfazer_importacao: {
+        Args: { p_company_id: string; p_lote: string }
+        Returns: Json
+      }
+      encerrar_job_run: {
+        Args: {
+          p_detalhe?: Json
+          p_erro?: string
+          p_ok: boolean
+          p_run_id: string
+        }
+        Returns: undefined
+      }
       encerrar_recorrencia: {
         Args: { p_recurrence_group_id: string }
         Returns: Json
       }
       ensure_cron_secret: { Args: never; Returns: string }
+      estornar_baixa: {
+        Args: { p_motivo: string; p_pagamento_id: string }
+        Returns: Json
+      }
       faturar_pedido: {
         Args: {
           p_intervalo_dias?: number
@@ -6976,6 +7058,7 @@ export type Database = {
           provider: string
         }[]
       }
+      is_company_admin: { Args: { p_company_id: string }; Returns: boolean }
       is_company_member: { Args: { _company_id: string }; Returns: boolean }
       is_demo_account: { Args: never; Returns: boolean }
       limpar_demonstracao_se_remixado: { Args: never; Returns: Json }
