@@ -104,47 +104,6 @@ export function useReceivables() {
 
   // Baixa manual: FECHA O LOOP no DRE — cria 1 lançamento de receita classificado
   // (type=revenue, status=confirmed, account/cost herdados) e linka no receivable.
-  const markAsReceived = useMutation({
-    mutationFn: async (r: Receivable) => {
-      if (r.status === "recebido") throw new Error("Conta já recebida");
-      if (r.status === "cancelado") throw new Error("Conta cancelada");
-      if (!r.account_id || !r.cost_center_id) {
-        throw new Error("Defina conta contábil e centro de custo antes de dar baixa");
-      }
-      if (!user) throw new Error("Sessão expirada");
-      const today = new Date().toISOString().split("T")[0];
-
-      const { data: tx, error: txErr } = await db
-        .from("transactions")
-        .insert({
-          company_id: r.company_id,
-          user_id: user.id,
-          date: today,
-          description: r.description,
-          amount: r.amount,
-          type: "revenue",
-          account_id: r.account_id,
-          cost_center_id: r.cost_center_id,
-          status: "confirmed",
-          source: "receivable",
-        })
-        .select("id")
-        .single();
-      if (txErr) throw txErr;
-
-      const { error } = await db
-        .from("receivables")
-        .update({ status: "recebido", payment_date: today, transaction_id: tx.id })
-        .eq("id", r.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: qk });
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-      toast.success("Recebimento registrado — receita lançada no DRE");
-    },
-    onError: (e: Error) => toast.error(mensagemDeErro(e)),
-  });
 
   const cancelReceivable = useMutation({
     mutationFn: async (id: string) => {
@@ -173,12 +132,14 @@ export function useReceivables() {
     onError: (e: Error) => toast.error("Erro ao remover: " + mensagemDeErro(e)),
   });
 
+  // NÃO existe mais um "dar baixa" aqui. Ver o comentário equivalente em
+  // useBillsPayable: a baixa vive na RPC `baixar_titulo`, que aceita valor
+  // parcial, juros, multa e desconto, e tem estorno do outro lado.
   return {
     ...query,
     receivables: query.data ?? [],
     createReceivable,
     updateReceivable,
-    markAsReceived,
     cancelReceivable,
     deleteReceivable,
   };

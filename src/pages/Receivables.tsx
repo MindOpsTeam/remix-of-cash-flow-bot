@@ -28,7 +28,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
 const sourceLabel: Record<string, string> = { manual: "Manual", contrato: "Contrato", asaas: "Asaas", stripe: "Stripe" };
 
 export default function Receivables() {
-  const { receivables, isLoading, createReceivable, updateReceivable, markAsReceived, cancelReceivable, deleteReceivable } = useReceivables();
+  const { receivables, isLoading, createReceivable, updateReceivable, cancelReceivable, deleteReceivable } = useReceivables();
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<(ReceivableInput & { id: string }) | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
