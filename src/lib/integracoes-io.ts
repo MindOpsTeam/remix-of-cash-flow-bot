@@ -9,6 +9,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { mensagemDaEdge, mensagemDoCorpo } from "@/lib/edge-erro";
+import { mensagemDeErro } from "@/lib/erros";
 
 export interface ResultadoAcao {
   ok: boolean;
@@ -276,7 +277,11 @@ export async function salvarIntegracao(
         return { ok: false, mensagem: "Integração desconhecida." };
     }
   } catch (e) {
-    return { ok: false, mensagem: (e as Error).message || "Não foi possível salvar." };
+    // mensagemDeErro traduz o que o Postgres devolve cru ("new row violates
+    // row-level security policy...") para uma frase que diz a causa E o
+    // caminho. Deixar o texto do banco vazar para a tela é a mesma falha do
+    // "non-2xx status code", só que do outro lado.
+    return { ok: false, mensagem: mensagemDeErro(e) };
   }
 }
 
