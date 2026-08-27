@@ -141,7 +141,8 @@ const sections: NavGroup[] = [
     items: [
       { to: "/reforma", label: "Simulador da Reforma", icon: Scale },
       { to: "/reforma/impacto", label: "Cadeia de crédito B2B", icon: Link2 },
-      { to: "/fiscal", label: "Notas Fiscais", icon: FileCheck },
+      { to: "/fiscal", label: "Emissão de Notas Fiscais", icon: FileSignature },
+      { to: "/fiscal/historico", label: "Notas Fiscais", icon: FileCheck },
       { to: "/fiscal/impostos", label: "Calendário de Impostos", icon: Calendar },
       { to: "/auditoria", label: "Auditoria", icon: BookOpenCheck },
       { to: "/contador", label: "Central do Contador", icon: FileDown },
