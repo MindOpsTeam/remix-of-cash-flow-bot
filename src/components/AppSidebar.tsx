@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { usePrefs } from "@/hooks/usePrefs";
-import appIconWhite from "@/assets/via/app-icon-white.png";
+import stayMark from "@/assets/stay-mark.png.asset.json";
 import { Pill } from "@viverdeia/design-system";
 import {
   LayoutDashboard,
@@ -530,7 +530,7 @@ export function SidebarContent({
     };
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center gap-1 py-4">
-        <img src={appIconWhite} alt="STAY" className="via-sidebar-brand-icon mb-1 h-9 w-9 rounded-lg" />
+        <img src={stayMark.url} alt="STAY" className="via-sidebar-brand-icon mb-1 h-9 w-9 rounded-lg" />
         {onSetCollapsed && (
           <button
             onClick={() => onSetCollapsed(false)}
@@ -588,7 +588,7 @@ export function SidebarContent({
       {/* Logo */}
       <div className="p-5 pb-4">
         <div className="flex items-center gap-3">
-          <img src={appIconWhite} alt="Viver de IA" className="via-sidebar-brand-icon h-9 w-9 rounded-lg" />
+          <img src={stayMark.url} alt="STAY" className="via-sidebar-brand-icon h-9 w-9 rounded-lg" />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-semibold tracking-[-0.02em] text-sidebar-foreground">
               STAY

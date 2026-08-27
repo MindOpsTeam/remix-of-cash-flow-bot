@@ -12,7 +12,7 @@ import { ViaThemeToggle } from "@/components/ViaThemeToggle";
 import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_TOUR_DISMISSED_KEY, DEMO_TOUR_STEP_KEY } from "@/lib/demo";
 import { plataformaBloqueada, demonstracaoDisponivel, limparDemonstracaoSeRemixado, cadastroEstaAberto } from "@/lib/rpc-plataforma";
 import { tokenDoConvite } from "@/hooks/useConvite";
-import appIcon from "@/assets/via/app-icon.png";
+import stayLogo from "@/assets/stay-logo.png.asset.json";
 import wordmarkWhite from "@/assets/via/wordmark-white.png";
 
 const LoginSignupForm = () => {
@@ -196,10 +196,9 @@ const LoginSignupForm = () => {
       <section className="flex min-h-screen items-center justify-center px-5 py-20 sm:px-8 lg:px-14">
         <div className="w-full max-w-[520px] via-route-enter">
           <div className="mb-9 flex items-center gap-3 lg:hidden">
-            <img src={appIcon} alt="Viver de IA" className="via-brand-icon h-11 w-11 rounded-lg" />
+            <img src={stayLogo.url} alt="STAY" className="h-11 w-auto" />
             <div>
-              <p className="text-lg font-semibold tracking-[-0.02em] text-foreground">FinanceAI</p>
-              <p className="text-xs text-muted-foreground">por Viver de IA</p>
+              <p className="text-xs text-muted-foreground">Gestao financeira de hospedagem</p>
             </div>
           </div>
 
@@ -353,7 +352,7 @@ const LoginSignupForm = () => {
             </form>
             </>
           ) : (
-            <form onSubmit={handleLogin} className="space-y-5" aria-label="Entrar no FinanceAI">
+            <form onSubmit={handleLogin} className="space-y-5" aria-label="Entrar na STAY">
               <Field
                 id="login-email"
                 label="Email"
@@ -389,7 +388,7 @@ const LoginSignupForm = () => {
               </Field>
               <Button type="submit" className="mt-2 w-full" size="lg" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-                {loading ? "Entrando..." : "Entrar no FinanceAI"}
+                {loading ? "Entrando..." : "Entrar na STAY"}
                 {!loading ? <ArrowRight aria-hidden="true" /> : null}
               </Button>
             </form>
