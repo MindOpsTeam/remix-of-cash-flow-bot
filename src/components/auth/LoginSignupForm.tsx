@@ -156,7 +156,7 @@ const LoginSignupForm = () => {
         <div className="relative z-10">
           <img src={wordmarkWhite} alt="Viver de IA" className="h-auto w-56" />
           <Pill className="via-dark-pill mt-7" size="sm">
-            FinanceAI · ERP financeiro
+            STAY · Gestão financeira da hospedagem
           </Pill>
         </div>
 

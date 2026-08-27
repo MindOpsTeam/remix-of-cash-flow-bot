@@ -1,6 +1,6 @@
 {
-  "name": "FinanceAI — ERP financeiro com agentes de IA",
-  "short_name": "FinanceAI",
+  "name": "STAY — Gestão financeira de hospedagem",
+  "short_name": "STAY",
   "description": "ERP financeiro multi-CNPJ com agentes de IA, pronto para a Reforma Tributária",
   "start_url": "/dashboard",
   "display": "standalone",
