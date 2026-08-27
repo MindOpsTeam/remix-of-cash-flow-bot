@@ -57,6 +57,10 @@ import {
   PanelLeftOpen,
   Repeat,
   ArrowDownToLine,
+  BedDouble,
+  CalendarRange,
+  Building2,
+  Percent,
 } from "lucide-react";
 
 // ---------- Personas (níveis de decisão do usuário do ERP) ----------
