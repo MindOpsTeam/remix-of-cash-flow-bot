@@ -78,6 +78,7 @@ const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 // Estoque & Fiscal
 const StockPage = lazy(() => import("./pages/Stock"));
 const FiscalPage = lazy(() => import("./pages/Fiscal"));
+const EmissaoNotasPage = lazy(() => import("./pages/fiscal/Emissao"));
 const NfseEmitPage = lazy(() => import("./pages/NfseEmit"));
 const TaxCalendarPage = lazy(() => import("./pages/fiscal/TaxCalendar"));
 const BillsPayablePage = lazy(() => import("./pages/fiscal/BillsPayable"));
