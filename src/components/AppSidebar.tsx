@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { usePrefs } from "@/hooks/usePrefs";
 import stayMark from "@/assets/stay-mark.png.asset.json";
-import stayLogo from "@/assets/stay-logo.png.asset.json";
 import { Pill } from "@viverdeia/design-system";
 import {
   LayoutDashboard,
