@@ -364,7 +364,7 @@ export function useStayOwnerStatements(referenceMonth: string) {
         .from("stay_owner_statements")
         .upsert(
           linhas.map((l) => ({ ...l, company_id: companyId! })),
-          { onConflict: "company_id,unit_id,reference_month" },
+          { onConflict: "unit_id,reference_month" },
         );
       if (error) throw error;
     },
