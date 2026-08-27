@@ -164,6 +164,7 @@ const AppRoutes = () => (
       {/* Estoque & Fiscal */}
       <Route path="/stock" element={<P><StockPage /></P>} />
       <Route path="/fiscal" element={<P><FiscalPage /></P>} />
+      <Route path="/fiscal/emissao" element={<P><EmissaoNotasPage /></P>} />
       <Route path="/fiscal/nfse/emit" element={<P><NfseEmitPage /></P>} />
       <Route path="/fiscal/plugnotas/emit" element={<P><PlugnotasEmitPage /></P>} />
       <Route path="/fiscal/focus/emit" element={<P><FocusEmitPage /></P>} />
