@@ -78,6 +78,7 @@ const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 // Estoque & Fiscal
 const StockPage = lazy(() => import("./pages/Stock"));
 const FiscalPage = lazy(() => import("./pages/Fiscal"));
+const EmissaoNotasPage = lazy(() => import("./pages/fiscal/Emissao"));
 const NfseEmitPage = lazy(() => import("./pages/NfseEmit"));
 const TaxCalendarPage = lazy(() => import("./pages/fiscal/TaxCalendar"));
 const BillsPayablePage = lazy(() => import("./pages/fiscal/BillsPayable"));
@@ -163,6 +164,7 @@ const AppRoutes = () => (
       {/* Estoque & Fiscal */}
       <Route path="/stock" element={<P><StockPage /></P>} />
       <Route path="/fiscal" element={<P><FiscalPage /></P>} />
+      <Route path="/fiscal/emissao" element={<P><EmissaoNotasPage /></P>} />
       <Route path="/fiscal/nfse/emit" element={<P><NfseEmitPage /></P>} />
       <Route path="/fiscal/plugnotas/emit" element={<P><PlugnotasEmitPage /></P>} />
       <Route path="/fiscal/focus/emit" element={<P><FocusEmitPage /></P>} />
