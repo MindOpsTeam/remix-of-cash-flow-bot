@@ -387,7 +387,7 @@ const LoginSignupForm = () => {
                   onChange={(e) => setLoginPassword(e.target.value)}
                 />
               </Field>
-              <Button type="submit" className="mt-2 w-full" size="lg" disabled={loading}>
+              <Button type="submit" variant="success" className="mt-2 w-full" size="lg" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
                 {loading ? "Entrando..." : "Entrar no FinanceAI"}
                 {!loading ? <ArrowRight aria-hidden="true" /> : null}
