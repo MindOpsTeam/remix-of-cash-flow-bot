@@ -18,7 +18,13 @@
  * produzisse a mesma mensagem: ruído de leitura de cinco segundos é mais barato
  * que silêncio sobre uma edição real.
  *
- * Uso:  node scripts/vigia-original.mjs [--seco]
+ * MEDIDO EM 30/08: nenhuma persuasão funciona neste agente. Base de conhecimento,
+ * AGENTS.md e até comentário no topo do arquivo que ele estava editando foram
+ * ignorados nos três testes — no último, o aviso empurrou o botão 12 linhas para
+ * baixo, provando que ele leu, e editou assim mesmo. Então este vigia não é uma
+ * camada a mais: é A defesa em banda. O resto é tirar o acesso de editor.
+ *
+ * Uso:  node scripts/vigia-original.mjs [--seco] [--reverter]
  */
 
 import { execFileSync } from "node:child_process";
@@ -34,6 +40,7 @@ const RUIDO_DE_SYNC = new Set(["Lovable update", "Work in progress"]);
 const raiz = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ARQUIVO_ESTADO = join(raiz, ".hermes", "state", "vigia-original.json");
 const seco = process.argv.includes("--seco");
+const reverter = process.argv.includes("--reverter");
 
 function sh(cmd, args) {
   return execFileSync(cmd, args, { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
@@ -112,6 +119,25 @@ if (doBot.length > 0) {
   }
 } else {
   console.log(`sem novidade (último visto: ${estado.ultimoVisto ?? "—"})`);
+}
+
+// Reverter é o que devolve tempo, porque impedir não dá. Restaura os arquivos que
+// o bot tocou ao último commit meu, em vez de `git revert`: os commits do Lovable
+// vêm como MERGE e o revert falha pedindo -m, justamente quando você tem pressa.
+if (reverter) {
+  const bom = ultimoBom?.sha ?? estado.ultimoBom;
+  if (!bom) {
+    console.error("vigia: não sei qual é o último commit bom; nada revertido.");
+    process.exit(1);
+  }
+  const sujos = sh("git", ["diff", "--name-only", bom, "origin/main"]).trim().split("\n").filter(Boolean);
+  if (sujos.length === 0) {
+    console.log(`nada a reverter: a árvore já bate com ${bom}`);
+  } else {
+    sh("git", ["fetch", "-q", "origin"]);
+    sh("git", ["checkout", bom, "--", ...sujos]);
+    console.log(`revertidos para ${bom}:\n  ${sujos.join("\n  ")}\n\nConfira com \`git diff --cached\` e commite.`);
+  }
 }
 
 if (!seco) {
