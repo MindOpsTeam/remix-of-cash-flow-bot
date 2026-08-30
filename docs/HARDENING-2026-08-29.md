@@ -141,6 +141,25 @@ chamada sem sessão, num remix recém-criado, antes de existir a primeira pessoa
 (ver `src/lib/rpc-plataforma.ts`). Revogar teria quebrado a higiene do remix — o
 tipo de estrago que uma passada de hardening cega faz.
 
+### A armadilha do `REVOKE ... FROM anon`
+
+A primeira tentativa **não mudou nada e não reclamou**. O default do Postgres
+para função é `EXECUTE` para `PUBLIC`, e `anon` herda por ali. A ACL era:
+
+```
+=X/postgres | postgres=X/postgres | authenticated=X/postgres | service_role=X/postgres
+^^ este grantee vazio é PUBLIC
+```
+
+`REVOKE ... FROM anon` tirava um grant explícito que nem sempre existia, e
+`has_function_privilege('anon', …)` continuava `true`. O comando roda, devolve
+sucesso, e a migration parece aplicada.
+
+O certo é `REVOKE ... FROM PUBLIC` e depois `GRANT ... TO authenticated,
+service_role` — nomeando quem deve ter. A migration termina com um `DO` que
+levanta exceção se sobrar RPC executável por `anon`: sem essa prova, a próxima
+migration acreditaria num estado que não existe.
+
 ---
 
 ## 6. MÉDIO — 12 tabelas fora da trava de whitelabel

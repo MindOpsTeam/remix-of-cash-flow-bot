@@ -87,11 +87,41 @@ END $$;
 -- segunda tranca, não a primeira. Fica de fora, de propósito,
 -- `limpar_demonstracao_se_remixado()`: ela É chamada sem sessão, num remix
 -- recém-criado, antes de existir a primeira pessoa (ver src/lib/rpc-plataforma.ts).
-REVOKE EXECUTE ON FUNCTION public.baixar_titulo(text, uuid, numeric, date, numeric, numeric, numeric, uuid) FROM anon;
-REVOKE EXECUTE ON FUNCTION public.estornar_baixa(uuid, text) FROM anon;
-REVOKE EXECUTE ON FUNCTION public.desfazer_importacao(uuid, uuid) FROM anon;
-REVOKE EXECUTE ON FUNCTION public.autores_da_empresa(uuid) FROM anon;
-REVOKE EXECUTE ON FUNCTION public.auditar_integridade_contabil(uuid) FROM anon;
+--
+-- ATENÇÃO — `REVOKE ... FROM anon` sozinho NÃO tira nada.
+-- O default do Postgres para função é EXECUTE para PUBLIC, e `anon` herda por
+-- ali. A ACL destas cinco era `=X/postgres | ... | authenticated=X/postgres`:
+-- aquele grantee vazio no começo é PUBLIC. Revogar de `anon` removia um grant
+-- explícito que às vezes nem existia, e `has_function_privilege('anon', …)`
+-- continuava true — a migration parecia ter rodado e não tinha mudado nada.
+-- Por isso: revoga de PUBLIC e devolve o acesso NOMEANDO quem deve ter.
+REVOKE EXECUTE ON FUNCTION public.baixar_titulo(text, uuid, numeric, date, numeric, numeric, numeric, uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.estornar_baixa(uuid, text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.desfazer_importacao(uuid, uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.autores_da_empresa(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.auditar_integridade_contabil(uuid) FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.baixar_titulo(text, uuid, numeric, date, numeric, numeric, numeric, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.estornar_baixa(uuid, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.desfazer_importacao(uuid, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.autores_da_empresa(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auditar_integridade_contabil(uuid) TO authenticated, service_role;
+
+-- Prova de que rodou: sem esta trava, a migration seguinte poderia acreditar
+-- num estado que não existe.
+DO $$
+DECLARE v_abertas int;
+BEGIN
+  SELECT count(*) INTO v_abertas
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public'
+     AND p.proname IN ('baixar_titulo','estornar_baixa','desfazer_importacao',
+                       'autores_da_empresa','auditar_integridade_contabil')
+     AND has_function_privilege('anon', p.oid, 'EXECUTE');
+  IF v_abertas > 0 THEN
+    RAISE EXCEPTION 'REVOKE nao pegou: % RPC de escrita ainda executam como anon', v_abertas;
+  END IF;
+END $$;
 
 -- ── 3. Trava de whitelabel nas tabelas que nasceram depois ────────────────
 --
