@@ -9,16 +9,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ViaThemeToggle } from "@/components/ViaThemeToggle";
-import { DEMO_EMAIL, DEMO_PASSWORD, DEMO_TOUR_DISMISSED_KEY, DEMO_TOUR_STEP_KEY } from "@/lib/demo";
 import { plataformaBloqueada, demonstracaoDisponivel, limparDemonstracaoSeRemixado, cadastroEstaAberto } from "@/lib/rpc-plataforma";
 import { tokenDoConvite } from "@/hooks/useConvite";
+import { useEntrarNaDemonstracao } from "@/hooks/useDemonstracao";
 import appIcon from "@/assets/via/app-icon.png";
 import wordmarkWhite from "@/assets/via/wordmark-white.png";
 
 const LoginSignupForm = () => {
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
+  const { entrar: entrarNaDemonstracao, entrando: demoLoading } = useEntrarNaDemonstracao();
   // Projeto original do template: cadastrar aqui é impossível por design.
   // Descobrir isso ANTES de o usuário preencher o formulário e tomar um erro
   // técnico ("Database error saving new user") que não explica nada.
@@ -123,23 +123,6 @@ const LoginSignupForm = () => {
     setLoading(false);
   };
 
-  const entrarNaDemonstracao = async () => {
-    setDemoLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: DEMO_EMAIL,
-      password: DEMO_PASSWORD,
-    });
-    if (error) {
-      // No template whitelabel o banco nasce vazio: a conta de demonstração só
-      // existe onde alguém rodou supabase/seed-demo.sql.
-      toast.error("Este ambiente não tem conta de demonstração. Crie a sua conta para começar.");
-      setDemoLoading(false);
-      return;
-    }
-    sessionStorage.setItem(DEMO_TOUR_STEP_KEY, "0");
-    sessionStorage.removeItem(DEMO_TOUR_DISMISSED_KEY);
-    navigate("/dashboard");
-  };
 
   return (
     <main className="relative min-h-screen bg-background lg:grid lg:grid-cols-[minmax(360px,0.82fr)_minmax(520px,1.18fr)]">

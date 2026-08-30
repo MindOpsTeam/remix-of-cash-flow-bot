@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import LoginSignupForm from "@/components/auth/LoginSignupForm";
 import { capturarConvite } from "@/hooks/useConvite";
-import { FaixaProjetoOriginal } from "@/components/plataforma/FaixaProjetoOriginal";
+import { AvisoProjetoOriginal } from "@/components/plataforma/AvisoProjetoOriginal";
 
 export default function Auth() {
   const [convidado, setConvidado] = useState(false);
@@ -14,7 +14,7 @@ export default function Auth() {
 
   return (
     <div>
-      <FaixaProjetoOriginal />
+      <AvisoProjetoOriginal />
       {convidado && (
         <div className="bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground">
           Você foi convidado para uma equipe no FinanceAI — entre ou crie sua conta para aceitar.

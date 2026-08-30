@@ -12,7 +12,7 @@ import { useAceitarConvite } from "@/hooks/useConvite";
 import { bootstrapInstalacao, consagrarDonoSePrimeiro, registrarAmbiente } from "@/lib/rpc-plataforma";
 import { BotaoConcluirConfiguracao } from "@/components/integracoes/BotaoConcluirConfiguracao";
 import { isDemoUser } from "@/lib/demo";
-import { FaixaProjetoOriginal } from "@/components/plataforma/FaixaProjetoOriginal";
+import { AvisoProjetoOriginal } from "@/components/plataforma/AvisoProjetoOriginal";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -41,7 +41,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <>
-      <FaixaProjetoOriginal />
+      <AvisoProjetoOriginal />
     <div className="via-app-shell flex min-h-screen">
       <a href="#financeai-main" className="via-skip-link">
         Pular para o conteúdo
