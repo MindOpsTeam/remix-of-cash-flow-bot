@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { usePrefs } from "@/hooks/usePrefs";
-import stayMark from "@/assets/stay-mark.png.asset.json";
+import appIconWhite from "@/assets/via/app-icon-white.png";
 import { Pill } from "@viverdeia/design-system";
 import {
   LayoutDashboard,
@@ -57,10 +57,6 @@ import {
   PanelLeftOpen,
   Repeat,
   ArrowDownToLine,
-  BedDouble,
-  CalendarRange,
-  Building2,
-  Percent,
 } from "lucide-react";
 
 // ---------- Personas (níveis de decisão do usuário do ERP) ----------
@@ -98,19 +94,6 @@ interface NavGroup {
 const painel: NavItem = { to: "/dashboard", label: "Painel", icon: LayoutDashboard };
 
 const sections: NavGroup[] = [
-  {
-    key: "hospedagem",
-    label: "Hospedagem",
-    icon: BedDouble,
-    personas: ["estrategico", "tatico", "operacional"],
-    items: [
-      { to: "/hospedagem", label: "Painel da temporada", icon: BedDouble },
-      { to: "/hospedagem/reservas", label: "Reservas", icon: CalendarRange },
-      { to: "/hospedagem/imoveis", label: "Imóveis & apartamentos", icon: Building2 },
-      { to: "/hospedagem/taxas", label: "Canais & taxas", icon: Percent },
-      { to: "/hospedagem/repasses", label: "Repasse a proprietários", icon: HandCoins },
-    ],
-  },
   {
     key: "visao",
     label: "Visão",
@@ -530,7 +513,7 @@ export function SidebarContent({
     };
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center gap-1 py-4">
-        <img src={stayMark.url} alt="STAY" className="via-sidebar-brand-icon mb-1 h-9 w-9 rounded-lg" />
+        <img src={appIconWhite} alt="FinanceAI" className="via-sidebar-brand-icon mb-1 h-9 w-9 rounded-lg" />
         {onSetCollapsed && (
           <button
             onClick={() => onSetCollapsed(false)}
@@ -588,10 +571,10 @@ export function SidebarContent({
       {/* Logo */}
       <div className="p-5 pb-4">
         <div className="flex items-center gap-3">
-          <img src={stayMark.url} alt="STAY" className="via-sidebar-brand-icon h-9 w-9 rounded-lg" />
+          <img src={appIconWhite} alt="Viver de IA" className="via-sidebar-brand-icon h-9 w-9 rounded-lg" />
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-semibold tracking-[-0.02em] text-sidebar-foreground">
-              STAY
+              FinanceAI
             </h1>
             <div className="mt-0.5 flex items-center gap-1.5">
               <Pill size="sm" className="via-sidebar-pill">ERP financeiro</Pill>

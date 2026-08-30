@@ -15,7 +15,7 @@ export default function Auth() {
     <div>
       {convidado && (
         <div className="bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground">
-          Você foi convidado para uma equipe na STAY — entre ou crie sua conta para aceitar.
+          Você foi convidado para uma equipe no FinanceAI — entre ou crie sua conta para aceitar.
         </div>
       )}
       <LoginSignupForm />

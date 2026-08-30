@@ -77,13 +77,6 @@ const PurchaseOrdersPage = lazy(() => import("./pages/PurchaseOrders"));
 
 // Estoque & Fiscal
 const StockPage = lazy(() => import("./pages/Stock"));
-
-// Hospedagem por temporada (STAY)
-const HospedagemPage = lazy(() => import("./pages/stay/Hospedagem"));
-const StayReservasPage = lazy(() => import("./pages/stay/Reservas"));
-const StayImoveisPage = lazy(() => import("./pages/stay/Imoveis"));
-const StayTaxasPage = lazy(() => import("./pages/stay/Taxas"));
-const StayRepassesPage = lazy(() => import("./pages/stay/Repasses"));
 const FiscalPage = lazy(() => import("./pages/Fiscal"));
 const EmissaoNotasPage = lazy(() => import("./pages/fiscal/Emissao"));
 const NfseEmitPage = lazy(() => import("./pages/NfseEmit"));
@@ -155,13 +148,6 @@ const AppRoutes = () => (
       <Route path="/documents" element={<P><DocumentScanner /></P>} />
       <Route path="/owner-transactions" element={<P><OwnerTransactions /></P>} />
       <Route path="/inter" element={<P><InterBankingPage /></P>} />
-
-      {/* Hospedagem por temporada */}
-      <Route path="/hospedagem" element={<P><HospedagemPage /></P>} />
-      <Route path="/hospedagem/reservas" element={<P><StayReservasPage /></P>} />
-      <Route path="/hospedagem/imoveis" element={<P><StayImoveisPage /></P>} />
-      <Route path="/hospedagem/taxas" element={<P><StayTaxasPage /></P>} />
-      <Route path="/hospedagem/repasses" element={<P><StayRepassesPage /></P>} />
 
       {/* Cadastros */}
       <Route path="/clientes" element={<P><ContactsPage scope="customer" /></P>} />
