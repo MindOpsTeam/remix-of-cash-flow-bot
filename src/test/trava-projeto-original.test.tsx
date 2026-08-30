@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { readFileSync } from "node:fs";
 
@@ -9,7 +9,7 @@ vi.mock("@/lib/rpc-plataforma", () => ({
 }));
 
 import { FaixaProjetoOriginal } from "@/components/plataforma/FaixaProjetoOriginal";
-import { AVISO_COMPLETO, AVISO_TITULO } from "@/lib/plataforma-avisos";
+import { AVISO_COMPLETO, AVISO_TITULO, MODAL_TITULO, PASSOS_DO_REMIX } from "@/lib/plataforma-avisos";
 
 /**
  * A trava do projeto original tem que sumir no remix.
@@ -44,11 +44,34 @@ describe("faixa do projeto original", () => {
     if (topOriginal) Object.defineProperty(window, "top", topOriginal);
   });
 
+  const TEXTO_DA_FAIXA = "Projeto original · somente leitura";
+
   it("aparece no editor quando o banco diz que é o original", async () => {
     fingirEditor(true);
     mockPlataformaBloqueada.mockResolvedValue(true);
     montar();
-    expect(await screen.findByText(AVISO_TITULO)).toBeTruthy();
+    expect(await screen.findByText(TEXTO_DA_FAIXA)).toBeTruthy();
+  });
+
+  it("cabe numa linha: não despeja o texto longo na faixa", async () => {
+    // A primeira versão jogava a frase inteira na tarja, quebrava em duas linhas
+    // e atravessava a tela de quem estava vendo a demonstração guiada.
+    fingirEditor(true);
+    mockPlataformaBloqueada.mockResolvedValue(true);
+    montar();
+    await screen.findByText(TEXTO_DA_FAIXA);
+    expect(screen.queryByText(AVISO_TITULO)).toBeNull();
+  });
+
+  it("o passo a passo do remix abre no modal, com print de cada tela", async () => {
+    fingirEditor(true);
+    mockPlataformaBloqueada.mockResolvedValue(true);
+    montar();
+    fireEvent.click(await screen.findByRole("button", { name: /como fazer o seu remix/i }));
+    expect(await screen.findByText(MODAL_TITULO)).toBeTruthy();
+    for (const passo of PASSOS_DO_REMIX) {
+      expect(screen.getByText(passo.titulo)).toBeTruthy();
+    }
   });
 
   it("NÃO aparece no remix — é o caso que quebraria o cliente", async () => {
@@ -56,7 +79,7 @@ describe("faixa do projeto original", () => {
     mockPlataformaBloqueada.mockResolvedValue(false);
     montar();
     await waitFor(() => expect(mockPlataformaBloqueada).toHaveBeenCalled());
-    expect(screen.queryByText(AVISO_TITULO)).toBeNull();
+    expect(screen.queryByText(TEXTO_DA_FAIXA)).toBeNull();
   });
 
   it("NÃO suja a vitrine publicada, mesmo sendo o original", async () => {
@@ -64,7 +87,7 @@ describe("faixa do projeto original", () => {
     mockPlataformaBloqueada.mockResolvedValue(true);
     montar();
     await waitFor(() => expect(mockPlataformaBloqueada).toHaveBeenCalled());
-    expect(screen.queryByText(AVISO_TITULO)).toBeNull();
+    expect(screen.queryByText(TEXTO_DA_FAIXA)).toBeNull();
   });
 });
 

@@ -1,22 +1,25 @@
 /**
  * A frase do projeto original, num lugar só.
  *
- * Ela aparece na faixa do preview, na tela de login, no `AGENTS.md` e na base de
- * conhecimento do Lovable. Quatro cópias soltas divergem com o tempo e a pessoa
- * que lê duas versões diferentes conclui que nenhuma vale. Mudou aqui, mudou em
- * todos — e o teste `trava-projeto-original.test.ts` trava isso.
+ * Ela aparece na faixa do preview, no `AGENTS.md` e no `LEIA-ANTES-DE-EDITAR.md`.
+ * Cópias soltas divergem com o tempo, e quem lê duas versões diferentes conclui
+ * que nenhuma vale. Mudou aqui, mudou em todos — e o teste
+ * `trava-projeto-original.test.tsx` trava isso.
  *
  * Todo texto daqui só é EXIBIDO quando `plataforma_bloqueada()` é verdadeiro, o
  * que só acontece no banco original. Num remix a função devolve falso e nada
  * disto renderiza: o cliente não vê aviso nenhum.
  */
 
-/** Título curto, para barra e cabeçalho. */
+/** Frase forte, para os arquivos de instrução e a base de conhecimento. */
 export const AVISO_TITULO = "PARE. ESTE É O PROJETO ORIGINAL. NÃO EDITE AQUI.";
 
-/** Uma linha, para caber numa barra fina. */
+/** Uma linha, para a faixa e para a descrição do modal. */
 export const AVISO_LINHA =
-  "Projeto original, somente leitura: o banco recusa escrita e o cadastro está bloqueado. Faça o Remix para liberar tudo na sua cópia.";
+  "Este projeto é o modelo distribuído para ser remixado: o banco recusa escrita e o cadastro está bloqueado. Na sua cópia tudo destrava sozinho.";
+
+/** Título do modal. Convida em vez de gritar: quem abre já quer remixar. */
+export const MODAL_TITULO = "Faça o seu remix em 3 passos";
 
 /** O texto inteiro, para a base de conhecimento e os arquivos do repositório. */
 export const AVISO_COMPLETO = `${AVISO_TITULO}
@@ -32,5 +35,46 @@ vontade, como em qualquer projeto seu.
 Sem o remix você não consegue mexer, nem criar conta, nem publicar. Insistir
 aqui só gasta o seu crédito e o seu tempo.`;
 
-/** Onde a pessoa aprende a remixar. */
-export const URL_COMO_REMIXAR = "https://docs.lovable.dev/features/remix";
+export interface PassoDoRemix {
+  titulo: string;
+  detalhe: string;
+  /** Caminho em `public/remix/`. Sem imagem quando o passo é só espera. */
+  imagem?: string;
+  largura?: number;
+  altura?: number;
+}
+
+/**
+ * O caminho real do remix, com print de cada tela.
+ *
+ * A primeira versão mandava para `docs.lovable.dev/features/remix`, que responde
+ * 404. Instrução que aponta para página morta é pior que instrução nenhuma:
+ * a pessoa conclui que o processo é complicado e desiste. Os prints são do
+ * próprio editor, então não há como a tela não bater com o que está escrito.
+ */
+export const PASSOS_DO_REMIX: PassoDoRemix[] = [
+  {
+    titulo: "Clique no nome do projeto",
+    detalhe:
+      "No topo do editor do Lovable, à esquerda, em “FinanceAI - Projeto Original”. Abre o menu do projeto.",
+    imagem: "/remix/passo-1-titulo.png",
+    largura: 620,
+    altura: 270,
+  },
+  {
+    titulo: "Escolha Remix no menu",
+    detalhe:
+      "É a opção com o ícone de duas setas, logo abaixo de “Move to folder”.",
+    imagem: "/remix/passo-2-menu.png",
+    largura: 200,
+    altura: 460,
+  },
+  {
+    titulo: "Troque o workspace para o SEU e confirme",
+    detalhe:
+      "O campo “Target workspace” vem preenchido com o VIVER DE IA Team Workspace — troque para o seu, senão a cópia nasce fora do seu espaço. Deixe “Include custom knowledge” LIGADO e clique em Remix. Em alguns minutos a sua cópia fica pronta, já com cadastro liberado e a primeira conta virando administradora.",
+    imagem: "/remix/passo-3-modal.png",
+    largura: 560,
+    altura: 549,
+  },
+];
