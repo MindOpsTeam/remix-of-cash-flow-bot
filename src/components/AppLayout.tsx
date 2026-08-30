@@ -12,6 +12,7 @@ import { useAceitarConvite } from "@/hooks/useConvite";
 import { bootstrapInstalacao, consagrarDonoSePrimeiro, registrarAmbiente } from "@/lib/rpc-plataforma";
 import { BotaoConcluirConfiguracao } from "@/components/integracoes/BotaoConcluirConfiguracao";
 import { isDemoUser } from "@/lib/demo";
+import { FaixaProjetoOriginal } from "@/components/plataforma/FaixaProjetoOriginal";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -39,6 +40,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [user]);
 
   return (
+    <>
+      <FaixaProjetoOriginal />
     <div className="via-app-shell flex min-h-screen">
       <a href="#financeai-main" className="via-skip-link">
         Pular para o conteúdo
@@ -87,5 +90,6 @@ export function AppLayout({ children }: AppLayoutProps) {
           CFO colidiria com os botões "Continuar"/"Fechar tour" no mobile. */}
       {ehDemo ? <DemoTour /> : <CFOChatWidget />}
     </div>
+    </>
   );
 }

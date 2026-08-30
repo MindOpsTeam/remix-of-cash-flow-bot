@@ -38,3 +38,6 @@ mcp-servers/*/dist/
 artifacts/design-system/
 .aidesigner/
 *.tsbuildinfo
+
+# Marca d'água do vigia: estado local da máquina, não do projeto.
+.hermes/state/

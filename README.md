@@ -1,3 +1,15 @@
+> # 🛑 Este é o PROJETO ORIGINAL — não edite aqui
+>
+> Ele é o **modelo** distribuído para ser remixado, e é somente leitura: o banco
+> recusa escrita, o cadastro está bloqueado e alteração feita aqui é revertida
+> sem aviso. **Clique em Remix** — na sua cópia tudo destrava sozinho.
+>
+> Detalhes em [`LEIA-ANTES-DE-EDITAR.md`](LEIA-ANTES-DE-EDITAR.md) e, para
+> agentes de IA, em [`AGENTS.md`](AGENTS.md).
+>
+> *Já está no seu remix? `SELECT public.plataforma_bloqueada();` devolve `false`
+> e este bloco não vale — apague-o junto com os dois arquivos acima.*
+
 # FinanceAI — ERP financeiro com agentes de IA
 
 **O ERP financeiro para PMEs multi-CNPJ em que os agentes de IA trabalham por você — e que já está pronto para a Reforma Tributária.**
