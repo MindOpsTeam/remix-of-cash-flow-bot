@@ -16,6 +16,8 @@ const buttonVariants = cva(
         ghost: "text-muted-foreground hover:text-foreground hover:bg-secondary",
         link: "text-primary underline-offset-4 hover:underline",
         accent: "border border-primary bg-primary text-primary-foreground shadow-[inset_0_1px_0_hsl(var(--primary-foreground)/0.16)] hover:-translate-y-px hover:bg-primary/94 hover:shadow-card-hover",
+        success: "border border-success bg-success text-success-foreground shadow-[inset_0_1px_0_hsl(var(--success-foreground)/0.16),0_6px_14px_-8px_var(--via-shadow-ink-40)] hover:-translate-y-px hover:bg-success/94 hover:shadow-[inset_0_1px_0_hsl(var(--success-foreground)/0.16),0_12px_24px_-10px_var(--via-shadow-ink-40)]",
+
       },
       size: {
         default: "h-10 px-5 py-2",
