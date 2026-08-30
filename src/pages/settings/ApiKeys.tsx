@@ -17,9 +17,36 @@ interface ApiKeyRow {
   id: string;
   name: string;
   prefix: string;
+  scopes: string[] | null;
   last_used_at: string | null;
   revoked_at: string | null;
   created_at: string;
+}
+
+/**
+ * O escopo é o que a chave PODE ler, e agora a `public-api` recusa fora dele.
+ *
+ * Até 29/08/2026 o campo existia na tabela e ninguém olhava: toda chave abria
+ * todas as rotas. Quem entrega a chave do faturamento para o contador não
+ * queria entregar junto a lista de contas a pagar.
+ */
+const ESCOPOS = [
+  { valor: "read", rotulo: "Tudo (leitura)", detalhe: "as cinco rotas" },
+  { valor: "transactions:read", rotulo: "Lançamentos", detalhe: "/transactions" },
+  { valor: "margin:read", rotulo: "Margem mensal", detalhe: "/margin" },
+  { valor: "invoices:read", rotulo: "Notas fiscais", detalhe: "/invoices" },
+  { valor: "bills:read", rotulo: "Contas a pagar", detalhe: "/bills" },
+] as const;
+
+/** /ping só precisa de chave válida; nunca é o que trava uma integração. */
+const ESCOPO_SEMPRE = "read";
+
+function descreverEscopos(scopes: string[] | null): string {
+  if (!scopes || scopes.length === 0) return "sem escopo";
+  if (scopes.includes("read")) return "tudo (leitura)";
+  return scopes
+    .map((s) => ESCOPOS.find((e) => e.valor === s)?.rotulo ?? s)
+    .join(", ");
 }
 
 function randomKey(): string {
@@ -38,6 +65,7 @@ export default function ApiKeys() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [name, setName] = useState("");
+  const [escolhidos, setEscolhidos] = useState<string[]>([ESCOPO_SEMPRE]);
   const [newKey, setNewKey] = useState<string | null>(null);
 
   const { data: keys = [], isLoading } = useQuery({
@@ -46,7 +74,7 @@ export default function ApiKeys() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("api_keys")
-        .select("id, name, prefix, last_used_at, revoked_at, created_at")
+        .select("id, name, prefix, scopes, last_used_at, revoked_at, created_at")
         .eq("company_id", company!.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -63,6 +91,7 @@ export default function ApiKeys() {
         name: name.trim() || "Integração",
         key_hash: hash,
         prefix: key.slice(0, 12),
+        scopes: escolhidos.length > 0 ? escolhidos : [ESCOPO_SEMPRE],
         created_by: user?.id ?? null,
       });
       if (error) throw error;
@@ -71,6 +100,7 @@ export default function ApiKeys() {
     onSuccess: (key) => {
       setNewKey(key);
       setName("");
+      setEscolhidos([ESCOPO_SEMPRE]);
       qc.invalidateQueries({ queryKey: ["api_keys", company?.id] });
     },
     onError: (e: Error) => toast.error("Erro ao criar chave: " + mensagemDeErro(e)),
@@ -131,12 +161,58 @@ export default function ApiKeys() {
           </div>
         )}
 
-        <div className="mb-5 flex items-end gap-2">
-          <div className="flex-1 space-y-1.5">
+        <div className="mb-5 space-y-3 rounded-lg border border-border bg-card p-4">
+          <div className="space-y-1.5">
             <Label htmlFor="key-name">Nome da chave</Label>
             <Input id="key-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Power BI, n8n, planilha do contador" />
           </div>
-          <Button onClick={() => create.mutate()} disabled={create.isPending} className="gap-2">
+
+          <div className="space-y-1.5">
+            <Label>O que esta chave pode ler</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {ESCOPOS.map((e) => {
+                const marcado = escolhidos.includes(e.valor);
+                return (
+                  <button
+                    key={e.valor}
+                    type="button"
+                    aria-pressed={marcado}
+                    title={e.detalhe}
+                    onClick={() =>
+                      setEscolhidos((atual) => {
+                        // "Tudo" e escopo fino não convivem: marcar um limpa o outro,
+                        // senão a tela mostraria uma restrição que não restringe nada.
+                        if (e.valor === ESCOPO_SEMPRE) return [ESCOPO_SEMPRE];
+                        const semTudo = atual.filter((v) => v !== ESCOPO_SEMPRE);
+                        return semTudo.includes(e.valor)
+                          ? semTudo.filter((v) => v !== e.valor)
+                          : [...semTudo, e.valor];
+                      })
+                    }
+                    className={
+                      "rounded-full border px-3 py-1 text-xs transition-colors " +
+                      (marcado
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/50 hover:text-foreground")
+                    }
+                  >
+                    {e.rotulo}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {escolhidos.length === 0
+                ? "Escolha ao menos um — sem escopo a chave não lê nada."
+                : `Fora disso a API responde 403. ${descreverEscopos(escolhidos)}.`}
+            </p>
+          </div>
+
+          <Button
+            onClick={() => create.mutate()}
+            disabled={create.isPending || escolhidos.length === 0}
+            className="gap-2"
+          >
             {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Criar chave
           </Button>
@@ -155,6 +231,7 @@ export default function ApiKeys() {
                     {k.prefix}…{" · "}
                     {k.last_used_at ? `último uso ${new Date(k.last_used_at).toLocaleDateString("pt-BR")}` : "nunca usada"}
                   </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{descreverEscopos(k.scopes)}</p>
                 </div>
                 {k.revoked_at ? (
                   <Badge variant="secondary">Revogada</Badge>
@@ -174,7 +251,8 @@ export default function ApiKeys() {
             curl -H "X-API-Key: cfk_..." {apiBase}/transactions?from=2026-01-01
           </code>
           <p className="mt-2 text-xs text-muted-foreground">
-            Rotas: /ping · /transactions · /margin · /invoices · /bills — leitura apenas. Doc completa em docs/PUBLIC-API.md.
+            Rotas: /ping · /transactions · /margin · /invoices · /bills — leitura apenas, dentro do escopo da chave.
+            Teto de 120 requisições por minuto por chave. Doc completa em docs/PUBLIC-API.md.
           </p>
         </div>
       </div>

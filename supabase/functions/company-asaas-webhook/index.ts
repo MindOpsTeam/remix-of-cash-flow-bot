@@ -2,6 +2,17 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
 import { processEvent } from "../_shared/asaas-processor.ts";
 import { segredoDaIntegracao } from "../_shared/segredos.ts";
+import { checarLimite, corpoLimitado, origemDaChamada, segredosBatem } from "../_shared/limite.ts";
+
+/**
+ * Hardening 29/08/2026: sem teto, cada POST anônimo obrigava uma leitura de
+ * Vault POR EMPRESA com Asaas ligado. Quem quisesse só precisava repetir a
+ * requisição para multiplicar trabalho no nosso cofre — e nada contava. O
+ * balde é por origem porque aqui ainda não se sabe de qual empresa é a chamada.
+ */
+const TETO_POR_ORIGEM = 60;
+const JANELA_SEGUNDOS = 60;
+const MAX_CORPO_BYTES = 256 * 1024;
 
 const EXTRA_HEADERS = "asaas-access-token";
 
@@ -50,6 +61,14 @@ Deno.serve(async (req) => {
   );
 
   try {
+    const teto = await checarLimite(
+      supabase,
+      `asaas-webhook:${origemDaChamada(req)}`,
+      TETO_POR_ORIGEM,
+      JANELA_SEGUNDOS,
+    );
+    if (teto.excedeu) return teto.resposta(corsHeaders);
+
     const accessToken = req.headers.get("asaas-access-token");
     if (!accessToken) {
       return new Response(JSON.stringify({ error: "Missing access token" }), {
@@ -76,7 +95,9 @@ Deno.serve(async (req) => {
       const esperado = await segredoDaIntegracao(
         supabase, c.company_id as string, "asaas", "webhook_auth_token",
       );
-      if (esperado && esperado === accessToken) {
+      // Comparação em tempo constante: `===` sai no primeiro byte diferente, e
+      // num endpoint aberto essa diferença é medível.
+      if (segredosBatem(accessToken, esperado)) {
         config = c as ConfigAsaas;
         break;
       }
@@ -89,7 +110,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json();
+    const corpo = await corpoLimitado(req, MAX_CORPO_BYTES);
+    if ("erro" in corpo) {
+      return new Response(JSON.stringify({ error: corpo.erro }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const body = JSON.parse(corpo.texto);
     const event = body.event as string;
     const eventId = body.id as string;
     const eventCategory = getEventCategory(event);

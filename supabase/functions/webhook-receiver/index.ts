@@ -1,12 +1,49 @@
+/**
+ * Receptor de webhook de entrada, por webhook cadastrado.
+ *
+ * POST /webhook-receiver/{webhookId}   header: x-webhook-token: <segredo>
+ *
+ * Hardening 29/08/2026:
+ * - O token era aceito também por `?token=` na URL. Query string entra em log de
+ *   proxy, em histórico e no Referer — um segredo que anda na URL vaza sozinho.
+ *   Agora só header.
+ * - A comparação era `token !== webhook.secret_token`, que sai no primeiro byte
+ *   diferente. Num endpoint aberto isso é medível e troca adivinhar o token
+ *   inteiro por adivinhar um byte de cada vez.
+ * - "Webhook not found" (404) e "Invalid token" (401) diziam ao chamador quais
+ *   ids existem. As duas respostas viraram a mesma.
+ * - Sem teto de requisição e sem teto de corpo: agora 60/min por webhook e
+ *   corpo de no máximo 256 KB.
+ */
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { getCorsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
+import { checarLimite, corpoLimitado, origemDaChamada, segredosBatem } from "../_shared/limite.ts";
 
 const EXTRA_HEADERS = "x-webhook-token";
+const TETO_POR_MINUTO = 60;
+const JANELA_SEGUNDOS = 60;
+const MAX_CORPO_BYTES = 256 * 1024;
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req, EXTRA_HEADERS);
   const preflight = corsPreflightResponse(req, EXTRA_HEADERS);
   if (preflight) return preflight;
+
+  const responder = (body: unknown, status: number, extra: Record<string, string> = {}) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, ...extra, "Content-Type": "application/json" },
+    });
+
+  /**
+   * Resposta única para id inexistente, webhook desligado e token errado.
+   *
+   * Antes, um 404 confirmava "este id não existe" e um 401 confirmava "este id
+   * existe, erraste o segredo". Quem varre ids ganhava metade do trabalho de
+   * graça.
+   */
+  const recusar = () => responder({ error: "Webhook inválido" }, 401);
 
   try {
     const url = new URL(req.url);
@@ -15,15 +52,27 @@ Deno.serve(async (req) => {
     const webhookId = pathParts[pathParts.length - 1];
 
     if (!webhookId || webhookId === "webhook-receiver") {
-      return new Response(JSON.stringify({ error: "Webhook ID required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return responder({ error: "Webhook ID required" }, 400);
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Conta antes de consultar o banco: o balde tem que segurar quem varre id,
+    // e quem varre id nunca chega na parte cara.
+    const teto = await checarLimite(
+      supabase,
+      `webhook-receiver:${webhookId}:${origemDaChamada(req)}`,
+      TETO_POR_MINUTO,
+      JANELA_SEGUNDOS,
+    );
+    if (teto.excedeu) return teto.resposta(corsHeaders);
+
+    // Um id que não é UUID nunca vai casar; morre aqui sem tocar no banco.
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(webhookId)) {
+      return recusar();
+    }
 
     // Find webhook config
     const { data: webhook, error: whError } = await supabase
@@ -32,31 +81,29 @@ Deno.serve(async (req) => {
       .eq("id", webhookId)
       .eq("direction", "inbound")
       .eq("active", true)
-      .single();
+      .maybeSingle();
 
-    if (whError || !webhook) {
-      return new Response(JSON.stringify({ error: "Webhook not found or inactive" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (whError || !webhook) return recusar();
 
-    // Validate token
-    const token = req.headers.get("x-webhook-token") || url.searchParams.get("token");
-    if (token !== webhook.secret_token) {
-      return new Response(JSON.stringify({ error: "Invalid token" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // Validate token — só header, e em tempo constante.
+    if (!segredosBatem(req.headers.get("x-webhook-token"), webhook.secret_token)) {
+      return recusar();
     }
 
     // Parse payload
     let payload: Record<string, unknown> = {};
     if (req.method === "POST" || req.method === "PUT") {
+      const corpo = await corpoLimitado(req, MAX_CORPO_BYTES);
+      if ("erro" in corpo) {
+        return responder({ error: corpo.erro }, 413);
+      }
       try {
-        payload = await req.json();
+        const lido = JSON.parse(corpo.texto);
+        payload = lido && typeof lido === "object" && !Array.isArray(lido)
+          ? lido as Record<string, unknown>
+          : { raw: corpo.texto };
       } catch {
-        payload = { raw: await req.text() };
+        payload = { raw: corpo.texto };
       }
     }
 
@@ -87,7 +134,7 @@ Deno.serve(async (req) => {
             .eq("company_id", webhook.company_id)
             .eq("role", "admin")
             .limit(1)
-            .single();
+            .maybeSingle();
 
           if (member) {
             const { data: tx, error: txError } = await supabase
@@ -132,21 +179,9 @@ Deno.serve(async (req) => {
 
     await supabase.from("webhook_logs").insert(logEntry);
 
-    return new Response(
-      JSON.stringify({ success: true, status: logEntry.status }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return responder({ success: true, status: logEntry.status }, 200);
   } catch (error) {
     console.error("Webhook error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return responder({ error: "Internal server error" }, 500);
   }
 });
