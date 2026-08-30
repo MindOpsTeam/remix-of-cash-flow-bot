@@ -61,10 +61,21 @@ function avisar(titulo, corpo) {
   } catch { /* sem GUI (cron, ssh): o TODO abaixo continua valendo */ }
 }
 
+/** Arquivo que DEFINE a função `todo`; ela não existe em shell não-interativo. */
+const RC_TODO = `${process.env.HOME}/code/vertex/interno/dotfiles/zsh/90-todo.zsh`;
+
 function registrarTodo(texto) {
+  // `bash -lc "todo ..."` não funciona: `todo` é função zsh de um rc que o bash
+  // nunca lê, e o alarme falhava com "command not found" sem derrubar o vigia,
+  // ou seja, em silêncio. Carrega só aquele arquivo, sem `zsh -i` (o guard de
+  // autostart sequestra shell interativo).
   try {
-    sh("bash", ["-lc", `todo ${JSON.stringify(texto + " #via")}`]);
-  } catch { /* o TODO é reforço, não pode derrubar o vigia */ }
+    sh("zsh", ["-c", `source ${RC_TODO} && todo ${JSON.stringify(texto + " #via")}`]);
+  } catch (e) {
+    // Se nem isso funcionar, o alarme não pode sumir calado: vai para o stdout,
+    // que o LaunchAgent grava em /tmp/vigia-original.log.
+    console.error(`vigia: falhou ao registrar no TODO (${e.message}); pendência: ${texto}`);
+  }
 }
 
 const commits = JSON.parse(
