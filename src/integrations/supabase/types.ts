@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -4287,6 +4287,24 @@ export type Database = {
           },
         ]
       }
+      rate_limit_counters: {
+        Row: {
+          bucket: string
+          contador: number
+          janela: string
+        }
+        Insert: {
+          bucket: string
+          contador?: number
+          janela: string
+        }
+        Update: {
+          bucket?: string
+          contador?: number
+          janela?: string
+        }
+        Relationships: []
+      }
       receivables: {
         Row: {
           account_id: string | null
@@ -7511,6 +7529,12 @@ export type Database = {
         }
         Returns: Json
       }
+      aplicar_trava_de_template: {
+        Args: never
+        Returns: {
+          tabela_coberta: string
+        }[]
+      }
       auditar_integridade_contabil: {
         Args: { p_company_id: string }
         Returns: {
@@ -7564,6 +7588,10 @@ export type Database = {
         Returns: Json
       }
       consagrar_dono_se_primeiro: { Args: never; Returns: boolean }
+      consumir_limite: {
+        Args: { p_bucket: string; p_janela_segundos: number; p_teto: number }
+        Returns: Json
+      }
       conta_de_encargos: {
         Args: { p_company_id: string; p_tipo: string }
         Returns: string
@@ -7770,6 +7798,12 @@ export type Database = {
       }
       sou_dono_da_plataforma: { Args: never; Returns: boolean }
       stay_semear_cadastros: { Args: { p_company_id: string }; Returns: Json }
+      travar_views_na_rls: {
+        Args: never
+        Returns: {
+          view_corrigida: string
+        }[]
+      }
       try_uuid: { Args: { t: string }; Returns: string }
       venda_balcao: {
         Args: {
