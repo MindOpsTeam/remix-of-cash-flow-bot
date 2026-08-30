@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEntrarNaDemonstracao } from "@/hooks/useDemonstracao";
 import { AVISO_LINHA, MODAL_TITULO, PASSOS_DO_REMIX } from "@/lib/plataforma-avisos";
 import { demonstracaoDisponivel, plataformaBloqueada } from "@/lib/rpc-plataforma";
+import wordmarkNavy from "@/assets/via/wordmark-navy.png";
+import wordmarkWhite from "@/assets/via/wordmark-white.png";
 
 /** Uma vez por aba: o aviso precisa ser visto, não repetido a cada clique. */
 const CHAVE_JA_ABRIU = "financeai:aviso-original-visto";
@@ -37,6 +39,45 @@ function jaAbriuNestaAba(): boolean {
     // nunca abrir. O aviso é o produto aqui.
     return false;
   }
+}
+
+/**
+ * Assinatura da Viver de IA no topo do modal.
+ *
+ * Este popup é a primeira coisa que um visitante vê do produto, e antes ele
+ * aparecia órfão: um aviso branco sem dono, que podia ser de qualquer sistema.
+ * A marca diz de quem é o template e por que a regra existe.
+ *
+ * Duas imagens em vez de um filtro CSS porque o wordmark é lettering, não ícone:
+ * inverter cor com `invert` sujaria as bordas. O card do diálogo é branco no
+ * tema claro e navy no escuro, então cada tema recebe o arquivo desenhado para
+ * ele. `darkMode` aqui é seletor `[data-theme="dark"]`, o mesmo que o
+ * ViaThemeToggle escreve.
+ */
+function Marca() {
+  // `pr-7` abre espaço para o X do diálogo, que é absoluto no canto: sem isso o
+  // rótulo da direita passa por baixo dele.
+  return (
+    <div className="mb-1 flex items-center justify-between gap-4 border-b border-border pb-4 pr-7">
+      <img
+        src={wordmarkNavy}
+        alt="Viver de IA"
+        width={373}
+        height={31}
+        className="h-4 w-auto dark:hidden"
+      />
+      <img
+        src={wordmarkWhite}
+        alt="Viver de IA"
+        width={373}
+        height={31}
+        className="hidden h-4 w-auto dark:block"
+      />
+      <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        FinanceAI
+      </span>
+    </div>
+  );
 }
 
 function marcarComoVisto(): void {
@@ -141,6 +182,8 @@ export function AvisoProjetoOriginal() {
             (e.currentTarget as HTMLElement).focus();
           }}
         >
+          <Marca />
+
           {vendoPassos ? (
             <>
               <DialogHeader>
