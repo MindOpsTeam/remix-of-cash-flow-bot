@@ -58,16 +58,16 @@ export const PASSOS_DO_REMIX: PassoDoRemix[] = [
     detalhe:
       "No topo do editor do Lovable, à esquerda, em “FinanceAI - Projeto Original”. Abre o menu do projeto.",
     imagem: "/remix/passo-1-titulo.png",
-    largura: 620,
-    altura: 270,
+    largura: 600,
+    altura: 116,
   },
   {
     titulo: "Escolha Remix no menu",
     detalhe:
-      "É a opção com o ícone de duas setas, logo abaixo de “Move to folder”.",
+      "É a opção com o ícone de duas setas, logo abaixo de “Move to folder”, já destacada no print.",
     imagem: "/remix/passo-2-menu.png",
-    largura: 200,
-    altura: 460,
+    largura: 520,
+    altura: 267,
   },
   {
     titulo: "Troque o workspace para o SEU e confirme",

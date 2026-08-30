@@ -98,7 +98,7 @@ export function FaixaProjetoOriginal() {
                       height={passo.altura}
                       loading="lazy"
                       decoding="async"
-                      className="mt-3 h-auto w-full max-w-[360px] rounded-lg border border-border"
+                      className="mt-3 h-auto w-full max-w-[420px] rounded-lg border border-border"
                     />
                   ) : null}
                 </div>
