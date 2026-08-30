@@ -402,7 +402,7 @@ const LoginSignupForm = () => {
               </Field>
               <Button type="submit" className="mt-2 w-full" size="lg" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-                {loading ? "Entrando..." : "Entrar no FinanceAI"}
+                {loading ? "Entrando..." : "Acessar plataforma"}
                 {!loading ? <ArrowRight aria-hidden="true" /> : null}
               </Button>
             </form>
