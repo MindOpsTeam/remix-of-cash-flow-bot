@@ -69,6 +69,11 @@ verify_jwt = false
 [functions.public-api]
 verify_jwt = false
 
+# Dispara requisições para FORA. O gateway não valida JWT porque quem chama é
+# o `pg_cron`; a porta é o `x-cron-secret`, conferido dentro da função.
+[functions.webhook-dispatch]
+verify_jwt = false
+
 [functions.openfinance-connect]
 verify_jwt = false
 
