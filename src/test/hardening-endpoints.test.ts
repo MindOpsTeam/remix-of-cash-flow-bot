@@ -235,3 +235,35 @@ describe("origem da chamada", () => {
     expect(origemDaChamada(pedido({}))).toBe("sem-origem");
   });
 });
+
+describe("a ponte com o Prova", () => {
+  /**
+   * O contrato está em `docs/CONTRATO-RECEITA.md`, copiado nos três
+   * repositórios da casa. O que se prende aqui é a superfície: rota
+   * declarada, escopo reusado e nenhuma porta nova.
+   */
+  test("as duas rotas do Prova existem e pedem escopo", () => {
+    expect(ESCOPO_DA_ROTA["/v1/prova/receita"]).toBe("transactions:read");
+    expect(ESCOPO_DA_ROTA["/v1/prova/identidade"]).toBe("read");
+  });
+
+  /**
+   * Escopo de TRANSAÇÃO, não um `prova:read` próprio.
+   *
+   * A ponte lê exatamente o que o escopo de transação cobre — receita
+   * conciliada do período. Um escopo novo daria a impressão de um acesso
+   * diferente do que existe, e quem revogasse transação esperaria, com razão,
+   * que a ponte parasse junto. Escopo que não corresponde ao que a rota lê é
+   * o mesmo defeito de `scopes` ter existido sem ser comparado com nada.
+   */
+  test("a ponte não inventa escopo próprio", () => {
+    expect(temEscopo(["transactions:read"], ESCOPO_DA_ROTA["/v1/prova/receita"]!)).toBe(true);
+    expect(temEscopo(["bills:read"], ESCOPO_DA_ROTA["/v1/prova/receita"]!)).toBe(false);
+    expect(Object.values(ESCOPO_DA_ROTA)).not.toContain("prova:read");
+  });
+
+  test("o caminho da ponte resolve com o prefixo da função", () => {
+    expect(caminhoDaRota("/functions/v1/public-api/v1/prova/receita")).toBe("/v1/prova/receita");
+    expect(caminhoDaRota("/public-api/v1/prova/identidade")).toBe("/v1/prova/identidade");
+  });
+});

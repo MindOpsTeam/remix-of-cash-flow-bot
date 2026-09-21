@@ -19,6 +19,16 @@ export const ESCOPO_DA_ROTA: Record<string, string> = {
   "/v1/margin": "margin:read",
   "/v1/invoices": "invoices:read",
   "/v1/bills": "bills:read",
+  /*
+   * A ponte com o Prova.
+   *
+   * Escopo de transação, não um escopo novo: é exatamente isso que ela lê —
+   * receita conciliada do período. Um `prova:read` próprio daria a impressão
+   * de um acesso diferente do que existe, e quem revoga transação esperaria,
+   * com razão, que a ponte parasse junto.
+   */
+  "/v1/prova/receita": "transactions:read",
+  "/v1/prova/identidade": "read",
 };
 
 export const STATUS_DE_CONTA = ["a_vencer", "vencido", "pago"];

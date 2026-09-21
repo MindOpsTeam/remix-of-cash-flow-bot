@@ -178,6 +178,80 @@ Deno.serve(async (req) => {
       return json({ success: true, data, error: null }, 200, cabecalhoTeto);
     }
 
+    /*
+     * A PONTE COM O PROVA: a receita CONCILIADA do período.
+     *
+     * Contrato em `docs/CONTRATO-RECEITA.md`, copiado íntegro nos três
+     * repositórios da casa. O Prova mede quanto o cliente gastou em anúncio e
+     * não sabe quanto entrou; aqui está o que entrou de verdade.
+     *
+     * **Só o que foi RECEBIDO.** `status` pago e `type` revenue. O Prova já
+     * tem "aprovado" pelo gateway e "ganho" pelo CRM — o que ele não tem, e
+     * por isso vem buscar aqui, é a liquidação. Mandar receita prevista faria
+     * o produto contar duas vezes o mesmo dinheiro em estágios diferentes.
+     *
+     * **Centavos inteiros.** `amount` é numeric com decimal. Já produziu, em
+     * outro produto da casa, faturamento cem vezes maior — e ninguém percebe
+     * por semanas, porque o número continua parecendo um número.
+     *
+     * **A data é a da LIQUIDAÇÃO**, não a da emissão: `reconciled_at` quando
+     * existe, `date` quando não. O Prova casa venda com anúncio por janela, e
+     * uma nota emitida em agosto e paga em setembro pertence a setembro.
+     */
+    if (path === "/v1/prova/identidade") {
+      const { data } = await supabase
+        .from("companies")
+        .select("name")
+        .eq("id", companyId)
+        .maybeSingle();
+      return json(
+        { success: true, data: { conta: data?.name ?? null, produto: "erp" }, error: null },
+        200,
+        cabecalhoTeto,
+      );
+    }
+
+    if (path === "/v1/prova/receita") {
+      const de = dataValida(url.searchParams.get("de")) ?? dataValida(url.searchParams.get("from"));
+      const ate = dataValida(url.searchParams.get("ate")) ?? dataValida(url.searchParams.get("to"));
+
+      let q = supabase
+        .from("transactions")
+        .select("id, date, description, amount, type, status, reconciled_at, external_id, project")
+        .eq("company_id", companyId)
+        .eq("type", "revenue")
+        .order("date", { ascending: false })
+        .limit(limit);
+      if (de) q = q.gte("date", de);
+      if (ate) q = q.lte("date", ate);
+      const { data, error } = await q;
+      if (error) throw error;
+
+      const eventos = (data ?? [])
+        // Conciliado é o que o Prova vem buscar. Previsto ele já tem por
+        // outro caminho, e somar os dois contaria o mesmo dinheiro duas vezes.
+        .filter((l) => l.reconciled_at !== null || l.status === "pago" || l.status === "confirmed")
+        .map((l) => {
+          const n = typeof l.amount === "string" ? Number(l.amount) : l.amount;
+          const centavos =
+            typeof n === "number" && Number.isFinite(n) ? Math.round(n * 100) : null;
+          const quando = (l.reconciled_at ?? l.date ?? "").slice(0, 10);
+          return {
+            origem: "erp",
+            externalId: l.external_id ?? l.id,
+            quando,
+            // Ausência é OMITIDA, nunca zero: lançamento sem valor derrubaria
+            // o ticket médio do cliente no Prova sem nada ter acontecido.
+            ...(centavos === null ? {} : { valorCentavos: centavos }),
+            moeda: "BRL",
+            conciliado: true,
+            titulo: l.description ?? null,
+          };
+        });
+
+      return json({ success: true, data: { eventos }, error: null }, 200, cabecalhoTeto);
+    }
+
     if (path === "/v1/margin") {
       const { data, error } = await supabase
         .from("v_company_margin")
