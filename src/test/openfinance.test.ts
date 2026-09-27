@@ -76,11 +76,11 @@ describe("normalizePluggyStatus", () => {
 });
 
 describe("canPullHistory (limite OFB)", () => {
-  it("bloqueia ao atingir o teto mensal de 8 chamadas", () => {
-    expect(OFB_HISTORY_CALLS_LIMIT).toBe(8);
+  it("bloqueia ao atingir o teto mensal de 4 puxadas de histórico da rede", () => {
+    expect(OFB_HISTORY_CALLS_LIMIT).toBe(4);
     expect(canPullHistory(0)).toBe(true);
-    expect(canPullHistory(7)).toBe(true);
-    expect(canPullHistory(8)).toBe(false);
+    expect(canPullHistory(3)).toBe(true);
+    expect(canPullHistory(4)).toBe(false);
     expect(canPullHistory(20)).toBe(false);
   });
 });

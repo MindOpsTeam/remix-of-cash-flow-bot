@@ -12,7 +12,8 @@ import {
   type PluggyTransaction,
 } from "./openfinance-map.ts";
 
-const OFB_HISTORY_CALLS_LIMIT = 8;
+// a rede Open Finance libera 4 puxadas de histórico por conta/mês (docs Pluggy, open-finance/rate-limits)
+const OFB_HISTORY_CALLS_LIMIT = 4;
 
 interface SyncResult {
   accounts: number;

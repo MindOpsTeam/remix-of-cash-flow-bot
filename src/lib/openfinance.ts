@@ -117,8 +117,12 @@ export const CONNECTION_STATUS_LABEL: Record<string, string> = {
 
 // ---------- Guard de custo (limites da rede OFB) ----------
 
-/** Histórico de 365d: no máximo 8 chamadas/CNPJ/mês. Retorna se pode puxar histórico. */
-export const OFB_HISTORY_CALLS_LIMIT = 8;
+/**
+ * Histórico (7 a 365 dias): a rede Open Finance libera 4 chamadas por conta por
+ * mês; passou disso, a conta para de atualizar até o dia 1.º. Fonte:
+ * docs.pluggy.ai/docs/open-finance/rate-limits (conferido em 2026-09-26).
+ */
+export const OFB_HISTORY_CALLS_LIMIT = 4;
 
 export function canPullHistory(callsThisMonth: number): boolean {
   return callsThisMonth < OFB_HISTORY_CALLS_LIMIT;

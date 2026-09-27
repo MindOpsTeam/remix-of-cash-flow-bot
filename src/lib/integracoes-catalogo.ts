@@ -147,18 +147,20 @@ export const CATALOGO_INTEGRACOES: Integracao[] = [
         "Clique em criar uma aplicação e dê o nome da sua empresa.",
         "Assim que ela é criada, aparecem o CLIENT_ID e o CLIENT_SECRET. Copie os dois.",
         "Cole aqui embaixo e clique em Testar conexão.",
-        "Depois de salvo, cada banco é conectado em Importar, aba Open Finance, pelo botão Conectar banco. Quem digita a senha é o usuário, dentro da janela da Pluggy.",
+        "Depois de salvo, cada banco é conectado no menu Bancos & Open Finance, pelo botão Conectar banco. Quem digita a senha é o usuário, dentro da janela da Pluggy.",
+        "Sem assinatura da Pluggy: na aplicação, ative o conector MeuPluggy, conecte até 5 bancos no portal gratuito meu.pluggy.ai e, no menu Bancos & Open Finance, clique em Conectar banco e escolha Conectar grátis (MeuPluggy).",
       ],
       armadilhas: [
         "Esta é a pegadinha que mais custa tempo: uma aplicação de DESENVOLVIMENTO só enxerga bancos simulados. Ao abrir a tela de escolher a instituição, a lista vem VAZIA, com um aviso de aplicação demo. Não é erro de configuração e não adianta procurar o banco.",
         "Para conectar Itaú, Bradesco, Nubank e os demais, é preciso uma aplicação de PRODUÇÃO, liberada pela Pluggy. Resolva isso antes de prometer a integração para o time.",
         "O consentimento de Open Finance tem prazo definido pelo Banco Central, normalmente 12 meses. Perto do vencimento é preciso renovar pelo mesmo caminho da primeira conexão, senão a sincronização para em silêncio.",
+        "No modo grátis (MeuPluggy) o limite é de 5 bancos por pessoa, os dados atualizam uma vez por dia e a Pluggy não dá garantia de disponibilidade. Serve para começar; para escala, assine um plano.",
         "O histórico que vem na primeira conexão varia por banco: alguns entregam 3 meses, outros 12. Se vier pouco, importe o antigo por arquivo uma vez; os dois caminhos convivem e o sistema não duplica.",
       ],
       trial:
-        "Dá para testar de graça e por tempo indeterminado com os conectores sandbox (o Pluggy Bank, usuário user-ok e senha password-ok): o fluxo inteiro funciona, com transações fictícias. O que o teste NÃO alcança é banco real, que exige a aplicação de produção.",
+        "Dá para testar de graça e por tempo indeterminado com os conectores sandbox (o Pluggy Bank, usuário user-ok e senha password-ok): o fluxo inteiro funciona, com transações fictícias. O que o teste NÃO alcança é banco real, que exige a aplicação de produção, OU o modo grátis pelo MeuPluggy: banco real, até 5 conexões, sem mensalidade.",
       custo:
-        "Modelo de assinatura, cobrado por conexão ativa por mês. Para uma empresa com duas ou três contas o valor é baixo, mas peça a proposta: eles não publicam preço fechado no site.",
+        "Modelo de assinatura, cobrado por conexão ativa por mês. Para uma empresa com duas ou três contas o valor é baixo, mas o plano de dados parte de R$ 2.500 por mês. O modo MeuPluggy é gratuito (até 5 bancos por pessoa, sem garantia de disponibilidade).",
       site: "https://www.pluggy.ai",
       documentacao: "https://docs.pluggy.ai/docs/get-your-api-keys",
     },

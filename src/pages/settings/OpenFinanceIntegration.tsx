@@ -159,11 +159,11 @@ export default function OpenFinanceIntegration() {
               Extrato bancário oficial via Pluggy: saldo, lançamentos, cartão, investimentos e crédito.
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Para conectar um banco você NÃO precisa de credencial própria: use o botão{" "}
+              A conexão usa a SUA aplicação Pluggy: salve o Client ID e o Secret abaixo (ou pelo passo a passo do botão{" "}
               <Link to="/settings/bank-accounts" className="underline underline-offset-2 hover:text-foreground">
                 Conectar banco
-              </Link>{" "}
-              em Bancos &amp; Open Finance. A credencial Pluggy abaixo é opcional, para quem quer usar a própria conta.
+              </Link>
+              ). Sem assinatura da Pluggy, use a opção <span className="font-medium">Conectar grátis (MeuPluggy)</span>: até 5 bancos, sem custo.
             </p>
           </div>
           {config?.last_test_status?.startsWith("ok") ? (

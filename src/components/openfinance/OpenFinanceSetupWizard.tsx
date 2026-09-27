@@ -259,6 +259,24 @@ export function OpenFinanceSetupWizard({ open, onOpenChange, onConnected }: Prop
           {/* Passo 2 — credenciais */}
           {passo === "credenciais" && (
             <div className="space-y-4">
+              {modo === "gratis" && (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+                  <p className="font-semibold text-foreground">Uma vez só, uns 10 minutos, tudo grátis:</p>
+                  <ol className="mt-2 list-decimal space-y-1 pl-4">
+                    <li>
+                      Crie a sua conta em{" "}
+                      <a href="https://dashboard.pluggy.ai" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 underline hover:text-foreground">
+                        dashboard.pluggy.ai <ExternalLink className="h-3 w-3" />
+                      </a>{" "}
+                      (não pede cartão).
+                    </li>
+                    <li>No menu <span className="font-medium">Applications</span>, crie uma aplicação. A de desenvolvimento serve.</li>
+                    <li>Na lista de conectores dessa aplicação, ative o <span className="font-medium text-foreground">MeuPluggy</span>. Sem isso a janela de autorização vem vazia.</li>
+                    <li>Copie o <span className="font-medium">Client ID</span> e o <span className="font-medium">Client Secret</span> da aplicação e cole abaixo.</li>
+                  </ol>
+                  <p className="mt-2">Os bancos em si você conecta depois, no meu.pluggy.ai. O próximo passo mostra como.</p>
+                </div>
+              )}
               <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/20 p-3">
                 <KeyRound className="mt-0.5 h-4 w-4 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">
