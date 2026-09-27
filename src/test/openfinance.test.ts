@@ -6,6 +6,8 @@ import {
   normalizePluggyStatus,
   canPullHistory,
   OFB_HISTORY_CALLS_LIMIT,
+  parseItemIds,
+  MEUPLUGGY_CONNECTOR_ID,
 } from "@/lib/openfinance";
 
 describe("mapPluggyTransaction", () => {
@@ -80,5 +82,35 @@ describe("canPullHistory (limite OFB)", () => {
     expect(canPullHistory(7)).toBe(true);
     expect(canPullHistory(8)).toBe(false);
     expect(canPullHistory(20)).toBe(false);
+  });
+});
+
+describe("parseItemIds", () => {
+  const a = "0b7a3c1e-9d2f-4a6b-8c1d-2e3f4a5b6c7d";
+  const b = "11111111-2222-4333-8444-555555555555";
+
+  it("aceita vírgula, espaço e quebra de linha", () => {
+    expect(parseItemIds(`${a}, ${b}`)).toEqual([a, b]);
+    expect(parseItemIds(`${a}\n${b}`)).toEqual([a, b]);
+    expect(parseItemIds(`  ${a}   ${b}  `)).toEqual([a, b]);
+  });
+
+  it("remove repetição e normaliza para minúsculas", () => {
+    expect(parseItemIds(`${a.toUpperCase()}, ${a}`)).toEqual([a]);
+  });
+
+  it("acha o id no meio de texto copiado do dashboard", () => {
+    expect(parseItemIds(`Item ID: ${a} (MeuPluggy)`)).toEqual([a]);
+  });
+
+  it("texto sem UUID devolve lista vazia", () => {
+    expect(parseItemIds("123, abc")).toEqual([]);
+    expect(parseItemIds("")).toEqual([]);
+  });
+});
+
+describe("MEUPLUGGY_CONNECTOR_ID", () => {
+  it("é o conector 200 da Pluggy", () => {
+    expect(MEUPLUGGY_CONNECTOR_ID).toBe(200);
   });
 });

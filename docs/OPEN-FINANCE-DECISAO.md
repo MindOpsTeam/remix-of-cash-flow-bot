@@ -67,3 +67,23 @@ A integração Pluggy foi construída de ponta a ponta (provider-agnóstica, Bel
 
 ## Fontes
 pluggy.ai/pricing · pluggy.ai/open-finance · docs.pluggy.ai (OpenAPI oficial) · belvo.com/plans-and-pricing · developers.belvo.com (instituições PJ, limites de retrieval) · openfinancebrasil.org.br/onboarding · Res. Conjunta 1/2020 (Art. 36) · IN BCB 485/2024 (custeio) · TabNews (relatos de pricing Pluggy/Belvo/Tecnospeed) · portais dev BB/Sicoob/Santander/Itaú · Finsiders (BC regulamentando parcerias).
+
+## ✅ Modo gratuito: MeuPluggy (2026-09-26)
+
+Pesquisa de 26/09 (issue #37): não há agregador brasileiro barato com preço público; o
+atalho sem custo é o **MeuPluggy**, portal gratuito da própria Pluggy (meu.pluggy.ai,
+até 5 conexões por pessoa, sem SLA, dados atualizados 1x/dia).
+
+Como entrou no produto:
+- Wizard ganhou a 3.ª opção **"Conectar grátis (MeuPluggy)"**. O cliente usa a própria conta
+  grátis da Pluggy (aplicação de desenvolvimento com o conector MeuPluggy habilitado) e salva o
+  Client ID/Secret no cofre, como nos outros modos.
+- O widget abre filtrado no conector **200 (MeuPluggy, OAuth)**, conferido na API de conectores.
+  Um banco por autorização: repete para cada banco.
+- Plano B no mesmo passo: colar um ou vários **Item IDs** (dashboard → Ir para Demo → Copiar Item ID).
+- `openfinance-connect` `register` agora valida o formato e **confere o item na Pluggy antes de
+  gravar**: id errado ou de outra aplicação devolve 404 com mensagem clara, sem deixar conexão
+  fantasma "sincronizando".
+
+Risco assumido: é uso pessoal na visão da Pluggy e ela pode fechar a porta. Serve para piloto e
+primeiros clientes; o plano pago continua sendo Tecnospeed/Openi (cotação pendente na #37).

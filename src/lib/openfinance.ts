@@ -123,3 +123,24 @@ export const OFB_HISTORY_CALLS_LIMIT = 8;
 export function canPullHistory(callsThisMonth: number): boolean {
   return callsThisMonth < OFB_HISTORY_CALLS_LIMIT;
 }
+
+// ---------- MeuPluggy (modo gratuito) ----------
+
+/**
+ * Conector da Pluggy que faz a ponte OAuth com o meu.pluggy.ai, o portal
+ * gratuito onde a própria pessoa conecta os bancos dela (até 5 conexões).
+ * Conferido na API de conectores da Pluggy em 2026-09-26.
+ */
+export const MEUPLUGGY_CONNECTOR_ID = 200;
+
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+/**
+ * Extrai os Item IDs (UUID) de um texto colado: aceita vírgula, espaço, quebra
+ * de linha ou o texto inteiro copiado do dashboard. Devolve sem repetição, em
+ * minúsculas e na ordem em que apareceram.
+ */
+export function parseItemIds(texto: string): string[] {
+  const achados = (texto ?? "").match(UUID_RE) ?? [];
+  return [...new Set(achados.map((id) => id.toLowerCase()))];
+}

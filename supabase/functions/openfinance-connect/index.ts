@@ -3,14 +3,17 @@
  *
  * POST /openfinance-connect
  *   { action: "token", company_id }            → { accessToken } p/ o widget
- *   { action: "register", company_id, item_id } → cria bank_connection + sync inicial
+ *   { action: "register", company_id, item_id } → confere o item na Pluggy, cria bank_connection + sync inicial
+ *     (item_id vem do widget ou colado à mão no modo gratuito MeuPluggy)
  *   { action: "status" }                        → { configured: boolean }
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { authenticate, assertMembership, jsonResp } from "../_shared/auth.ts";
-import { pluggyAuth, createConnectToken, pluggyCredsForCompany } from "../_shared/pluggy.ts";
+import { pluggyAuth, createConnectToken, getItem, pluggyCredsForCompany } from "../_shared/pluggy.ts";
 import { syncPluggyConnection } from "../_shared/openfinance-sync.ts";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (req) => {
   const auth = await authenticate(req);
@@ -85,6 +88,31 @@ Deno.serve(async (req) => {
     if (action === "register") {
       const itemId = body.item_id as string | undefined;
       if (!itemId) return jsonResp({ error: "item_id é obrigatório" }, 400, corsHeaders);
+      if (!UUID_RE.test(itemId)) {
+        return jsonResp({ error: "ITEM_ID_INVALIDO", detail: "O Item ID é um código no formato 00000000-0000-0000-0000-000000000000." }, 400, corsHeaders);
+      }
+
+      // O Item ID pode vir colado à mão (modo MeuPluggy). Confere na Pluggy,
+      // com a credencial DESTA empresa, antes de gravar: um id errado ou de
+      // outra aplicação não pode virar uma conexão fantasma "sincronizando".
+      let apiKey: string;
+      try {
+        apiKey = await pluggyAuth(await pluggyCredsForCompany(service, companyId));
+      } catch (e) {
+        if (e instanceof Error && e.message === "PLUGGY_NOT_CONFIGURED") {
+          return jsonResp({ error: "PLUGGY_NOT_CONFIGURED" }, 503, corsHeaders);
+        }
+        throw e;
+      }
+      try {
+        await getItem(apiKey, itemId);
+      } catch {
+        return jsonResp(
+          { error: "ITEM_NAO_ENCONTRADO", detail: "A Pluggy não achou esse Item ID na aplicação cadastrada nesta empresa. Confira se copiou o id da mesma aplicação cujo Client ID está salvo aqui." },
+          404,
+          corsHeaders,
+        );
+      }
 
       // Cria/atualiza a conexão (idempotente pela unique company+provider+external)
       const { data: conn, error } = await service
